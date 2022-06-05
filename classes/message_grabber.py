@@ -3,23 +3,22 @@ import logging
 from datetime import datetime
 import time
 
-from database.message_grabbing import select_creator_id_db, insert_new_creator_db, insert_new_chatter_db, \
-    insert_message_db, insert_stream_db
-from utils.message_grabbing_utils import find_tagged_user_id
+from database.message_grabbing import select_creator_id_db, insert_new_creator_db, insert_stream_db
 from utils.twitch_api_utils import get_stream_info
 
 CLIENT_ID = "0f3ad54dd9ffmhwjoiulu39c3ql5f7"
 
 
 class MessageGrabber:
-    def __init__(self, channel: str):
+    def __init__(self, channel: str, stream_is_up_func):
         self.creator_id = None
         self.stream_id = None
         self.creator_name = channel
         self.channel = f"#{channel}"
-        self.known_chatters = {}
 
-        logging.basicConfig(filename=f"{channel}.log", format='%(asctime)s %(message)s', filemode='w')
+        self.message_handling_fun = None
+        self.stream_is_up_notify = stream_is_up_func
+
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.DEBUG)
 
@@ -46,23 +45,9 @@ class MessageGrabber:
 
         self.creator_id = creator_id
 
-    def handle_message(self, message):
-        nick = message.sender
-        text = message.text
-
-        if nick not in self.known_chatters:
-            chatter_id = insert_new_chatter_db(nick)
-            self.known_chatters[nick] = chatter_id
-            self.logger.info(f"Found new chatter {nick}.")
-
-        tagged_user_id = find_tagged_user_id(text, self.known_chatters)
-        insert_message_db(self.known_chatters[nick], tagged_user_id, self.stream_id, text)
-
-        print(f"{nick} - {text}")
-
     def start(self):
         while True:
-            stream_info = get_stream_info(self.channel)
+            stream_info = get_stream_info(self.creator_name)
             if stream_info:
                 self.logger.info("Stream is UP, collecting messages.")
                 break
@@ -71,5 +56,6 @@ class MessageGrabber:
 
         self.insert_creator()
         self.update_stream_info(stream_info[0])
+        self.stream_is_up_notify(self.stream_id)
 
-        twitch.Chat(channel=self.channel, nickname='HarekM', oauth=f'oauth:{CLIENT_ID}').subscribe(self.handle_message)
+        twitch.Chat(channel=self.channel, nickname='HarekM', oauth=f'oauth:{CLIENT_ID}').subscribe(self.message_handling_fun)
