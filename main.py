@@ -16,7 +16,7 @@ if __name__ == '__main__':
             logging.StreamHandler()
         ]
     )
-    message_handler = MessageHandler()
+    message_handler = MessageHandler(nickname)
     message_grabber = MessageGrabber(nickname, message_handler.update_stream_id)
     message_grabber.message_handling_fun = message_handler.handle_message
     message_grabber.start()
