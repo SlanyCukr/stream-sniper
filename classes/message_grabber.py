@@ -41,7 +41,7 @@ class MessageGrabber:
             if not new_creator_id:
                 self.logger.error(f"Can't create new creator with name {self.creator_name}. Exiting...")
                 exit(1)
-            self.creator_id = new_creator_id
+            creator_id = new_creator_id
 
         self.creator_id = creator_id
 
@@ -52,6 +52,7 @@ class MessageGrabber:
                 self.logger.info("Stream is UP, collecting messages.")
                 break
 
+            self.logger.info("Stream is NOT UP, waiting 10 seconds, then trying again.")
             time.sleep(10)
 
         self.insert_creator()
