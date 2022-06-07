@@ -40,17 +40,13 @@ def insert_new_chatter_db(nick, cursor, connection):
 
 
 @with_cursor_connection
-def insert_message_db(chatter_id, tagged_chatter_id, stream_id, message, cursor, connection):
-    try:
-        cursor.execute("INSERT INTO "
-                   "message "
-                   "(chatter_id, tagged_chatter_id, stream_id, message) "
-                   "VALUES "
-                   "(%s, %s, %s, %s)", (chatter_id, tagged_chatter_id, stream_id, message))
-        connection.commit()
-    except:
-        pass
-        # too long message :/
+def insert_message_db(chatter_id, tagged_chatter_id, stream_id, message, message_timestamp, cursor, connection):
+    cursor.execute("INSERT INTO "
+               "message "
+               "(chatter_id, tagged_chatter_id, stream_id, message, `time`) "
+               "VALUES "
+               "(%s, %s, %s, %s, %s)", (chatter_id, tagged_chatter_id, stream_id, message, message_timestamp))
+    connection.commit()
 
 
 @with_cursor_connection

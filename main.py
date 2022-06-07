@@ -1,9 +1,7 @@
 import sys
 import logging
 
-
-from classes.message_grabber import MessageGrabber
-from classes.message_handler import MessageHandler
+from classes.twitch_collector_facade import TwitchCollectorFacade
 
 if __name__ == '__main__':
     nickname = sys.argv[1]
@@ -16,7 +14,6 @@ if __name__ == '__main__':
             logging.StreamHandler()
         ]
     )
-    message_handler = MessageHandler(nickname)
-    message_grabber = MessageGrabber(nickname, message_handler.update_stream_id)
-    message_grabber.message_handling_fun = message_handler.handle_message
-    message_grabber.start()
+
+    twitch_collector_facade = TwitchCollectorFacade(nickname)
+    twitch_collector_facade.start_processing()
