@@ -49,15 +49,21 @@ class ChatProcessor:
         file.close()
 
     def process_file(self, chat_file_path, twitch_stream_id, started_at):
+        self.logger.debug(f"Processing file {chat_file_path}")
+
         self.chat_file_path = chat_file_path
         self.twitch_stream_id = twitch_stream_id
         self.started_at = started_at
 
+        self.logger.debug("Updating stream info.")
         self.update_stream_info()
+
+        self.logger.debug("Processing nicks.")
         self.process_file_nick_only()
 
         file = open(self.chat_file_path, "r")
 
+        self.logger.debug("Processing messages.")
         for line in tqdm(file.readlines()):
             split_line = line.split(' ')
             start_of_message_index = line.find('>') + 2

@@ -3,3 +3,4 @@ mariadb
 twitchAPI
 tqdm
 pytimeparse
+tcd

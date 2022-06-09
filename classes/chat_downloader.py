@@ -18,8 +18,13 @@ class ChatDownloader:
         currently_processed_video = self.available_video_ids.pop(0)
         online_stream_info = get_stream_info(self.nickname)
 
+        # get stream id from the online stream, or set it to -1
+        online_stream_info_id = -1
+        if online_stream_info:
+            online_stream_info_id = online_stream_info[0]['id']
+
         # available video is currently running as stream, we should wait for it to be complete
-        if currently_processed_video['stream_id'] == online_stream_info[0]['id']:
+        if currently_processed_video['stream_id'] == online_stream_info_id:
             logging.debug("Available video is currently running as stream, we should wait for it to be complete.")
             return None, None, None
         # available video was already processed - is in the database
