@@ -14,7 +14,7 @@ class ChatDownloader:
         while True:
             # no available videos
             if len(self.available_video_ids) == 0:
-                return None, None, None
+                return None, None, None, None, None
 
             currently_processed_video = self.available_video_ids.pop(0)
             online_stream_info = get_stream_info(self.nickname)
@@ -43,4 +43,6 @@ class ChatDownloader:
 
             logging.debug("Chat downloaded, moving on.")
 
-            return f"{video_id}.log", currently_processed_video['stream_id'], currently_processed_video['created_at']
+            return f"{video_id}.log", currently_processed_video['stream_id'],\
+                   currently_processed_video['created_at'], currently_processed_video['title'],\
+                   currently_processed_video['duration']

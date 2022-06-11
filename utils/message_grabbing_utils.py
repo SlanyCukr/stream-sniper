@@ -1,3 +1,9 @@
+from database.stream_table_gateway import insert_stream_db
+import logging
+
+from utils.utils import add_timedelta_to_point_in_time
+
+
 def find_tagged_user_id(message, known_chatters):
     """
     Finds tagged user id in known chatters. Not searching in `chatter` database for performance reasons.
@@ -20,3 +26,17 @@ def find_tagged_user_id(message, known_chatters):
 
     if nick in known_chatters:
         return known_chatters[nick]
+
+
+def update_stream_info(twitch_stream_id, started_at, creator_id, title, duration):
+    logging.debug("Updating stream info.")
+
+    stopped_at = add_timedelta_to_point_in_time(started_at, duration)
+
+    return insert_stream_db(
+        twitch_stream_id,
+        started_at,
+        creator_id,
+        title,
+        stopped_at,
+    )

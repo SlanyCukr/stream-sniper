@@ -6,6 +6,7 @@ from classes.message_handler import MessageHandler
 from database.creator_table_gateway import select_creator_id_db, insert_new_creator_db
 from classes.database_buffer import DatabaseBuffer
 from database.message_table_gateway import insert_message_db
+from utils.message_grabbing_utils import update_stream_info
 from utils.utils import twitch_datetime_str_to_datetime
 
 
@@ -13,32 +14,36 @@ class TwitchCollectorFacade:
     def __init__(self, nickname: str):
         self.nickname = nickname
 
-        self.insert_creator()
+        self.creator_id = -1
+        self.insert_creator_get_id()
 
         self.db_buffer = DatabaseBuffer(insert_message_db, 5000)
         self.message_handler = MessageHandler(nickname, self.db_buffer.add_item)
         self.chat_processor = ChatProcessor(
-            nickname, self.creator_id,
-            self.message_handler.handle_nick, self.message_handler.handle_message,
+            self.creator_id, self.message_handler.handle_nick,
+            self.message_handler.handle_message
         )
         self.chat_downloader = ChatDownloader(nickname)
 
-        self.creator_id = -1
-
     def start_processing(self):
         while True:
-            downloaded_chat_path, twitch_stream_id, started_at = self.chat_downloader.download_chat()
+            downloaded_chat_path, twitch_stream_id, started_at, title, duration = self.chat_downloader.download_chat()
+            started_at = twitch_datetime_str_to_datetime(started_at)
 
             # all videos have been processed
             if not downloaded_chat_path:
                 break
 
-            self.chat_processor.process_file(downloaded_chat_path, twitch_stream_id, twitch_datetime_str_to_datetime(started_at))
+            # transform stream data, insert it into database
+            stream_id = update_stream_info(twitch_stream_id, started_at, self.creator_id, title, duration)
+
+            # process the messages in downloaded file
+            self.chat_processor.process_file(downloaded_chat_path, started_at, stream_id)
 
         # send all hanging items in buffer to database
         self.db_buffer.call_db_function()
 
-    def insert_creator(self):
+    def insert_creator_get_id(self):
         creator_id = select_creator_id_db(self.nickname)
 
         # this creator isn't in the database yet

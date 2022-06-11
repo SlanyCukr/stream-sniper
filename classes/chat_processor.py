@@ -3,35 +3,21 @@ import os
 
 from tqdm import tqdm
 
-from database.stream_table_gateway import insert_stream_db
 from utils.utils import add_timedelta_to_point_in_time
 
 CLIENT_ID = "0f3ad54dd9ffmhwjoiulu39c3ql5f7"
 
 
 class ChatProcessor:
-    def __init__(self, channel: str, creator_id: int, nick_handling_fun, message_handling_fun):
+    def __init__(self, creator_id: int, nick_handling_fun, message_handling_fun):
         self.creator_id = creator_id
-        self.stream_id = None
-        self.creator_name = channel
-        self.channel = f"#{channel}"
         self.chat_file_path = ""
-        self.twitch_stream_id = ""
-        self.started_at = ""
 
         self.nick_handling_fun = nick_handling_fun
         self.message_handling_fun = message_handling_fun
 
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.DEBUG)
-
-    def update_stream_info(self):
-        stream_id = insert_stream_db(
-            self.twitch_stream_id,
-            self.started_at,
-            self.creator_id,
-        )
-        self.stream_id = stream_id
 
     def process_file_nick_only(self):
         """
@@ -48,15 +34,9 @@ class ChatProcessor:
 
         file.close()
 
-    def process_file(self, chat_file_path, twitch_stream_id, started_at):
+    def process_file(self, chat_file_path, started_at, stream_id):
         self.logger.debug(f"Processing file {chat_file_path}")
-
         self.chat_file_path = chat_file_path
-        self.twitch_stream_id = twitch_stream_id
-        self.started_at = started_at
-
-        self.logger.debug("Updating stream info.")
-        self.update_stream_info()
 
         self.logger.debug("Processing nicks.")
         self.process_file_nick_only()
@@ -75,7 +55,7 @@ class ChatProcessor:
 
             message_time = add_timedelta_to_point_in_time(started_at, time_str)
 
-            self.message_handling_fun(message_time, chatter_nick, message, self.stream_id)
+            self.message_handling_fun(message_time, chatter_nick, message, stream_id)
 
         file.close()
         os.remove(chat_file_path)
