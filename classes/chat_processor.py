@@ -3,7 +3,7 @@ import os
 
 from tqdm import tqdm
 
-from database.message_grabbing import insert_stream_db
+from database.stream_table_gateway import insert_stream_db
 from utils.utils import add_timedelta_to_point_in_time
 
 CLIENT_ID = "0f3ad54dd9ffmhwjoiulu39c3ql5f7"

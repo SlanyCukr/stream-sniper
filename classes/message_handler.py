@@ -1,12 +1,13 @@
 import logging
 
-from database.message_grabbing import insert_new_chatter_db, insert_message_db
+from database.chatter_table_gateway import insert_new_chatter_db
 from utils.message_grabbing_utils import find_tagged_user_id
 
 
 class MessageHandler:
-    def __init__(self, creator_nick: str):
+    def __init__(self, creator_nick: str, insert_message_fun):
         self.known_chatters = {}
+        self.insert_message_fun = insert_message_fun
 
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.DEBUG)
@@ -22,4 +23,4 @@ class MessageHandler:
 
     def handle_message(self, message_timestamp, chatter_nick, message, stream_id):
         tagged_user_id = find_tagged_user_id(message, self.known_chatters)
-        insert_message_db(self.known_chatters[chatter_nick], tagged_user_id, stream_id, message, message_timestamp)
+        self.insert_message_fun((self.known_chatters[chatter_nick], tagged_user_id, stream_id, message, message_timestamp))

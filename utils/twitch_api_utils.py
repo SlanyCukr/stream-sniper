@@ -1,7 +1,7 @@
 from twitchAPI import VideoType
 from twitchAPI.twitch import Twitch
 
-from database.stream_table_module import select_last_twitch_stream_id_db
+from database.stream_table_gateway import select_last_twitch_stream_id_db
 
 TWITCH_OBJECT = Twitch('wsasht7hzjpd39lzbdkubk6mn5xzjh', 'cmfky1zvm9rb8dh8jz4ibueuztg7e6')
 

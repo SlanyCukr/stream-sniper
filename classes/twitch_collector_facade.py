@@ -3,7 +3,9 @@ import logging
 from classes.chat_downloader import ChatDownloader
 from classes.chat_processor import ChatProcessor
 from classes.message_handler import MessageHandler
-from database.message_grabbing import select_creator_id_db, insert_new_creator_db
+from database.creator_table_gateway import select_creator_id_db, insert_new_creator_db
+from classes.database_buffer import DatabaseBuffer
+from database.message_table_gateway import insert_message_db
 from utils.utils import twitch_datetime_str_to_datetime
 
 
@@ -13,27 +15,28 @@ class TwitchCollectorFacade:
 
         self.insert_creator()
 
-        self.message_handler = MessageHandler(nickname)
+        self.db_buffer = DatabaseBuffer(insert_message_db, 5000)
+        self.message_handler = MessageHandler(nickname, self.db_buffer.add_item)
         self.chat_processor = ChatProcessor(
             nickname, self.creator_id,
             self.message_handler.handle_nick, self.message_handler.handle_message,
         )
         self.chat_downloader = ChatDownloader(nickname)
+
         self.creator_id = -1
 
     def start_processing(self):
         while True:
-            try:
-                downloaded_chat_path, twitch_stream_id, started_at = self.chat_downloader.download_chat()
-            except:
-                # we are out of videos
+            downloaded_chat_path, twitch_stream_id, started_at = self.chat_downloader.download_chat()
+
+            # all videos have been processed
+            if not downloaded_chat_path:
                 break
 
-            # current video can't be processed
-            if not downloaded_chat_path:
-                continue
-
             self.chat_processor.process_file(downloaded_chat_path, twitch_stream_id, twitch_datetime_str_to_datetime(started_at))
+
+        # send all hanging items in buffer to database
+        self.db_buffer.call_db_function()
 
     def insert_creator(self):
         creator_id = select_creator_id_db(self.nickname)

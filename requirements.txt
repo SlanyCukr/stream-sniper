@@ -4,3 +4,5 @@ twitchAPI
 tqdm
 pytimeparse
 tcd
+fastapi
+uvicorn

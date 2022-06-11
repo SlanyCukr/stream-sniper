@@ -1,6 +1,3 @@
-from database.message_grabbing import insert_new_chatter_db
-
-
 def find_tagged_user_id(message, known_chatters):
     """
     Finds tagged user id in known chatters. Not searching in `chatter` database for performance reasons.

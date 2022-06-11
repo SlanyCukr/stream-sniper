@@ -8,6 +8,10 @@ class DatabaseBuffer:
         self.items = []
 
     def call_db_function(self):
+        # don't continue, if there are no items to be inserted
+        if not self.items:
+            return
+
         connection = mariadb.connect(
             user="root",
             password="606361611Aa.",
