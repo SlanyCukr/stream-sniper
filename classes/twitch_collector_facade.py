@@ -29,11 +29,12 @@ class TwitchCollectorFacade:
     def start_processing(self):
         while True:
             downloaded_chat_path, twitch_stream_id, started_at, title, duration = self.chat_downloader.download_chat()
-            started_at = twitch_datetime_str_to_datetime(started_at)
 
             # all videos have been processed
             if not downloaded_chat_path:
                 break
+
+            started_at = twitch_datetime_str_to_datetime(started_at)
 
             # transform stream data, insert it into database
             stream_id = update_stream_info(twitch_stream_id, started_at, self.creator_id, title, duration)
