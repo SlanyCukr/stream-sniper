@@ -17,8 +17,11 @@ def select_creator_id_db(nick, cursor):
 
 
 @with_cursor_connection
-def insert_new_creator_db(nick, cursor, connection):
-    cursor.execute("INSERT INTO creator (nick) VALUES (%s)", (nick,))
+def insert_new_creator_db(nick, display_name, profile_image_url, cursor, connection):
+    cursor.execute("INSERT INTO creator "
+                   "(nick, display_name, profile_image_url) "
+                   "VALUES "
+                   "(%s, %s, %s)", (nick, display_name, profile_image_url))
     connection.commit()
 
     if cursor.rowcount != 0:

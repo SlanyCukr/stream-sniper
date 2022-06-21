@@ -17,6 +17,12 @@ def get_creator_twitch_id(nick):
     return response['data'][0]['id']
 
 
+def get_creator_info(nick) -> tuple:
+    response = TWITCH_OBJECT.get_users(logins=[nick])
+    streamer_info = response['data'][0]
+    return streamer_info['display_name'], streamer_info['profile_image_url']
+
+
 def find_available_video_ids(nickname: str) -> []:
     twitch_user_id = get_creator_twitch_id(nickname)
     videos = TWITCH_OBJECT.get_videos(user_id=twitch_user_id, video_type=VideoType.ARCHIVE)['data']

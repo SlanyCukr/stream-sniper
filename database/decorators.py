@@ -1,12 +1,16 @@
+import os
 import mariadb
+
+PASSWORD = os.environ['PASS']
+HOST = os.environ['HOST']
 
 
 def with_cursor_connection(f):
     def wrapper(*args):
         connection = mariadb.connect(
-            user="root",
-            password="606361611Aa.",
-            host="localhost",
+            user="stream_sniper",
+            password=PASSWORD,
+            host=HOST,
             port=3306,
             database="stream_sniper"
         )
@@ -23,9 +27,9 @@ def with_cursor_connection(f):
 def with_cursor(f):
     def wrapper(*args):
         connection = mariadb.connect(
-            user="root",
-            password="606361611Aa.",
-            host="localhost",
+            user="stream_sniper",
+            password=PASSWORD,
+            host=HOST,
             port=3306,
             database="stream_sniper"
         )

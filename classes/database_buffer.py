@@ -1,4 +1,8 @@
+import os
 import mariadb
+
+PASSWORD = os.environ['PASS']
+HOST = os.environ['HOST']
 
 
 class DatabaseBuffer:
@@ -13,9 +17,9 @@ class DatabaseBuffer:
             return
 
         connection = mariadb.connect(
-            user="root",
-            password="606361611Aa.",
-            host="localhost",
+            user="stream_sniper",
+            password=PASSWORD,
+            host=HOST,
             port=3306,
             database="stream_sniper"
         )

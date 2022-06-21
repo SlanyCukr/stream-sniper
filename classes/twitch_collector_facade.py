@@ -7,6 +7,7 @@ from database.creator_table_gateway import select_creator_id_db, insert_new_crea
 from classes.database_buffer import DatabaseBuffer
 from database.message_table_gateway import insert_message_db
 from utils.message_grabbing_utils import update_stream_info
+from utils.twitch_api_utils import get_creator_info
 from utils.utils import twitch_datetime_str_to_datetime
 
 
@@ -50,7 +51,8 @@ class TwitchCollectorFacade:
         if not creator_id:
             logging.debug("Creator is not in database yet. Creating...")
 
-            new_creator_id = insert_new_creator_db(self.nickname)
+            display_name, profile_image_url = get_creator_info(self.nickname)
+            new_creator_id = insert_new_creator_db(self.nickname, display_name, profile_image_url)
             if not new_creator_id:
                 logging.error(f"Can't create new creator with name {self.nickname}. Exiting...")
                 exit(1)
