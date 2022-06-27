@@ -1,11 +1,20 @@
 import uvicorn as uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from database.chatter_table_gateway import select_all_chatters_on_stream_db
 from database.message_table_gateway import select_chatter_messages_db, select_chatter_id_db
 from database.stream_table_gateway import select_all_streams_db
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/chatter/{chatter_id}/messages/")
