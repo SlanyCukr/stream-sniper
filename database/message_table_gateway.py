@@ -14,3 +14,9 @@ def insert_message_db(items: [tuple], cursor, connection):
                "VALUES "
                "(%s, %s, %s, %s, %s)", items)
     connection.commit()
+
+
+@with_cursor
+def select_chatter_id_db(nick, cursor):
+    cursor.execute("SELECT id FROM chatter WHERE nick = %s", (nick,))
+    return cursor.fetchone()

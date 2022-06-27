@@ -28,7 +28,7 @@ def find_tagged_user_id(message, known_chatters):
         return known_chatters[nick]
 
 
-def update_stream_info(twitch_stream_id, started_at, creator_id, title, duration):
+def update_stream_info(twitch_stream_id, started_at, creator_id, title, duration, thumbnail_url):
     logging.debug("Updating stream info.")
 
     stopped_at = add_timedelta_to_point_in_time(started_at, duration)
@@ -39,4 +39,5 @@ def update_stream_info(twitch_stream_id, started_at, creator_id, title, duration
         creator_id,
         title,
         stopped_at,
+        thumbnail_url,
     )

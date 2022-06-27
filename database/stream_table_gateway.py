@@ -43,12 +43,12 @@ def select_all_streams_db(cursor):
 
 
 @with_cursor_connection
-def insert_stream_db(stream_id, start, creator_id, title, stopped_at, cursor, connection):
+def insert_stream_db(stream_id, start, creator_id, title, stopped_at, thumbnail_url, cursor, connection):
     try:
         cursor.execute("INSERT INTO "
                        "stream "
-                       "(twitch_id, `start`, creator_id, title, `end`) "
-                       "VALUES (%s, %s, %s, %s, %s)", (stream_id, start, creator_id, title, stopped_at))
+                       "(twitch_id, `start`, creator_id, title, `end`, thumbnail_url) "
+                       "VALUES (%s, %s, %s, %s, %s, %s)", (stream_id, start, creator_id, title, stopped_at, thumbnail_url))
         connection.commit()
         cursor.execute("SELECT LAST_INSERT_ID()")
         return cursor.fetchone()[0]

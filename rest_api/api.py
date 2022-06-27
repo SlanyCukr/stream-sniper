@@ -2,7 +2,7 @@ import uvicorn as uvicorn
 from fastapi import FastAPI
 
 from database.chatter_table_gateway import select_all_chatters_on_stream_db
-from database.message_table_gateway import select_chatter_messages_db
+from database.message_table_gateway import select_chatter_messages_db, select_chatter_id_db
 from database.stream_table_gateway import select_all_streams_db
 
 app = FastAPI()
@@ -11,6 +11,11 @@ app = FastAPI()
 @app.get("/chatter/{chatter_id}/messages/")
 def get_chatter_messages(chatter_id: int):
     return select_chatter_messages_db(chatter_id)
+
+
+@app.get("/chatter/{nick}/chatter_id")
+def get_chatter_id(nick: str):
+    return select_chatter_id_db(nick)
 
 
 @app.get('/streams')
