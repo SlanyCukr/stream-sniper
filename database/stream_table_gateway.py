@@ -38,7 +38,9 @@ def select_stream_by_twitch_id_db(twitch_id, cursor):
 
 @with_cursor
 def select_all_streams_db(cursor):
-    cursor.execute("SELECT stream.id, start, display_name, thumbnail_url FROM stream JOIN creator ON stream.creator_id = creator.id")
+    cursor.execute("SELECT stream.id, display_name, start, `end`, thumbnail_url, message_count "
+                   "FROM stream "
+                   "JOIN creator ON stream.creator_id = creator.id")
     return cursor.fetchall()
 
 
