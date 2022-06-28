@@ -22,12 +22,13 @@ create table stream_sniper.stream
 (
     id            int auto_increment
         primary key,
-    twitch_id     bigint       not null,
-    title         varchar(255) not null,
-    start         datetime     not null,
-    end           datetime     null,
-    thumbnail_url varchar(255) null,
-    creator_id    int          null,
+    twitch_id     bigint        not null,
+    title         varchar(255)  not null,
+    start         datetime      not null,
+    end           datetime      null,
+    thumbnail_url varchar(255)  null,
+    message_count int default 0 not null,
+    creator_id    int           null,
     constraint stream__twitch_id_uindex
         unique (twitch_id),
     constraint stream__creator_id_fk
