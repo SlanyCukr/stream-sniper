@@ -44,6 +44,8 @@ class ChatProcessor:
         file = open(self.chat_file_path, "r")
 
         self.logger.debug("Processing messages.")
+
+        message_count = 0
         for line in tqdm(file.readlines()):
             split_line = line.split(' ')
             start_of_message_index = line.find('>') + 2
@@ -57,5 +59,9 @@ class ChatProcessor:
 
             self.message_handling_fun(message_time, chatter_nick, message, stream_id)
 
+            message_count += 1
+
         file.close()
         os.remove(chat_file_path)
+
+        return message_count

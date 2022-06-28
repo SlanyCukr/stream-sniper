@@ -56,3 +56,9 @@ def insert_stream_db(stream_id, start, creator_id, title, stopped_at, thumbnail_
         # stream is already in database, but that's ok, return its id
         cursor.execute("SELECT `id` FROM stream WHERE twitch_id = %s", (stream_id,))
         return cursor.fetchone()[0]
+
+
+@with_cursor_connection
+def update_stream_message_count_db(stream_id, message_count, cursor, connection):
+    cursor.execute("UPDATE stream SET message_count = %s WHERE id = %s", (message_count, stream_id))
+    connection.commit()

@@ -6,6 +6,7 @@ from classes.message_handler import MessageHandler
 from database.creator_table_gateway import select_creator_id_db, insert_new_creator_db
 from classes.database_buffer import DatabaseBuffer
 from database.message_table_gateway import insert_message_db
+from database.stream_table_gateway import update_stream_message_count_db
 from utils.message_grabbing_utils import update_stream_info
 from utils.twitch_api_utils import get_creator_info
 from utils.utils import twitch_datetime_str_to_datetime
@@ -41,7 +42,10 @@ class TwitchCollectorFacade:
             stream_id = update_stream_info(twitch_stream_id, started_at, self.creator_id, title, duration, thumbnail_url)
 
             # process the messages in downloaded file
-            self.chat_processor.process_file(downloaded_chat_path, started_at, stream_id)
+            num_of_messages = self.chat_processor.process_file(downloaded_chat_path, started_at, stream_id)
+
+            # add number of messages to stream
+            update_stream_message_count_db(stream_id, num_of_messages)
 
         # send all hanging items in buffer to database
         self.db_buffer.call_db_function()
