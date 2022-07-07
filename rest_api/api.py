@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database.chatter_table_gateway import select_all_chatters_on_stream_db
 from database.message_table_gateway import select_chatter_messages_db, select_chatter_id_db
-from database.stream_table_gateway import select_all_streams_db
+from database.stream_table_gateway import select_all_streams_db, select_stream_comprehensive_db
 
 app = FastAPI()
 
@@ -35,6 +35,11 @@ def get_streams():
 @app.get('/stream/{stream_id}/chatters')
 def get_stream_chatters(stream_id: int):
     return select_all_chatters_on_stream_db(stream_id)
+
+
+@app.get('/stream/{stream_id}/')
+def get_stream(stream_id: int):
+    return select_stream_comprehensive_db(stream_id)
 
 
 if __name__ == '__main__':

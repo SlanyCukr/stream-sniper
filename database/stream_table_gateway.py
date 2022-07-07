@@ -64,3 +64,13 @@ def insert_stream_db(stream_id, start, creator_id, title, stopped_at, thumbnail_
 def update_stream_message_count_db(stream_id, message_count, cursor, connection):
     cursor.execute("UPDATE stream SET message_count = %s WHERE id = %s", (message_count, stream_id))
     connection.commit()
+
+
+@with_cursor
+def select_stream_comprehensive_db(stream_id, cursor):
+    cursor.execute("SELECT "
+                   "title, `start`, `end`, thumbnail_url, message_count, nick, display_name, profile_image_url "
+                   "FROM stream "
+                   "JOIN creator ON stream.creator_id = creator.id "
+                   "AND stream.id = %s", (stream_id,))
+    return cursor.fetchone()
