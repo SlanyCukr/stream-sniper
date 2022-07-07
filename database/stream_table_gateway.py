@@ -114,3 +114,19 @@ def select_creators_that_wrote_in_stream_db(stream_id, creator_id, cursor):
     AND stream_id = %s
     """, (creator_id, stream_id))
     return cursor.fetchall()
+
+
+@with_cursor
+def select_chatters_in_stream_db(stream_id, cursor):
+    cursor.execute("""
+    SELECT DISTINCT(chatter_id), (SELECT nick FROM chatter WHERE chatter.id = chatter_id ) FROM message WHERE stream_id = %s
+    """, (stream_id,))
+    return cursor.fetchall()
+
+
+@with_cursor
+def select_chatter_messages_on_stream_db(stream_id, chatter_id, cursor):
+    cursor.execute("""
+    SELECT message FROM message WHERE stream_id = %s AND chatter_id = %s
+    """, (stream_id, chatter_id))
+    return cursor.fetchall()
