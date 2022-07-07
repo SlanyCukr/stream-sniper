@@ -4,7 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database.chatter_table_gateway import select_all_chatters_on_stream_db
 from database.message_table_gateway import select_chatter_messages_db, select_chatter_id_db
-from database.stream_table_gateway import select_all_streams_db, select_stream_comprehensive_db
+from database.stream_table_gateway import select_all_streams_db, select_stream_comprehensive_db, \
+    select_most_active_chatters_db, select_most_tagged_chatters_db, select_creators_that_wrote_in_stream_db
 
 app = FastAPI()
 
@@ -39,7 +40,17 @@ def get_stream_chatters(stream_id: int):
 
 @app.get('/stream/{stream_id}/')
 def get_stream(stream_id: int):
-    return select_stream_comprehensive_db(stream_id)
+    comprehensive_stream_info = select_stream_comprehensive_db(stream_id)
+    most_active_chatters = select_most_active_chatters_db(stream_id)
+    most_tagged_chatters = select_most_tagged_chatters_db(stream_id)
+    other_creators_that_wrote = select_creators_that_wrote_in_stream_db(stream_id, comprehensive_stream_info[8])
+
+    return {
+        "csi": comprehensive_stream_info,
+        "mac": most_active_chatters,
+        "mtc": most_tagged_chatters,
+        "octw": other_creators_that_wrote,
+    }
 
 
 if __name__ == '__main__':

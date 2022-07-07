@@ -69,8 +69,48 @@ def update_stream_message_count_db(stream_id, message_count, cursor, connection)
 @with_cursor
 def select_stream_comprehensive_db(stream_id, cursor):
     cursor.execute("SELECT "
-                   "title, `start`, `end`, thumbnail_url, message_count, nick, display_name, profile_image_url "
+                   "title, `start`, `end`, thumbnail_url, message_count, nick, display_name, profile_image_url, creator_id "
                    "FROM stream "
                    "JOIN creator ON stream.creator_id = creator.id "
                    "AND stream.id = %s", (stream_id,))
     return cursor.fetchone()
+
+
+@with_cursor
+def select_most_active_chatters_db(stream_id, cursor):
+    cursor.execute("""
+    SELECT chatter_id, (SELECT nick FROM chatter WHERE chatter.id = message.chatter_id), COUNT(chatter_id) AS message_count
+     FROM message 
+     WHERE stream_id = %s 
+     GROUP BY chatter_id 
+     ORDER BY message_count DESC 
+     LIMIT 3
+    """, (stream_id,))
+    return cursor.fetchall()
+
+
+@with_cursor
+def select_most_tagged_chatters_db(stream_id, cursor):
+    cursor.execute("""
+    SELECT tagged_chatter_id, (SELECT nick FROM chatter WHERE chatter.id = tagged_chatter_id), COUNT(tagged_chatter_id) AS tag_count
+     FROM message 
+     WHERE 
+     stream_id = %s 
+     GROUP BY tagged_chatter_id 
+     HAVING tagged_chatter_id IS NOT NULL 
+     ORDER BY tag_count DESC 
+     LIMIT 3
+    """, (stream_id,))
+    return cursor.fetchall()
+
+
+@with_cursor
+def select_creators_that_wrote_in_stream_db(stream_id, creator_id, cursor):
+    cursor.execute("""
+    SELECT DISTINCT(chatter_id), (SELECT nick FROM chatter WHERE chatter_id = chatter.id) AS nick 
+    FROM message 
+    WHERE 
+    chatter_id IN (SELECT chatter.id FROM chatter WHERE nick IN (SELECT nick FROM creator WHERE creator.id != %s))
+    AND stream_id = %s
+    """, (creator_id, stream_id))
+    return cursor.fetchall()
