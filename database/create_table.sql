@@ -42,11 +42,20 @@ create table stream_sniper.message
     chatter_id        int                                  null,
     tagged_chatter_id int                                  null,
     stream_id         int                                  null,
-    message           varchar(255)                         not null,
+    message_text_id   bigint                               not null,
     time              datetime default current_timestamp() null,
     constraint message_chatter_id_fk
         foreign key (chatter_id) references stream_sniper.chatter (id),
     constraint message_stream_id_fk
-        foreign key (stream_id) references stream_sniper.stream (id)
+        foreign key (stream_id) references stream_sniper.stream (id),
+    constraint message_text_id_fk
+        foreign key (message_text_id) references stream_sniper.message_text (id)
+);
+
+create table stream_sniper.message_text
+(
+    id   bigint auto_increment
+        primary key,
+    text varchar(255) not null
 );
 
