@@ -9,10 +9,10 @@ def select_chatter_messages_db(chatter_id, cursor):
 
 def insert_message_db(items: [tuple], cursor, connection):
     cursor.executemany("INSERT INTO "
-               "message "
-               "(chatter_id, tagged_chatter_id, stream_id, message, `time`) "
-               "VALUES "
-               "(%s, %s, %s, %s, %s)", items)
+                       "message "
+                       "(chatter_id, tagged_chatter_id, stream_id, message_text_id, `time`) "
+                       "VALUES "
+                       "(%s, %s, %s, %s, %s)", items)
     connection.commit()
 
 
