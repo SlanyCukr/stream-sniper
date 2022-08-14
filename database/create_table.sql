@@ -56,6 +56,8 @@ create table stream_sniper.message_text
 (
     id   bigint auto_increment
         primary key,
-    text varchar(255) not null
+    text varchar(255) not null,
+    constraint text_uq
+        unique (text)
 );
 
