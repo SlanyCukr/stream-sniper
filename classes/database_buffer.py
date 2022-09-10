@@ -1,4 +1,6 @@
 import os
+from typing import Callable
+
 import mariadb
 
 USER = os.environ['USER']
@@ -8,7 +10,7 @@ DATABASE = os.environ['DATABASE']
 
 
 class DatabaseBuffer:
-    def __init__(self, f, buffer_len=7500):
+    def __init__(self, f: Callable, buffer_len: int = 7500):
         self.f = f
         self.buffer_len = buffer_len
         self.items = []
@@ -34,11 +36,8 @@ class DatabaseBuffer:
         cursor.close()
         connection.close()
 
-    def add_item(self, item):
+    def add_item(self, item: tuple):
         self.items.append(item)
 
         if len(self.items) >= self.buffer_len:
             self.call_db_function()
-
-    def delete_item(self, item):
-        self.items.remove(item)

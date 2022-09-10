@@ -1,10 +1,13 @@
+import typing
+from datetime import datetime
+
 from database.stream_table_gateway import insert_stream_db
 import logging
 
 from utils.utils import add_timedelta_to_point_in_time
 
 
-def find_tagged_user_id(message, known_chatters):
+def find_tagged_user_id(message: str, known_chatters: dict) -> typing.Optional[int]:
     """
     Finds tagged user id in known chatters. Not searching in `chatter` database for performance reasons.
     Only searching for one user, I don't care if there are more tagged.
@@ -28,7 +31,7 @@ def find_tagged_user_id(message, known_chatters):
         return known_chatters[nick]
 
 
-def update_stream_info(twitch_stream_id, started_at, creator_id, title, duration, thumbnail_url):
+def update_stream_info(twitch_stream_id: int, started_at: datetime, creator_id: int, title: str, duration: str, thumbnail_url: str):
     logging.debug("Updating stream info.")
 
     stopped_at = add_timedelta_to_point_in_time(started_at, duration)

@@ -1,5 +1,7 @@
 import logging
 import os
+from datetime import datetime
+from typing import Callable
 
 from tqdm import tqdm
 
@@ -9,7 +11,7 @@ CLIENT_ID = "0f3ad54dd9ffmhwjoiulu39c3ql5f7"
 
 
 class ChatProcessor:
-    def __init__(self, creator_id: int, nick_handling_fun, message_handling_fun):
+    def __init__(self, creator_id: int, nick_handling_fun: Callable, message_handling_fun: Callable):
         self.creator_id = creator_id
         self.chat_file_path = ""
 
@@ -34,7 +36,7 @@ class ChatProcessor:
 
         file.close()
 
-    def process_file(self, chat_file_path, started_at, stream_id):
+    def process_file(self, chat_file_path: str, started_at: datetime, stream_id: int) -> int:
         self.logger.debug(f"Processing file {chat_file_path}")
         self.chat_file_path = chat_file_path
 

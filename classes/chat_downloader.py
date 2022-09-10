@@ -1,16 +1,18 @@
 import logging
 import subprocess
+from datetime import datetime
+from typing import Tuple, Optional
 
 from database.stream_table_gateway import select_stream_by_twitch_id_db
 from utils.twitch_api_utils import get_stream_info, find_available_video_ids
 
 
 class ChatDownloader:
-    def __init__(self, nickname):
+    def __init__(self, nickname: str):
         self.nickname = nickname
         self.available_video_ids = find_available_video_ids(nickname)
 
-    def download_chat(self) -> tuple:
+    def download_chat(self) -> Tuple[Optional[str], Optional[int], Optional[datetime], Optional[str], Optional[str], Optional[str]]:
         while True:
             # no available videos
             if len(self.available_video_ids) == 0:

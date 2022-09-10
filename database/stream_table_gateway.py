@@ -127,6 +127,6 @@ def select_chatters_in_stream_db(stream_id, cursor):
 @with_cursor
 def select_chatter_messages_on_stream_db(stream_id, chatter_id, cursor):
     cursor.execute("""
-    SELECT message FROM message WHERE stream_id = %s AND chatter_id = %s
+    SELECT (SELECT text FROM message_text WHERE id = message.message_text_id) FROM message WHERE stream_id = %s AND chatter_id = %s
     """, (stream_id, chatter_id))
     return cursor.fetchall()

@@ -28,19 +28,3 @@ def find_available_video_ids(nickname: str) -> []:
     videos = TWITCH_OBJECT.get_videos(user_id=twitch_user_id, video_type=VideoType.ARCHIVE)['data']
 
     return videos
-
-
-def find_suitable_video_id(nickname: str) -> int:
-    twitch_user_id = get_creator_twitch_id(nickname)
-    videos = TWITCH_OBJECT.get_videos(user_id=twitch_user_id, video_type=VideoType.ARCHIVE)
-
-    # selects last processed stream
-    last_stream_id = select_last_twitch_stream_id_db(nickname)
-
-    # just use first video_id, if it isn't already processed
-    processed_video = videos['data'][0]
-    """ if last_stream_id:
-        processed_video = list(filter(lambda x:
-                                      twitch_datetime_str_to_datetime(x['created_at']) > last_stream_start and
-                                      int(x['stream_id']) != last_stream_id
-                                      , videos['data'])"""
