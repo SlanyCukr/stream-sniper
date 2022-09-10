@@ -3,10 +3,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database.chatter_table_gateway import select_all_chatters_on_stream_db
+from database.creator_table_gateway import select_creators_db
 from database.message_table_gateway import select_chatter_messages_db, select_chatter_id_db
 from database.stream_table_gateway import select_all_streams_db, select_stream_comprehensive_db, \
     select_most_active_chatters_db, select_most_tagged_chatters_db, select_creators_that_wrote_in_stream_db, \
-    select_chatters_in_stream_db, select_chatter_messages_on_stream_db
+    select_chatters_in_stream_db, select_chatter_messages_on_stream_db, select_all_stream_count_db
 
 app = FastAPI()
 
@@ -29,9 +30,12 @@ def get_chatter_id(nick: str):
     return select_chatter_id_db(nick)
 
 
-@app.get('/streams')
-def get_streams():
-    return select_all_streams_db()
+@app.get('/streams/')
+def get_streams(creator_id: int, offset: int):
+    streams = select_all_streams_db(creator_id, offset)
+    max_offset = select_all_stream_count_db(creator_id)
+
+    return {"streams": streams, "max_offset": max_offset}
 
 
 @app.get('/stream/{stream_id}/chatters')
@@ -59,6 +63,11 @@ def get_stream(stream_id: int):
 @app.get('/stream/{stream_id}/chatter/{chatter_id}/messages')
 def get_chatter_messages_on_stream(stream_id: int, chatter_id: int):
     return select_chatter_messages_on_stream_db(stream_id, chatter_id)
+
+
+@app.get('/creators')
+def get_creators():
+    return select_creators_db()
 
 
 if __name__ == '__main__':

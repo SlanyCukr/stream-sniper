@@ -28,3 +28,9 @@ def insert_new_creator_db(nick, display_name, profile_image_url, cursor, connect
         cursor.execute("SELECT LAST_INSERT_ID()")
         return cursor.fetchone()[0]
     return None
+
+
+@with_cursor
+def select_creators_db(cursor):
+    cursor.execute("SELECT id, display_name FROM creator")
+    return cursor.fetchall()

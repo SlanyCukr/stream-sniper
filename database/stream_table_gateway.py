@@ -37,11 +37,27 @@ def select_stream_by_twitch_id_db(twitch_id, cursor):
 
 
 @with_cursor
-def select_all_streams_db(cursor):
-    cursor.execute("SELECT stream.id, display_name, start, `end`, thumbnail_url, message_count "
-                   "FROM stream "
-                   "JOIN creator ON stream.creator_id = creator.id")
+def select_all_streams_db(creator_id, offset, cursor):
+    if creator_id == -1:
+        cursor.execute("""
+            SELECT stream.id, display_name, start, `end`, thumbnail_url, message_count 
+            FROM stream 
+            JOIN creator ON stream.creator_id = creator.id LIMIT 20 OFFSET %s""", (offset,))
+    else:
+        cursor.execute("""SELECT stream.id, display_name, start, `end`, thumbnail_url, message_count 
+                               FROM stream
+                               JOIN creator ON stream.creator_id = creator.id
+                               WHERE stream.creator_id = %s LIMIT 20 OFFSET %s""", (creator_id, offset))
     return cursor.fetchall()
+
+
+@with_cursor
+def select_all_stream_count_db(creator_id, cursor):
+    if creator_id == -1:
+        cursor.execute("SELECT COUNT(*) FROM stream")
+    else:
+        cursor.execute("SELECT COUNT(*) FROM stream WHERE creator_id = %s", (creator_id,))
+    return cursor.fetchone()[0]
 
 
 @with_cursor_connection
