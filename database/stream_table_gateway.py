@@ -42,12 +42,12 @@ def select_all_streams_db(creator_id, offset, cursor):
         cursor.execute("""
             SELECT stream.id, display_name, start, `end`, thumbnail_url, message_count 
             FROM stream 
-            JOIN creator ON stream.creator_id = creator.id LIMIT 20 OFFSET %s""", (offset,))
+            JOIN creator ON stream.creator_id = creator.id ORDER BY start DESC LIMIT 20 OFFSET %s""", (offset,))
     else:
         cursor.execute("""SELECT stream.id, display_name, start, `end`, thumbnail_url, message_count 
                                FROM stream
                                JOIN creator ON stream.creator_id = creator.id
-                               WHERE stream.creator_id = %s LIMIT 20 OFFSET %s""", (creator_id, offset))
+                               WHERE stream.creator_id = %s ORDER BY start DESC LIMIT 20 OFFSET %s""", (creator_id, offset))
     return cursor.fetchall()
 
 
