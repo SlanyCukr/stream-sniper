@@ -1,4 +1,4 @@
-from twitchAPI import VideoType
+from twitchAPI.type import VideoType
 from twitchAPI.twitch import Twitch
 
 from database.stream_table_gateway import select_last_twitch_stream_id_db
@@ -20,6 +20,7 @@ def get_creator_twitch_id(nick):
 def get_creator_info(nick) -> tuple:
     response = TWITCH_OBJECT.get_users(logins=[nick])
     streamer_info = response['data'][0]
+
     return streamer_info['display_name'], streamer_info['profile_image_url']
 
 
