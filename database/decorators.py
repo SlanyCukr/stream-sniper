@@ -1,20 +1,21 @@
 import os
-import mariadb
+import psycopg2
 
 USER = os.environ['USER']
-PASSWORD = os.environ['PASS']
+PASSWORD = os.environ['PASSWORD']
 HOST = os.environ['HOST']
 DATABASE = os.environ['DATABASE']
 
 
 def with_cursor_connection(f):
     def wrapper(*args):
-        connection = mariadb.connect(
+        connection = psycopg2.connect(
             user=USER,
             password=PASSWORD,
             host=HOST,
-            port=3306,
-            database=DATABASE
+            port=5432,
+            database=DATABASE,
+            options='-c search_path=stream_sniper'
         )
         cursor = connection.cursor()
 
@@ -28,12 +29,13 @@ def with_cursor_connection(f):
 
 def with_cursor(f):
     def wrapper(*args):
-        connection = mariadb.connect(
+        connection = psycopg2.connect(
             user=USER,
             password=PASSWORD,
             host=HOST,
-            port=3306,
-            database=DATABASE
+            port=5432,
+            database=DATABASE,
+            options='-c search_path=stream_sniper'
         )
         cursor = connection.cursor()
 

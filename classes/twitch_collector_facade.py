@@ -29,8 +29,7 @@ class TwitchCollectorFacade:
 
     def start_processing(self):
         while True:
-            downloaded_chat_path, twitch_stream_id, started_at, title,\
-            duration, thumbnail_url = self.chat_downloader.download_chat()
+            downloaded_chat_path, twitch_stream_id, started_at, title, duration, thumbnail_url = self.chat_downloader.download_chat()
 
             # all videos have been processed
             if not downloaded_chat_path:

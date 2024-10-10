@@ -1,8 +1,8 @@
-twitch-python
-mariadb
-twitchAPI
-tqdm
-pytimeparse
-tcd
-fastapi
-uvicorn
+twitch-python~=0.0.20
+psycopg2-binary~=2.9.9
+twitchAPI~=4.2.1
+tqdm~=4.66.5
+pytimeparse~=1.1.8
+tcd~=3.2.2
+fastapi~=0.112.0
+uvicorn~=0.30.5

@@ -2,12 +2,18 @@ from database.decorators import with_cursor, with_cursor_connection
 
 
 @with_cursor
-def select_all_chatters_on_stream_db(stream_id, cursor):
-    cursor.execute("SELECT id, nick "
-                   "FROM "
-                   "chatter "
-                   "WHERE id IN "
-                   "(SELECT chatter_id FROM message WHERE stream_id = %s)", (stream_id,))
+def select_all_chatters_on_stream_db(stream_id: int, cursor):
+    sql = f"""
+    SELECT
+        id,
+        nick
+    FROM
+        chatter
+    WHERE id IN
+        (SELECT chatter_id FROM message WHERE stream_id = {stream_id})
+    """
+
+    cursor.execute(sql, (stream_id,))
     return cursor.fetchall()
 
 

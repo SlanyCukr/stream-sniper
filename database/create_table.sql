@@ -1,7 +1,6 @@
 create table stream_sniper.chatter
 (
-    id   int auto_increment
-        primary key,
+    id   serial       primary key,
     nick varchar(255) not null,
     constraint chatter_name_uindex
         unique (nick)
@@ -9,8 +8,7 @@ create table stream_sniper.chatter
 
 create table stream_sniper.creator
 (
-    id                int auto_increment
-        primary key,
+    id                serial        primary key,
     nick              varchar(255) not null,
     display_name      varchar(255) not null,
     profile_image_url varchar(255) not null,
@@ -20,12 +18,11 @@ create table stream_sniper.creator
 
 create table stream_sniper.stream
 (
-    id            int auto_increment
-        primary key,
+    id            serial        primary key,
     twitch_id     bigint        not null,
     title         varchar(255)  not null,
-    start         datetime      not null,
-    end           datetime      null,
+    start         timestamp      not null,
+    end           timestamp      null,
     thumbnail_url varchar(255)  null,
     message_count int default 0 not null,
     creator_id    int           null,
@@ -37,13 +34,12 @@ create table stream_sniper.stream
 
 create table stream_sniper.message
 (
-    id                int auto_increment
-        primary key,
+    id                serial primary key,
     chatter_id        int                                  null,
     tagged_chatter_id int                                  null,
     stream_id         int                                  null,
     message_text_id   bigint                               not null,
-    time              datetime default current_timestamp() null,
+    time              timestamp default current_timestamp null,
     constraint message_chatter_id_fk
         foreign key (chatter_id) references stream_sniper.chatter (id),
     constraint message_stream_id_fk
@@ -54,8 +50,7 @@ create table stream_sniper.message
 
 create table stream_sniper.message_text
 (
-    id   bigint auto_increment
-        primary key,
+    id   serial primary key,
     text varchar(255) not null,
     constraint text_uq
         unique (text)
