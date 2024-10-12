@@ -1,69 +1,57 @@
 import logging
-import os
-from datetime import datetime
-from typing import Callable
+from datetime import datetime, UTC
+from typing import Callable, List
 
 from tqdm import tqdm
 
-from utils.utils import add_timedelta_to_point_in_time
-
-CLIENT_ID = "0f3ad54dd9ffmhwjoiulu39c3ql5f7"
-
 
 class ChatProcessor:
-    def __init__(self, creator_id: int, nick_handling_fun: Callable, message_handling_fun: Callable):
+    def __init__(self, creator_id: int, message_handling_fun: Callable):
         self.creator_id = creator_id
-        self.chat_file_path = ""
 
-        self.nick_handling_fun = nick_handling_fun
         self.message_handling_fun = message_handling_fun
 
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.DEBUG)
 
-    def process_file_nick_only(self):
-        """
-        Is used to populate dictionary with nicks and their IDs in MessageHandler.
+    def get_nicks(self, chat: List[str]):
+        """¨
         :return:
         """
-        file = open(self.chat_file_path, "r")
-
-        for line in tqdm(file.readlines()):
-            split_line = line.split(' ')
-            chatter_nick = split_line[1][2:-1]
-
-            self.nick_handling_fun(chatter_nick)
-
-        file.close()
-
-    def process_file(self, chat_file_path: str, started_at: datetime, stream_id: int) -> int:
-        self.logger.debug(f"Processing file {chat_file_path}")
-        self.chat_file_path = chat_file_path
-
         self.logger.debug("Processing nicks.")
-        self.process_file_nick_only()
 
-        file = open(self.chat_file_path, "r")
+        chatter_nicks = []
+        for line in chat:
+            if line['author'] == {}:
+                continue
 
+            if 'name' not in line['author']:
+                continue
+
+            chatter_nick = line['author']['name']
+
+            chatter_nicks.append(chatter_nick)
+
+        return list(set(chatter_nicks))
+
+    def get_messages(self, chat: List[str]):
+        """
+        :return:
+        """
+
+        messages = []
+        for line in chat:
+            message = line['message']
+            messages.append(message)
+
+        return list(set(messages))
+
+    def process_chat(self, chat: List[dict], stream_id: int):
         self.logger.debug("Processing messages.")
+        for line in tqdm(chat):
+            message_time = datetime.fromtimestamp(line['timestamp'] / 1000000, UTC)
 
-        message_count = 0
-        for line in tqdm(file.readlines()):
-            split_line = line.split(' ')
-            start_of_message_index = line.find('>') + 2
-
-            time_str = split_line[0][1:-1]
-            chatter_nick = split_line[1][2:-1]
-            message = line[start_of_message_index:-1]
-            message = message[:255]
-
-            message_time = add_timedelta_to_point_in_time(started_at, time_str)
+            chatter_nick = line['author'].get('name', 'Unknown')
+            message = line['message']
 
             self.message_handling_fun(message_time, chatter_nick, message, stream_id)
-
-            message_count += 1
-
-        file.close()
-        os.remove(chat_file_path)
-
-        return message_count

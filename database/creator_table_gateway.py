@@ -17,17 +17,26 @@ def select_creator_id_db(nick, cursor):
 
 
 @with_cursor_connection
-def insert_new_creator_db(nick, display_name, profile_image_url, cursor, connection):
-    cursor.execute("INSERT INTO creator "
-                   "(nick, display_name, profile_image_url) "
-                   "VALUES "
-                   "(%s, %s, %s)", (nick, display_name, profile_image_url))
+def insert_new_creator_db(nick, display_name, profile_image_url, twitch_creator_id, cursor, connection):
+    sql = """
+    WITH e AS 
+    (
+        INSERT INTO
+        creator 
+            (nick, display_name, profile_image_url, twitch_id) 
+        VALUES 
+            (%s, %s, %s, %s) 
+        ON CONFLICT DO NOTHING 
+        RETURNING id
+    )
+    SELECT * FROM e
+    UNION
+        SELECT id FROM creator WHERE nick = %s
+    """
+    cursor.execute(sql, (nick, display_name, profile_image_url, twitch_creator_id, nick))
     connection.commit()
 
-    if cursor.rowcount != 0:
-        cursor.execute("SELECT LAST_INSERT_ID()")
-        return cursor.fetchone()[0]
-    return None
+    return cursor.fetchone()[0]
 
 
 @with_cursor

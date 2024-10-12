@@ -40,11 +40,11 @@ def select_stream_by_twitch_id_db(twitch_id, cursor):
 def select_all_streams_db(creator_id, offset, cursor):
     if creator_id == -1:
         cursor.execute("""
-            SELECT stream.id, display_name, start, `end`, thumbnail_url, message_count 
+            SELECT stream.id, display_name, start, "end", thumbnail_url, message_count 
             FROM stream 
             JOIN creator ON stream.creator_id = creator.id ORDER BY start DESC LIMIT 20 OFFSET %s""", (offset,))
     else:
-        cursor.execute("""SELECT stream.id, display_name, start, `end`, thumbnail_url, message_count 
+        cursor.execute("""SELECT stream.id, display_name, start, "end", thumbnail_url, message_count 
                                FROM stream
                                JOIN creator ON stream.creator_id = creator.id
                                WHERE stream.creator_id = %s ORDER BY start DESC LIMIT 20 OFFSET %s""", (creator_id, offset))
@@ -62,18 +62,25 @@ def select_all_stream_count_db(creator_id, cursor):
 
 @with_cursor_connection
 def insert_stream_db(stream_id, start, creator_id, title, stopped_at, thumbnail_url, cursor, connection):
-    try:
-        cursor.execute("INSERT INTO "
-                       "stream "
-                       "(twitch_id, `start`, creator_id, title, `end`, thumbnail_url) "
-                       "VALUES (%s, %s, %s, %s, %s, %s)", (stream_id, start, creator_id, title, stopped_at, thumbnail_url))
-        connection.commit()
-        cursor.execute("SELECT LAST_INSERT_ID()")
-        return cursor.fetchone()[0]
-    except:
-        # stream is already in database, but that's ok, return its id
-        cursor.execute("SELECT `id` FROM stream WHERE twitch_id = %s", (stream_id,))
-        return cursor.fetchone()[0]
+    sql = """
+    WITH e AS 
+    (
+        INSERT INTO 
+        stream 
+            (twitch_id, start, creator_id, title, "end", thumbnail_url)
+        VALUES
+            (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT DO NOTHING
+        RETURNING id
+    )
+    SELECT * FROM e
+    UNION
+        SELECT id FROM stream WHERE twitch_id = %s
+    """
+    cursor.execute(sql, (stream_id, start, creator_id, title, stopped_at, thumbnail_url, stream_id))
+    connection.commit()
+
+    return cursor.fetchone()[0]
 
 
 @with_cursor_connection
@@ -84,11 +91,21 @@ def update_stream_message_count_db(stream_id, message_count, cursor, connection)
 
 @with_cursor
 def select_stream_comprehensive_db(stream_id, cursor):
-    cursor.execute("SELECT "
-                   "title, `start`, `end`, thumbnail_url, message_count, nick, display_name, profile_image_url, creator_id "
-                   "FROM stream "
-                   "JOIN creator ON stream.creator_id = creator.id "
-                   "AND stream.id = %s", (stream_id,))
+    sql = '''
+    SELECT
+        title,
+        start,
+        "end",
+        thumbnail_url,
+        message_count,
+        nick,
+        display_name,
+        profile_image_url,
+        creator_id
+    FROM stream
+    JOIN creator ON stream.creator_id = creator.id AND stream.id = %s
+    '''
+    cursor.execute(sql, (stream_id,))
     return cursor.fetchone()
 
 
