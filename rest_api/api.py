@@ -62,7 +62,9 @@ def get_stream(stream_id: int):
 
 @app.get('/stream/{stream_id}/chatter/{chatter_id}/messages')
 def get_chatter_messages_on_stream(stream_id: int, chatter_id: int):
-    return select_chatter_messages_on_stream_db(stream_id, chatter_id)
+    result = select_chatter_messages_on_stream_db(stream_id, chatter_id)
+
+    return [message[0] for message in result]
 
 
 @app.get('/creators')
@@ -71,4 +73,4 @@ def get_creators():
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=5001, debug=True)
+    uvicorn.run(app, host='0.0.0.0', port=5001)
