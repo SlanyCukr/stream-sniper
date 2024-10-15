@@ -1,13 +1,12 @@
 import asyncio
 from typing import List, Tuple, Union, Any
 
-from tcd.singleton import Singleton
 from twitchAPI.object.api import TwitchUser, Stream
 from twitchAPI.type import VideoType
 from twitchAPI.twitch import Twitch
 
 
-class TwitchAPI(metaclass=Singleton):
+class TwitchAPI:
     _instance = None
 
     def __init__(self):

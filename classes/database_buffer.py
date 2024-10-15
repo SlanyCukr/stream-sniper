@@ -40,7 +40,6 @@ class DatabaseBuffer:
         finally:
             self.items.clear()
             cursor.close()
-            self.connection.close()
 
     def add_item(self, item: tuple):
         self.items.append(item)

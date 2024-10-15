@@ -41,6 +41,7 @@ def insert_message_texts_db(message_texts: List[str], cursor, connection):
         message_text
     (text)
         VALUES %s
+    ON CONFLICT DO NOTHING
     """
     execute_values(cursor, sql, [(text,) for text in message_texts])
 

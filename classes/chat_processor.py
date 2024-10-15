@@ -26,6 +26,7 @@ class ChatProcessor:
                 continue
 
             if 'name' not in line['author']:
+                chatter_nicks.append('Unknown')
                 continue
 
             chatter_nick = line['author']['name']
