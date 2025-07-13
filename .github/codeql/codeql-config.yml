@@ -1,0 +1,25 @@
+name: "Stream Sniper CodeQL Config"
+
+disable-default-queries: false
+
+queries:
+  - name: security-and-quality
+    uses: security-and-quality
+
+  - name: security-extended
+    uses: security-extended
+
+paths-ignore:
+  - "venv/**"
+  - "**/__pycache__/**"
+  - "logs/**"
+  - "*.log"
+  - "tests/fixtures/**"
+
+paths:
+  - "stream_sniper/**"
+
+packs:
+  python:
+    - codeql/python-queries
+    - codeql/python-queries:codeql-suites/python-security-extended.qls

@@ -1,0 +1,226 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v2.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+
+    - name: Run tests
+      run: pytest tests/ -v
+
+    - name: Build package
+      run: |
+        python -m pip install build
+        python -m build
+
+    - name: Verify package contents
+      run: |
+        python -m pip install twine
+        twine check dist/*
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: validate-release
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      tag_name: ${{ steps.get_tag.outputs.tag_name }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get tag name
+      id: get_tag
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "tag_name=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the previous tag
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        
+        if [ -z "$PREVIOUS_TAG" ]; then
+          echo "## Changes" > changelog.md
+          echo "Initial release" >> changelog.md
+        else
+          echo "## Changes since $PREVIOUS_TAG" > changelog.md
+          echo "" >> changelog.md
+          
+          # Get commits since last tag
+          git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD >> changelog.md
+        fi
+        
+        echo "" >> changelog.md
+        echo "## Docker Images" >> changelog.md
+        echo "- \`ghcr.io/slanycukr/stream-sniper-api:${{ steps.get_tag.outputs.tag_name }}\`" >> changelog.md
+        echo "- \`ghcr.io/slanycukr/stream-sniper-collector:${{ steps.get_tag.outputs.tag_name }}\`" >> changelog.md
+        echo "" >> changelog.md
+        echo "## Installation" >> changelog.md
+        echo "\`\`\`bash" >> changelog.md
+        echo "pip install stream-sniper==${{ steps.get_tag.outputs.tag_name }}" >> changelog.md
+        echo "\`\`\`" >> changelog.md
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_tag.outputs.tag_name }}
+        release_name: Stream Sniper ${{ steps.get_tag.outputs.tag_name }}
+        body_path: changelog.md
+        draft: false
+        prerelease: ${{ contains(steps.get_tag.outputs.tag_name, '-') }}
+
+  build-assets:
+    name: Build Release Assets
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip build twine
+
+    - name: Build package
+      run: python -m build
+
+    - name: Upload wheel to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: dist/stream_sniper-${{ needs.create-release.outputs.tag_name }}-py3-none-any.whl
+        asset_name: stream_sniper-${{ needs.create-release.outputs.tag_name }}-py3-none-any.whl
+        asset_content_type: application/zip
+
+    - name: Upload source distribution to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: dist/stream-sniper-${{ needs.create-release.outputs.tag_name }}.tar.gz
+        asset_name: stream-sniper-${{ needs.create-release.outputs.tag_name }}.tar.gz
+        asset_content_type: application/gzip
+
+  publish-docker:
+    name: Publish Docker Images
+    runs-on: ubuntu-latest
+    needs: [create-release, validate-release]
+    strategy:
+      matrix:
+        include:
+          - dockerfile: Dockerfile.api
+            image: api
+          - dockerfile: Dockerfile.collector
+            image: collector
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}-${{ matrix.image }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ${{ matrix.dockerfile }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        platforms: linux/amd64,linux/arm64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [create-release, validate-release]
+    environment: 
+      name: pypi
+      url: https://pypi.org/p/stream-sniper
+    permissions:
+      id-token: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip build
+
+    - name: Build package
+      run: python -m build
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        verbose: true
