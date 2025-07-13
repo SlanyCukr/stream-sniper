@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from database.stream_table_gateway import insert_stream_db
+from ..database.stream_table_gateway import insert_stream_db
 import logging
 
-from utils.utils import add_timedelta_to_point_in_time
+from .utils import add_timedelta_to_point_in_time
 
 
 def update_stream_info(twitch_stream_id: int, started_at: datetime, creator_id: int, title: str, duration: str, thumbnail_url: str):

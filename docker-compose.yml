@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "5002:5002"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - stream-sniper
+
+  collector:
+    build:
+      context: .
+      dockerfile: Dockerfile.collector
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./logs:/app/logs
+    command: ["${TWITCH_USERNAME:-defaultuser}"]
+    restart: "no"
+    networks:
+      - stream-sniper
+
+  # Optional: PostgreSQL container (comment out if using external database)
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: ${POSTGRES_DB}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./database/create_table.sql:/docker-entrypoint-initdb.d/01-schema.sql
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - stream-sniper
+
+networks:
+  stream-sniper:
+    driver: bridge
+
+# volumes:
+#   postgres_data:

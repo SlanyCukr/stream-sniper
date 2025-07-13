@@ -1,17 +1,17 @@
 import asyncio
 import logging
 
-from classes.irc_chat_downloader import IrcChatDownloader
-from classes.chat_processor import ChatProcessor
-from classes.message_handler import MessageHandler
-from database.chatter_table_gateway import insert_new_chatters_db, select_all_chatters_db
-from database.creator_table_gateway import select_creator_id_db, insert_new_creator_db
-from classes.database_buffer import DatabaseBuffer
-from database.message_table_gateway import insert_message_db
-from database.message_text_table_gateway import insert_message_texts_db, select_all_message_texts_db
-from database.stream_table_gateway import update_stream_message_count_db
-from utils.message_grabbing_utils import update_stream_info
-from classes.twitch_api import TwitchAPI
+from .irc_chat_downloader import IrcChatDownloader
+from .chat_processor import ChatProcessor
+from .message_handler import MessageHandler
+from ..database.chatter_table_gateway import insert_new_chatters_db, select_all_chatters_db
+from ..database.creator_table_gateway import select_creator_id_db, insert_new_creator_db
+from .database_buffer import DatabaseBuffer
+from ..database.message_table_gateway import insert_message_db
+from ..database.message_text_table_gateway import insert_message_texts_db, select_all_message_texts_db
+from ..database.stream_table_gateway import update_stream_message_count_db
+from ..utils.message_grabbing_utils import update_stream_info
+from .twitch_api import TwitchAPI
 
 
 class TwitchCollectorFacade:

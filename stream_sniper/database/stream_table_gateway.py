@@ -1,4 +1,4 @@
-from database.decorators import with_cursor, with_cursor_connection
+from .decorators import with_cursor, with_cursor_connection
 
 
 @with_cursor
@@ -38,16 +38,31 @@ def select_stream_by_twitch_id_db(twitch_id, cursor):
 
 @with_cursor
 def select_all_streams_db(creator_id, offset, cursor):
+    # Base SQL query with TO_CHAR to return datetime as string
+    base_query = """
+    SELECT 
+        stream.id,
+        display_name, 
+        TO_CHAR(start, 'YYYY-MM-DD HH24:MI:SS') AS start,
+        TO_CHAR("end", 'YYYY-MM-DD HH24:MI:SS') AS "end", 
+        thumbnail_url,
+        message_count
+    FROM stream
+    JOIN creator ON stream.creator_id = creator.id
+    """
+
+    # Modify query based on whether creator_id is provided or not
     if creator_id == -1:
-        cursor.execute("""
-            SELECT stream.id, display_name, start, "end", thumbnail_url, message_count 
-            FROM stream 
-            JOIN creator ON stream.creator_id = creator.id ORDER BY start DESC LIMIT 20 OFFSET %s""", (offset,))
+        query = base_query + " ORDER BY start DESC LIMIT 20 OFFSET %s"
+        params = (offset,)
     else:
-        cursor.execute("""SELECT stream.id, display_name, start, "end", thumbnail_url, message_count 
-                               FROM stream
-                               JOIN creator ON stream.creator_id = creator.id
-                               WHERE stream.creator_id = %s ORDER BY start DESC LIMIT 20 OFFSET %s""", (creator_id, offset))
+        query = base_query + " WHERE stream.creator_id = %s ORDER BY start DESC LIMIT 20 OFFSET %s"
+        params = (creator_id, offset)
+
+    # Execute the query with parameters
+    cursor.execute(query, params)
+
+    # Return the result
     return cursor.fetchall()
 
 

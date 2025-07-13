@@ -2,7 +2,7 @@ from typing import List
 
 from psycopg2.extras import execute_values
 
-from database.decorators import with_cursor, with_cursor_connection
+from .decorators import with_cursor, with_cursor_connection
 
 
 @with_cursor

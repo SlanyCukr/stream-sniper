@@ -1,13 +1,16 @@
 import uvicorn as uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
-from database.chatter_table_gateway import select_all_chatters_on_stream_db
-from database.creator_table_gateway import select_creators_db
-from database.message_table_gateway import select_chatter_messages_db, select_chatter_id_db
-from database.stream_table_gateway import select_all_streams_db, select_stream_comprehensive_db, \
+from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
+from ..database.creator_table_gateway import select_creators_db
+from ..database.message_table_gateway import select_chatter_messages_db, select_chatter_id_db
+from ..database.stream_table_gateway import select_all_streams_db, select_stream_comprehensive_db, \
     select_most_active_chatters_db, select_most_tagged_chatters_db, select_creators_that_wrote_in_stream_db, \
     select_chatters_in_stream_db, select_chatter_messages_on_stream_db, select_all_stream_count_db
+
+load_dotenv()
 
 app = FastAPI()
 

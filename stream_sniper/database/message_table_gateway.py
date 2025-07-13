@@ -1,4 +1,4 @@
-from database.decorators import with_cursor
+from .decorators import with_cursor
 
 
 @with_cursor

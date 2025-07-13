@@ -4,8 +4,8 @@ from datetime import datetime
 from functools import lru_cache
 from typing import Callable
 
-from database.chatter_table_gateway import insert_new_chatter_db
-from database.message_text_table_gateway import find_or_insert_message_text_id_db
+from ..database.chatter_table_gateway import insert_new_chatter_db
+from ..database.message_text_table_gateway import find_or_insert_message_text_id_db
 
 
 class MessageHandler:

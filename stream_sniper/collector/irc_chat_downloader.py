@@ -3,8 +3,8 @@ from typing import Tuple, Union, List
 from twitch.helix import Video
 from chat_downloader import ChatDownloader
 
-from classes.twitch_api import TwitchAPI
-from database.stream_table_gateway import select_stream_by_twitch_id_db
+from .twitch_api import TwitchAPI
+from ..database.stream_table_gateway import select_stream_by_twitch_id_db
 
 
 class IrcChatDownloader:

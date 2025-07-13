@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stream-sniper"
+version = "1.0.0"
+description = "A comprehensive Twitch stream analytics platform that collects, processes, and visualizes chat data"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "slanycukr", email = "your.email@example.com"},
+]
+keywords = ["twitch", "analytics", "chat", "streaming", "data-collection"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "twitch-python~=0.0.20",
+    "psycopg2-binary~=2.9.10",
+    "twitchAPI~=4.5.0",
+    "tqdm~=4.66.5",
+    "pytimeparse~=1.1.8",
+    "python-dotenv~=1.0.1",
+    "fastapi>=0.115.0",
+    "starlette>=0.40.0",
+    "uvicorn~=0.32.1",
+    "chat-downloader~=0.2.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "isort>=5.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+    "pre-commit>=3.0",
+]
+
+[project.scripts]
+stream-sniper = "stream_sniper.cli:main"
+stream-sniper-api = "stream_sniper.api.server:run"
+
+[project.urls]
+Homepage = "https://github.com/slanycukr/stream-sniper"
+Documentation = "https://github.com/slanycukr/stream-sniper#readme"
+Repository = "https://github.com/slanycukr/stream-sniper.git"
+Issues = "https://github.com/slanycukr/stream-sniper/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["stream_sniper"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/stream_sniper",
+    "/README.md",
+    "/LICENSE",
+]
+
+[tool.black]
+line-length = 120
+target-version = ["py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 120
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
