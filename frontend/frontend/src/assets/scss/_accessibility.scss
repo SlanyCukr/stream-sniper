@@ -1,0 +1,175 @@
+// Accessibility improvements for Stream Sniper
+
+// Enhanced focus indicators
+*:focus {
+  outline: 2px solid #0d6efd !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25) !important;
+}
+
+// High contrast focus for better visibility
+.btn:focus,
+.nav-link:focus,
+[role="button"]:focus {
+  outline: 3px solid #0d6efd !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.5) !important;
+}
+
+// Skip links for keyboard navigation
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #0d6efd;
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  z-index: 1000;
+  border-radius: 4px;
+  
+  &:focus {
+    top: 6px;
+  }
+}
+
+// Ensure interactive elements have proper cursor
+[role="button"],
+.hover-zoom > div,
+.pagination-item {
+  cursor: pointer;
+}
+
+// Improve text contrast for better readability
+.text-muted {
+  color: #495057 !important; // Improved contrast from Bootstrap's default
+}
+
+// Ensure sufficient color contrast for links
+a {
+  color: #0056b3;
+  
+  &:hover {
+    color: #004085;
+  }
+}
+
+// Better focus for custom select components
+.react-select__control:focus-within {
+  outline: 2px solid #0d6efd !important;
+  outline-offset: 1px !important;
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25) !important;
+}
+
+// Improve pagination focus visibility
+.pagination .page-link:focus {
+  z-index: 3;
+  outline: 2px solid #0d6efd !important;
+  outline-offset: 1px !important;
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25) !important;
+}
+
+// Improve dropdown focus
+.dropdown-item:focus {
+  background-color: #e9ecef;
+  outline: 2px solid #0d6efd !important;
+  outline-offset: -2px !important;
+}
+
+// Screen reader only text (visually hidden but accessible to screen readers)
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+// Ensure focus is visible on custom interactive elements
+.sidenav-bg .nav-link:focus {
+  background-color: rgba(13, 110, 253, 0.1);
+  outline: 2px solid #0d6efd !important;
+  outline-offset: -2px !important;
+}
+
+// Chat message focus improvements
+[role="log"] {
+  &:focus {
+    outline: 2px solid #0d6efd !important;
+    outline-offset: 2px !important;
+  }
+}
+
+// Improve card focus when used as interactive elements
+.card [role="button"]:focus {
+  .card {
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25) !important;
+  }
+}
+
+// Ensure error messages have proper contrast
+[role="alert"] {
+  color: #721c24;
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid;
+  border-radius: 0.25rem;
+}
+
+// Loading state improvements
+[role="status"] {
+  color: #0f5132;
+  background-color: #d1e7dd;
+  border-color: #badbcc;
+  padding: 0.5rem 1rem;
+  border: 1px solid;
+  border-radius: 0.25rem;
+}
+
+// Responsive text scaling
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+// Respect user's motion preferences
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .btn {
+    border: 2px solid !important;
+  }
+  
+  .card {
+    border: 2px solid #000 !important;
+  }
+  
+  .text-muted {
+    color: #000 !important;
+  }
+}
+
+// Dark mode considerations
+@media (prefers-color-scheme: dark) {
+  // Focus indicators should be more visible in dark mode
+  *:focus {
+    outline-color: #6ea8fe !important;
+    box-shadow: 0 0 0 2px rgba(110, 168, 254, 0.25) !important;
+  }
+}
