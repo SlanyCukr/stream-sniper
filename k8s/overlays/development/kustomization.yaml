@@ -1,0 +1,64 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference to base configuration
+resources:
+  - ../../
+
+# Override namespace for development
+namespace: stream-sniper-dev
+
+# Development-specific labels
+commonLabels:
+  environment: development
+  team: dev
+
+# Development-specific annotations
+commonAnnotations:
+  deployment.environment: development
+  config.version: dev
+
+# Override images for development
+images:
+  - name: stream-sniper
+    newName: stream-sniper
+    newTag: "dev-latest"
+
+# Development-specific ConfigMap
+configMapGenerator:
+  - name: stream-sniper-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      - API_CORS_ORIGINS=*
+      - RATE_LIMIT_ENABLED=false
+      - CACHE_ENABLED=false
+      - DEBUG=true
+    options:
+      disableNameSuffixHash: true
+
+# Development-specific Secret
+secretGenerator:
+  - name: stream-sniper-secrets
+    behavior: merge
+    literals:
+      # Use development database credentials
+      - POSTGRES_USER=ZGV2X3VzZXI=  # dev_user
+      - POSTGRES_PASSWORD=ZGV2X3Bhc3N3b3Jk  # dev_password
+      - REDIS_PASSWORD=ZGV2X3JlZGlz  # dev_redis
+    options:
+      disableNameSuffixHash: true
+
+# Development patches
+patchesStrategicMerge:
+  - development-patches.yaml
+
+# JSON patches for development
+patchesJson6902:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: stream-sniper-api
+    path: api-development-patch.yaml

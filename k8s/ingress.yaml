@@ -1,0 +1,193 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stream-sniper-ingress
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    # Common ingress annotations (adjust for your ingress controller)
+    kubernetes.io/ingress.class: "nginx"  # or your preferred ingress class
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains";
+    
+    # Rate limiting
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/rate-limit-connections: "10"
+    
+    # Timeouts
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    
+    # Request size limits
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    
+    # CORS (if needed)
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    
+    # Certificate management (if using cert-manager)
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Adjust as needed
+    acme.cert-manager.io/http01-edit-in-place: "true"
+spec:
+  tls:
+  - hosts:
+    - api.stream-sniper.example.com  # Replace with your actual domain
+    secretName: stream-sniper-tls-cert
+  rules:
+  - host: api.stream-sniper.example.com  # Replace with your actual domain
+    http:
+      paths:
+      # API endpoints
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: stream-sniper-api-service
+            port:
+              number: 80
+      # Health check endpoints (bypass rate limiting)
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: stream-sniper-api-service
+            port:
+              number: 80
+      # Metrics endpoint (restrict access as needed)
+      - path: /metrics
+        pathType: Prefix
+        backend:
+          service:
+            name: stream-sniper-api-service
+            port:
+              number: 8080
+
+---
+# Alternative ingress for development/staging
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stream-sniper-dev-ingress
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+    environment: development
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"  # Allow HTTP for dev
+    
+    # Relaxed rate limiting for development
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    
+    # CORS for development
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+spec:
+  rules:
+  - host: dev.stream-sniper.example.com  # Replace with your actual dev domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: stream-sniper-api-service
+            port:
+              number: 80
+
+---
+# Internal ingress for metrics and monitoring (restrict access)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stream-sniper-internal-ingress
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+    access: internal
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    
+    # Restrict access to internal networks only
+    nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+    
+    # Basic authentication for metrics (optional)
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: stream-sniper-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Stream Sniper Metrics"
+spec:
+  tls:
+  - hosts:
+    - internal.stream-sniper.example.com  # Replace with your actual internal domain
+    secretName: stream-sniper-internal-tls-cert
+  rules:
+  - host: internal.stream-sniper.example.com  # Replace with your actual internal domain
+    http:
+      paths:
+      # Metrics endpoint
+      - path: /metrics
+        pathType: Prefix
+        backend:
+          service:
+            name: stream-sniper-api-service
+            port:
+              number: 8080
+      # Health check endpoints
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: stream-sniper-api-service
+            port:
+              number: 80
+
+---
+# Secret for basic authentication (base64 encoded htpasswd format)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stream-sniper-basic-auth
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: auth
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+type: Opaque
+data:
+  # Generated with: htpasswd -c auth monitor
+  # Username: monitor, Password: secure_password
+  # Replace with your actual credentials
+  auth: bW9uaXRvcjokYXByMSRHVVNXS3N1QSRrSUNmWkJFdGhGZUx1VkEuR2svWWou  # monitor:secure_password

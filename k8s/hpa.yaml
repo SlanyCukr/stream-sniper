@@ -1,0 +1,212 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: stream-sniper-api-hpa
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper-api
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: autoscaler
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: stream-sniper-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # Scale up when CPU > 70%
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # Scale up when memory > 80%
+  # Custom metrics (if available)
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"  # Scale up when > 100 requests/second per pod
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60  # Wait 60 seconds before scaling up again
+      policies:
+      - type: Percent
+        value: 100  # Can double the number of pods
+        periodSeconds: 60
+      - type: Pods
+        value: 2  # Can add maximum 2 pods at a time
+        periodSeconds: 60
+      selectPolicy: Min  # Use the most conservative policy
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+      - type: Percent
+        value: 50  # Can remove up to 50% of pods
+        periodSeconds: 60
+      - type: Pods
+        value: 1  # Can remove maximum 1 pod at a time
+        periodSeconds: 60
+      selectPolicy: Min  # Use the most conservative policy
+
+---
+# Pod Disruption Budget to ensure availability during updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: stream-sniper-api-pdb
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper-api
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: availability
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  minAvailable: 2  # Always keep at least 2 pods running
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: stream-sniper-api
+      app.kubernetes.io/component: api
+
+---
+# Vertical Pod Autoscaler (optional - requires VPA controller)
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: stream-sniper-api-vpa
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper-api
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: autoscaler
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: stream-sniper-api
+  updatePolicy:
+    updateMode: "Auto"  # Automatically apply recommendations
+  resourcePolicy:
+    containerPolicies:
+    - containerName: api
+      minAllowed:
+        cpu: 100m
+        memory: 128Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 2Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+# ServiceMonitor for Prometheus scraping (if using Prometheus Operator)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: stream-sniper-api-metrics
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper-api
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: stream-sniper-api
+      app.kubernetes.io/component: api
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+    scheme: http
+  namespaceSelector:
+    matchNames:
+    - stream-sniper
+
+---
+# PrometheusRule for alerting (if using Prometheus Operator)
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: stream-sniper-api-alerts
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper-api
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  groups:
+  - name: stream-sniper-api
+    rules:
+    - alert: StreamSniperAPIDown
+      expr: up{job="stream-sniper-api-metrics"} == 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Stream Sniper API is down"
+        description: "Stream Sniper API has been down for more than 5 minutes."
+    
+    - alert: StreamSniperAPIHighLatency
+      expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Stream Sniper API high latency"
+        description: "Stream Sniper API 95th percentile latency is {{ $value }}s"
+    
+    - alert: StreamSniperAPIHighErrorRate
+      expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.1
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Stream Sniper API high error rate"
+        description: "Stream Sniper API error rate is {{ $value | humanizePercentage }}"
+    
+    - alert: StreamSniperDatabaseConnectionFailed
+      expr: stream_sniper_component_health{component="database"} < 1
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Stream Sniper database connection failed"
+        description: "Stream Sniper cannot connect to the database"
+    
+    - alert: StreamSniperHighCPUUsage
+      expr: rate(container_cpu_usage_seconds_total{pod=~"stream-sniper-api-.*"}[5m]) > 0.8
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Stream Sniper API high CPU usage"
+        description: "Stream Sniper API CPU usage is above 80% for more than 10 minutes"
+    
+    - alert: StreamSniperHighMemoryUsage
+      expr: container_memory_usage_bytes{pod=~"stream-sniper-api-.*"} / container_spec_memory_limit_bytes > 0.9
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Stream Sniper API high memory usage"
+        description: "Stream Sniper API memory usage is above 90%"

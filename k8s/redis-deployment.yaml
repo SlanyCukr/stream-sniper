@@ -1,0 +1,171 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: "7"
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  replicas: 1  # Redis is typically deployed as a single instance
+  strategy:
+    type: Recreate  # Ensure only one instance runs at a time
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: cache
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/version: "7"
+        app.kubernetes.io/component: cache
+        app.kubernetes.io/part-of: stream-sniper
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999  # redis user
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+          protocol: TCP
+        command:
+        - redis-server
+        - /etc/redis/redis.conf
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: stream-sniper-secrets
+              key: REDIS_PASSWORD
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        - name: redis-config
+          mountPath: /etc/redis
+          readOnly: true
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - redis-cli -a $REDIS_PASSWORD ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - redis-cli -a $REDIS_PASSWORD ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false  # Redis needs to write to /data
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-pvc
+      - name: redis-config
+        configMap:
+          name: redis-config
+          defaultMode: 0644
+      restartPolicy: Always
+
+---
+# ConfigMap for Redis configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/version: "7"
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+data:
+  redis.conf: |
+    # Redis configuration for Stream Sniper
+    
+    # Network and Security
+    bind 0.0.0.0
+    port 6379
+    protected-mode yes
+    
+    # Authentication
+    requirepass ${REDIS_PASSWORD}
+    
+    # Memory and Performance
+    maxmemory 400mb
+    maxmemory-policy allkeys-lru
+    
+    # Persistence
+    save 900 1     # Save snapshot if at least 1 key changed in 900 seconds
+    save 300 10    # Save snapshot if at least 10 keys changed in 300 seconds
+    save 60 10000  # Save snapshot if at least 10000 keys changed in 60 seconds
+    
+    # RDB Configuration
+    rdbcompression yes
+    rdbchecksum yes
+    dbfilename dump.rdb
+    dir /data
+    
+    # AOF Configuration (optional, for better durability)
+    appendonly yes
+    appendfilename "appendonly.aof"
+    appendfsync everysec
+    
+    # Logging
+    loglevel notice
+    logfile ""
+    
+    # Client Configuration
+    timeout 300
+    tcp-keepalive 300
+    
+    # Slow Log
+    slowlog-log-slower-than 10000
+    slowlog-max-len 128
+    
+    # Key Expiration
+    hz 10
+    
+    # Memory optimization
+    hash-max-ziplist-entries 512
+    hash-max-ziplist-value 64
+    list-max-ziplist-size -2
+    list-compress-depth 0
+    set-max-intset-entries 512
+    zset-max-ziplist-entries 128
+    zset-max-ziplist-value 64
+    
+    # Disable dangerous commands
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    rename-command DEBUG ""
+    rename-command CONFIG ""

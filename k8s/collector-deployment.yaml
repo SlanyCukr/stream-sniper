@@ -1,0 +1,325 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stream-sniper-collector
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper-collector
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: collector
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  ttlSecondsAfterFinished: 3600  # Clean up completed jobs after 1 hour
+  backoffLimit: 3  # Retry failed jobs up to 3 times
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stream-sniper-collector
+        app.kubernetes.io/version: "2.0.0"
+        app.kubernetes.io/component: collector
+        app.kubernetes.io/part-of: stream-sniper
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      serviceAccountName: stream-sniper-collector  # Will be created in services.yaml
+      initContainers:
+      - name: wait-for-db
+        image: postgres:16-alpine
+        command:
+        - sh
+        - -c
+        - |
+          until pg_isready -h postgres-service -p 5432 -U $POSTGRES_USER; do
+            echo "Waiting for database..."
+            sleep 2
+          done
+          echo "Database is ready!"
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: stream-sniper-secrets
+              key: POSTGRES_USER
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      containers:
+      - name: collector
+        image: stream-sniper:2.0.0  # Replace with your actual image
+        imagePullPolicy: IfNotPresent
+        env:
+        # ConfigMap environment variables
+        - name: PYTHONUNBUFFERED
+          valueFrom:
+            configMapKeyRef:
+              name: stream-sniper-config
+              key: PYTHONUNBUFFERED
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: stream-sniper-config
+              key: LOG_LEVEL
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: stream-sniper-config
+              key: POSTGRES_HOST
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: stream-sniper-config
+              key: POSTGRES_PORT
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: stream-sniper-config
+              key: POSTGRES_DB
+        - name: APP_VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: stream-sniper-config
+              key: APP_VERSION
+        - name: APP_ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: stream-sniper-config
+              key: APP_ENVIRONMENT
+        # Secret environment variables
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: stream-sniper-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: stream-sniper-secrets
+              key: POSTGRES_PASSWORD
+        - name: TWITCH_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: stream-sniper-secrets
+              key: TWITCH_CLIENT_ID
+        - name: TWITCH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: stream-sniper-secrets
+              key: TWITCH_CLIENT_SECRET
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: stream-sniper-secrets
+              key: DATABASE_URL
+        # Job-specific environment variables
+        - name: TWITCH_USERNAME
+          value: ""  # This should be set when creating the job
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: KUBERNETES_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        command:
+        - python
+        - -m
+        - stream_sniper.cli
+        args:
+        - $(TWITCH_USERNAME)  # Username will be passed as argument
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: logs
+        persistentVolumeClaim:
+          claimName: stream-sniper-logs-pvc
+      restartPolicy: OnFailure  # Restart only on failure for jobs
+
+---
+# CronJob for scheduled data collection
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: stream-sniper-scheduled-collector
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper-scheduled-collector
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: collector
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  # Run every 6 hours - adjust as needed
+  schedule: "0 */6 * * *"
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid  # Don't run concurrent jobs
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300  # Start within 5 minutes of scheduled time
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stream-sniper-scheduled-collector
+        app.kubernetes.io/version: "2.0.0"
+        app.kubernetes.io/component: collector
+        app.kubernetes.io/part-of: stream-sniper
+    spec:
+      ttlSecondsAfterFinished: 7200  # Clean up after 2 hours
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: stream-sniper-scheduled-collector
+            app.kubernetes.io/version: "2.0.0"
+            app.kubernetes.io/component: collector
+            app.kubernetes.io/part-of: stream-sniper
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          serviceAccountName: stream-sniper-collector
+          initContainers:
+          - name: wait-for-db
+            image: postgres:16-alpine
+            command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h postgres-service -p 5432 -U $POSTGRES_USER; do
+                echo "Waiting for database..."
+                sleep 2
+              done
+              echo "Database is ready!"
+            env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: stream-sniper-secrets
+                  key: POSTGRES_USER
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+          containers:
+          - name: scheduled-collector
+            image: stream-sniper:2.0.0
+            imagePullPolicy: IfNotPresent
+            env:
+            # Same environment as regular collector
+            - name: PYTHONUNBUFFERED
+              valueFrom:
+                configMapKeyRef:
+                  name: stream-sniper-config
+                  key: PYTHONUNBUFFERED
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: stream-sniper-config
+                  key: LOG_LEVEL
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: stream-sniper-config
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: stream-sniper-config
+                  key: POSTGRES_PORT
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: stream-sniper-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: stream-sniper-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stream-sniper-secrets
+                  key: POSTGRES_PASSWORD
+            - name: TWITCH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: stream-sniper-secrets
+                  key: TWITCH_CLIENT_ID
+            - name: TWITCH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: stream-sniper-secrets
+                  key: TWITCH_CLIENT_SECRET
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: stream-sniper-secrets
+                  key: DATABASE_URL
+            # List of usernames to collect (comma-separated)
+            - name: TWITCH_USERNAMES
+              value: "xqc,shroud,ninja"  # Configure with actual usernames
+            command:
+            - /bin/bash
+            - -c
+            - |
+              # Split usernames and process each one
+              IFS=',' read -ra USERNAMES <<< "$TWITCH_USERNAMES"
+              for username in "${USERNAMES[@]}"; do
+                echo "Processing $username..."
+                python -m stream_sniper.cli "$username" || echo "Failed to process $username"
+              done
+            volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+            resources:
+              requests:
+                memory: "1Gi"
+                cpu: "500m"
+              limits:
+                memory: "4Gi"
+                cpu: "2000m"
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+          volumes:
+          - name: logs
+            persistentVolumeClaim:
+              claimName: stream-sniper-logs-pvc
+          restartPolicy: OnFailure

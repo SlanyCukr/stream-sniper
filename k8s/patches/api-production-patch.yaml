@@ -1,0 +1,49 @@
+- op: replace
+  path: /spec/template/spec/containers/0/env
+  value:
+  - name: PYTHONUNBUFFERED
+    value: "1"
+  - name: LOG_LEVEL
+    value: "INFO"
+  - name: API_PORT
+    value: "5002"
+  - name: API_HOST
+    value: "0.0.0.0"
+  - name: ENVIRONMENT
+    value: "production"
+  - name: DEBUG
+    value: "false"
+  - name: METRICS_ENABLED
+    value: "true"
+  - name: CACHE_ENABLED
+    value: "true"
+  - name: RATE_LIMIT_ENABLED
+    value: "true"
+
+- op: replace
+  path: /spec/template/spec/containers/0/livenessProbe/periodSeconds
+  value: 60  # Less frequent health checks in production
+
+- op: replace
+  path: /spec/template/spec/containers/0/readinessProbe/periodSeconds
+  value: 30  # Less frequent readiness checks in production
+
+- op: add
+  path: /spec/template/spec/containers/0/env/-
+  value:
+    name: SENTRY_DSN
+    valueFrom:
+      secretKeyRef:
+        name: stream-sniper-secrets
+        key: SENTRY_DSN
+        optional: true
+
+- op: add
+  path: /spec/template/spec/containers/0/env/-
+  value:
+    name: NEW_RELIC_LICENSE_KEY
+    valueFrom:
+      secretKeyRef:
+        name: stream-sniper-secrets
+        key: NEW_RELIC_LICENSE_KEY
+        optional: true

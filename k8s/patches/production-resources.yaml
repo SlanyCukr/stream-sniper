@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stream-sniper-api
+spec:
+  replicas: 5  # Higher replica count for production
+  template:
+    spec:
+      containers:
+      - name: api
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        env:
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: RATE_LIMIT_REQUESTS
+          value: "1000"
+        - name: CACHE_TTL
+          value: "600"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  template:
+    spec:
+      containers:
+      - name: postgres
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  template:
+    spec:
+      containers:
+      - name: redis
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  resources:
+    requests:
+      storage: 50Gi  # Larger storage for production
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+spec:
+  resources:
+    requests:
+      storage: 10Gi  # Larger storage for production
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stream-sniper-logs-pvc
+spec:
+  resources:
+    requests:
+      storage: 20Gi  # More log storage for production

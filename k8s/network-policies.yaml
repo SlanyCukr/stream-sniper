@@ -1,0 +1,318 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stream-sniper-default-deny
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  podSelector: {}  # Apply to all pods in the namespace
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+# Allow API pods to communicate with database
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stream-sniper-api-to-database
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: stream-sniper-api
+      app.kubernetes.io/component: api
+  policyTypes:
+  - Egress
+  egress:
+  # Allow access to PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgres
+          app.kubernetes.io/component: database
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow access to Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: redis
+          app.kubernetes.io/component: cache
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow external Twitch API access
+  - to: []  # Allow all external traffic for Twitch API
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+
+---
+# Allow collector pods to communicate with database
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stream-sniper-collector-to-database
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: stream-sniper-collector
+      app.kubernetes.io/component: collector
+  policyTypes:
+  - Egress
+  egress:
+  # Allow access to PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgres
+          app.kubernetes.io/component: database
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow external Twitch API and chat download access
+  - to: []  # Allow all external traffic
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 80   # HTTP
+
+---
+# Allow ingress traffic to API pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stream-sniper-api-ingress
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: stream-sniper-api
+      app.kubernetes.io/component: api
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow traffic from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx  # Adjust based on your ingress controller namespace
+    ports:
+    - protocol: TCP
+      port: 5002
+  # Allow traffic from other API pods (for internal communication)
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: stream-sniper-api
+          app.kubernetes.io/component: api
+    ports:
+    - protocol: TCP
+      port: 5002
+  # Allow monitoring/metrics scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring  # Adjust based on your monitoring namespace
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow traffic from load balancer health checks
+  - from: []  # Allow external health checks
+    ports:
+    - protocol: TCP
+      port: 5002
+
+---
+# Allow ingress traffic to database (from API and collector only)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stream-sniper-database-ingress
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/component: database
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow access from API pods
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: stream-sniper-api
+          app.kubernetes.io/component: api
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow access from collector pods
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: stream-sniper-collector
+          app.kubernetes.io/component: collector
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow access from scheduled collector pods
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: stream-sniper-scheduled-collector
+          app.kubernetes.io/component: collector
+    ports:
+    - protocol: TCP
+      port: 5432
+
+---
+# Allow ingress traffic to Redis (from API only)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stream-sniper-redis-ingress
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: cache
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow access from API pods only
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: stream-sniper-api
+          app.kubernetes.io/component: api
+    ports:
+    - protocol: TCP
+      port: 6379
+
+---
+# Allow monitoring traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stream-sniper-monitoring-ingress
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: stream-sniper
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow Prometheus to scrape metrics
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow health checks from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 5002
+
+---
+# Egress policy for DNS resolution
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stream-sniper-dns-egress
+  namespace: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: stream-sniper
+  policyTypes:
+  - Egress
+  egress:
+  # Allow DNS resolution to kube-dns/CoreDNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53

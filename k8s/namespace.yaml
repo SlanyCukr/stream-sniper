@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stream-sniper
+  labels:
+    app.kubernetes.io/name: stream-sniper
+    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/part-of: stream-sniper
+    app.kubernetes.io/managed-by: kubectl
+    environment: production
+  annotations:
+    description: "Stream Sniper - Twitch stream analytics platform"
+    contact: "slanycukr"

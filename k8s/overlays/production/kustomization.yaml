@@ -1,0 +1,67 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference to base configuration
+resources:
+  - ../../
+
+# Production namespace (use base namespace)
+namespace: stream-sniper
+
+# Production-specific labels
+commonLabels:
+  environment: production
+  team: platform
+
+# Production-specific annotations
+commonAnnotations:
+  deployment.environment: production
+  config.version: stable
+
+# Production images with specific tags
+images:
+  - name: stream-sniper
+    newName: your-registry.com/stream-sniper  # Replace with your registry
+    newTag: "v2.0.0"
+  - name: postgres
+    newName: postgres
+    newTag: "16-alpine"
+  - name: redis
+    newName: redis
+    newTag: "7-alpine"
+
+# Production-specific ConfigMap
+configMapGenerator:
+  - name: stream-sniper-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+      - API_CORS_ORIGINS=https://api.yourdomain.com,https://yourdomain.com
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_REQUESTS=1000
+      - CACHE_ENABLED=true
+      - CACHE_TTL=600
+      - DEBUG=false
+      - METRICS_ENABLED=true
+      - DB_POOL_MIN_SIZE=10
+      - DB_POOL_MAX_SIZE=50
+    options:
+      disableNameSuffixHash: true
+
+# Production-specific secrets (template - replace with actual values)
+secretGenerator:
+  - name: stream-sniper-secrets
+    behavior: merge
+    literals:
+      # Production database credentials (replace with actual base64 values)
+      - POSTGRES_USER=cHJvZF91c2Vy  # prod_user
+      - POSTGRES_PASSWORD=c3VwZXJfc2VjdXJlX3Byb2RfcGFzc3dvcmQ=  # super_secure_prod_password
+      - REDIS_PASSWORD=cHJvZF9yZWRpc19zZWN1cmVfcGFzc3dvcmQ=  # prod_redis_secure_password
+      # Add production monitoring secrets
+      - SENTRY_DSN=aHR0cHM6Ly95b3VyLXNlbnRyeS1kc24=  # https://your-sentry-dsn
+      - NEW_RELIC_LICENSE_KEY=eW91ci1uZXctcmVsaWMta2V5  # your-new-relic-key
+    options:
+      disableNameSuffixHash: true
+
+# Production patches - already included in base via patches/production-resources.yaml
