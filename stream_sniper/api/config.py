@@ -141,12 +141,13 @@ class APIConfig:
     cors_origins: str = os.getenv('CORS_ORIGINS', '*')
     cors_credentials: bool = os.getenv('CORS_CREDENTIALS', 'true').lower() == 'true'
     
-    # Component configurations
-    cache: CacheConfig = CacheConfig()
-    rate_limit: RateLimitConfig = RateLimitConfig()
-    compression: CompressionConfig = CompressionConfig()
-    monitoring: MonitoringConfig = MonitoringConfig()
-    database: DatabaseConfig = DatabaseConfig()
+    def __post_init__(self):
+        """Initialize component configurations after main init."""
+        self.cache = CacheConfig()
+        self.rate_limit = RateLimitConfig()
+        self.compression = CompressionConfig()
+        self.monitoring = MonitoringConfig()
+        self.database = DatabaseConfig()
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary for serialization."""

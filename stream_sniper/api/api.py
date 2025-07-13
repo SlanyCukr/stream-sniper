@@ -19,6 +19,7 @@ from .monitoring import (
     record_cache_operation, get_metrics_collector
 )
 from .middleware import setup_middleware
+from .health import get_health_checker, HealthStatus as HealthStatusEnum
 
 from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
 from ..database.creator_table_gateway import select_creators_db
@@ -118,6 +119,15 @@ class HealthStatus(BaseModel):
     rate_limiting: Dict[str, Any] = Field(..., description="Rate limiting status")
     timestamp: str = Field(..., description="Health check timestamp")
     version: str = Field(..., description="API version", example="1.0.0")
+
+class DetailedHealthStatus(BaseModel):
+    """Comprehensive health status with system metrics"""
+    status: str = Field(..., description="Overall health status", example="healthy")
+    timestamp: str = Field(..., description="Health check timestamp")
+    version: str = Field(..., description="API version", example="1.0.0")
+    uptime_seconds: float = Field(..., description="Application uptime in seconds")
+    components: Dict[str, Any] = Field(..., description="Component health status")
+    system: Dict[str, Any] = Field(..., description="System metrics and information")
 
 class MetricsResponse(BaseModel):
     """API metrics and monitoring data"""
@@ -234,6 +244,11 @@ async def metrics_middleware(request: Request, call_next):
             cache_hit=cache_hit,
             rate_limited=rate_limited
         )
+    
+    # Add health check specific headers
+    if request.url.path.startswith("/health"):
+        response.headers["X-Health-Check"] = "true"
+        response.headers["X-Health-Response-Time"] = str(round(response_time_ms, 2))
     
     return response
 
@@ -799,119 +814,186 @@ def get_creators(
     "/health",
     response_model=HealthStatus,
     tags=["Health"],
-    summary="Health Check",
+    summary="Basic Health Check",
     description="""
-    Check the health status of the API and database connection pool.
-    This endpoint provides information about:
+    Basic health check endpoint for load balancer health checks.
+    Only checks critical components (database connectivity).
     
-    * Overall API status
-    * Database connection pool statistics
-    * Redis cache status and statistics
-    * Rate limiting status
-    * Connection pool health
-    * Current timestamp
-    * API version
-    
-    Useful for monitoring and load balancer health checks.
+    Returns 200 if system is operational, 503 if critical issues exist.
     
     **Rate Limit**: {rate_limit}
     """.format(rate_limit=rate_limits.HEALTH),
     responses={
         200: {
-            "description": "Health check successful",
+            "description": "System is healthy",
             "content": {
                 "application/json": {
                     "example": {
                         "status": "healthy",
-                        "database": {
-                            "status": "active",
-                            "minconn": 2,
-                            "maxconn": 20,
-                            "healthy": True
-                        },
-                        "cache": {
-                            "enabled": True,
-                            "status": "healthy",
-                            "redis_version": "6.2.6"
-                        },
-                        "rate_limiting": {
-                            "enabled": True,
-                            "storage": "redis"
-                        },
                         "timestamp": "2024-01-15T20:30:15Z",
-                        "version": "1.0.0"
+                        "version": "1.0.0",
+                        "uptime_seconds": 3600,
+                        "database": {
+                            "status": "healthy",
+                            "healthy": True,
+                            "response_time_ms": 5.2
+                        }
                     }
                 }
             }
         },
         503: {
-            "description": "Service unavailable - health check failed"
+            "description": "System is unhealthy - critical issues detected",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "unhealthy",
+                        "timestamp": "2024-01-15T20:30:15Z",
+                        "version": "1.0.0",
+                        "uptime_seconds": 3600,
+                        "database": {
+                            "status": "critical",
+                            "healthy": False,
+                            "response_time_ms": 5000
+                        }
+                    }
+                }
+            }
         }
     }
 )
 @limiter.limit(rate_limits.HEALTH)
-def health_check(
-    request: Request
-):
-    """Health check endpoint with comprehensive system monitoring"""
+def health_check(request: Request, response: Response):
+    """Basic health check endpoint for load balancers"""
     try:
-        # Database health check
-        pool = get_pool()
-        pool_status = pool.get_pool_status()
-        db_healthy = pool.health_check()
-        pool_status["healthy"] = db_healthy
+        health_checker = get_health_checker()
+        overall_status, health_data = health_checker.get_basic_health()
         
-        # Cache health check
-        cache = get_cache()
-        cache_status = cache.get_stats()
-        
-        # Rate limiting health check
-        from .rate_limiter import get_rate_limit_stats
-        rate_limit_status = get_rate_limit_stats()
-        
-        # Determine overall status
-        cache_healthy = cache_status.get("status") == "healthy"
-        rate_limit_healthy = rate_limit_status.get("enabled", False)
-        
-        # Overall health is healthy if database is healthy
-        # Cache and rate limiting issues are warnings, not critical
-        overall_healthy = db_healthy
-        overall_status = "healthy" if overall_healthy else "unhealthy"
-        
-        if not cache_healthy:
-            overall_status = "degraded"  # Cache issues cause degraded performance
-        
-        health_data = {
-            "status": overall_status,
-            "database": pool_status,
-            "cache": cache_status,
-            "rate_limiting": rate_limit_status,
-            "timestamp": datetime.now().isoformat() + "Z",
-            "version": config.version
-        }
-        
-        # Return 503 only if database is unhealthy
-        status_code = 200 if db_healthy else 503
-        
-        if not db_healthy:
-            raise HTTPException(status_code=status_code, detail=health_data)
+        # Set HTTP status code based on health
+        if overall_status in [HealthStatusEnum.UNHEALTHY, HealthStatusEnum.CRITICAL]:
+            response.status_code = 503
+        else:
+            response.status_code = 200
         
         return health_data
         
-    except HTTPException:
-        raise
     except Exception as e:
-        # If we can't even get basic status, something is seriously wrong
-        error_health = {
+        logger.error(f"Health check failed: {e}")
+        response.status_code = 503
+        return {
             "status": "critical",
-            "database": {"status": "error", "error": str(e)},
-            "cache": {"status": "unknown"},
-            "rate_limiting": {"status": "unknown"},
             "timestamp": datetime.now().isoformat() + "Z",
-            "version": config.version
+            "version": config.version,
+            "error": str(e)
         }
-        logger.error(f"Critical health check failure: {e}")
-        raise HTTPException(status_code=503, detail=error_health)
+
+
+@app.get(
+    "/health/detailed",
+    response_model=DetailedHealthStatus,
+    tags=["Health"],
+    summary="Detailed Health Check",
+    description="""
+    Comprehensive health check with detailed system monitoring.
+    
+    Includes:
+    * All system components (database, cache, rate limiter, external APIs)
+    * System resource utilization (CPU, memory, disk)
+    * Component response times and detailed status
+    * External dependency checks (Twitch API)
+    
+    **Rate Limit**: {rate_limit}
+    """.format(rate_limit=rate_limits.HEALTH),
+    responses={
+        200: {
+            "description": "Detailed system health information",
+        },
+        503: {
+            "description": "System has critical issues",
+        }
+    }
+)
+@limiter.limit(rate_limits.HEALTH)
+def detailed_health_check(request: Request, response: Response):
+    """Comprehensive health check with system metrics"""
+    try:
+        health_checker = get_health_checker()
+        overall_status, health_data = health_checker.get_detailed_health()
+        
+        # Set HTTP status code based on health
+        if overall_status in [HealthStatusEnum.UNHEALTHY, HealthStatusEnum.CRITICAL]:
+            response.status_code = 503
+        elif overall_status == HealthStatusEnum.DEGRADED:
+            response.status_code = 200  # Degraded is still operational
+        else:
+            response.status_code = 200
+        
+        return health_data
+        
+    except Exception as e:
+        logger.error(f"Detailed health check failed: {e}")
+        response.status_code = 503
+        return {
+            "status": "critical",
+            "timestamp": datetime.now().isoformat() + "Z",
+            "version": config.version,
+            "error": str(e)
+        }
+
+
+@app.get(
+    "/metrics/prometheus",
+    tags=["Monitoring"],
+    summary="Prometheus Metrics",
+    description="""
+    Prometheus-compatible metrics endpoint for monitoring systems.
+    
+    Returns metrics in Prometheus exposition format including:
+    * Component health status (as numeric values)
+    * Component response times
+    * System resource utilization
+    * Application uptime
+    
+    **Rate Limit**: {rate_limit}
+    """.format(rate_limit=rate_limits.GENERAL),
+    responses={
+        200: {
+            "description": "Prometheus metrics in text format",
+            "content": {
+                "text/plain": {
+                    "example": """# HELP stream_sniper_component_health Health status of system components
+# TYPE stream_sniper_component_health gauge
+stream_sniper_component_health{component="database"} 1.0
+stream_sniper_component_health{component="cache"} 1.0
+"""
+                }
+            }
+        }
+    }
+)
+@limiter.limit(rate_limits.GENERAL)
+def prometheus_metrics(request: Request):
+    """Get Prometheus-compatible metrics"""
+    try:
+        health_checker = get_health_checker()
+        metrics_text = health_checker.generate_prometheus_metrics()
+        
+        return Response(
+            content=metrics_text,
+            media_type="text/plain; version=0.0.4"
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to generate Prometheus metrics: {e}")
+        error_time = int(time.time() * 1000)
+        error_metrics = f"""# HELP stream_sniper_metrics_error Error generating metrics
+# TYPE stream_sniper_metrics_error gauge
+stream_sniper_metrics_error 1 {error_time}
+"""
+        return Response(
+            content=error_metrics,
+            media_type="text/plain; version=0.0.4"
+        )
 
 
 # Monitoring endpoints
@@ -1049,7 +1131,9 @@ def root():
         },
         "endpoints": {
             "health": "/health",
+            "health_detailed": "/health/detailed",
             "metrics": "/metrics",
+            "prometheus_metrics": "/metrics/prometheus",
             "cache_stats": "/cache/stats"
         }
     }
