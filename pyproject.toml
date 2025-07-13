@@ -4,17 +4,17 @@ build-backend = "hatchling.build"
 
 [project]
 name = "stream-sniper"
-version = "1.0.0"
-description = "A comprehensive Twitch stream analytics platform that collects, processes, and visualizes chat data"
-readme = "README.md"
+version = "2.0.0"
+description = "A comprehensive Twitch stream analytics platform that collects, processes, and analyzes chat data from streams with REST API and Docker support"
+readme = "CLAUDE.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "slanycukr", email = "your.email@example.com"},
+    {name = "slanycukr"},  # Email removed for privacy
 ]
-keywords = ["twitch", "analytics", "chat", "streaming", "data-collection"]
+keywords = ["twitch", "analytics", "chat", "streaming", "data-collection", "fastapi", "postgresql", "docker"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -23,6 +23,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Communications :: Chat",
+    "Topic :: Database :: Front-Ends",
+    "Topic :: Multimedia :: Video :: Display",
 ]
 
 dependencies = [
@@ -47,6 +50,23 @@ dev = [
     "flake8>=6.0",
     "mypy>=1.0",
     "pre-commit>=3.0",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.25.0",  # For API testing
+]
+
+api = [
+    "fastapi>=0.115.0",
+    "starlette>=0.40.0",
+    "uvicorn[standard]>=0.32.1",
+]
+
+docker = [
+    "gunicorn>=21.2.0",  # Production WSGI server
+]
+
+production = [
+    "gunicorn>=21.2.0",
+    "psycopg2>=2.9.10",  # Non-binary version for production
 ]
 
 [project.scripts]
@@ -65,8 +85,12 @@ packages = ["stream_sniper"]
 [tool.hatch.build.targets.sdist]
 include = [
     "/stream_sniper",
-    "/README.md",
-    "/LICENSE",
+    "/CLAUDE.md",
+    "/requirements.txt",
+    "/docker-compose.yml",
+    "/Dockerfile.api",
+    "/Dockerfile.collector",
+    "/.dockerignore",
 ]
 
 [tool.black]
@@ -85,5 +109,25 @@ disallow_untyped_defs = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --strict-markers"
+addopts = "-ra -q --strict-markers --cov=stream_sniper --cov-report=term-missing"
 testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["stream_sniper"]
+omit = [
+    "*/tests/*",
+    "*/venv/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
