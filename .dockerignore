@@ -28,6 +28,7 @@ logs/
 
 # Documentation
 *.md
+!README.md
 docs/
 
 # Cache

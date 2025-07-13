@@ -3,8 +3,6 @@
 __version__ = "1.0.0"
 __author__ = "slanycukr"
 
-# Import main components for easy access
-from .collector import TwitchCollectorFacade
-from .api import app
-
+# Components are available for import but not imported at package level
+# to avoid database connection issues during import
 __all__ = ["TwitchCollectorFacade", "app"]

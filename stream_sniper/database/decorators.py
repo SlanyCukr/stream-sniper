@@ -1,20 +1,28 @@
 import os
 import psycopg2
+from dotenv import load_dotenv
 
-USER = os.environ['USER']
-PASSWORD = os.environ['PASSWORD']
-HOST = os.environ['HOST']
-DATABASE = os.environ['DATABASE']
+
+def get_db_config():
+    """Load database configuration from environment variables."""
+    load_dotenv()
+    return {
+        'user': os.environ['USER'],
+        'password': os.environ['PASSWORD'],
+        'host': os.environ['HOST'],
+        'database': os.environ['DATABASE']
+    }
 
 
 def with_cursor_connection(f):
     def wrapper(*args):
+        config = get_db_config()
         connection = psycopg2.connect(
-            user=USER,
-            password=PASSWORD,
-            host=HOST,
+            user=config['user'],
+            password=config['password'],
+            host=config['host'],
             port=5432,
-            database=DATABASE,
+            database=config['database'],
             options='-c search_path=stream_sniper'
         )
         cursor = connection.cursor()
@@ -29,12 +37,13 @@ def with_cursor_connection(f):
 
 def with_cursor(f):
     def wrapper(*args):
+        config = get_db_config()
         connection = psycopg2.connect(
-            user=USER,
-            password=PASSWORD,
-            host=HOST,
+            user=config['user'],
+            password=config['password'],
+            host=config['host'],
             port=5432,
-            database=DATABASE,
+            database=config['database'],
             options='-c search_path=stream_sniper'
         )
         cursor = connection.cursor()

@@ -2,12 +2,19 @@ import os
 from typing import Callable
 
 import psycopg2
+from dotenv import load_dotenv
 
-USER = os.environ['USER']
-PASSWORD = os.environ['PASSWORD']
-HOST = os.environ['HOST']
-DATABASE = os.environ['DATABASE']
-PORT = os.environ.get('PORT', 5432)  # Default PostgreSQL port is 5432
+
+def get_db_config():
+    """Load database configuration from environment variables."""
+    load_dotenv()
+    return {
+        'user': os.environ['USER'],
+        'password': os.environ['PASSWORD'],
+        'host': os.environ['HOST'],
+        'database': os.environ['DATABASE'],
+        'port': int(os.environ.get('PORT', 5432))
+    }
 
 
 class DatabaseBuffer:
@@ -15,12 +22,13 @@ class DatabaseBuffer:
         self.f = f
         self.buffer_len = buffer_len
         self.items = []
+        config = get_db_config()
         self.connection = psycopg2.connect(
-            user=USER,
-            password=PASSWORD,
-            host=HOST,
-            port=PORT,
-            database=DATABASE,
+            user=config['user'],
+            password=config['password'],
+            host=config['host'],
+            port=config['port'],
+            database=config['database'],
             options='-c search_path=stream_sniper'
         )
 
