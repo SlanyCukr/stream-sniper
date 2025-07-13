@@ -204,7 +204,10 @@ class APIConfig:
             return True
             
         except ValueError as e:
-            print(f"Configuration validation error: {e}")
+            # Import here to avoid circular imports
+            from ..logging_config import get_logger
+            logger = get_logger(__name__)
+            logger.error(f"Configuration validation error: {e}")
             return False
 
 
@@ -232,8 +235,32 @@ def validate_config() -> bool:
     return config.validate()
 
 
+def log_config_summary():
+    """Log a summary of the current configuration (excluding sensitive data)."""
+    from ..logging_config import get_logger
+    logger = get_logger(__name__)
+    
+    logger.info("=== Stream Sniper API Configuration ===")
+    logger.info(f"API: {config.title} v{config.version}")
+    logger.info(f"Server: {config.host}:{config.port} (debug={config.debug})")
+    logger.info(f"Cache: {'enabled' if config.cache.enabled else 'disabled'} "
+              f"(Redis: {config.cache.host}:{config.cache.port})")
+    logger.info(f"Rate Limiting: {'enabled' if config.rate_limit.enabled else 'disabled'}")
+    logger.info(f"Compression: {'enabled' if config.compression.enabled else 'disabled'}")
+    logger.info(f"Monitoring: {'enabled' if config.monitoring.enabled else 'disabled'}")
+    logger.info(f"Database Pool: {config.database.pool_min_conn}-{config.database.pool_max_conn} connections")
+    logger.info("=" * 40)
+
+
 def print_config_summary():
-    """Print a summary of the current configuration (excluding sensitive data)."""
+    """Print a summary of the current configuration (excluding sensitive data). 
+    
+    DEPRECATED: Use log_config_summary() instead.
+    """
+    import warnings
+    warnings.warn("print_config_summary() is deprecated. Use log_config_summary() instead.", 
+                  DeprecationWarning, stacklevel=2)
+    
     print("=== Stream Sniper API Configuration ===")
     print(f"API: {config.title} v{config.version}")
     print(f"Server: {config.host}:{config.port} (debug={config.debug})")

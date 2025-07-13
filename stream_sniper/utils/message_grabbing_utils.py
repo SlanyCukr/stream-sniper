@@ -1,13 +1,15 @@
 from datetime import datetime
 
 from ..database.stream_table_gateway import insert_stream_db
-import logging
+from ..logging_config import get_logger
 
 from .utils import add_timedelta_to_point_in_time
 
+logger = get_logger(__name__)
+
 
 def update_stream_info(twitch_stream_id: int, started_at: datetime, creator_id: int, title: str, duration: str, thumbnail_url: str):
-    logging.debug("Updating stream info.")
+    logger.debug("Updating stream info.")
 
     stopped_at = add_timedelta_to_point_in_time(started_at, duration)
 

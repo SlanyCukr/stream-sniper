@@ -1,4 +1,3 @@
-import logging
 import typing
 from datetime import datetime
 from functools import lru_cache
@@ -6,6 +5,7 @@ from typing import Callable
 
 from ..database.chatter_table_gateway import insert_new_chatter_db
 from ..database.message_text_table_gateway import find_or_insert_message_text_id_db
+from ..logging_config import get_logger
 
 
 class MessageHandler:
@@ -13,13 +13,12 @@ class MessageHandler:
         self.known_chatters = {}
         self.known_messages = {}
         self.insert_message_fun = insert_message_fun
-
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.DEBUG)
+        self.logger = get_logger(__name__)
 
         # creator should be cached in known_chatters from the start
         creator_id = insert_new_chatter_db(creator_nick)
         self.known_chatters[creator_nick] = creator_id
+        self.logger.debug(f"Initialized message handler for creator: {creator_nick} (ID: {creator_id})")
 
     @lru_cache(maxsize=128)
     def find_tagged_user_id(self, message: str) -> typing.Optional[int]:

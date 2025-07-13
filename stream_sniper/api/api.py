@@ -1,7 +1,6 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import time
-import logging
 
 import uvicorn as uvicorn
 from fastapi import FastAPI, HTTPException, Query, Path, Request, Response
@@ -19,6 +18,7 @@ from .monitoring import (
     setup_monitoring, get_monitoring_data, record_request_metrics, 
     record_cache_operation, get_metrics_collector
 )
+from .middleware import setup_middleware
 
 from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
 from ..database.creator_table_gateway import select_creators_db
@@ -27,12 +27,13 @@ from ..database.stream_table_gateway import select_all_streams_db, select_stream
     select_most_active_chatters_db, select_most_tagged_chatters_db, select_creators_that_wrote_in_stream_db, \
     select_chatters_in_stream_db, select_chatter_messages_on_stream_db, select_all_stream_count_db
 from ..database.connection_pool import get_pool
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from ..logging_config import setup_logging, get_logger, correlation_context, performance_timer
 
 load_dotenv()
+
+# Setup structured logging
+setup_logging(environment='production')
+logger = get_logger(__name__)
 
 # Get configuration
 config = get_config()
@@ -170,6 +171,9 @@ app = FastAPI(
         }
     ]
 )
+
+# Setup structured logging middleware
+setup_middleware(app, config)
 
 # Setup middleware
 if config.cors_enabled:

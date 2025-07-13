@@ -1,18 +1,16 @@
-import logging
 from datetime import datetime, UTC
 from typing import Callable, List
 
 from tqdm import tqdm
 
+from ..logging_config import get_logger
+
 
 class ChatProcessor:
     def __init__(self, creator_id: int, message_handling_fun: Callable):
         self.creator_id = creator_id
-
         self.message_handling_fun = message_handling_fun
-
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.DEBUG)
+        self.logger = get_logger(__name__)
 
     def get_nicks(self, chat: List[str]):
         """¨
