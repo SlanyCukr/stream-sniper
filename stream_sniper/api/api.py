@@ -13,6 +13,7 @@ from ..database.message_table_gateway import select_chatter_messages_db, select_
 from ..database.stream_table_gateway import select_all_streams_db, select_stream_comprehensive_db, \
     select_most_active_chatters_db, select_most_tagged_chatters_db, select_creators_that_wrote_in_stream_db, \
     select_chatters_in_stream_db, select_chatter_messages_on_stream_db, select_all_stream_count_db
+from ..database.connection_pool import get_pool
 
 load_dotenv()
 
@@ -86,6 +87,13 @@ class ErrorResponse(BaseModel):
     """Error response model"""
     detail: str = Field(..., description="Error message", example="Stream not found")
 
+class HealthStatus(BaseModel):
+    """API and database health status"""
+    status: str = Field(..., description="Overall health status", example="healthy")
+    database: Dict[str, Any] = Field(..., description="Database connection pool status")
+    timestamp: str = Field(..., description="Health check timestamp")
+    version: str = Field(..., description="API version", example="1.0.0")
+
 # FastAPI App Configuration
 app = FastAPI(
     title="Stream Sniper API",
@@ -143,6 +151,14 @@ tags_metadata = [
     {
         "name": "Creators",
         "description": "Twitch creator/streamer information"
+    },
+    {
+        "name": "Health",
+        "description": "API health monitoring and connection pool status"
+    },
+    {
+        "name": "API Info",
+        "description": "General API information and documentation"
     }
 ]
 
@@ -437,6 +453,86 @@ def get_creators():
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get(
+    "/health",
+    response_model=HealthStatus,
+    tags=["Health"],
+    summary="Health Check",
+    description="""
+    Check the health status of the API and database connection pool.
+    This endpoint provides information about:
+    
+    * Overall API status
+    * Database connection pool statistics
+    * Connection pool health
+    * Current timestamp
+    * API version
+    
+    Useful for monitoring and load balancer health checks.
+    """,
+    responses={
+        200: {
+            "description": "Health check successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "healthy",
+                        "database": {
+                            "status": "active",
+                            "minconn": 2,
+                            "maxconn": 20,
+                            "healthy": True
+                        },
+                        "timestamp": "2024-01-15T20:30:15Z",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+        },
+        503: {
+            "description": "Service unavailable - health check failed"
+        }
+    }
+)
+def health_check():
+    """Health check endpoint with database connection pool monitoring"""
+    try:
+        pool = get_pool()
+        pool_status = pool.get_pool_status()
+        
+        # Perform database health check
+        is_healthy = pool.health_check()
+        
+        # Determine overall status
+        overall_status = "healthy" if is_healthy else "unhealthy"
+        status_code = 200 if is_healthy else 503
+        
+        # Add health flag to database status
+        pool_status["healthy"] = is_healthy
+        
+        health_data = {
+            "status": overall_status,
+            "database": pool_status,
+            "timestamp": datetime.now().isoformat() + "Z",
+            "version": "1.0.0"
+        }
+        
+        if not is_healthy:
+            raise HTTPException(status_code=status_code, detail=health_data)
+        
+        return health_data
+        
+    except Exception as e:
+        # If we can't even get pool status, something is seriously wrong
+        error_health = {
+            "status": "critical",
+            "database": {"status": "error", "error": str(e)},
+            "timestamp": datetime.now().isoformat() + "Z",
+            "version": "1.0.0"
+        }
+        raise HTTPException(status_code=503, detail=error_health)
 
 
 # Root endpoint for API information

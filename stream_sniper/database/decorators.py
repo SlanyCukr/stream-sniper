@@ -1,56 +1,60 @@
-import os
-import psycopg2
-from dotenv import load_dotenv
+import logging
+from functools import wraps
+
+from .connection_pool import get_pool
+
+logger = logging.getLogger(__name__)
 
 
 def get_db_config():
-    """Load database configuration from environment variables."""
-    load_dotenv()
-    return {
-        'user': os.environ['USER'],
-        'password': os.environ['PASSWORD'],
-        'host': os.environ['HOST'],
-        'database': os.environ['DATABASE']
-    }
+    """
+    Legacy function for backward compatibility.
+    Database configuration is now handled by the connection pool.
+    """
+    pool = get_pool()
+    return pool._config
 
 
 def with_cursor_connection(f):
+    """
+    Decorator for database operations that need both cursor and connection access.
+    Uses connection pooling for improved performance and resource management.
+    """
+    @wraps(f)
     def wrapper(*args):
-        config = get_db_config()
-        connection = psycopg2.connect(
-            user=config['user'],
-            password=config['password'],
-            host=config['host'],
-            port=5432,
-            database=config['database'],
-            options='-c search_path=stream_sniper'
-        )
-        cursor = connection.cursor()
-
-        values = f(*args, cursor, connection)
-        cursor.close()
-        connection.close()
-        return values
-
+        pool = get_pool()
+        
+        with pool.get_connection() as connection:
+            cursor = None
+            try:
+                cursor = connection.cursor()
+                values = f(*args, cursor, connection)
+                return values
+            except Exception as e:
+                logger.error(f"Database operation failed in {f.__name__}: {e}")
+                raise
+            finally:
+                if cursor:
+                    cursor.close()
+    
     return wrapper
 
 
 def with_cursor(f):
+    """
+    Decorator for read-only database operations that only need cursor access.
+    Uses connection pooling for improved performance and resource management.
+    """
+    @wraps(f)
     def wrapper(*args):
-        config = get_db_config()
-        connection = psycopg2.connect(
-            user=config['user'],
-            password=config['password'],
-            host=config['host'],
-            port=5432,
-            database=config['database'],
-            options='-c search_path=stream_sniper'
-        )
-        cursor = connection.cursor()
-
-        values = f(*args, cursor)
-        cursor.close()
-        connection.close()
-        return values
-
+        pool = get_pool()
+        
+        with pool.get_cursor() as cursor:
+            try:
+                values = f(*args, cursor)
+                return values
+            except Exception as e:
+                logger.error(f"Database operation failed in {f.__name__}: {e}")
+                raise
+    
     return wrapper
