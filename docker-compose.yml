@@ -1,7 +1,19 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - stream-sniper
+
   api:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile.api
     ports:
       - "5002:5002"
@@ -18,14 +30,12 @@ services:
 
   collector:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile.collector
     env_file:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
-    volumes:
-      - ./logs:/app/logs
     command: ["${TWITCH_USERNAME:-defaultuser}"]
     restart: "no"
     networks:
@@ -56,20 +66,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Optional: PostgreSQL container (comment out if using external database)
-  # postgres:
-  #   image: postgres:16-alpine
-  #   environment:
-  #     POSTGRES_USER: ${POSTGRES_USER}
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-  #     POSTGRES_DB: ${POSTGRES_DB}
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - ./database/create_table.sql:/docker-entrypoint-initdb.d/01-schema.sql
-  #   ports:
-  #     - "5432:5432"
-  #   networks:
-  #     - stream-sniper
 
 networks:
   stream-sniper:
@@ -77,4 +73,3 @@ networks:
 
 volumes:
   redis_data:
-#   postgres_data:

@@ -52,17 +52,17 @@ PostgreSQL database with normalized schema in `stream_sniper` namespace:
 
 ## Core Components
 
-### Data Collection Classes (`classes/`)
+### Data Collection Classes (`backend/stream_sniper/collector/`)
 
 #### TwitchCollectorFacade
-- **File**: `classes/twitch_collector_facade.py:17`
+- **File**: `backend/stream_sniper/collector/twitch_collector_facade.py:17`
 - **Purpose**: Main orchestrator for the data collection process
 - **Key Methods**:
   - `start_processing()` - Main processing loop
   - `insert_creator_get_id()` - Creator management
 
 #### IrcChatDownloader
-- **File**: `classes/irc_chat_downloader.py:10`
+- **File**: `backend/stream_sniper/collector/irc_chat_downloader.py:10`
 - **Purpose**: Downloads chat data using chat-downloader library
 - **Features**: Processes Twitch video URLs, extracts chat messages
 
@@ -74,13 +74,13 @@ PostgreSQL database with normalized schema in `stream_sniper` namespace:
 - **Purpose**: Integrates with Twitch API for metadata (creator info, video details)
 - **Features**: OAuth authentication, video list retrieval, creator information
 
-### Database Layer (`database/`)
+### Database Layer (`backend/stream_sniper/database/`)
 - **Pattern**: Table Gateway pattern for database operations
 - **Files**: Separate gateway classes for each table
 - **Features**: Prepared statements, connection management, query optimization
 - **Decorators**: Database connection and error handling decorators
 
-### Utilities (`utils/`)
+### Utilities (`backend/stream_sniper/utils/`)
 - **Message Processing**: Chat message parsing and transformation utilities
 - **Stream Management**: Stream metadata handling and database updates
 
@@ -117,7 +117,7 @@ python main.py <twitch_username>
 stream-sniper-api
 
 # Legacy method
-python rest_api/api.py
+python backend/stream_sniper/api/main.py
 # Server runs on http://0.0.0.0:5002
 ```
 
@@ -136,8 +136,8 @@ docker-compose up
 ## Development Environment
 
 - **Python Version**: 3.12
-- **Virtual Environment**: `venv/` (included in repository)
-- **Database**: PostgreSQL with `stream_sniper` schema
+- **Project Structure**: Organized into `backend/` and `frontend/` directories
+- **Database**: PostgreSQL with `stream_sniper` schema (external, not included in Docker Compose)
 - **Configuration**: Environment variables loaded from `.env` files
 
 ## Key Features
@@ -210,18 +210,20 @@ This ensures:
   - Added python-dotenv for environment variable management
 
 ### Docker Support Added
-- **Dockerfile.api**: Container for REST API service
-- **Dockerfile.collector**: Container for data collection service
-- **docker-compose.yml**: Orchestration for both services
-- **.dockerignore**: Optimized build context
+- **backend/Dockerfile.api**: Container for REST API service
+- **backend/Dockerfile.collector**: Container for data collection service
+- **docker-compose.yml**: Orchestration for API, collector, and Redis services (database external)
+- **docker-compose.prod.yml**: Production overrides
+- **docker-compose.override.yml**: Development overrides
 
 ### Package Structure Completed
-- **pyproject.toml**: Complete package configuration for distribution
+- **backend/pyproject.toml**: Complete package configuration for distribution
 - **Entry Points**: 
   - `stream-sniper` - CLI for data collection
   - `stream-sniper-api` - REST API server
 - **Package Structure**: Full migration to proper Python package layout completed
-- **Namespace**: All code organized under `stream_sniper` package
+- **Namespace**: All code organized under `backend/stream_sniper/` package
+- **Frontend**: Placeholder directory for future frontend implementation
 
 ### Health Check & Monitoring System Added (2025-07-13)
 - **Comprehensive Health Endpoints**: 
@@ -249,10 +251,36 @@ See `FUTURE_IMPROVEMENTS.md` for planned enhancements including:
 - CI/CD pipeline with GitHub Actions
 - Performance and security enhancements
 
+### Project Structure (2025-07-14)
+
+```
+stream-sniper/
+├── README.md
+├── CLAUDE.md
+├── docker-compose.yml           # Main orchestration (API, collector, Redis)
+├── docker-compose.prod.yml      # Production overrides
+├── docker-compose.override.yml  # Development overrides
+├── backend/                     # All backend code
+│   ├── Dockerfile.api
+│   ├── Dockerfile.collector
+│   ├── pyproject.toml
+│   ├── requirements.txt
+│   ├── stream_sniper/           # Main Python package
+│   │   ├── __init__.py
+│   │   ├── cli.py
+│   │   ├── api/                 # REST API
+│   │   ├── collector/           # Data collection
+│   │   ├── database/            # Database layer
+│   │   └── utils/               # Utilities
+│   └── tests/                   # Test suite
+└── frontend/                    # Placeholder for future frontend
+    └── README.md
+```
+
 ### Quick Start
 ```bash
 # Install package in development mode
-pip install -e .
+cd backend && pip install -e .
 
 # Run data collection
 stream-sniper <username>
@@ -260,6 +288,6 @@ stream-sniper <username>
 # Start API server
 stream-sniper-api
 
-# Or use Docker
+# Or use Docker (recommended)
 docker-compose up
 ```
