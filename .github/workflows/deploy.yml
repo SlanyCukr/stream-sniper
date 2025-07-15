@@ -82,11 +82,11 @@ jobs:
             exit 1
           fi
           
-          # Test API health endpoint
-          if curl -f -s http://localhost:5002/health > /dev/null; then
-            echo "✅ API health check passed on port 5002"
+          # Test API health endpoint through frontend proxy
+          if curl -f -s http://localhost:3001/api/health > /dev/null; then
+            echo "✅ API health check passed through frontend proxy"
           else
-            echo "❌ API health check failed"
+            echo "❌ API health check failed through frontend proxy"
             exit 1
           fi
           
@@ -104,7 +104,7 @@ jobs:
         run: |
           echo "🌐 Stream Sniper is now deployed:"
           echo "   Frontend: https://stream-sniper.slanycukr.com"
-          echo "   API:      https://stream-sniper-api.slanycukr.com"
+          echo "   API:      https://stream-sniper.slanycukr.com/api"
           echo "   Status:   All services running on RPI5 8GB"
 
       - name: Clean up old Docker images

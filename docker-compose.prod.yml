@@ -6,7 +6,7 @@ services:
     ports:
       - "3001:80"
     environment:
-      - REACT_APP_API_URL=https://stream-sniper-api.slanycukr.com
+      - REACT_APP_API_URL=/api
     restart: unless-stopped
     container_name: stream-sniper-frontend
     networks:
@@ -18,8 +18,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.api
-    ports:
-      - "5002:5002"
+    expose:
+      - "5002"
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
@@ -28,7 +28,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
-      - CORS_ORIGINS=["https://stream-sniper.slanycukr.com"]
+      - CORS_ORIGINS=["*"]
     restart: unless-stopped
     container_name: stream-sniper-api
     networks:

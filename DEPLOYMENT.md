@@ -10,7 +10,7 @@ Stream Sniper uses automated GitHub Actions deployment to the RPI infrastructure
 - **VPS**: Nginx reverse proxy with SSL termination
 - **Domains**: 
   - Frontend: `https://stream-sniper.slanycukr.com`
-  - API: `https://stream-sniper-api.slanycukr.com`
+  - API: `https://stream-sniper.slanycukr.com/api` (proxied through frontend)
 
 ## Prerequisites
 
@@ -46,20 +46,18 @@ cp .env.prod.template .env.prod
 
 ### 3. Port Configuration
 
-Ensure autossh tunnels are configured for both services:
-- Port 3001: Frontend
-- Port 5002: Backend API
+Ensure autossh tunnel is configured for the frontend:
+- Port 3001: Frontend (includes API proxy)
 
 Current autossh configuration in `/etc/default/autossh`:
 ```bash
-SSH_OPTIONS="-N -R 3001:localhost:3001 -R 5002:localhost:5002 ..."
+SSH_OPTIONS="-N -R 3001:localhost:3001 ..."
 ```
 
 ### 4. DNS Configuration
 
-Add DNS A records pointing to VPS IP (89.221.212.146):
+Add DNS A record pointing to VPS IP (89.221.212.146):
 - `stream-sniper.slanycukr.com`
-- `stream-sniper-api.slanycukr.com`
 
 ### 5. SSL Certificates
 
@@ -103,13 +101,15 @@ curl -f http://localhost:5002/health
 
 ### Frontend (Port 3001)
 - React application built with production optimizations
-- Nginx-based container serving static files
+- Nginx-based container serving static files and proxying API requests
 - HTTPS via reverse proxy at `stream-sniper.slanycukr.com`
+- Internal API proxy at `/api/*` routes to backend
 
-### Backend API (Port 5002)
+### Backend API (Internal)
 - FastAPI application with authentication and admin features
 - PostgreSQL database integration
-- HTTPS via reverse proxy at `stream-sniper-api.slanycukr.com`
+- Accessible via frontend proxy at `stream-sniper.slanycukr.com/api`
+- Not exposed externally (internal Docker network only)
 
 ### Tracking Service
 - Background service for automated streamer monitoring
@@ -126,7 +126,7 @@ curl -f http://localhost:5002/health
 ### Health Checks
 
 - **Frontend**: `curl -f https://stream-sniper.slanycukr.com`
-- **API**: `curl -f https://stream-sniper-api.slanycukr.com/health`
+- **API**: `curl -f https://stream-sniper.slanycukr.com/api/health`
 - **Database**: `docker-compose exec postgres pg_isready`
 
 ### Logs
