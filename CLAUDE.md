@@ -1,4 +1,4 @@
-# Stream Sniper
+# Stream Sniper - Project Instructions
 
 A comprehensive Twitch stream analytics platform that collects, processes, and visualizes chat data from Twitch streams.
 
@@ -8,31 +8,25 @@ A comprehensive Twitch stream analytics platform that collects, processes, and v
 
 ## Architecture
 
-The system consists of two main components:
+The system consists of three main components:
 
-### 1. Data Collection Backend
+### 1. Backend (`backend/`)
+- **Data Collection**: Downloads and processes chat data from Twitch VODs
+- **REST API**: FastAPI server providing HTTP endpoints for data access
+- **Database**: PostgreSQL integration with normalized schema
 - **Entry Points**: 
   - `stream-sniper <username>` - CLI command for data collection
-  - `main.py <username>` - Legacy entry point (deprecated)
-- **Purpose**: Downloads and processes chat data from Twitch VODs
-- **Key Features**:
-  - Retrieves chat messages from Twitch video archives
-  - Processes user nicknames and message content
-  - Stores data in normalized PostgreSQL database
-  - Handles duplicate detection and data deduplication
+  - `stream-sniper-api` - REST API server
 
-### 2. REST API
-- **Entry Points**:
-  - `stream-sniper-api` - CLI command for API server
-  - `python rest_api/api.py` - Legacy entry point
-- **Framework**: FastAPI with CORS enabled
-- **Port**: 5002
-- **Purpose**: Provides HTTP endpoints for accessing processed chat data
-- **Key Endpoints**:
-  - `/streams/` - Get streams by creator with pagination
-  - `/stream/{stream_id}/` - Get comprehensive stream information
-  - `/chatter/{chatter_id}/messages/` - Get messages by specific chatter
-  - `/creators` - Get all creators in database
+### 2. Frontend (`frontend/`)
+- **React Application**: Modern React-based web interface
+- **Analytics Dashboard**: Stream browsing, chat analysis, and visualization
+- **API Integration**: Connects to backend REST API
+- **Development Server**: `npm start` for local development
+
+### 3. Database (External)
+- **PostgreSQL**: Normalized schema in `stream_sniper` namespace
+- **External Service**: Not included in Docker Compose (separate instance required)
 
 ## Database Schema
 
@@ -50,93 +44,53 @@ PostgreSQL database with normalized schema in `stream_sniper` namespace:
 - Streams belong to creators
 - Support for message tagging (tagged_chatter_id in messages)
 
-## Core Components
+## Quick Start
 
-### Data Collection Classes (`backend/stream_sniper/collector/`)
-
-#### TwitchCollectorFacade
-- **File**: `backend/stream_sniper/collector/twitch_collector_facade.py:17`
-- **Purpose**: Main orchestrator for the data collection process
-- **Key Methods**:
-  - `start_processing()` - Main processing loop
-  - `insert_creator_get_id()` - Creator management
-
-#### IrcChatDownloader
-- **File**: `backend/stream_sniper/collector/irc_chat_downloader.py:10`
-- **Purpose**: Downloads chat data using chat-downloader library
-- **Features**: Processes Twitch video URLs, extracts chat messages
-
-#### ChatProcessor & MessageHandler
-- **Purpose**: Process chat messages, extract nicknames, handle message deduplication
-- **Features**: Message parsing, user identification, database preparation
-
-#### TwitchAPI
-- **Purpose**: Integrates with Twitch API for metadata (creator info, video details)
-- **Features**: OAuth authentication, video list retrieval, creator information
-
-### Database Layer (`backend/stream_sniper/database/`)
-- **Pattern**: Table Gateway pattern for database operations
-- **Files**: Separate gateway classes for each table
-- **Features**: Prepared statements, connection management, query optimization
-- **Decorators**: Database connection and error handling decorators
-
-### Utilities (`backend/stream_sniper/utils/`)
-- **Message Processing**: Chat message parsing and transformation utilities
-- **Stream Management**: Stream metadata handling and database updates
-
-## Dependencies
-
-### Core Libraries
-- **twitch-python**: Twitch API integration
-- **chat-downloader**: VOD chat extraction
-- **psycopg2-binary**: PostgreSQL database connectivity
-- **twitchAPI**: Additional Twitch API functionality
-
-### Web Framework
-- **fastapi**: REST API framework
-- **uvicorn**: ASGI server
-
-### Additional Tools
-- **tqdm**: Progress bars
-- **pytimeparse**: Time parsing utilities
-
-## Usage
-
-### Data Collection
+### Backend Development
 ```bash
-# Modern CLI (recommended)
-stream-sniper <twitch_username>
-
-# Legacy method (deprecated)
-python main.py <twitch_username>
+cd backend
+pip install -e .
+stream-sniper <username>      # Data collection
+stream-sniper-api             # API server
 ```
 
-### REST API Server
+### Frontend Development
 ```bash
-# Modern CLI (recommended)
-stream-sniper-api
-
-# Legacy method
-python backend/stream_sniper/api/main.py
-# Server runs on http://0.0.0.0:5002
+cd frontend
+npm install
+npm start                     # Development server
 ```
 
-### Docker Usage
+### Docker (Recommended)
 ```bash
-# Run API server
-docker-compose up api
+docker-compose up             # All services
+docker-compose up api         # API only
+docker-compose up frontend    # Frontend only
+```
 
-# Run data collector
-TWITCH_USERNAME=someuser docker-compose up collector
+## Project Structure
 
-# Run both services
-docker-compose up
+```
+stream-sniper/
+├── README.md                 # Project overview
+├── CLAUDE.md                 # Project-wide instructions
+├── docker-compose.yml        # Docker orchestration
+├── backend/                  # Python backend
+│   ├── README.md            # Backend documentation
+│   ├── CLAUDE.md            # Backend developer instructions
+│   ├── stream_sniper/       # Main Python package
+│   └── tests/               # Test suite
+└── frontend/                 # React frontend
+    ├── README.md            # Frontend documentation
+    ├── CLAUDE.md            # Frontend developer instructions
+    ├── src/                 # React source code
+    └── public/              # Static assets
 ```
 
 ## Development Environment
 
 - **Python Version**: 3.12
-- **Project Structure**: Organized into `backend/` and `frontend/` directories
+- **Node.js Version**: 18+
 - **Database**: PostgreSQL with `stream_sniper` schema (external, not included in Docker Compose)
 - **Configuration**: Environment variables loaded from `.env` files
 
@@ -155,15 +109,15 @@ docker-compose up
 - Batch processing with configurable buffer sizes
 - Comprehensive logging and error handling
 
-### API Interface
-- RESTful endpoints for data access
-- JSON response format
-- Pagination support for large datasets
-- CORS enabled for web client integration
+### Web Interface
+- React-based dashboard for stream analytics
+- Twitch-style chat visualization
+- Interactive filtering and pagination
+- Real-time data updates
 
 ## Security Considerations
 
-The codebase appears to be designed for legitimate stream analytics purposes:
+The codebase is designed for legitimate stream analytics purposes:
 - Read-only access to public Twitch chat data
 - Standard database practices with parameterized queries
 - No obvious malicious functionality detected
@@ -171,10 +125,11 @@ The codebase appears to be designed for legitimate stream analytics purposes:
 
 ## Performance Optimizations
 
-- **Database Buffering**: `DatabaseBuffer` class batches database operations
-- **Message Deduplication**: Prevents duplicate storage of identical messages
+- **Database Buffering**: Batch database operations
+- **Message Deduplication**: Prevents duplicate storage
 - **Pagination**: API endpoints support offset-based pagination
-- **Logging**: Comprehensive logging for debugging and monitoring
+- **Frontend Optimization**: Code splitting and memoization
+- **Comprehensive Monitoring**: Health checks and metrics endpoints
 
 ## Development Workflow
 
@@ -195,99 +150,98 @@ This ensures:
 
 **Note**: Every modification, bug fix, feature addition, or improvement must be immediately committed and pushed upon completion.
 
-## Modernization Status (2025-07-13)
+## Common Development Tasks
 
-### Security Updates Applied
-- **CRITICAL**: Updated Starlette to 0.40.0+ to fix CVE-2024-47874 (score 8.7)
-- Updated all dependencies to latest stable versions
-
-### Major Changes
-- **Frontend Removed**: Entire Reflex frontend has been removed
-- **Dependencies Updated**: 
-  - psycopg2-binary: 2.9.9 → 2.9.10
-  - twitchAPI: 4.2.1 → 4.5.0 (EventSub V2 support)
-  - uvicorn: 0.30.5 → 0.32.1
-  - Added python-dotenv for environment variable management
-
-### Docker Support Added
-- **backend/Dockerfile.api**: Container for REST API service
-- **backend/Dockerfile.collector**: Container for data collection service
-- **docker-compose.yml**: Orchestration for API, collector, and Redis services (database external)
-- **docker-compose.prod.yml**: Production overrides
-- **docker-compose.override.yml**: Development overrides
-
-### Package Structure Completed
-- **backend/pyproject.toml**: Complete package configuration for distribution
-- **Entry Points**: 
-  - `stream-sniper` - CLI for data collection
-  - `stream-sniper-api` - REST API server
-- **Package Structure**: Full migration to proper Python package layout completed
-- **Namespace**: All code organized under `backend/stream_sniper/` package
-- **Frontend**: Placeholder directory for future frontend implementation
-
-### Health Check & Monitoring System Added (2025-07-13)
-- **Comprehensive Health Endpoints**: 
-  - `/health` - Basic health check for load balancers (200/503 status codes)
-  - `/health/detailed` - Full system status with component health and system metrics
-  - `/metrics/prometheus` - Prometheus-compatible metrics for monitoring systems
-- **Component Monitoring**: Database, Redis cache, rate limiter, external APIs (Twitch)
-- **System Metrics**: CPU, memory, disk usage, load average, application uptime
-- **Production Features**: Proper HTTP status codes, response time tracking, graceful degradation
-- **Dependencies Added**: psutil for system monitoring, enhanced monitoring capabilities
-
-### Modernization Complete ✅
-- **Status**: Production Ready
-- **Testing**: End-to-end validation completed with real Twitch data
-- **Docker**: Fully containerized with multi-service support
-- **Package**: Installable Python package with CLI entry points
-- **Database**: Schema created and validated with normalized structure
-- **Monitoring**: Comprehensive health checks and Prometheus metrics
-
-### Future Improvements
-See `FUTURE_IMPROVEMENTS.md` for planned enhancements including:
-- API documentation with OpenAPI/Swagger
-- Database connection pooling
-- Comprehensive testing suite
-- CI/CD pipeline with GitHub Actions
-- Performance and security enhancements
-
-### Project Structure (2025-07-14)
-
-```
-stream-sniper/
-├── README.md
-├── CLAUDE.md
-├── docker-compose.yml           # Main orchestration (API, collector, Redis)
-├── docker-compose.prod.yml      # Production overrides
-├── docker-compose.override.yml  # Development overrides
-├── backend/                     # All backend code
-│   ├── Dockerfile.api
-│   ├── Dockerfile.collector
-│   ├── pyproject.toml
-│   ├── requirements.txt
-│   ├── stream_sniper/           # Main Python package
-│   │   ├── __init__.py
-│   │   ├── cli.py
-│   │   ├── api/                 # REST API
-│   │   ├── collector/           # Data collection
-│   │   ├── database/            # Database layer
-│   │   └── utils/               # Utilities
-│   └── tests/                   # Test suite
-└── frontend/                    # Placeholder for future frontend
-    └── README.md
-```
-
-### Quick Start
+### Git Workflow
 ```bash
-# Install package in development mode
-cd backend && pip install -e .
+# Check status
+git status
 
-# Run data collection
-stream-sniper <username>
+# Stage changes
+git add .
 
-# Start API server
-stream-sniper-api
+# Commit with descriptive message
+git commit -m "Description of changes"
 
-# Or use Docker (recommended)
-docker-compose up
+# Push to remote
+git push origin main
+
+# Create feature branch
+git checkout -b feature/new-feature
+
+# Merge back to main
+git checkout main
+git merge feature/new-feature
 ```
+
+### Database Setup
+```bash
+# Create database and schema
+psql -U postgres -c "CREATE DATABASE stream_sniper;"
+psql -U postgres -d stream_sniper -f backend/stream_sniper/database/create_table.sql
+```
+
+### Testing
+```bash
+# Backend tests
+cd backend && pytest
+
+# Frontend tests
+cd frontend && npm test
+
+# Docker tests
+docker-compose run --rm api pytest
+docker-compose run --rm frontend npm test
+```
+
+### Deployment
+```bash
+# Production build
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+
+# Health check
+curl http://localhost:5002/health
+
+# Metrics
+curl http://localhost:5002/metrics/prometheus
+```
+
+## Troubleshooting
+
+### Common Issues
+1. **Database Connection**: Ensure PostgreSQL is running and accessible
+2. **Port Conflicts**: Check if ports 5002 (API) and 3000 (frontend) are available
+3. **Environment Variables**: Verify `.env` files are properly configured
+4. **Docker Issues**: Run `docker-compose down && docker-compose up --build`
+
+### Logs
+```bash
+# API logs
+docker-compose logs api
+
+# Frontend logs
+docker-compose logs frontend
+
+# All logs
+docker-compose logs
+```
+
+## Architecture Decision Records
+
+### Backend
+- **Language**: Python 3.12 for robust data processing
+- **Framework**: FastAPI for modern async API development
+- **Database**: PostgreSQL for relational data integrity
+- **Package Management**: Poetry/pip for dependency management
+
+### Frontend
+- **Framework**: React 18+ for modern UI development
+- **State Management**: Local state + custom hooks
+- **Styling**: Bootstrap + SASS for responsive design
+- **Build Tool**: Create React App for rapid development
+
+### Infrastructure
+- **Containerization**: Docker for consistent deployment
+- **Orchestration**: Docker Compose for multi-service setup
+- **Monitoring**: Built-in health checks and Prometheus metrics
+- **Development**: Hot reload for both backend and frontend
