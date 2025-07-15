@@ -1,5 +1,7 @@
 # Stream Sniper Backend - Developer Instructions
 
+**Cross-Reference**: See main project instructions in `/CLAUDE.md` and frontend instructions in `/frontend/CLAUDE.md`
+
 ## Development Workflow
 
 **CRITICAL**: After every completed task or code change, MUST commit and push to repository:
@@ -12,9 +14,18 @@ git push origin main
 
 ## Backend-Specific Developer Instructions
 
-The backend is a Python package for Twitch stream analytics with two main entry points:
+The backend is a Python package for Twitch stream analytics with three main entry points:
 - `stream-sniper <username>` - Data collection CLI
 - `stream-sniper-api` - REST API server
+- `stream-sniper-tracking` - Automated tracking service
+
+## Recent Major Updates
+
+This backend now includes:
+- **Authentication System**: JWT-based authentication with role-based access control
+- **Admin Interface**: Complete admin API endpoints for system management
+- **Automated Tracking**: Background service for streamer monitoring and processing
+- **Enhanced Security**: Password hashing, rate limiting, and protected routes
 
 ## Installation & Setup
 
@@ -52,7 +63,10 @@ stream-sniper-api --help
 - **FastAPI** framework with CORS enabled
 - **Health Monitoring** - `/health`, `/health/detailed`, `/metrics/prometheus`
 - **Core Endpoints** - Streams, chatters, messages, creators
+- **Authentication Endpoints** - Login, register, user management
+- **Admin Endpoints** - User management, system stats, tracking control
 - **Rate Limiting** - Built-in request throttling
+- **Protected Routes** - JWT authentication middleware
 
 ### Database Schema
 
@@ -62,17 +76,53 @@ PostgreSQL with `stream_sniper` namespace:
 - **chatter** - Chat participants
 - **message_text** - Deduplicated message content
 - **message** - Chat messages with relationships
+- **users** - System users with authentication
+- **tracked_streamers** - Streamers monitored by automation
+- **processing_jobs** - Background processing jobs
+
+### New Components (Recent)
+
+#### Authentication System (`stream_sniper/api/auth.py`)
+- **JWT Token Management** - Secure token generation and validation
+- **Password Hashing** - bcrypt for secure password storage
+- **Role-based Access** - User and admin role management
+- **Session Management** - Token expiration and refresh
+
+#### Admin Endpoints (`stream_sniper/api/auth_endpoints.py`)
+- **User Management** - CRUD operations for users
+- **System Statistics** - Real-time system monitoring
+- **Role Management** - Admin-only user role controls
+- **Account Controls** - User activation/deactivation
+
+#### Tracking System (`stream_sniper/tracking/`)
+- **Stream Monitor** - Polls Twitch API for stream status
+- **Processing Queue** - Manages background processing jobs
+- **Stream Processor** - Handles chat data collection
+- **Scheduler** - Coordinates all tracking services
+
+#### Tracking Endpoints (`stream_sniper/api/tracking_endpoints.py`)
+- **Streamer Management** - Add/remove tracked streamers
+- **Job Monitoring** - View and control processing jobs
+- **Service Control** - Start/stop/restart tracking service
+- **Statistics** - Tracking system metrics
 
 ## Key Files
 
 ### Entry Points
-- `cli.py` - Command-line interface for both tools
-- `api/api.py` - FastAPI application setup
+- `cli.py` - Command-line interface for collection and API
+- `api/api.py` - FastAPI application setup with authentication
+- `tracking_service.py` - Automated tracking service entry point
 
 ### Configuration
 - `pyproject.toml` - Package configuration and dependencies
 - `requirements.txt` - Python dependencies
 - `logging_config.py` - Logging setup
+
+### Authentication & Database
+- `database/user_table_gateway.py` - User database operations
+- `database/tracked_streamers_table_gateway.py` - Tracking database operations
+- `database/processing_jobs_table_gateway.py` - Job management database operations
+- `api/protected_routes.py` - Route protection middleware
 
 ### Docker
 - `Dockerfile.api` - API server container
@@ -88,6 +138,18 @@ stream-sniper --help                        # Show CLI help
 # API server
 stream-sniper-api                           # Start API server on port 5002
 stream-sniper-api --host 0.0.0.0 --port 8000  # Custom host/port
+
+# Tracking service
+stream-sniper-tracking                      # Start automated tracking service
+
+# Authentication examples
+curl -X POST http://localhost:5002/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","email":"admin@example.com","password":"admin123"}'
+
+curl -X POST http://localhost:5002/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
 
 # Testing
 pytest                                      # Run all tests
@@ -202,36 +264,97 @@ pytest -k "test_specific_function"         # Run specific test
 - **fastapi** - REST API framework
 - **uvicorn** - ASGI server
 
+### Authentication & Security
+- **python-jose[cryptography]** - JWT token handling
+- **passlib[bcrypt]** - Password hashing
+- **python-multipart** - Form data handling
+- **python-dotenv** - Environment variable management
+
+### Background Processing
+- **asyncio** - Asynchronous processing
+- **aiofiles** - Async file operations
+- **schedule** - Job scheduling (for tracking service)
+
 ### Monitoring
 - **psutil** - System metrics
 - **prometheus-client** - Metrics export
 
-## Security Notes
+## Security Features
 
-This codebase is designed for legitimate stream analytics:
+This codebase is designed for legitimate stream analytics with comprehensive security:
 - Read-only access to public Twitch chat data
 - Standard database practices with parameterized queries
-- Proper API authentication handling
+- JWT-based authentication with secure token handling
+- Password hashing using bcrypt with salt
+- Role-based access control (user/admin)
+- Rate limiting on authentication endpoints
+- Input validation and sanitization
+- Protected routes with authentication middleware
 - No malicious functionality detected
+
+## Authentication System
+
+### JWT Implementation
+```python
+# Token generation example
+from stream_sniper.api.auth import create_access_token
+
+access_token = create_access_token(
+    data={"sub": username, "role": "user"}
+)
+```
+
+### Password Security
+```python
+# Password hashing
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+hashed_password = pwd_context.hash("plain_password")
+verified = pwd_context.verify("plain_password", hashed_password)
+```
+
+### Role-based Access
+```python
+# Protected endpoint example
+from fastapi import Depends
+from stream_sniper.api.auth import get_current_admin_user
+
+@router.get("/admin/endpoint")
+async def admin_only_endpoint(
+    current_user: User = Depends(get_current_admin_user)
+):
+    # Admin-only functionality
+    pass
+```
 
 ## API Development
 
 ### FastAPI Patterns
 ```python
 # Endpoint example
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from stream_sniper.api.rate_limiter import rate_limit
+from stream_sniper.api.auth import get_current_user
 
 router = APIRouter()
 
 @router.get("/endpoint")
 @rate_limit(requests_per_minute=60)
-async def get_endpoint():
+async def get_endpoint(current_user = Depends(get_current_user)):
     try:
-        # Implementation
-        return {"data": "response"}
+        # Implementation with user context
+        return {"data": "response", "user": current_user.username}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Admin-only endpoint
+@router.post("/admin/endpoint")
+async def admin_endpoint(
+    current_user = Depends(get_current_admin_user)
+):
+    # Admin functionality
+    return {"message": "Admin operation completed"}
 ```
 
 ### Health Check Implementation
@@ -270,10 +393,20 @@ async def monitored_endpoint():
 ```bash
 # Database
 DATABASE_URL=postgresql://user:password@localhost/stream_sniper
+POSTGRES_USER=your_user
+POSTGRES_PASSWORD=your_password
+POSTGRES_DB=stream_sniper
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
 
 # Twitch API
 TWITCH_CLIENT_ID=your_client_id
 TWITCH_CLIENT_SECRET=your_client_secret
+
+# Authentication
+SECRET_KEY=your_secret_key_for_jwt_signing
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+ALGORITHM=HS256
 
 # API Settings
 API_HOST=0.0.0.0
@@ -282,6 +415,11 @@ CORS_ORIGINS=["http://localhost:3000"]
 
 # Redis (optional)
 REDIS_URL=redis://localhost:6379
+
+# Tracking Service
+MONITOR_INTERVAL=300  # 5 minutes
+MAX_CONCURRENT_JOBS=3
+MAX_RETRIES=3
 ```
 
 ### Configuration Management
@@ -298,10 +436,72 @@ database_url = settings.database_url
 ### Adding New API Endpoint
 1. Create endpoint in appropriate router (`stream_sniper/api/`)
 2. Add validation using Pydantic models
-3. Implement rate limiting if needed
-4. Add health check if accessing external services
-5. Write unit and integration tests
-6. Update API documentation
+3. Implement authentication/authorization if needed
+4. Implement rate limiting if needed
+5. Add health check if accessing external services
+6. Write unit and integration tests
+7. Update API documentation
+
+### Adding Authentication to Endpoint
+```python
+from fastapi import Depends
+from stream_sniper.api.auth import get_current_user, get_current_admin_user
+
+# User authentication required
+@router.get("/protected")
+async def protected_endpoint(
+    current_user = Depends(get_current_user)
+):
+    return {"message": f"Hello {current_user.username}"}
+
+# Admin authentication required
+@router.post("/admin/action")
+async def admin_action(
+    current_user = Depends(get_current_admin_user)
+):
+    return {"message": "Admin action completed"}
+```
+
+### Managing Tracked Streamers
+```python
+from stream_sniper.database.tracked_streamers_table_gateway import TrackedStreamersTableGateway
+
+gateway = TrackedStreamersTableGateway()
+
+# Add streamer to tracking
+streamer_id = gateway.add_tracked_streamer(
+    creator_id=123,
+    twitch_username="streamer_name",
+    display_name="Streamer Display Name",
+    created_by=user_id
+)
+
+# Update streamer settings
+gateway.update_tracked_streamer(
+    streamer_id=streamer_id,
+    is_active=True,
+    processing_enabled=True
+)
+```
+
+### Managing Processing Jobs
+```python
+from stream_sniper.database.processing_jobs_table_gateway import ProcessingJobsTableGateway
+
+gateway = ProcessingJobsTableGateway()
+
+# Create new job
+job_id = gateway.create_job(
+    tracked_streamer_id=streamer_id,
+    twitch_stream_id=stream_id
+)
+
+# Update job status
+gateway.update_job_status(
+    job_id=job_id,
+    status="completed"
+)
+```
 
 ### Adding New Database Table
 1. Add table creation SQL to `create_table.sql`
@@ -316,3 +516,29 @@ database_url = settings.database_url
 3. Create database gateway if needed
 4. Add configuration options
 5. Write comprehensive tests
+6. Update tracking system if needed
+
+### Tracking Service Management
+```python
+# Start tracking service programmatically
+from stream_sniper.tracking.scheduler import TrackingScheduler
+
+scheduler = TrackingScheduler()
+scheduler.start()
+
+# Check service status
+status = scheduler.get_status()
+print(f"Service running: {status['running']}")
+
+# Stop service
+scheduler.stop()
+```
+
+### Database Migrations
+When adding new tables or columns:
+1. Update `create_table.sql` with new schema
+2. Create migration script if needed
+3. Update table gateway classes
+4. Add corresponding API endpoints
+5. Update frontend components if needed
+6. Write tests for new functionality

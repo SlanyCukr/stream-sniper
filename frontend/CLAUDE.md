@@ -346,6 +346,10 @@ afterAll(() => server.close());
 REACT_APP_API_URL=http://localhost:5002
 REACT_APP_ENVIRONMENT=development
 REACT_APP_VERSION=1.0.0
+
+# Production .env
+REACT_APP_API_URL=https://stream-sniper-api.slanycukr.com
+REACT_APP_ENVIRONMENT=production
 ```
 
 ### Runtime Configuration
@@ -354,6 +358,12 @@ REACT_APP_VERSION=1.0.0
 window.env = {
   API_URL: 'http://localhost:5002',
   ENVIRONMENT: 'development'
+};
+
+// Production configuration (automatic)
+window.env = {
+  API_URL: 'https://stream-sniper-api.slanycukr.com',
+  ENVIRONMENT: 'production'
 };
 ```
 
@@ -513,14 +523,31 @@ npm test -- --coverage --watchAll=false
 
 ### Common Issues
 1. **API Connection**: Check if backend is running on port 5002
-2. **CORS Issues**: Verify backend CORS configuration
-3. **Build Errors**: Check for missing dependencies or syntax errors
-4. **Performance**: Use React DevTools Profiler to identify bottlenecks
+2. **Authentication Issues**: 
+   - Check JWT token expiration
+   - Verify API authentication headers
+   - Clear localStorage if tokens are corrupted
+3. **Admin Access Issues**:
+   - Verify user has admin role
+   - Check admin route protection
+   - Ensure proper API permissions
+4. **CORS Issues**: Verify backend CORS configuration
+5. **Build Errors**: Check for missing dependencies or syntax errors
+6. **Performance**: Use React DevTools Profiler to identify bottlenecks
+7. **Production Deployment**:
+   - Check environment variables in production
+   - Verify API URL configuration
+   - Ensure Nginx configuration is correct
 
 ## Security Considerations
 
-- No sensitive data stored in frontend state
-- API calls made to configured backend URL
-- Environment variables properly prefixed with REACT_APP_
-- No authentication tokens stored in localStorage (if implemented)
-- XSS protection through React's built-in sanitization
+- **JWT Authentication**: Secure token-based authentication
+- **Protected Routes**: Automatic redirection for unauthorized access
+- **Role-based Access**: Different UI elements based on user roles
+- **Token Storage**: Secure JWT token storage with automatic expiration
+- **API Security**: Authentication headers automatically added to requests
+- **Input Validation**: Form validation on authentication and admin forms
+- **Environment Variables**: Properly separated configuration
+- **No Sensitive Data**: No passwords or secrets stored in frontend state
+- **Admin Protection**: Admin-only components and routes properly protected
+- **XSS protection through React's built-in sanitization

@@ -1,6 +1,11 @@
 # Stream Sniper - Project Instructions
 
-A comprehensive Twitch stream analytics platform that collects, processes, and visualizes chat data from Twitch streams.
+A comprehensive Twitch stream analytics platform that collects, processes, and visualizes chat data from Twitch streams with user authentication, admin controls, and automated streamer tracking.
+
+**Important**: This project contains component-specific documentation:
+- **Backend**: `backend/CLAUDE.md` - Backend development instructions
+- **Frontend**: `frontend/CLAUDE.md` - Frontend development instructions
+- **Tracking System**: `TRACKING_SYSTEM.md` - Automated tracking system documentation
 
 ## Project Overview
 
@@ -8,7 +13,7 @@ A comprehensive Twitch stream analytics platform that collects, processes, and v
 
 ## Architecture
 
-The system consists of three main components:
+The system consists of four main components:
 
 ### 1. Backend (`backend/`)
 - **Data Collection**: Downloads and processes chat data from Twitch VODs
@@ -17,6 +22,7 @@ The system consists of three main components:
 - **Entry Points**: 
   - `stream-sniper <username>` - CLI command for data collection
   - `stream-sniper-api` - REST API server
+  - `stream-sniper-tracking` - Automated tracking service
 
 ### 2. Frontend (`frontend/`)
 - **React Application**: Modern React-based web interface
@@ -28,6 +34,11 @@ The system consists of three main components:
 - **PostgreSQL**: Normalized schema in `stream_sniper` namespace
 - **External Service**: Not included in Docker Compose (separate instance required)
 
+### 4. Authentication & Admin System
+- **User Management**: JWT-based authentication with role-based access control
+- **Admin Interface**: Complete admin dashboard for user and system management
+- **Automated Tracking**: Background service for automatic streamer monitoring and processing
+
 ## Database Schema
 
 PostgreSQL database with normalized schema in `stream_sniper` namespace:
@@ -38,6 +49,11 @@ PostgreSQL database with normalized schema in `stream_sniper` namespace:
 - **`chatter`** - Unique chat participants (id, nick)
 - **`message_text`** - Deduplicated message content (id, text)
 - **`message`** - Individual chat messages (id, chatter_id, stream_id, message_text_id, timestamp)
+
+### Authentication & Admin Tables
+- **`users`** - System users with authentication (id, username, email, password_hash, role, active)
+- **`tracked_streamers`** - Streamers monitored by automation system
+- **`processing_jobs`** - Background processing jobs with status tracking
 
 ### Key Relationships
 - Messages link to chatters, streams, and message text via foreign keys
@@ -56,9 +72,17 @@ docker-compose up
 # Start specific services
 docker-compose up api         # API only
 docker-compose up frontend    # Frontend only
+docker-compose up tracking    # Tracking service only
 
 # Run data collection
 TWITCH_USERNAME=someuser docker-compose up collector
+
+# Production deployment
+docker-compose -f docker-compose.prod.yml up -d frontend
+
+# Access production application
+# Frontend: https://stream-sniper.slanycukr.com
+# API: https://stream-sniper-api.slanycukr.com
 
 # Rebuild containers after dependency changes
 docker-compose up --build
@@ -71,6 +95,11 @@ cd backend
 pip install -e .
 stream-sniper <username>      # Data collection
 stream-sniper-api             # API server
+stream-sniper-tracking        # Automated tracking service
+
+# Authentication & Admin
+# Access admin panel at /admin after login
+# Default admin setup available through API
 
 # Frontend
 cd frontend
@@ -89,12 +118,25 @@ stream-sniper/
 │   ├── README.md            # Backend documentation
 │   ├── CLAUDE.md            # Backend developer instructions
 │   ├── stream_sniper/       # Main Python package
+│   │   ├── api/             # FastAPI REST API
+│   │   ├── auth/            # Authentication system
+│   │   ├── collector/       # Data collection
+│   │   ├── database/        # Database layer
+│   │   └── tracking/        # Automated tracking system
 │   └── tests/               # Test suite
-└── frontend/                 # React frontend
-    ├── README.md            # Frontend documentation
-    ├── CLAUDE.md            # Frontend developer instructions
-    ├── src/                 # React source code
-    └── public/              # Static assets
+├── frontend/                 # React frontend
+│   ├── README.md            # Frontend documentation
+│   ├── CLAUDE.md            # Frontend developer instructions
+│   ├── src/                 # React source code
+│   │   ├── components/      # Reusable components
+│   │   ├── contexts/        # React contexts (Auth)
+│   │   ├── views/           # Page components
+│   │   │   ├── admin/       # Admin interface
+│   │   │   ├── auth/        # Authentication pages
+│   │   │   └── ui/          # Main application views
+│   │   └── layouts/         # Layout components
+│   └── public/              # Static assets
+└── TRACKING_SYSTEM.md       # Automated tracking documentation
 ```
 
 ## Development Environment
@@ -105,6 +147,17 @@ stream-sniper/
 - **Hot Reload**: Automatic code reloading for both frontend and backend
 - **Local Installation**: Optional - Docker handles all dependencies
 
+## Production Deployment
+
+- **Frontend**: Nginx-based production container with optimized build
+- **Backend**: Production-ready FastAPI server with authentication
+- **Infrastructure**: Deployed on RPI infrastructure (pi5ram8)
+- **SSL**: HTTPS termination via VPS reverse proxy
+- **Domain**: Production frontend available at stream-sniper.slanycukr.com
+- **API**: Backend API at stream-sniper-api.slanycukr.com
+- **Database**: PostgreSQL on RPI infrastructure
+- **Monitoring**: Full tracking system with admin controls
+
 ## Key Features
 
 ### Analytics Capabilities
@@ -113,6 +166,27 @@ stream-sniper/
 - Message tagging and interaction analysis
 - Creator cross-stream participation tracking
 - Temporal message patterns
+
+### Authentication & Security
+- JWT-based user authentication
+- Role-based access control (user/admin)
+- Password hashing with bcrypt
+- Session management with token expiration
+- Protected routes and API endpoints
+
+### Administrative Features
+- User management (create, update, delete, role assignment)
+- System statistics and monitoring
+- Automated streamer tracking management
+- Processing job monitoring and control
+- Service management (start/stop/restart tracking)
+
+### Automated Tracking System
+- Background monitoring of Twitch streamers
+- Automatic chat processing when streams end
+- Job queuing with retry capabilities
+- Real-time status monitoring
+- Concurrent processing with configurable limits
 
 ### Data Processing
 - Automatic duplicate message detection
@@ -125,14 +199,23 @@ stream-sniper/
 - Twitch-style chat visualization
 - Interactive filtering and pagination
 - Real-time data updates
+- User authentication and profile management
+- Admin interface for system administration
+- Automated tracking management dashboard
+- Processing job monitoring and control
 
 ## Security Considerations
 
 The codebase is designed for legitimate stream analytics purposes:
 - Read-only access to public Twitch chat data
 - Standard database practices with parameterized queries
+- JWT-based authentication with secure token handling
+- Password hashing using bcrypt
+- Role-based access control throughout the system
+- Rate limiting on authentication endpoints
+- Protected routes and API endpoints
+- Input validation and sanitization
 - No obvious malicious functionality detected
-- Proper API authentication handling
 
 ## Performance Optimizations
 
@@ -141,6 +224,9 @@ The codebase is designed for legitimate stream analytics purposes:
 - **Pagination**: API endpoints support offset-based pagination
 - **Frontend Optimization**: Code splitting and memoization
 - **Comprehensive Monitoring**: Health checks and metrics endpoints
+- **Concurrent Processing**: Configurable concurrent job processing
+- **Background Services**: Automated processing with resource management
+- **Caching**: Session caching and API response optimization
 
 ## Development Workflow
 
@@ -210,6 +296,17 @@ git merge feature/new-feature
 # Create database and schema
 psql -U postgres -c "CREATE DATABASE stream_sniper;"
 psql -U postgres -d stream_sniper -f backend/stream_sniper/database/create_table.sql
+
+# Create admin user (after API is running)
+curl -X POST http://localhost:5002/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","email":"admin@example.com","password":"admin123"}'
+
+# Update user role to admin
+curl -X PUT http://localhost:5002/auth/users/1/role \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{"role":"admin"}'
 ```
 
 ### Testing
@@ -233,6 +330,15 @@ curl http://localhost:5002/metrics
 
 # Check frontend
 curl http://localhost:3000
+
+# Check authentication
+curl -X POST http://localhost:5002/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+
+# Check tracking service
+curl -X GET http://localhost:5002/admin/tracking/service/status \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ## Troubleshooting
@@ -242,7 +348,15 @@ curl http://localhost:3000
 2. **Port Conflicts**: Check if ports 5002 (API) and 3000 (frontend) are available
 3. **Environment Variables**: Verify `.env` files are properly configured
 4. **Docker Issues**: Run `docker-compose down && docker-compose up --build`
-5. **Hot Reload Not Working**: 
+5. **Authentication Issues**: 
+   - Check JWT token expiration
+   - Verify user roles and permissions
+   - Ensure proper Authorization headers
+6. **Tracking Service Issues**:
+   - Check if tracking service is running
+   - Verify Twitch API credentials
+   - Check processing job status in admin interface
+7. **Hot Reload Not Working**: 
    - Frontend: Check volume mounts in docker-compose.yml
    - Backend: Ensure uvicorn --reload is working
    - Try `docker-compose down -v && docker-compose up --build`
@@ -263,6 +377,12 @@ docker-compose logs frontend
 
 # All logs
 docker-compose logs
+
+# Tracking service logs
+docker-compose logs tracking
+
+# Authentication logs
+docker-compose logs api | grep -i auth
 ```
 
 ## Architecture Decision Records
@@ -284,3 +404,6 @@ docker-compose logs
 - **Orchestration**: Docker Compose for multi-service setup
 - **Monitoring**: Built-in health checks and Prometheus metrics
 - **Development**: Hot reload for both backend and frontend
+- **Authentication**: JWT-based session management
+- **Deployment**: Production-ready Docker configurations
+- **CI/CD**: GitHub Actions with comprehensive testing and security checks
