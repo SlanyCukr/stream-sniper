@@ -60,3 +60,21 @@ def with_cursor(f):
                 raise
 
     return wrapper
+
+
+def log_database_operation(f):
+    """
+    Decorator to log database operations for monitoring and debugging.
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        operation_name = f.__name__
+        logger.debug(f"Starting database operation: {operation_name}")
+        try:
+            result = f(*args, **kwargs)
+            logger.debug(f"Database operation completed successfully: {operation_name}")
+            return result
+        except Exception as e:
+            logger.error(f"Database operation failed: {operation_name} - {e}")
+            raise
+    return wrapper

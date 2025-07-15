@@ -40,6 +40,7 @@ from .monitoring import (
     setup_monitoring,
 )
 from .rate_limiter import limiter, rate_limits, setup_rate_limiting
+from .auth_endpoints import router as auth_router
 
 load_dotenv()
 
@@ -177,6 +178,17 @@ class MetricsResponse(BaseModel):
     endpoints: Dict[str, Any] = Field(..., description="Per-endpoint statistics")
 
 
+# Tags for endpoint organization
+tags_metadata = [
+    {"name": "Authentication", "description": "User authentication, registration, and account management"},
+    {"name": "Chatters", "description": "Operations related to chat participants and their messages"},
+    {"name": "Streams", "description": "Stream information, analytics, and chat data"},
+    {"name": "Creators", "description": "Twitch creator/streamer information"},
+    {"name": "Health", "description": "API health monitoring and connection pool status"},
+    {"name": "Monitoring", "description": "Performance metrics and monitoring endpoints"},
+    {"name": "API Info", "description": "General API information and documentation"},
+]
+
 # FastAPI App Configuration
 app = FastAPI(
     title=config.title,
@@ -186,6 +198,7 @@ app = FastAPI(
     
     ## Features
     
+    * **Authentication**: Secure user registration, login, and JWT-based authentication
     * **Stream Analytics**: Get detailed information about Twitch streams including message counts, duration, and metadata
     * **Chat Analysis**: Access chat messages, most active chatters, and interaction patterns
     * **Creator Insights**: Track creator participation across different streams
@@ -193,6 +206,13 @@ app = FastAPI(
     * **Tagging Analytics**: Discover most mentioned/tagged users in chat
     * **Performance**: Built-in caching and rate limiting for optimal performance
     * **Monitoring**: Comprehensive metrics and health monitoring
+    
+    ## Authentication
+    
+    * **JWT Tokens**: Secure authentication using JSON Web Tokens
+    * **Role-based Access**: Support for user and admin roles
+    * **Password Security**: Bcrypt password hashing
+    * **User Management**: Registration, login, profile updates, and admin controls
     
     ## Performance Features
     
@@ -215,6 +235,7 @@ app = FastAPI(
         "name": "MIT",
     },
     servers=[{"url": f"http://localhost:{config.port}", "description": "Development server"}],
+    openapi_tags=tags_metadata,
 )
 
 # Setup structured logging middleware
@@ -244,6 +265,9 @@ if config.rate_limit.enabled:
 # Setup monitoring
 if config.monitoring.enabled:
     setup_monitoring()
+
+# Include authentication router
+app.include_router(auth_router)
 
 
 # Middleware for request metrics
@@ -285,17 +309,6 @@ async def metrics_middleware(request: Request, call_next):
         response.headers["X-Health-Response-Time"] = str(round(response_time_ms, 2))
 
     return response
-
-
-# Tags for endpoint organization
-tags_metadata = [
-    {"name": "Chatters", "description": "Operations related to chat participants and their messages"},
-    {"name": "Streams", "description": "Stream information, analytics, and chat data"},
-    {"name": "Creators", "description": "Twitch creator/streamer information"},
-    {"name": "Health", "description": "API health monitoring and connection pool status"},
-    {"name": "Monitoring", "description": "Performance metrics and monitoring endpoints"},
-    {"name": "API Info", "description": "General API information and documentation"},
-]
 
 
 # Initialize cache warming on startup

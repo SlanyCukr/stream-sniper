@@ -24,9 +24,19 @@ const UserMessages = lazy(() => import('../views/ui/UserMessages.jsx'))
 const AllStreams = lazy(() => import('../views/ui/AllStreams.jsx'))
 const Stream = lazy(() => import('../views/ui/Stream.jsx'))
 
+// Auth Pages
+const Login = lazy(() => import('../views/auth/Login.jsx'))
+const Profile = lazy(() => import('../views/auth/Profile.jsx'))
+
 /*****Routes******/
 
 const ThemeRoutes = [
+    // Auth routes (no layout)
+    {
+        path: '/login',
+        element: <Login />,
+    },
+    // Main app routes (with layout)
     {
         path: '/',
         element: <FullLayout />,
@@ -86,6 +96,10 @@ const ThemeRoutes = [
             {
                 path: '/stream/:id',
                 element: <Stream />,
+            },
+            {
+                path: '/profile',
+                element: <Profile />,
             },
         ],
     },

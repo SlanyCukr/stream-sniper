@@ -1,0 +1,17 @@
+services:
+  stream-sniper-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "3001:80"
+    environment:
+      - REACT_APP_API_URL=https://stream-sniper-api.slanycukr.com
+    restart: unless-stopped
+    container_name: stream-sniper-frontend
+    networks:
+      - stream-sniper-prod
+
+networks:
+  stream-sniper-prod:
+    driver: bridge

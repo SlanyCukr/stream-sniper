@@ -1,13 +1,15 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
     Navbar,
     Nav,
     Dropdown,
     Button,
+    Badge,
 } from 'react-bootstrap'
 import { ReactComponent as LogoWhite } from '../assets/images/logos/xtremelogowhite.svg'
 import user1 from '../assets/images/users/user1.jpg'
+import { useAuth } from '../contexts/AuthContext'
 
 const Header = () => {
     const [
@@ -19,12 +21,28 @@ const Header = () => {
         setDropdownOpen,
     ] = React.useState(false)
 
+    const { isAuthenticated, user, logout } = useAuth()
+    const navigate = useNavigate()
+
     const toggle = () => setDropdownOpen(prevState => !prevState)
     const Handletoggle = () => {
         setIsOpen(!isOpen)
     }
     const showMobilemenu = () => {
         document.getElementById('sidebarArea').classList.toggle('showSidebar')
+    }
+
+    const handleLogout = () => {
+        logout()
+        navigate('/login')
+    }
+
+    const handleLogin = () => {
+        navigate('/login')
+    }
+
+    const handleProfile = () => {
+        navigate('/profile')
     }
 
     // Handle keyboard navigation
@@ -88,78 +106,75 @@ const Header = () => {
                 in={isOpen}
                 role="region"
                 aria-label="Navigation menu">
-                {/* <Nav
-                    className="me-auto"
-                    navbar>
-                    <NavItem>
-                        <Link
-                            to="/starter"
-                            className="nav-link">
-              Starter
-                        </Link>
-                    </NavItem>
-                    <NavItem>
-                        <Link
-                            to="/about"
-                            className="nav-link">
-              About
-                        </Link>
-                    </NavItem>
-                    <UncontrolledDropdown
-                        inNavbar
-                        nav>
-                        <DropdownToggle
-                            caret
-                            nav>
-              DD Menu
-                        </DropdownToggle>
-                        <DropdownMenu end>
-                            <DropdownItem>Option 1</DropdownItem>
-                            <DropdownItem>Option 2</DropdownItem>
-                            <DropdownItem divider />
-                            <DropdownItem>Reset</DropdownItem>
-                        </DropdownMenu>
-                    </UncontrolledDropdown>
-                </Nav> */}
-                <Dropdown
-                    isOpen={dropdownOpen}
-                    toggle={toggle}
-                >
-                    <Dropdown.Toggle
-                        variant="primary"
-                        aria-label="User menu"
-                        aria-expanded={dropdownOpen}
-                        aria-haspopup="true"
+                
+                <Nav className="me-auto">
+                    {/* Navigation links can be added here */}
+                </Nav>
+
+                {isAuthenticated ? (
+                    <Dropdown
+                        isOpen={dropdownOpen}
+                        toggle={toggle}
                     >
-                        <img
-                            src={user1}
-                            alt="User profile picture"
-                            className="rounded-circle"
-                            width="30"
-                        ></img>
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu
-                        role="menu"
-                        aria-label="User account options">
-                        <Dropdown.Header role="presentation">Info</Dropdown.Header>
-                        <Dropdown.Item
-                            role="menuitem"
-                            tabIndex="0">My Account</Dropdown.Item>
-                        <Dropdown.Item
-                            role="menuitem"
-                            tabIndex="0">Edit Profile</Dropdown.Item>
-                        <Dropdown.Divider role="separator" />
-                        <Dropdown.Item
-                            role="menuitem"
-                            tabIndex="0">My Balance</Dropdown.Item>
-                        <Dropdown.Item
-                            role="menuitem"
-                            tabIndex="0">Inbox</Dropdown.Item>
-                        <Dropdown.Item
-                            role="menuitem"
-                            tabIndex="0">Logout</Dropdown.Item>
-                    </Dropdown.Menu>
-                </Dropdown>
+                        <Dropdown.Toggle
+                            variant="primary"
+                            aria-label="User menu"
+                            aria-expanded={dropdownOpen}
+                            aria-haspopup="true"
+                            className="d-flex align-items-center"
+                        >
+                            <img
+                                src={user1}
+                                alt="User profile picture"
+                                className="rounded-circle me-2"
+                                width="30"
+                            />
+                            <span className="d-none d-md-inline">
+                                {user?.username}
+                            </span>
+                            {user?.role === 'admin' && (
+                                <Badge bg="warning" className="ms-2">
+                                    Admin
+                                </Badge>
+                            )}
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu
+                            role="menu"
+                            aria-label="User account options">
+                            <Dropdown.Header role="presentation">
+                                {user?.username}
+                                <br />
+                                <small className="text-muted">{user?.email}</small>
+                            </Dropdown.Header>
+                            <Dropdown.Item
+                                role="menuitem"
+                                tabIndex="0"
+                                onClick={handleProfile}
+                            >
+                                <i className="bi bi-person me-2"></i>
+                                My Profile
+                            </Dropdown.Item>
+                            <Dropdown.Divider role="separator" />
+                            <Dropdown.Item
+                                role="menuitem"
+                                tabIndex="0"
+                                onClick={handleLogout}
+                            >
+                                <i className="bi bi-box-arrow-right me-2"></i>
+                                Logout
+                            </Dropdown.Item>
+                        </Dropdown.Menu>
+                    </Dropdown>
+                ) : (
+                    <Button
+                        variant="outline-light"
+                        onClick={handleLogin}
+                        aria-label="Login to your account"
+                    >
+                        <i className="bi bi-box-arrow-in-right me-2"></i>
+                        Login
+                    </Button>
+                )}
             </Navbar.Collapse>
         </Navbar>
     )

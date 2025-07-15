@@ -42,6 +42,10 @@ dependencies = [
     # Performance and caching dependencies
     "redis>=5.0.0",
     "slowapi>=0.1.9",
+    # Authentication dependencies
+    "PyJWT>=2.8.0",
+    "bcrypt>=4.0.0",
+    "email-validator>=2.0.0",
     # Monitoring and utilities
     "prometheus-client>=0.20.0",
     "psutil>=6.0.0",

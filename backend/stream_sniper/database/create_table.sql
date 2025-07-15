@@ -56,3 +56,19 @@ create table stream_sniper.message_text
         unique (text)
 );
 
+create table stream_sniper.users
+(
+    id           serial       primary key,
+    username     varchar(255) not null,
+    email        varchar(255) not null,
+    password_hash varchar(255) not null,
+    role         varchar(50)  not null default 'user',
+    is_active    boolean      not null default true,
+    created_at   timestamp    not null default current_timestamp,
+    updated_at   timestamp    not null default current_timestamp,
+    constraint users_username_uindex
+        unique (username),
+    constraint users_email_uindex
+        unique (email)
+);
+
