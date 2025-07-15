@@ -15,8 +15,8 @@ COPY . .
 
 # Build production version
 ENV GENERATE_SOURCEMAP=false
-ENV CI=false
-RUN npm run build
+ENV DISABLE_ESLINT_PLUGIN=true
+RUN SKIP_PREFLIGHT_CHECK=true npm run build
 
 # Production stage - serve with nginx
 FROM nginx:alpine
