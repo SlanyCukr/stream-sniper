@@ -21,19 +21,12 @@ jobs:
 
       - name: Setup local repository
         run: |
-          # Clone or update the repository
-          if [ ! -d "/home/pi/stream-sniper/.git" ]; then
-            echo "🔄 Cloning repository for first time..."
-            rm -rf /home/pi/stream-sniper
-            cd /home/pi
-            git clone https://github.com/SlanyCukr/stream-sniper.git stream-sniper
-          else
-            echo "🔄 Updating existing repository..."
-            cd /home/pi/stream-sniper
-            git fetch origin
-            git reset --hard origin/main
-            git pull origin main
-          fi
+          # Copy checked-out code to deployment directory
+          echo "🔄 Setting up deployment directory..."
+          rm -rf /home/pi/stream-sniper
+          mkdir -p /home/pi
+          cp -r /home/pi/actions-runner/_work/stream-sniper/stream-sniper /home/pi/stream-sniper
+          echo "✅ Repository copied to /home/pi/stream-sniper"
 
       - name: Build Docker images
         run: |
