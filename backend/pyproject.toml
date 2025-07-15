@@ -44,6 +44,7 @@ dependencies = [
     "slowapi>=0.1.9",
     # Monitoring and utilities
     "prometheus-client>=0.20.0",
+    "psutil>=6.0.0",
 ]
 
 [project.optional-dependencies]
