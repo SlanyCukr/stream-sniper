@@ -46,26 +46,36 @@ PostgreSQL database with normalized schema in `stream_sniper` namespace:
 
 ## Quick Start
 
-### Backend Development
+### Docker Development (Recommended)
+Everything runs in Docker with hot reload - no need to install Node.js or Python locally:
+
 ```bash
+# Start all services with hot reload
+docker-compose up
+
+# Start specific services
+docker-compose up api         # API only
+docker-compose up frontend    # Frontend only
+
+# Run data collection
+TWITCH_USERNAME=someuser docker-compose up collector
+
+# Rebuild containers after dependency changes
+docker-compose up --build
+```
+
+### Local Development (Alternative)
+```bash
+# Backend
 cd backend
 pip install -e .
 stream-sniper <username>      # Data collection
 stream-sniper-api             # API server
-```
 
-### Frontend Development
-```bash
+# Frontend
 cd frontend
 npm install
 npm start                     # Development server
-```
-
-### Docker (Recommended)
-```bash
-docker-compose up             # All services
-docker-compose up api         # API only
-docker-compose up frontend    # Frontend only
 ```
 
 ## Project Structure
@@ -89,10 +99,11 @@ stream-sniper/
 
 ## Development Environment
 
-- **Python Version**: 3.12
-- **Node.js Version**: 18+
+- **Docker**: Required for development (handles Python 3.12 and Node.js 18+ automatically)
 - **Database**: PostgreSQL with `stream_sniper` schema (external, not included in Docker Compose)
 - **Configuration**: Environment variables loaded from `.env` files
+- **Hot Reload**: Automatic code reloading for both frontend and backend
+- **Local Installation**: Optional - Docker handles all dependencies
 
 ## Key Features
 
@@ -152,6 +163,26 @@ This ensures:
 
 ## Common Development Tasks
 
+### Docker Development Workflow
+```bash
+# Start development environment
+docker-compose up
+
+# View logs
+docker-compose logs -f api        # API logs
+docker-compose logs -f frontend   # Frontend logs
+docker-compose logs -f            # All logs
+
+# Rebuild after dependency changes
+docker-compose up --build
+
+# Stop services
+docker-compose down
+
+# Clean up containers and volumes
+docker-compose down -v
+```
+
 ### Git Workflow
 ```bash
 # Check status
@@ -183,27 +214,25 @@ psql -U postgres -d stream_sniper -f backend/stream_sniper/database/create_table
 
 ### Testing
 ```bash
-# Backend tests
-cd backend && pytest
-
-# Frontend tests
-cd frontend && npm test
-
-# Docker tests
+# Run tests in containers
 docker-compose run --rm api pytest
 docker-compose run --rm frontend npm test
+
+# Local testing (if dependencies installed)
+cd backend && pytest
+cd frontend && npm test
 ```
 
-### Deployment
+### Health Checks
 ```bash
-# Production build
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build
-
-# Health check
+# Check API health
 curl http://localhost:5002/health
 
-# Metrics
-curl http://localhost:5002/metrics/prometheus
+# Check metrics
+curl http://localhost:5002/metrics
+
+# Check frontend
+curl http://localhost:3000
 ```
 
 ## Troubleshooting
@@ -213,6 +242,16 @@ curl http://localhost:5002/metrics/prometheus
 2. **Port Conflicts**: Check if ports 5002 (API) and 3000 (frontend) are available
 3. **Environment Variables**: Verify `.env` files are properly configured
 4. **Docker Issues**: Run `docker-compose down && docker-compose up --build`
+5. **Hot Reload Not Working**: 
+   - Frontend: Check volume mounts in docker-compose.yml
+   - Backend: Ensure uvicorn --reload is working
+   - Try `docker-compose down -v && docker-compose up --build`
+
+### Development Tips
+- **Code Changes**: Automatically detected and reloaded (no restart needed)
+- **Package Changes**: Rebuild containers with `docker-compose up --build`
+- **Database Schema**: Update manually, containers don't manage DB schema
+- **Environment Variables**: Restart containers after .env changes
 
 ### Logs
 ```bash

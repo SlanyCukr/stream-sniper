@@ -1,5 +1,5 @@
-# Multi-stage build for React frontend
-FROM node:18-alpine as build
+# Development Dockerfile for React frontend with hot reload
+FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
@@ -7,26 +7,18 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (including dev dependencies for hot reload)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
+# Expose port for development server
+EXPOSE 3000
 
-# Production stage
-FROM nginx:alpine
+# Set environment variable for hot reload
+ENV CHOKIDAR_USEPOLLING=true
+ENV GENERATE_SOURCEMAP=false
 
-# Copy built app to nginx html directory
-COPY --from=build /app/build /usr/share/nginx/html
-
-# Copy custom nginx config if needed
-# COPY nginx.conf /etc/nginx/nginx.conf
-
-# Expose port 80
-EXPOSE 80
-
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start development server with hot reload
+CMD ["npm", "start"]
