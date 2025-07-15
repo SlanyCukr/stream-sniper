@@ -1,4 +1,4 @@
-import React, {
+import {
     useState, useCallback, useMemo,
 } from 'react'
 import {
@@ -106,7 +106,7 @@ const AllStreams = () => {
     return (
         <>
             {isLoading && (
-                <LoadingSpinner 
+                <LoadingSpinner
                     size="lg"
                     text="Loading streams and creators..."
                     card

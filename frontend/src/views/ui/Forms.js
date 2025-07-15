@@ -1,4 +1,4 @@
-/* eslint-disable react/no-unescaped-entities */
+
 import {
     Card, Row, Col, Button, Form,
 } from 'react-bootstrap'

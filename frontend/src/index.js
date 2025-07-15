@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react'
+import { Suspense } from 'react'
 import './assets/scss/style.scss'
 import App from './App'
 import reportWebVitals from './reportWebVitals'

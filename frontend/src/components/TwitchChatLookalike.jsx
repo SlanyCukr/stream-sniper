@@ -10,7 +10,7 @@ const TwitchChatLookalike = ({
     messages,
 }) => {
     const generateRandomColor = () => {
-        // eslint-disable-next-line no-constant-condition
+
         while(true){
             let randomHue = Math.random() * 360
             if ((randomHue >= 45 && randomHue <= 90) || (randomHue >= 140 && randomHue <= 195)){
@@ -57,7 +57,6 @@ const TwitchChatLookalike = ({
 
     // Memoize the random color to prevent regeneration on every render
     const randomColor = useMemo(() => generateRandomColor(), [
-        nick,
     ])
 
     // Memoize the processed messages to avoid re-processing on every render

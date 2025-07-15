@@ -18,7 +18,7 @@ class ErrorBoundary extends React.Component {
         }
     }
 
-    static getDerivedStateFromError(error) {
+    static getDerivedStateFromError(_error) {
         // Update state so the next render will show the fallback UI
         return {
             hasError: true,
@@ -28,7 +28,7 @@ class ErrorBoundary extends React.Component {
     componentDidCatch(error, errorInfo) {
         // Log the error to console and any error reporting service
         console.error('ErrorBoundary caught an error:', error, errorInfo)
-        
+
         this.setState({
             error,
             errorInfo,
@@ -70,21 +70,21 @@ class ErrorBoundary extends React.Component {
                         <Alert variant="danger">
                             <Alert.Heading>Application Error</Alert.Heading>
                             <p>
-                                We're sorry, but something unexpected happened. 
+                                We're sorry, but something unexpected happened.
                                 Please try refreshing the page or contact support if the problem persists.
                             </p>
                         </Alert>
-                        
+
                         <div className="d-flex gap-2 mb-3">
-                            <Button 
-                                variant="primary" 
+                            <Button
+                                variant="primary"
                                 onClick={this.handleRetry}
                                 aria-label="Try to recover from error"
                             >
                                 Try Again
                             </Button>
-                            <Button 
-                                variant="outline-secondary" 
+                            <Button
+                                variant="outline-secondary"
                                 onClick={() => window.location.reload()}
                                 aria-label="Reload the entire page"
                             >

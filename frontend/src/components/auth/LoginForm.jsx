@@ -1,34 +1,52 @@
-import React, { useState } from 'react'
-import { 
-    Card, 
-    Form, 
-    Button, 
-    Alert, 
-    Spinner 
+import { useState } from 'react'
+import PropTypes from 'prop-types'
+import {
+    Card,
+    Form,
+    Button,
+    Alert,
+    Spinner,
 } from 'react-bootstrap'
 import { useAuth } from '../../contexts/AuthContext'
 
-const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
-    const [formData, setFormData] = useState({
+const LoginForm = ({
+    onSwitchToRegister, onSuccess,
+}) => {
+    const [
+        formData,
+        setFormData,
+    ] = useState({
         username: '',
         password: '',
     })
-    const [localError, setLocalError] = useState('')
-    const [isSubmitting, setIsSubmitting] = useState(false)
-    
-    const { login, loading, error } = useAuth()
+    const [
+        localError,
+        setLocalError,
+    ] = useState('')
+    const [
+        isSubmitting,
+        setIsSubmitting,
+    ] = useState(false)
 
-    const handleChange = (e) => {
-        const { name, value } = e.target
+    const {
+        login, loading, error,
+    } = useAuth()
+
+    const handleChange = e => {
+        const {
+            name, value,
+        } = e.target
         setFormData(prev => ({
             ...prev,
-            [name]: value
+            [name]: value,
         }))
         // Clear errors when user starts typing
-        if (localError) setLocalError('')
+        if (localError) {
+            setLocalError('')
+        }
     }
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async e => {
         e.preventDefault()
         setIsSubmitting(true)
         setLocalError('')
@@ -48,14 +66,14 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
 
         try {
             const result = await login(formData.username, formData.password)
-            
+
             if (result.success) {
                 // Clear form
                 setFormData({
                     username: '',
                     password: '',
                 })
-                
+
                 // Call success callback if provided
                 if (onSuccess) {
                     onSuccess()
@@ -63,7 +81,8 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
             } else {
                 setLocalError(result.error || 'Login failed')
             }
-        } catch (error) {
+        } catch (loginError) {
+            console.error('Login error:', loginError)
             setLocalError('An unexpected error occurred')
         } finally {
             setIsSubmitting(false)
@@ -79,11 +98,13 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
             </Card.Header>
             <Card.Body>
                 {displayError && (
-                    <Alert variant="danger" className="mb-3">
+                    <Alert
+                        variant="danger"
+                        className="mb-3">
                         {displayError}
                     </Alert>
                 )}
-                
+
                 <Form onSubmit={handleSubmit}>
                     <Form.Group className="mb-3">
                         <Form.Label htmlFor="username">Username</Form.Label>
@@ -136,7 +157,7 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
                                 'Login'
                             )}
                         </Button>
-                        
+
                         {onSwitchToRegister && (
                             <Button
                                 variant="link"
@@ -152,6 +173,11 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
             </Card.Body>
         </Card>
     )
+}
+
+LoginForm.propTypes = {
+    onSwitchToRegister: PropTypes.func,
+    onSuccess: PropTypes.func,
 }
 
 export default LoginForm

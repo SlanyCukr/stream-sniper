@@ -28,17 +28,31 @@ export const ERROR_TYPES = {
  */
 // Helper function to categorize by HTTP status
 const categorizeByStatus = status => {
-    if (status === 400) return ERROR_TYPES.VALIDATION
-    if (status === 401) return ERROR_TYPES.AUTHENTICATION
-    if (status === 403) return ERROR_TYPES.AUTHORIZATION
-    if (status === 404) return ERROR_TYPES.NOT_FOUND
-    if (status >= 500) return ERROR_TYPES.SERVER
-    if (status >= 400) return ERROR_TYPES.CLIENT
+    if (status === 400) {
+        return ERROR_TYPES.VALIDATION
+    }
+    if (status === 401) {
+        return ERROR_TYPES.AUTHENTICATION
+    }
+    if (status === 403) {
+        return ERROR_TYPES.AUTHORIZATION
+    }
+    if (status === 404) {
+        return ERROR_TYPES.NOT_FOUND
+    }
+    if (status >= 500) {
+        return ERROR_TYPES.SERVER
+    }
+    if (status >= 400) {
+        return ERROR_TYPES.CLIENT
+    }
     return ERROR_TYPES.UNKNOWN
 }
 
 export const getErrorType = error => {
-    if (!error) return ERROR_TYPES.UNKNOWN
+    if (!error) {
+        return ERROR_TYPES.UNKNOWN
+    }
 
     // Network errors
     if (error.code === 'NETWORK_ERROR' || error.message?.includes('Network Error')) {
@@ -54,42 +68,58 @@ export const getErrorType = error => {
 }
 
 /**
+ * Extracts error message from various error object formats
+ * @param {Error|object} error - The error object
+ * @returns {string|null} Extracted message or null if none found
+ */
+const extractErrorMessage = error => {
+    const message = error.response?.data?.message ||
+                   error.response?.data?.error ||
+                   error.message ||
+                   error.toString()
+
+    return (typeof message === 'string' && message.trim()) ? message : null
+}
+
+/**
+ * Gets fallback error message based on error type
+ * @param {string} errorType - The categorized error type
+ * @param {string} defaultMessage - Default fallback message
+ * @returns {string} Appropriate error message
+ */
+const getFallbackMessage = (errorType, defaultMessage) => {
+    const typeMessages = {
+        [ERROR_TYPES.NETWORK]: ERROR_MESSAGES.NETWORK_ERROR,
+        [ERROR_TYPES.VALIDATION]: ERROR_MESSAGES.VALIDATION_ERROR,
+        [ERROR_TYPES.AUTHENTICATION]: ERROR_MESSAGES.UNAUTHORIZED,
+        [ERROR_TYPES.AUTHORIZATION]: ERROR_MESSAGES.UNAUTHORIZED,
+        [ERROR_TYPES.NOT_FOUND]: ERROR_MESSAGES.NOT_FOUND,
+        [ERROR_TYPES.SERVER]: ERROR_MESSAGES.API_ERROR,
+    }
+
+    return typeMessages[errorType] || defaultMessage
+}
+
+/**
  * Formats error message for user display
  * @param {Error|object} error - The error object
  * @param {string} defaultMessage - Default message if none can be extracted
  * @returns {string} Formatted error message
  */
 export const formatErrorMessage = (error, defaultMessage = ERROR_MESSAGES.UNKNOWN_ERROR) => {
-    if (!error) return defaultMessage
+    if (!error) {
+        return defaultMessage
+    }
 
-    // Try to extract message from various error formats
-    const message = error.response?.data?.message || 
-                   error.response?.data?.error || 
-                   error.message || 
-                   error.toString()
-
-    if (typeof message === 'string' && message.trim()) {
-        return message
+    // Try to extract message from error object
+    const extractedMessage = extractErrorMessage(error)
+    if (extractedMessage) {
+        return extractedMessage
     }
 
     // Fallback to error type specific messages
     const errorType = getErrorType(error)
-    
-    switch (errorType) {
-    case ERROR_TYPES.NETWORK:
-        return ERROR_MESSAGES.NETWORK_ERROR
-    case ERROR_TYPES.VALIDATION:
-        return ERROR_MESSAGES.VALIDATION_ERROR
-    case ERROR_TYPES.AUTHENTICATION:
-    case ERROR_TYPES.AUTHORIZATION:
-        return ERROR_MESSAGES.UNAUTHORIZED
-    case ERROR_TYPES.NOT_FOUND:
-        return ERROR_MESSAGES.NOT_FOUND
-    case ERROR_TYPES.SERVER:
-        return ERROR_MESSAGES.API_ERROR
-    default:
-        return defaultMessage
-    }
+    return getFallbackMessage(errorType, defaultMessage)
 }
 
 /**
@@ -102,16 +132,24 @@ export const isRetryableError = error => {
     const status = error.response?.status
 
     // Network errors are generally retryable
-    if (errorType === ERROR_TYPES.NETWORK) return true
-    
+    if (errorType === ERROR_TYPES.NETWORK) {
+        return true
+    }
+
     // Server errors (5xx) are often retryable
-    if (status >= 500) return true
-    
+    if (status >= 500) {
+        return true
+    }
+
     // Rate limiting (429) is retryable with backoff
-    if (status === 429) return true
-    
+    if (status === 429) {
+        return true
+    }
+
     // Temporary redirects might be retryable
-    if (status === 307 || status === 308) return true
+    if (status === 307 || status === 308) {
+        return true
+    }
 
     return false
 }
@@ -122,16 +160,16 @@ export const isRetryableError = error => {
  * @param {Error|object} error - The error object
  * @returns {number} Delay in milliseconds
  */
-export const getRetryDelay = (attemptNumber, error) => {
+export const getRetryDelay = (attemptNumber, _error) => {
     const baseDelay = 1000 // 1 second
     const maxDelay = 30000 // 30 seconds
-    
+
     // Exponential backoff: delay = baseDelay * (2 ^ (attempt - 1))
     const delay = baseDelay * Math.pow(2, attemptNumber - 1)
-    
+
     // Add some jitter to prevent thundering herd
     const jitter = Math.random() * 1000
-    
+
     return Math.min(delay + jitter, maxDelay)
 }
 
@@ -162,7 +200,7 @@ export const logError = (error, context = 'Unknown', additionalInfo = {}) => {
     }
 
     console.error('Error logged:', errorInfo)
-    
+
     // In production, you might want to send this to an error tracking service
     // Example: Sentry.captureException(error, { extra: errorInfo })
 }

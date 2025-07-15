@@ -89,8 +89,10 @@ const adminNavigation = [
 ]
 
 const Sidebar = () => {
-    const { isAuthenticated, isAdmin } = useAuth()
-    
+    const {
+        isAuthenticated, isAdmin,
+    } = useAuth()
+
     const showMobilemenu = () => {
         document.getElementById('sidebarArea').classList.toggle('showSidebar')
     }
@@ -157,7 +159,7 @@ const Sidebar = () => {
                             </Link>
                         </Nav.Item>
                     ))}
-                    
+
                     {/* Admin Navigation */}
                     {isAuthenticated && isAdmin && (
                         <>

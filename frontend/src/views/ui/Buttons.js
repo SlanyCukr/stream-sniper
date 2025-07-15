@@ -1,5 +1,5 @@
 /* eslint-disable max-lines */
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
     Button, ButtonGroup, Card, Row, Col,
 } from 'react-bootstrap'

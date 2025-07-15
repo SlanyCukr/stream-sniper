@@ -1,4 +1,4 @@
-import React, {
+import {
     useMemo,
 } from 'react'
 import {
@@ -17,9 +17,20 @@ const UserMessages = () => {
         refetch,
     } = useStreams(-1, 0) // Get all streams from first page
 
+    // Memoize streams data extraction
+    const streams = useMemo(() => streamsData?.streams || [
+    ], [
+        streamsData?.streams,
+    ])
+
+    // Memoize streams count calculation
+    const streamsCount = useMemo(() => streams.length, [
+        streams.length,
+    ])
+
     if (isLoading) {
         return (
-            <LoadingSpinner 
+            <LoadingSpinner
                 size="lg"
                 text="Loading user messages..."
                 card
@@ -37,17 +48,6 @@ const UserMessages = () => {
             />
         )
     }
-
-    // Memoize streams data extraction
-    const streams = useMemo(() => streamsData?.streams || [
-    ], [
-        streamsData?.streams,
-    ])
-
-    // Memoize streams count calculation
-    const streamsCount = useMemo(() => streams.length, [
-        streams.length,
-    ])
 
     return (
         <Card>

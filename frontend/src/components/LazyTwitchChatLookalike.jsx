@@ -1,29 +1,11 @@
-import React, {
+import {
     lazy, Suspense,
 } from 'react'
 import PropTypes from 'prop-types'
+import ChatLoadingFallback from './ChatLoadingFallback'
 
 // Lazy load the TwitchChatLookalike component with emotes
 const TwitchChatLookalike = lazy(() => import('./TwitchChatLookalike'))
-
-/**
- * Loading fallback component for chat messages
- */
-const ChatLoadingFallback = ({
-    nick, messages,
-}) => (
-    <div className="my-3">
-        {messages.map((message, index) => (
-            <div
-                key={index}
-                className='my-2'>
-                <span style={{
-                    color: '#9146ff',
-                }}>{nick}</span>: {message}
-            </div>
-        ))}
-    </div>
-)
 
 /**
  * Lazy-loaded wrapper for TwitchChatLookalike component
@@ -41,10 +23,6 @@ const LazyTwitchChatLookalike = ({
     </Suspense>
 )
 
-ChatLoadingFallback.propTypes = {
-    nick: PropTypes.string.isRequired,
-    messages: PropTypes.arrayOf(PropTypes.string).isRequired,
-}
 
 LazyTwitchChatLookalike.propTypes = {
     nick: PropTypes.string.isRequired,

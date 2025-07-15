@@ -1,13 +1,25 @@
-import React, { useState, useEffect } from 'react'
-import { Container, Row, Col, Alert } from 'react-bootstrap'
-import { useNavigate, useLocation } from 'react-router-dom'
+import {
+    useState, useEffect,
+} from 'react'
+import {
+    Container, Row, Col, Alert,
+} from 'react-bootstrap'
+import {
+    useNavigate, useLocation,
+} from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import LoginForm from '../../components/auth/LoginForm'
 import RegisterForm from '../../components/auth/RegisterForm'
 
 const Login = () => {
-    const [showRegister, setShowRegister] = useState(false)
-    const [successMessage, setSuccessMessage] = useState('')
+    const [
+        showRegister,
+        setShowRegister,
+    ] = useState(false)
+    const [
+        successMessage,
+        setSuccessMessage,
+    ] = useState('')
     const { isAuthenticated } = useAuth()
     const navigate = useNavigate()
     const location = useLocation()
@@ -20,7 +32,11 @@ const Login = () => {
         if (isAuthenticated) {
             navigate(from, { replace: true })
         }
-    }, [isAuthenticated, navigate, from])
+    }, [
+        isAuthenticated,
+        navigate,
+        from,
+    ])
 
     const handleSwitchToRegister = () => {
         setShowRegister(true)
@@ -38,7 +54,7 @@ const Login = () => {
         } else {
             setSuccessMessage('Login successful! Redirecting...')
         }
-        
+
         // Redirect after a short delay to show success message
         setTimeout(() => {
             navigate(from, { replace: true })
@@ -48,7 +64,9 @@ const Login = () => {
     return (
         <Container className="mt-5">
             <Row className="justify-content-center">
-                <Col md={6} lg={5}>
+                <Col
+                    md={6}
+                    lg={5}>
                     <div className="text-center mb-4">
                         <h2 className="text-primary">Stream Sniper</h2>
                         <p className="text-muted">
@@ -57,18 +75,20 @@ const Login = () => {
                     </div>
 
                     {successMessage && (
-                        <Alert variant="success" className="mb-3">
+                        <Alert
+                            variant="success"
+                            className="mb-3">
                             {successMessage}
                         </Alert>
                     )}
 
                     {showRegister ? (
-                        <RegisterForm 
+                        <RegisterForm
                             onSwitchToLogin={handleSwitchToLogin}
                             onSuccess={handleSuccess}
                         />
                     ) : (
-                        <LoginForm 
+                        <LoginForm
                             onSwitchToRegister={handleSwitchToRegister}
                             onSuccess={handleSuccess}
                         />

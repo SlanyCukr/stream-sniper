@@ -6,7 +6,7 @@
  */
 
 import {
-    format, formatDistanceToNow, intervalToDuration, formatDuration,
+    format, formatDistanceToNow, intervalToDuration,
 } from 'date-fns'
 import { DATE_FORMATS } from '../constants'
 
@@ -66,17 +66,29 @@ const buildDurationParts = duration => {
     const parts = [
     ]
 
-    if (years > 0) parts.push(`${years}y`)
-    if (months > 0) parts.push(`${months}mo`)
-    if (days > 0) parts.push(`${days}d`)
-    if (hours > 0) parts.push(`${hours}h`)
-    if (minutes > 0) parts.push(`${minutes}m`)
-    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`)
+    if (years > 0) {
+        parts.push(`${years}y`)
+    }
+    if (months > 0) {
+        parts.push(`${months}mo`)
+    }
+    if (days > 0) {
+        parts.push(`${days}d`)
+    }
+    if (hours > 0) {
+        parts.push(`${hours}h`)
+    }
+    if (minutes > 0) {
+        parts.push(`${minutes}m`)
+    }
+    if (seconds > 0 || parts.length === 0) {
+        parts.push(`${seconds}s`)
+    }
 
     return parts
 }
 
-export const formatDurationBetween = (startDate, endDate, options = {}) => {
+export const formatDurationBetween = (startDate, endDate) => {
     try {
         const start = typeof startDate === 'string' ? new Date(startDate) : startDate
         const end = typeof endDate === 'string' ? new Date(endDate) : endDate
@@ -127,7 +139,8 @@ export const isValidDate = date => {
     try {
         const dateObj = parseDate(date)
         return !Number.isNaN(dateObj.getTime())
-    } catch {
+    } catch (parseError) {
+        console.error('Date parsing error:', parseError)
         return false
     }
 }

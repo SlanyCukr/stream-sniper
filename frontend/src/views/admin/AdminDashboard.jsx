@@ -1,52 +1,75 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Alert, Spinner } from 'react-bootstrap';
-import { useAuth } from '../../contexts/AuthContext';
+import {
+    useState, useEffect, useCallback,
+} from 'react'
+import {
+    Container, Row, Col, Card, Alert, Spinner,
+} from 'react-bootstrap'
+import { useAuth } from '../../contexts/AuthContext'
 // Use environment variable from build time, fallback to /api for production
-const API_URL = process.env.REACT_APP_API_URL || '/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api'
 
 const AdminDashboard = () => {
-    const { user, token } = useAuth();
-    const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const {
+        user, token,
+    } = useAuth()
+    const [
+        stats,
+        setStats,
+    ] = useState(null)
+    const [
+        loading,
+        setLoading,
+    ] = useState(true)
+    const [
+        error,
+        setError,
+    ] = useState(null)
 
-    useEffect(() => {
-        fetchSystemStats();
-    }, []);
-
-    const fetchSystemStats = async () => {
+    const fetchSystemStats = useCallback(async () => {
         try {
-            setLoading(true);
-            setError(null);
+            setLoading(true)
+            setError(null)
 
             const response = await fetch(`${API_URL}/auth/admin/stats`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+                    'Content-Type': 'application/json',
+                },
+            })
 
             if (response.ok) {
-                const data = await response.json();
-                setStats(data);
+                const data = await response.json()
+                setStats(data)
             } else {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to fetch system stats');
+                const errorData = await response.json()
+                throw new Error(errorData.detail || 'Failed to fetch system stats')
             }
-        } catch (error) {
-            console.error('Error fetching system stats:', error);
-            setError(error.message);
+        } catch (fetchError) {
+            console.error('Error fetching system stats:', fetchError)
+            setError(fetchError.message)
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
+    }, [
+        token,
+    ])
+
+    useEffect(() => {
+        fetchSystemStats()
+    }, [
+        fetchSystemStats,
+    ])
 
     if (loading) {
         return (
-            <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '300px' }}>
-                <Spinner animation="border" variant="primary" />
+            <Container
+                className="d-flex justify-content-center align-items-center"
+                style={{ minHeight: '300px' }}>
+                <Spinner
+                    animation="border"
+                    variant="primary" />
             </Container>
-        );
+        )
     }
 
     return (
@@ -59,7 +82,9 @@ const AdminDashboard = () => {
             </Row>
 
             {error && (
-                <Alert variant="danger" className="mb-4">
+                <Alert
+                    variant="danger"
+                    className="mb-4">
                     {error}
                 </Alert>
             )}
@@ -110,19 +135,27 @@ const AdminDashboard = () => {
                         </Card.Header>
                         <Card.Body>
                             <div className="d-grid gap-2">
-                                <a href="/admin/users" className="btn btn-primary">
+                                <a
+                                    href="/admin/users"
+                                    className="btn btn-primary">
                                     <i className="bi bi-people me-2"></i>
                                     Manage Users
                                 </a>
-                                <a href="/admin/users/create" className="btn btn-success">
+                                <a
+                                    href="/admin/users/create"
+                                    className="btn btn-success">
                                     <i className="bi bi-person-plus me-2"></i>
                                     Create New User
                                 </a>
-                                <a href="/admin/tracking" className="btn btn-warning">
+                                <a
+                                    href="/admin/tracking"
+                                    className="btn btn-warning">
                                     <i className="bi bi-broadcast me-2"></i>
                                     Stream Tracking
                                 </a>
-                                <a href="/admin/system" className="btn btn-info">
+                                <a
+                                    href="/admin/system"
+                                    className="btn btn-info">
                                     <i className="bi bi-gear me-2"></i>
                                     System Information
                                 </a>
@@ -165,7 +198,7 @@ const AdminDashboard = () => {
                 </Col>
             </Row>
         </Container>
-    );
-};
+    )
+}
 
-export default AdminDashboard;
+export default AdminDashboard

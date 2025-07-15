@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import {
+    createContext, useContext, useState, useEffect, useCallback,
+} from 'react'
+import PropTypes from 'prop-types'
 import { jwtDecode } from 'jwt-decode'
 
 // Use environment variable from build time, fallback to /api for production
@@ -15,10 +18,22 @@ export const useAuth = () => {
 }
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null)
-    const [token, setToken] = useState(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(null)
+    const [
+        user,
+        setUser,
+    ] = useState(null)
+    const [
+        token,
+        setToken,
+    ] = useState(null)
+    const [
+        loading,
+        setLoading,
+    ] = useState(true)
+    const [
+        error,
+        setError,
+    ] = useState(null)
 
     // Check for existing token on mount
     useEffect(() => {
@@ -26,7 +41,7 @@ export const AuthProvider = ({ children }) => {
         if (savedToken) {
             try {
                 const decodedToken = jwtDecode(savedToken)
-                
+
                 // Check if token is expired
                 if (decodedToken.exp * 1000 > Date.now()) {
                     setToken(savedToken)
@@ -36,22 +51,24 @@ export const AuthProvider = ({ children }) => {
                     localStorage.removeItem('token')
                     setLoading(false)
                 }
-            } catch (error) {
-                console.error('Invalid token:', error)
+            } catch (tokenError) {
+                console.error('Invalid token:', tokenError)
                 localStorage.removeItem('token')
                 setLoading(false)
             }
         } else {
             setLoading(false)
         }
-    }, [])
+    }, [
+        fetchUserInfo,
+    ])
 
-    const fetchUserInfo = useCallback(async (authToken) => {
+    const fetchUserInfo = useCallback(async authToken => {
         try {
             const response = await fetch(`${API_URL}/auth/me`, {
                 headers: {
-                    'Authorization': `Bearer ${authToken}`
-                }
+                    'Authorization': `Bearer ${authToken}`,
+                },
             })
 
             if (response.ok) {
@@ -61,8 +78,8 @@ export const AuthProvider = ({ children }) => {
             } else {
                 throw new Error('Failed to fetch user info')
             }
-        } catch (error) {
-            console.error('Error fetching user info:', error)
+        } catch (fetchError) {
+            console.error('Error fetching user info:', fetchError)
             setError('Failed to fetch user information')
             // Clear invalid token
             localStorage.removeItem('token')
@@ -71,7 +88,8 @@ export const AuthProvider = ({ children }) => {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [
+    ])
 
     const login = async (username, password) => {
         try {
@@ -83,29 +101,35 @@ export const AuthProvider = ({ children }) => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({
+                    username,
+                    password,
+                }),
             })
 
             if (response.ok) {
                 const data = await response.json()
                 const { access_token } = data
-                
+
                 // Store token
                 localStorage.setItem('token', access_token)
                 setToken(access_token)
-                
+
                 // Fetch user info
                 await fetchUserInfo(access_token)
-                
+
                 return { success: true }
             } else {
                 const errorData = await response.json()
                 throw new Error(errorData.detail || 'Login failed')
             }
-        } catch (error) {
-            console.error('Login error:', error)
-            setError(error.message)
-            return { success: false, error: error.message }
+        } catch (loginError) {
+            console.error('Login error:', loginError)
+            setError(loginError.message)
+            return {
+                success: false,
+                error: loginError.message,
+            }
         } finally {
             setLoading(false)
         }
@@ -121,21 +145,27 @@ export const AuthProvider = ({ children }) => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, email, password }),
+                body: JSON.stringify({
+                    username,
+                    email,
+                    password,
+                }),
             })
 
             if (response.ok) {
-                const userData = await response.json()
                 // After registration, automatically log in
                 return await login(username, password)
             } else {
                 const errorData = await response.json()
                 throw new Error(errorData.detail || 'Registration failed')
             }
-        } catch (error) {
-            console.error('Registration error:', error)
-            setError(error.message)
-            return { success: false, error: error.message }
+        } catch (registrationError) {
+            console.error('Registration error:', registrationError)
+            setError(registrationError.message)
+            return {
+                success: false,
+                error: registrationError.message,
+            }
         } finally {
             setLoading(false)
         }
@@ -146,9 +176,10 @@ export const AuthProvider = ({ children }) => {
         setToken(null)
         setUser(null)
         setError(null)
-    }, [])
+    }, [
+    ])
 
-    const updateUser = async (userData) => {
+    const updateUser = async userData => {
         try {
             setLoading(true)
             setError(null)
@@ -157,7 +188,7 @@ export const AuthProvider = ({ children }) => {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify(userData),
             })
@@ -170,10 +201,13 @@ export const AuthProvider = ({ children }) => {
                 const errorData = await response.json()
                 throw new Error(errorData.detail || 'Update failed')
             }
-        } catch (error) {
-            console.error('Update error:', error)
-            setError(error.message)
-            return { success: false, error: error.message }
+        } catch (updateError) {
+            console.error('Update error:', updateError)
+            setError(updateError.message)
+            return {
+                success: false,
+                error: updateError.message,
+            }
         } finally {
             setLoading(false)
         }
@@ -188,11 +222,11 @@ export const AuthProvider = ({ children }) => {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
                 },
-                body: JSON.stringify({ 
-                    current_password: currentPassword, 
-                    new_password: newPassword 
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword,
                 }),
             })
 
@@ -202,31 +236,43 @@ export const AuthProvider = ({ children }) => {
                 const errorData = await response.json()
                 throw new Error(errorData.detail || 'Password change failed')
             }
-        } catch (error) {
-            console.error('Password change error:', error)
-            setError(error.message)
-            return { success: false, error: error.message }
+        } catch (passwordChangeError) {
+            console.error('Password change error:', passwordChangeError)
+            setError(passwordChangeError.message)
+            return {
+                success: false,
+                error: passwordChangeError.message,
+            }
         } finally {
             setLoading(false)
         }
     }
 
     const isTokenExpired = useCallback(() => {
-        if (!token) return true
-        
+        if (!token) {
+            return true
+        }
+
         try {
             const decodedToken = jwtDecode(token)
             return decodedToken.exp * 1000 <= Date.now()
-        } catch (error) {
+        } catch (tokenDecodeError) {
+            console.error('Token decode error:', tokenDecodeError)
             return true
         }
-    }, [token])
+    }, [
+        token,
+    ])
 
     const refreshUserInfo = useCallback(async () => {
         if (token && !isTokenExpired()) {
             await fetchUserInfo(token)
         }
-    }, [token, isTokenExpired, fetchUserInfo])
+    }, [
+        token,
+        isTokenExpired,
+        fetchUserInfo,
+    ])
 
     const isAuthenticated = !!(token && user && !isTokenExpired())
     const isAdmin = user?.role === 'admin'
@@ -249,6 +295,10 @@ export const AuthProvider = ({ children }) => {
     }
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+AuthProvider.propTypes = {
+    children: PropTypes.node.isRequired,
 }
 
 export default AuthContext

@@ -1,4 +1,4 @@
-import React from 'react'
+// React import not needed since React 17+
 import './loader.scss'
 import {
     Spinner,
