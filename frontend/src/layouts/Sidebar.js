@@ -5,6 +5,7 @@ import Logo from './Logo'
 import {
     Link, useLocation,
 } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 const navigation = [
     {
@@ -69,7 +70,27 @@ const navigation = [
     // },
 ]
 
+const adminNavigation = [
+    {
+        title: 'Admin Dashboard',
+        href: '/admin/dashboard',
+        icon: 'bi bi-shield-check',
+    },
+    {
+        title: 'User Management',
+        href: '/admin/users',
+        icon: 'bi bi-people',
+    },
+    {
+        title: 'System Information',
+        href: '/admin/system',
+        icon: 'bi bi-gear',
+    },
+]
+
 const Sidebar = () => {
+    const { isAuthenticated, isAdmin } = useAuth()
+    
     const showMobilemenu = () => {
         document.getElementById('sidebarArea').classList.toggle('showSidebar')
     }
@@ -136,6 +157,40 @@ const Sidebar = () => {
                             </Link>
                         </Nav.Item>
                     ))}
+                    
+                    {/* Admin Navigation */}
+                    {isAuthenticated && isAdmin && (
+                        <>
+                            <hr className="my-3" />
+                            <div className="px-3">
+                                <small className="text-muted text-uppercase">Administration</small>
+                            </div>
+                            {adminNavigation.map((navi, index) => (
+                                <Nav.Item
+                                    key={`admin-${index}`}
+                                    className="sidenav-bg"
+                                    role="none"
+                                >
+                                    <Link
+                                        to={navi.href}
+                                        className={
+                                            location.pathname === navi.href
+                                                ? 'text-primary nav-link py-3'
+                                                : 'nav-link text-secondary py-3'
+                                        }
+                                        aria-current={location.pathname === navi.href ? 'page' : null}
+                                        aria-label={navi.title}
+                                    >
+                                        <i
+                                            className={navi.icon}
+                                            aria-hidden="true"
+                                        ></i>
+                                        <span className="ms-3 d-inline-block">{navi.title}</span>
+                                    </Link>
+                                </Nav.Item>
+                            ))}
+                        </>
+                    )}
                     {/* <Button
                         color="danger"
                         tag="a"

@@ -154,6 +154,35 @@ const Header = () => {
                                 <i className="bi bi-person me-2"></i>
                                 My Profile
                             </Dropdown.Item>
+                            {user?.role === 'admin' && (
+                                <>
+                                    <Dropdown.Divider role="separator" />
+                                    <Dropdown.Item
+                                        role="menuitem"
+                                        tabIndex="0"
+                                        onClick={() => navigate('/admin/dashboard')}
+                                    >
+                                        <i className="bi bi-shield-check me-2"></i>
+                                        Admin Dashboard
+                                    </Dropdown.Item>
+                                    <Dropdown.Item
+                                        role="menuitem"
+                                        tabIndex="0"
+                                        onClick={() => navigate('/admin/users')}
+                                    >
+                                        <i className="bi bi-people me-2"></i>
+                                        User Management
+                                    </Dropdown.Item>
+                                    <Dropdown.Item
+                                        role="menuitem"
+                                        tabIndex="0"
+                                        onClick={() => navigate('/admin/system')}
+                                    >
+                                        <i className="bi bi-gear me-2"></i>
+                                        System Information
+                                    </Dropdown.Item>
+                                </>
+                            )}
                             <Dropdown.Divider role="separator" />
                             <Dropdown.Item
                                 role="menuitem"

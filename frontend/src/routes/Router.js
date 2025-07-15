@@ -28,6 +28,13 @@ const Stream = lazy(() => import('../views/ui/Stream.jsx'))
 const Login = lazy(() => import('../views/auth/Login.jsx'))
 const Profile = lazy(() => import('../views/auth/Profile.jsx'))
 
+// Admin Pages
+const AdminDashboard = lazy(() => import('../views/admin/AdminDashboard.jsx'))
+const UserManagement = lazy(() => import('../views/admin/UserManagement.jsx'))
+const CreateUser = lazy(() => import('../views/admin/CreateUser.jsx'))
+const SystemInfo = lazy(() => import('../views/admin/SystemInfo.jsx'))
+const AdminRoute = lazy(() => import('../components/admin/AdminRoute.jsx'))
+
 /*****Routes******/
 
 const ThemeRoutes = [
@@ -100,6 +107,27 @@ const ThemeRoutes = [
             {
                 path: '/profile',
                 element: <Profile />,
+            },
+            // Admin routes
+            {
+                path: '/admin',
+                element: <AdminRoute><AdminDashboard /></AdminRoute>,
+            },
+            {
+                path: '/admin/dashboard',
+                element: <AdminRoute><AdminDashboard /></AdminRoute>,
+            },
+            {
+                path: '/admin/users',
+                element: <AdminRoute><UserManagement /></AdminRoute>,
+            },
+            {
+                path: '/admin/users/create',
+                element: <AdminRoute><CreateUser /></AdminRoute>,
+            },
+            {
+                path: '/admin/system',
+                element: <AdminRoute><SystemInfo /></AdminRoute>,
             },
         ],
     },

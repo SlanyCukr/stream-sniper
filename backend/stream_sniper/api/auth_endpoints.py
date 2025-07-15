@@ -19,7 +19,8 @@ from .rate_limiter import limiter, rate_limits
 from ..database.user_table_gateway import (
     insert_user_db, user_exists_db, select_all_users_db, 
     count_users_db, deactivate_user_db, activate_user_db,
-    update_user_role_db, update_user_password_db, select_user_by_id_db
+    update_user_role_db, update_user_password_db, select_user_by_id_db,
+    delete_user_db
 )
 from ..logging_config import get_logger
 
@@ -635,3 +636,407 @@ async def deactivate_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
+
+
+@router.delete(
+    "/users/{user_id}",
+    summary="Delete user (Admin only)",
+    description="""
+    Permanently delete a user account.
+    
+    Requires admin role.
+    
+    **Rate Limit**: 5 requests per minute
+    """,
+    responses={
+        200: {"description": "User deleted successfully"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "User not found"},
+        429: {"description": "Rate limit exceeded"},
+    }
+)
+@limiter.limit("5/minute")
+async def delete_user(
+    user_id: int,
+    request: Request,
+    response: Response,
+    current_user: UserInDB = Depends(get_current_admin_user)
+):
+    """Delete user account (admin only)"""
+    try:
+        # Prevent admin from deleting themselves
+        if user_id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete your own account"
+            )
+        
+        success = delete_user_db(user_id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        logger.info(f"User deleted by admin {current_user.username}: user_id={user_id}")
+        return {"message": "User deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.get(
+    "/users/{user_id}",
+    response_model=UserResponse,
+    summary="Get user by ID (Admin only)",
+    description="""
+    Get detailed information about a specific user.
+    
+    Requires admin role.
+    
+    **Rate Limit**: 30 requests per minute
+    """,
+    responses={
+        200: {"description": "User information"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "User not found"},
+        429: {"description": "Rate limit exceeded"},
+    }
+)
+@limiter.limit("30/minute")
+async def get_user_by_id(
+    user_id: int,
+    request: Request,
+    response: Response,
+    current_user: UserInDB = Depends(get_current_admin_user)
+):
+    """Get user by ID (admin only)"""
+    try:
+        user_tuple = select_user_by_id_db(user_id)
+        
+        if not user_tuple:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        return convert_user_to_response(user_tuple)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.put(
+    "/users/{user_id}",
+    response_model=UserResponse,
+    summary="Update user (Admin only)",
+    description="""
+    Update user information including email, role, and active status.
+    
+    Requires admin role.
+    
+    **Rate Limit**: 10 requests per minute
+    """,
+    responses={
+        200: {"description": "User updated successfully"},
+        400: {"description": "Invalid input data"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        404: {"description": "User not found"},
+        429: {"description": "Rate limit exceeded"},
+    }
+)
+@limiter.limit("10/minute")
+async def update_user_by_id(
+    user_id: int,
+    user_update: UserUpdate,
+    request: Request,
+    response: Response,
+    current_user: UserInDB = Depends(get_current_admin_user)
+):
+    """Update user information (admin only)"""
+    try:
+        # Check if user exists
+        user_tuple = select_user_by_id_db(user_id)
+        if not user_tuple:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        updates = {}
+        
+        # Email validation and update
+        if user_update.email:
+            try:
+                validate_email(user_update.email)
+                updates['email'] = user_update.email
+            except EmailNotValidError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid email format"
+                )
+        
+        # Role update
+        if user_update.role is not None:
+            if user_update.role not in ["user", "admin"]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Role must be either 'user' or 'admin'"
+                )
+            updates['role'] = user_update.role
+        
+        # Active status update
+        if user_update.is_active is not None:
+            updates['is_active'] = user_update.is_active
+        
+        if not updates:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No valid fields to update"
+            )
+        
+        # Update user in database
+        from ..database.user_table_gateway import update_user_db
+        success = update_user_db(user_id, **updates)
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update user"
+            )
+        
+        # Fetch updated user
+        updated_user_tuple = select_user_by_id_db(user_id)
+        if not updated_user_tuple:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve updated user"
+            )
+        
+        logger.info(f"User updated by admin {current_user.username}: user_id={user_id}")
+        return convert_user_to_response(updated_user_tuple)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+class SystemStats(BaseModel):
+    """System statistics model"""
+    total_users: int = Field(..., description="Total number of users")
+    active_users: int = Field(..., description="Number of active users")
+    admin_users: int = Field(..., description="Number of admin users")
+    recent_registrations: int = Field(..., description="Registrations in last 24 hours")
+
+
+@router.get(
+    "/admin/stats",
+    response_model=SystemStats,
+    summary="Get system statistics (Admin only)",
+    description="""
+    Get comprehensive system statistics including user counts and activity metrics.
+    
+    Requires admin role.
+    
+    **Rate Limit**: 30 requests per minute
+    """,
+    responses={
+        200: {"description": "System statistics"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        429: {"description": "Rate limit exceeded"},
+    }
+)
+@limiter.limit("30/minute")
+async def get_system_stats(
+    request: Request,
+    response: Response,
+    current_user: UserInDB = Depends(get_current_admin_user)
+):
+    """Get system statistics (admin only)"""
+    try:
+        # Get user statistics
+        pool = get_pool()
+        
+        with pool.get_cursor() as cursor:
+            # Total users
+            cursor.execute("SELECT COUNT(*) FROM users")
+            total_users = cursor.fetchone()[0]
+            
+            # Active users
+            cursor.execute("SELECT COUNT(*) FROM users WHERE is_active = true")
+            active_users = cursor.fetchone()[0]
+            
+            # Admin users
+            cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
+            admin_users = cursor.fetchone()[0]
+            
+            # Recent registrations (last 24 hours)
+            cursor.execute("""
+                SELECT COUNT(*) FROM users 
+                WHERE created_at >= NOW() - INTERVAL '24 hours'
+            """)
+            recent_registrations = cursor.fetchone()[0]
+        
+        return SystemStats(
+            total_users=total_users,
+            active_users=active_users,
+            admin_users=admin_users,
+            recent_registrations=recent_registrations
+        )
+        
+    except Exception as e:
+        logger.error(f"Error fetching system stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+class UserCreateAdmin(BaseModel):
+    """Admin user creation model"""
+    username: str = Field(..., description="Username (3-50 characters)", min_length=3, max_length=50)
+    email: str = Field(..., description="Valid email address")
+    password: str = Field(..., description="Password (8-128 characters)", min_length=8, max_length=128)
+    role: str = Field(default="user", description="User role (user/admin)")
+    is_active: bool = Field(default=True, description="Whether user is active")
+    
+    @validator('username')
+    def validate_username(cls, v):
+        if not v or len(v) < 3:
+            raise ValueError('Username must be at least 3 characters long')
+        if len(v) > 50:
+            raise ValueError('Username must be less than 50 characters')
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('Username can only contain letters, numbers, hyphens, and underscores')
+        return v
+    
+    @validator('email')
+    def validate_email_format(cls, v):
+        try:
+            validate_email(v)
+            return v
+        except EmailNotValidError:
+            raise ValueError('Invalid email format')
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        if len(v) > 128:
+            raise ValueError('Password must be less than 128 characters')
+        if not re.search(r'[A-Za-z]', v):
+            raise ValueError('Password must contain at least one letter')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Password must contain at least one number')
+        return v
+    
+    @validator('role')
+    def validate_role(cls, v):
+        if v not in ["user", "admin"]:
+            raise ValueError('Role must be either "user" or "admin"')
+        return v
+
+
+@router.post(
+    "/admin/users",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create user (Admin only)",
+    description="""
+    Create a new user account with admin privileges.
+    
+    Requires admin role.
+    
+    **Rate Limit**: 10 requests per minute
+    """,
+    responses={
+        201: {"description": "User created successfully"},
+        400: {"description": "Invalid input data or user already exists"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        422: {"description": "Validation error"},
+        429: {"description": "Rate limit exceeded"},
+    }
+)
+@limiter.limit("10/minute")
+async def create_user_admin(
+    user_data: UserCreateAdmin,
+    request: Request,
+    response: Response,
+    current_user: UserInDB = Depends(get_current_admin_user)
+):
+    """Create user (admin only)"""
+    try:
+        # Check if user already exists
+        if user_exists_db(username=user_data.username, email=user_data.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User with this username or email already exists"
+            )
+        
+        # Hash password
+        password_hash = hash_password(user_data.password)
+        
+        # Create user in database
+        user_id = insert_user_db(
+            username=user_data.username,
+            email=user_data.email,
+            password_hash=password_hash,
+            role=user_data.role
+        )
+        
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create user"
+            )
+        
+        # Set active status if specified
+        if not user_data.is_active:
+            deactivate_user_db(user_id)
+        
+        # Fetch created user
+        user_tuple = select_user_by_id_db(user_id)
+        if not user_tuple:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve created user"
+            )
+        
+        logger.info(f"User created by admin {current_user.username}: {user_data.username}")
+        return convert_user_to_response(user_tuple)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+# Import get_pool for system stats
+from ..database.connection_pool import get_pool
