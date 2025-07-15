@@ -108,11 +108,11 @@ jobs:
             fi
           done
           
-          # Test database connectivity
-          if docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready; then
-            echo "✅ Database is ready"
+          # Test database connectivity (host PostgreSQL)
+          if pg_isready -h localhost -p 5432; then
+            echo "✅ Host database is ready"
           else
-            echo "❌ Database not ready"
+            echo "❌ Host database not ready"
             exit 1
           fi
           
