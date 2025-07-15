@@ -22,8 +22,9 @@ jobs:
       - name: Setup local repository
         run: |
           # Clone or update the repository
-          if [ ! -d "/home/pi/stream-sniper" ]; then
+          if [ ! -d "/home/pi/stream-sniper/.git" ]; then
             echo "🔄 Cloning repository for first time..."
+            rm -rf /home/pi/stream-sniper
             cd /home/pi
             git clone https://github.com/SlanyCukr/stream-sniper.git stream-sniper
           else
