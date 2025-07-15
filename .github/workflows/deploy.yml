@@ -1,0 +1,113 @@
+name: Deploy to Raspberry Pi
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to RPI5 8GB
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update local repository
+        run: |
+          cd /home/pi/stream-sniper
+          git pull origin main
+
+      - name: Build frontend Docker image
+        run: |
+          cd /home/pi/stream-sniper
+          docker build -f frontend/Dockerfile.prod -t stream-sniper-frontend:latest ./frontend
+
+      - name: Build backend API Docker image
+        run: |
+          cd /home/pi/stream-sniper
+          docker build -f backend/Dockerfile.api -t stream-sniper-api:latest ./backend
+
+      - name: Build tracking service Docker image
+        run: |
+          cd /home/pi/stream-sniper
+          docker build -f backend/Dockerfile.tracking -t stream-sniper-tracking:latest ./backend
+
+      - name: Stop existing containers
+        run: |
+          cd /home/pi/stream-sniper
+          docker-compose -f docker-compose.prod.yml down || true
+
+      - name: Setup environment configuration
+        run: |
+          cd /home/pi/stream-sniper
+          # Ensure .env.prod exists (should be manually created on RPI with secrets)
+          if [ ! -f .env.prod ]; then
+            echo "⚠️  .env.prod not found. Creating from template..."
+            cp .env.prod.template .env.prod
+            echo "❌ Please update .env.prod with production secrets before deploying!"
+            exit 1
+          fi
+
+      - name: Deploy new containers
+        run: |
+          cd /home/pi/stream-sniper
+          # Use production environment file
+          docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
+      - name: Wait for services to start
+        run: |
+          echo "⏳ Waiting for services to start..."
+          sleep 30
+
+      - name: Verify deployment
+        run: |
+          cd /home/pi/stream-sniper
+          echo "📊 Container status:"
+          docker-compose -f docker-compose.prod.yml ps
+          
+          echo "🔍 Testing service endpoints..."
+          
+          # Test frontend accessibility
+          if curl -f -s http://localhost:3001 > /dev/null; then
+            echo "✅ Frontend accessible on port 3001"
+          else
+            echo "❌ Frontend not accessible"
+            exit 1
+          fi
+          
+          # Test API health endpoint
+          if curl -f -s http://localhost:5002/health > /dev/null; then
+            echo "✅ API health check passed on port 5002"
+          else
+            echo "❌ API health check failed"
+            exit 1
+          fi
+          
+          # Test database connectivity
+          if docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready; then
+            echo "✅ Database is ready"
+          else
+            echo "❌ Database not ready"
+            exit 1
+          fi
+          
+          echo "🎉 Deployment successful!"
+
+      - name: Show deployment info
+        run: |
+          echo "🌐 Stream Sniper is now deployed:"
+          echo "   Frontend: https://stream-sniper.slanycukr.com"
+          echo "   API:      https://stream-sniper-api.slanycukr.com"
+          echo "   Status:   All services running on RPI5 8GB"
+
+      - name: Clean up old Docker images
+        run: |
+          docker image prune -f
+          docker system prune -f --volumes

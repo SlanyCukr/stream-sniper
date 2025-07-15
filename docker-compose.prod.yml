@@ -11,6 +11,81 @@ services:
     container_name: stream-sniper-frontend
     networks:
       - stream-sniper-prod
+    depends_on:
+      - stream-sniper-api
+
+  stream-sniper-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.api
+    ports:
+      - "5002:5002"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=stream_sniper
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - CORS_ORIGINS=["https://stream-sniper.slanycukr.com"]
+    restart: unless-stopped
+    container_name: stream-sniper-api
+    networks:
+      - stream-sniper-prod
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  stream-sniper-tracking:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.api
+    command: ["python", "-m", "stream_sniper.tracking_service"]
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=stream_sniper
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+    restart: unless-stopped
+    container_name: stream-sniper-tracking
+    networks:
+      - stream-sniper-prod
+    depends_on:
+      - postgres
+      - stream-sniper-api
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=stream_sniper
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/stream_sniper/database/create_table.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    container_name: stream-sniper-postgres
+    networks:
+      - stream-sniper-prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
 
 networks:
   stream-sniper-prod:
