@@ -1,22 +1,14 @@
 import React, { useState } from 'react'
 import { 
     Card, 
-    CardHeader, 
-    CardBody, 
     Form, 
-    FormGroup, 
-    Label, 
-    Input, 
     Button, 
     Alert, 
     Spinner,
     Row,
     Col,
     Badge,
-    Modal,
-    ModalHeader,
-    ModalBody,
-    ModalFooter
+    Modal
 } from 'react-bootstrap'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -170,10 +162,10 @@ const UserProfile = () => {
     return (
         <div>
             <Card className="shadow-sm">
-                <CardHeader>
+                <Card.Header>
                     <h4 className="mb-0">User Profile</h4>
-                </CardHeader>
-                <CardBody>
+                </Card.Header>
+                <Card.Body>
                     {displayError && (
                         <Alert variant="danger" className="mb-3">
                             {displayError}
@@ -189,20 +181,20 @@ const UserProfile = () => {
                     <Form onSubmit={handleSubmit}>
                         <Row>
                             <Col md={6}>
-                                <FormGroup className="mb-3">
-                                    <Label>Username</Label>
-                                    <Input
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Username</Form.Label>
+                                    <Form.Control
                                         type="text"
                                         value={user?.username || ''}
                                         disabled
                                         className="bg-light"
                                     />
                                     <small className="text-muted">Username cannot be changed</small>
-                                </FormGroup>
+                                </Form.Group>
                             </Col>
                             <Col md={6}>
-                                <FormGroup className="mb-3">
-                                    <Label>Role</Label>
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Role</Form.Label>
                                     <div>
                                         <Badge 
                                             variant={user?.role === 'admin' ? 'danger' : 'primary'}
@@ -211,13 +203,13 @@ const UserProfile = () => {
                                             {user?.role || 'user'}
                                         </Badge>
                                     </div>
-                                </FormGroup>
+                                </Form.Group>
                             </Col>
                         </Row>
 
-                        <FormGroup className="mb-3">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
+                        <Form.Group className="mb-3">
+                            <Form.Label htmlFor="email">Email</Form.Label>
+                            <Form.Control
                                 type="email"
                                 id="email"
                                 name="email"
@@ -227,23 +219,23 @@ const UserProfile = () => {
                                 disabled={!isEditing || isSubmitting || loading}
                                 required
                             />
-                        </FormGroup>
+                        </Form.Group>
 
-                        <FormGroup className="mb-3">
-                            <Label>Account Status</Label>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Account Status</Form.Label>
                             <div>
                                 <Badge variant={user?.is_active ? 'success' : 'warning'}>
                                     {user?.is_active ? 'Active' : 'Inactive'}
                                 </Badge>
                             </div>
-                        </FormGroup>
+                        </Form.Group>
 
-                        <FormGroup className="mb-3">
-                            <Label>Member Since</Label>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Member Since</Form.Label>
                             <div className="text-muted">
                                 {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
                             </div>
-                        </FormGroup>
+                        </Form.Group>
 
                         <div className="d-flex gap-2">
                             {isEditing ? (
@@ -297,25 +289,25 @@ const UserProfile = () => {
                             )}
                         </div>
                     </Form>
-                </CardBody>
+                </Card.Body>
             </Card>
 
             {/* Password Change Modal */}
             <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)}>
-                <ModalHeader closeButton>
+                <Modal.Header closeButton>
                     <Modal.Title>Change Password</Modal.Title>
-                </ModalHeader>
+                </Modal.Header>
                 <Form onSubmit={handlePasswordSubmit}>
-                    <ModalBody>
+                    <Modal.Body>
                         {displayError && (
                             <Alert variant="danger" className="mb-3">
                                 {displayError}
                             </Alert>
                         )}
                         
-                        <FormGroup className="mb-3">
-                            <Label htmlFor="currentPassword">Current Password</Label>
-                            <Input
+                        <Form.Group className="mb-3">
+                            <Form.Label htmlFor="currentPassword">Current Password</Form.Label>
+                            <Form.Control
                                 type="password"
                                 id="currentPassword"
                                 name="currentPassword"
@@ -325,11 +317,11 @@ const UserProfile = () => {
                                 disabled={isSubmitting}
                                 required
                             />
-                        </FormGroup>
+                        </Form.Group>
 
-                        <FormGroup className="mb-3">
-                            <Label htmlFor="newPassword">New Password</Label>
-                            <Input
+                        <Form.Group className="mb-3">
+                            <Form.Label htmlFor="newPassword">New Password</Form.Label>
+                            <Form.Control
                                 type="password"
                                 id="newPassword"
                                 name="newPassword"
@@ -342,11 +334,11 @@ const UserProfile = () => {
                             <small className="text-muted">
                                 Must contain at least one letter and one number
                             </small>
-                        </FormGroup>
+                        </Form.Group>
 
-                        <FormGroup className="mb-3">
-                            <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                            <Input
+                        <Form.Group className="mb-3">
+                            <Form.Label htmlFor="confirmPassword">Confirm New Password</Form.Label>
+                            <Form.Control
                                 type="password"
                                 id="confirmPassword"
                                 name="confirmPassword"
@@ -356,9 +348,9 @@ const UserProfile = () => {
                                 disabled={isSubmitting}
                                 required
                             />
-                        </FormGroup>
-                    </ModalBody>
-                    <ModalFooter>
+                        </Form.Group>
+                    </Modal.Body>
+                    <Modal.Footer>
                         <Button
                             variant="secondary"
                             onClick={() => setShowPasswordModal(false)}
@@ -387,7 +379,7 @@ const UserProfile = () => {
                                 'Change Password'
                             )}
                         </Button>
-                    </ModalFooter>
+                    </Modal.Footer>
                 </Form>
             </Modal>
         </div>

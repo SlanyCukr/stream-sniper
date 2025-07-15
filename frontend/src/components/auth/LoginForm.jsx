@@ -1,12 +1,7 @@
 import React, { useState } from 'react'
 import { 
     Card, 
-    CardHeader, 
-    CardBody, 
     Form, 
-    FormGroup, 
-    Label, 
-    Input, 
     Button, 
     Alert, 
     Spinner 
@@ -79,10 +74,10 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
 
     return (
         <Card className="shadow-sm">
-            <CardHeader>
+            <Card.Header>
                 <h4 className="mb-0">Login</h4>
-            </CardHeader>
-            <CardBody>
+            </Card.Header>
+            <Card.Body>
                 {displayError && (
                     <Alert variant="danger" className="mb-3">
                         {displayError}
@@ -90,9 +85,9 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
                 )}
                 
                 <Form onSubmit={handleSubmit}>
-                    <FormGroup className="mb-3">
-                        <Label htmlFor="username">Username</Label>
-                        <Input
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="username">Username</Form.Label>
+                        <Form.Control
                             type="text"
                             id="username"
                             name="username"
@@ -102,11 +97,11 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
                             disabled={isSubmitting || loading}
                             required
                         />
-                    </FormGroup>
+                    </Form.Group>
 
-                    <FormGroup className="mb-3">
-                        <Label htmlFor="password">Password</Label>
-                        <Input
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="password">Password</Form.Label>
+                        <Form.Control
                             type="password"
                             id="password"
                             name="password"
@@ -116,7 +111,7 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
                             disabled={isSubmitting || loading}
                             required
                         />
-                    </FormGroup>
+                    </Form.Group>
 
                     <div className="d-grid gap-2">
                         <Button
@@ -154,7 +149,7 @@ const LoginForm = ({ onSwitchToRegister, onSuccess }) => {
                         )}
                     </div>
                 </Form>
-            </CardBody>
+            </Card.Body>
         </Card>
     )
 }
