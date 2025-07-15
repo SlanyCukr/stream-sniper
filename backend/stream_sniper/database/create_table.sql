@@ -72,3 +72,45 @@ create table stream_sniper.users
         unique (email)
 );
 
+create table stream_sniper.tracked_streamers
+(
+    id                        serial       primary key,
+    creator_id                int          not null,
+    twitch_username           varchar(255) not null,
+    display_name              varchar(255) not null,
+    is_active                 boolean      not null default true,
+    last_stream_check         timestamp    null,
+    last_processed_stream_id  bigint       null,
+    processing_enabled        boolean      not null default true,
+    created_at                timestamp    not null default current_timestamp,
+    updated_at                timestamp    not null default current_timestamp,
+    created_by                int          null,
+    notes                     text         null,
+    constraint tracked_streamers_creator_id_fk
+        foreign key (creator_id) references stream_sniper.creator (id),
+    constraint tracked_streamers_created_by_fk
+        foreign key (created_by) references stream_sniper.users (id),
+    constraint tracked_streamers_creator_id_uindex
+        unique (creator_id),
+    constraint tracked_streamers_twitch_username_uindex
+        unique (twitch_username)
+);
+
+create table stream_sniper.processing_jobs
+(
+    id                    serial       primary key,
+    tracked_streamer_id   int          not null,
+    twitch_stream_id      bigint       not null,
+    status                varchar(50)  not null default 'pending',
+    started_at            timestamp    null,
+    completed_at          timestamp    null,
+    error_message         text         null,
+    retry_count           int          not null default 0,
+    created_at            timestamp    not null default current_timestamp,
+    updated_at            timestamp    not null default current_timestamp,
+    constraint processing_jobs_tracked_streamer_id_fk
+        foreign key (tracked_streamer_id) references stream_sniper.tracked_streamers (id),
+    constraint processing_jobs_status_check
+        check (status IN ('pending', 'in_progress', 'completed', 'failed'))
+);
+

@@ -33,6 +33,9 @@ const AdminDashboard = lazy(() => import('../views/admin/AdminDashboard.jsx'))
 const UserManagement = lazy(() => import('../views/admin/UserManagement.jsx'))
 const CreateUser = lazy(() => import('../views/admin/CreateUser.jsx'))
 const SystemInfo = lazy(() => import('../views/admin/SystemInfo.jsx'))
+const TrackingDashboard = lazy(() => import('../views/admin/TrackingDashboard.jsx'))
+const StreamerTracking = lazy(() => import('../views/admin/StreamerTracking.jsx'))
+const ProcessingJobs = lazy(() => import('../views/admin/ProcessingJobs.jsx'))
 const AdminRoute = lazy(() => import('../components/admin/AdminRoute.jsx'))
 
 /*****Routes******/
@@ -128,6 +131,18 @@ const ThemeRoutes = [
             {
                 path: '/admin/system',
                 element: <AdminRoute><SystemInfo /></AdminRoute>,
+            },
+            {
+                path: '/admin/tracking',
+                element: <AdminRoute><TrackingDashboard /></AdminRoute>,
+            },
+            {
+                path: '/admin/tracking/streamers',
+                element: <AdminRoute><StreamerTracking /></AdminRoute>,
+            },
+            {
+                path: '/admin/tracking/jobs',
+                element: <AdminRoute><ProcessingJobs /></AdminRoute>,
             },
         ],
     },

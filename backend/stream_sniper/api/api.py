@@ -41,6 +41,7 @@ from .monitoring import (
 )
 from .rate_limiter import limiter, rate_limits, setup_rate_limiting
 from .auth_endpoints import router as auth_router
+from .tracking_endpoints import router as tracking_router
 
 load_dotenv()
 
@@ -181,6 +182,7 @@ class MetricsResponse(BaseModel):
 # Tags for endpoint organization
 tags_metadata = [
     {"name": "Authentication", "description": "User authentication, registration, and account management"},
+    {"name": "Tracking", "description": "Automated streamer tracking and processing management"},
     {"name": "Chatters", "description": "Operations related to chat participants and their messages"},
     {"name": "Streams", "description": "Stream information, analytics, and chat data"},
     {"name": "Creators", "description": "Twitch creator/streamer information"},
@@ -268,6 +270,9 @@ if config.monitoring.enabled:
 
 # Include authentication router
 app.include_router(auth_router)
+
+# Include tracking router
+app.include_router(tracking_router)
 
 
 # Middleware for request metrics

@@ -117,6 +117,10 @@ const AdminDashboard = () => {
                                     <i className="bi bi-person-plus me-2"></i>
                                     Create New User
                                 </a>
+                                <a href="/admin/tracking" className="btn btn-warning">
+                                    <i className="bi bi-broadcast me-2"></i>
+                                    Stream Tracking
+                                </a>
                                 <a href="/admin/system" className="btn btn-info">
                                     <i className="bi bi-gear me-2"></i>
                                     System Information
