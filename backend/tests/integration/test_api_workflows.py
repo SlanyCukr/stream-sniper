@@ -7,13 +7,14 @@ Tests complete API workflows with real database interactions to ensure:
 - API and database integration
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
+
 from stream_sniper.api.api import app
-from tests.conftest import create_test_creator, create_test_stream, create_test_chatter, create_test_message_text
+from tests.conftest import create_test_chatter, create_test_creator, create_test_message_text, create_test_stream
 
 
 class TestAPIWorkflowIntegration:

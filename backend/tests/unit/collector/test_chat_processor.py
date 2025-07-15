@@ -7,8 +7,9 @@ Tests chat message processing including:
 - Chat processing workflow
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from stream_sniper.collector.chat_processor import ChatProcessor
 

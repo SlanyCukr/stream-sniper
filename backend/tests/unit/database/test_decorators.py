@@ -5,11 +5,12 @@ Tests the database connection and cursor decorators that manage
 database connections and error handling across the application.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 import logging
+from unittest.mock import MagicMock, Mock, patch
 
-from stream_sniper.database.decorators import with_cursor, with_cursor_connection, get_db_config
+import pytest
+
+from stream_sniper.database.decorators import get_db_config, with_cursor, with_cursor_connection
 
 
 class TestDatabaseDecorators:

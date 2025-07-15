@@ -2,10 +2,10 @@
 
 from .chatter_table_gateway import *
 from .creator_table_gateway import *
+from .decorators import *
 from .message_table_gateway import *
 from .message_text_table_gateway import *
 from .stream_table_gateway import *
-from .decorators import *
 
 __all__ = [
     # Chatter gateway functions

@@ -8,10 +8,11 @@ Tests the complete database workflow including:
 - Transaction handling
 """
 
-import pytest
 from datetime import datetime
 
-from tests.conftest import create_test_creator, create_test_stream, create_test_chatter, create_test_message_text
+import pytest
+
+from tests.conftest import create_test_chatter, create_test_creator, create_test_message_text, create_test_stream
 
 
 class TestDatabaseIntegration:

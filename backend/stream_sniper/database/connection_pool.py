@@ -2,15 +2,15 @@
 Database connection pool management for improved performance and resource utilization.
 """
 
-import os
 import logging
+import os
 import threading
 from contextlib import contextmanager
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 import psycopg2
-from psycopg2 import pool
 from dotenv import load_dotenv
+from psycopg2 import pool
 
 logger = logging.getLogger(__name__)
 

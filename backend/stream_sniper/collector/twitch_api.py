@@ -1,9 +1,9 @@
 import asyncio
-from typing import List, Tuple, Union, Any
+from typing import Any, List, Tuple, Union
 
-from twitchAPI.object.api import TwitchUser, Stream
-from twitchAPI.type import VideoType
+from twitchAPI.object.api import Stream, TwitchUser
 from twitchAPI.twitch import Twitch
+from twitchAPI.type import VideoType
 
 
 class TwitchAPI:

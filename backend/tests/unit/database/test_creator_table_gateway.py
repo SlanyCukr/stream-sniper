@@ -7,13 +7,14 @@ Tests all creator-related database operations including:
 - Creator Twitch ID retrieval
 """
 
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
+
 from stream_sniper.database.creator_table_gateway import (
-    select_creator_twitch_id_db,
-    select_creator_id_db,
     insert_new_creator_db,
+    select_creator_id_db,
+    select_creator_twitch_id_db,
     select_creators_db,
 )
 from tests.conftest import create_test_creator

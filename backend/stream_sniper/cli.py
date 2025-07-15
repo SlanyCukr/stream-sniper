@@ -1,10 +1,11 @@
 """CLI entry point for Stream Sniper."""
 
 import sys
+
 from dotenv import load_dotenv
 
 from .collector import TwitchCollectorFacade
-from .logging_config import setup_logging, get_logger
+from .logging_config import get_logger, setup_logging
 
 
 def show_help():

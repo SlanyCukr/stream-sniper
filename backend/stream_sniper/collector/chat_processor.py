@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Callable, List
 
 from tqdm import tqdm

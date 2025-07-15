@@ -1,10 +1,11 @@
-from typing import Tuple, Union, List
-from twitch.helix import Video
-from chat_downloader import ChatDownloader
+from typing import List, Tuple, Union
 
-from .twitch_api import TwitchAPI
+from chat_downloader import ChatDownloader
+from twitch.helix import Video
+
 from ..database.stream_table_gateway import select_stream_by_twitch_id_db
 from ..logging_config import get_logger
+from .twitch_api import TwitchAPI
 
 
 class IrcChatDownloader:

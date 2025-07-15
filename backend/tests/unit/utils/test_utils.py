@@ -4,10 +4,11 @@ Unit tests for utility functions.
 Tests datetime and time parsing utilities used throughout the application.
 """
 
-import pytest
 from datetime import datetime
 
-from stream_sniper.utils.utils import twitch_datetime_str_to_datetime, add_timedelta_to_point_in_time
+import pytest
+
+from stream_sniper.utils.utils import add_timedelta_to_point_in_time, twitch_datetime_str_to_datetime
 
 
 class TestDateTimeUtils:

@@ -7,22 +7,23 @@ Tests all stream-related database operations including:
 - Chat analytics and statistics
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock
 
+import pytest
+
 from stream_sniper.database.stream_table_gateway import (
+    select_all_stream_count_db,
     select_all_streams_db,
-    select_stream_comprehensive_db,
+    select_chatter_messages_on_stream_db,
+    select_chatters_in_stream_db,
+    select_creators_that_wrote_in_stream_db,
     select_most_active_chatters_db,
     select_most_tagged_chatters_db,
-    select_creators_that_wrote_in_stream_db,
-    select_chatters_in_stream_db,
-    select_chatter_messages_on_stream_db,
-    select_all_stream_count_db,
+    select_stream_comprehensive_db,
     update_stream_message_count_db,
 )
-from tests.conftest import create_test_creator, create_test_stream, create_test_chatter, create_test_message_text
+from tests.conftest import create_test_chatter, create_test_creator, create_test_message_text, create_test_stream
 
 
 class TestStreamTableGateway:

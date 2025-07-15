@@ -3,14 +3,15 @@ Redis caching layer with intelligent key management and TTL settings.
 Provides caching for expensive database operations and analytics queries.
 """
 
+import hashlib
 import json
 import logging
-import hashlib
-from typing import Any, Optional, List, Dict, Union
-from datetime import datetime, timedelta
-import redis
-from functools import wraps
 import os
+from datetime import datetime, timedelta
+from functools import wraps
+from typing import Any, Dict, List, Optional, Union
+
+import redis
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)

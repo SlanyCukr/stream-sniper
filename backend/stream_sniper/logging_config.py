@@ -5,6 +5,7 @@ This module provides structured logging with JSON formatters, correlation IDs,
 log rotation, and environment-based configuration.
 """
 
+import contextvars
 import json
 import logging
 import logging.handlers
@@ -16,8 +17,6 @@ from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
-
-import contextvars
 
 # Context variable for correlation ID
 correlation_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("correlation_id", default="")

@@ -1,44 +1,45 @@
-from typing import List, Optional, Dict, Any
-from datetime import datetime
 import time
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import uvicorn as uvicorn
-from fastapi import FastAPI, HTTPException, Query, Path, Request, Response
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Path, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
-from dotenv import load_dotenv
 from slowapi.util import get_remote_address
+
+from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
+from ..database.connection_pool import get_pool
+from ..database.creator_table_gateway import select_creators_db
+from ..database.message_table_gateway import select_chatter_id_db, select_chatter_messages_db
+from ..database.stream_table_gateway import (
+    select_all_stream_count_db,
+    select_all_streams_db,
+    select_chatter_messages_on_stream_db,
+    select_chatters_in_stream_db,
+    select_creators_that_wrote_in_stream_db,
+    select_most_active_chatters_db,
+    select_most_tagged_chatters_db,
+    select_stream_comprehensive_db,
+)
+from ..logging_config import correlation_context, get_logger, performance_timer, setup_logging
+from .cache import CacheTTL, cache_result, get_cache, warm_cache
 
 # Import our new modules
 from .config import get_config
-from .cache import get_cache, cache_result, warm_cache, CacheTTL
-from .rate_limiter import setup_rate_limiting, limiter, rate_limits
-from .monitoring import (
-    setup_monitoring,
-    get_monitoring_data,
-    record_request_metrics,
-    record_cache_operation,
-    get_metrics_collector,
-)
+from .health import HealthStatus as HealthStatusEnum
+from .health import get_health_checker
 from .middleware import setup_middleware
-from .health import get_health_checker, HealthStatus as HealthStatusEnum
-
-from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
-from ..database.creator_table_gateway import select_creators_db
-from ..database.message_table_gateway import select_chatter_messages_db, select_chatter_id_db
-from ..database.stream_table_gateway import (
-    select_all_streams_db,
-    select_stream_comprehensive_db,
-    select_most_active_chatters_db,
-    select_most_tagged_chatters_db,
-    select_creators_that_wrote_in_stream_db,
-    select_chatters_in_stream_db,
-    select_chatter_messages_on_stream_db,
-    select_all_stream_count_db,
+from .monitoring import (
+    get_metrics_collector,
+    get_monitoring_data,
+    record_cache_operation,
+    record_request_metrics,
+    setup_monitoring,
 )
-from ..database.connection_pool import get_pool
-from ..logging_config import setup_logging, get_logger, correlation_context, performance_timer
+from .rate_limiter import limiter, rate_limits, setup_rate_limiting
 
 load_dotenv()
 

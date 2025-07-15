@@ -2,7 +2,6 @@ from datetime import datetime
 
 from ..database.stream_table_gateway import insert_stream_db
 from ..logging_config import get_logger
-
 from .utils import add_timedelta_to_point_in_time
 
 logger = get_logger(__name__)

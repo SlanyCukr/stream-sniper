@@ -8,8 +8,9 @@ Tests all API endpoints with mocked database responses to ensure:
 - Request validation
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import patch, Mock
 from fastapi.testclient import TestClient
 
 from stream_sniper.api.api import app

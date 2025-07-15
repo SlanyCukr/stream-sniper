@@ -4,8 +4,9 @@ Centralizes all configurable parameters with environment variable support.
 """
 
 import os
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
 from dotenv import load_dotenv
 
 load_dotenv()
