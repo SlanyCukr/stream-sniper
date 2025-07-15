@@ -12,7 +12,8 @@ import {
     ProgressBar
 } from 'react-bootstrap';
 import { useAuth } from '../../contexts/AuthContext';
-import env from 'react-dotenv';
+// Use environment variable from build time, fallback to /api for production
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const SystemInfo = () => {
     const { token } = useAuth();
@@ -32,7 +33,7 @@ const SystemInfo = () => {
             setError(null);
 
             // Fetch health data
-            const healthResponse = await fetch(`${env.API_URL}/health/detailed`, {
+            const healthResponse = await fetch(`${API_URL}/health/detailed`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -45,7 +46,7 @@ const SystemInfo = () => {
             }
 
             // Fetch metrics data
-            const metricsResponse = await fetch(`${env.API_URL}/metrics`, {
+            const metricsResponse = await fetch(`${API_URL}/metrics`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -58,7 +59,7 @@ const SystemInfo = () => {
             }
 
             // Fetch cache stats
-            const cacheResponse = await fetch(`${env.API_URL}/cache/stats`, {
+            const cacheResponse = await fetch(`${API_URL}/cache/stats`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -104,7 +105,7 @@ const SystemInfo = () => {
 
     const flushCache = async () => {
         try {
-            const response = await fetch(`${env.API_URL}/cache/flush`, {
+            const response = await fetch(`${API_URL}/cache/flush`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

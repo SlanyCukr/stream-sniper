@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import env from 'react-dotenv';
+// Use environment variable from build time, fallback to /api for production
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const CreateUser = () => {
     const { token } = useAuth();
@@ -77,7 +78,7 @@ const CreateUser = () => {
         setSuccess(null);
         
         try {
-            const response = await fetch(`${env.API_URL}/auth/admin/users`, {
+            const response = await fetch(`${API_URL}/auth/admin/users`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

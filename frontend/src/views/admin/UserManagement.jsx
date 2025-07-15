@@ -16,7 +16,8 @@ import {
     Dropdown
 } from 'react-bootstrap';
 import { useAuth } from '../../contexts/AuthContext';
-import env from 'react-dotenv';
+// Use environment variable from build time, fallback to /api for production
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const UserManagement = () => {
     const { user, token } = useAuth();
@@ -41,7 +42,7 @@ const UserManagement = () => {
             setError(null);
             
             const offset = (currentPage - 1) * usersPerPage;
-            const response = await fetch(`${env.API_URL}/auth/users?offset=${offset}&limit=${usersPerPage}`, {
+            const response = await fetch(`${API_URL}/auth/users?offset=${offset}&limit=${usersPerPage}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -76,7 +77,7 @@ const UserManagement = () => {
 
     const handleUserUpdate = async (updatedUser) => {
         try {
-            const response = await fetch(`${env.API_URL}/auth/users/${updatedUser.id}`, {
+            const response = await fetch(`${API_URL}/auth/users/${updatedUser.id}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -105,7 +106,7 @@ const UserManagement = () => {
 
     const handleUserDelete = async () => {
         try {
-            const response = await fetch(`${env.API_URL}/auth/users/${selectedUser.id}`, {
+            const response = await fetch(`${API_URL}/auth/users/${selectedUser.id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -130,7 +131,7 @@ const UserManagement = () => {
     const handleUserAction = async (userId, action) => {
         try {
             const endpoint = action === 'activate' ? 'activate' : 'deactivate';
-            const response = await fetch(`${env.API_URL}/auth/users/${userId}/${endpoint}`, {
+            const response = await fetch(`${API_URL}/auth/users/${userId}/${endpoint}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -153,7 +154,7 @@ const UserManagement = () => {
 
     const handleRoleChange = async (userId, newRole) => {
         try {
-            const response = await fetch(`${env.API_URL}/auth/users/${userId}/role`, {
+            const response = await fetch(`${API_URL}/auth/users/${userId}/role`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,

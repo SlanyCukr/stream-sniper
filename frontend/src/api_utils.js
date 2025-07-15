@@ -1,8 +1,7 @@
 import axios from 'axios'
-import env from 'react-dotenv'
 
-// eslint-disable-next-line no-undef
-const API_URL = env.API_URL
+// Use environment variable from build time, fallback to /api for production
+const API_URL = process.env.REACT_APP_API_URL || '/api'
 
 export const retrieveMessages = chatterId => axios.get(`${API_URL}/chatter/${chatterId}/messages`)
 

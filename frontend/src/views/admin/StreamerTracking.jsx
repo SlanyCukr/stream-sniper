@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Button, Alert, Spinner, Badge, Modal, Form, Pagination } from 'react-bootstrap';
 import { useAuth } from '../../contexts/AuthContext';
-import env from 'react-dotenv';
+// Use environment variable from build time, fallback to /api for production
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const StreamerTracking = () => {
     const { user, token } = useAuth();
@@ -49,7 +50,7 @@ const StreamerTracking = () => {
                 params.append('processing_enabled', filters.processing_enabled.toString());
             }
 
-            const response = await fetch(`${env.API_URL}/admin/tracking/streamers?${params}`, {
+            const response = await fetch(`${API_URL}/admin/tracking/streamers?${params}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -82,7 +83,7 @@ const StreamerTracking = () => {
             setFormSubmitting(true);
             setError(null);
 
-            const response = await fetch(`${env.API_URL}/admin/tracking/streamers`, {
+            const response = await fetch(`${API_URL}/admin/tracking/streamers`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -115,7 +116,7 @@ const StreamerTracking = () => {
 
     const handleToggleActive = async (streamerId, currentStatus) => {
         try {
-            const response = await fetch(`${env.API_URL}/admin/tracking/streamers/${streamerId}`, {
+            const response = await fetch(`${API_URL}/admin/tracking/streamers/${streamerId}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -141,7 +142,7 @@ const StreamerTracking = () => {
 
     const handleToggleProcessing = async (streamerId, currentStatus) => {
         try {
-            const response = await fetch(`${env.API_URL}/admin/tracking/streamers/${streamerId}`, {
+            const response = await fetch(`${API_URL}/admin/tracking/streamers/${streamerId}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -171,7 +172,7 @@ const StreamerTracking = () => {
         }
 
         try {
-            const response = await fetch(`${env.API_URL}/admin/tracking/streamers/${streamerId}`, {
+            const response = await fetch(`${API_URL}/admin/tracking/streamers/${streamerId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,

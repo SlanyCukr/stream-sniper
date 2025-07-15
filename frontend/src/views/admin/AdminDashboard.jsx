@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Alert, Spinner } from 'react-bootstrap';
 import { useAuth } from '../../contexts/AuthContext';
-import env from 'react-dotenv';
+// Use environment variable from build time, fallback to /api for production
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const AdminDashboard = () => {
     const { user, token } = useAuth();
@@ -18,7 +19,7 @@ const AdminDashboard = () => {
             setLoading(true);
             setError(null);
 
-            const response = await fetch(`${env.API_URL}/auth/admin/stats`, {
+            const response = await fetch(`${API_URL}/auth/admin/stats`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'

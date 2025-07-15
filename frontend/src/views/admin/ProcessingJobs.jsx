@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Alert, Spinner, Badge, Form, Pagination } from 'react-bootstrap';
 import { useAuth } from '../../contexts/AuthContext';
-import env from 'react-dotenv';
+// Use environment variable from build time, fallback to /api for production
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const ProcessingJobs = () => {
     const { user, token } = useAuth();
@@ -42,7 +43,7 @@ const ProcessingJobs = () => {
                 params.append('tracked_streamer_id', filters.tracked_streamer_id);
             }
 
-            const response = await fetch(`${env.API_URL}/admin/tracking/jobs?${params}`, {
+            const response = await fetch(`${API_URL}/admin/tracking/jobs?${params}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -71,7 +72,7 @@ const ProcessingJobs = () => {
 
     const fetchStats = async () => {
         try {
-            const response = await fetch(`${env.API_URL}/admin/tracking/stats`, {
+            const response = await fetch(`${API_URL}/admin/tracking/stats`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'

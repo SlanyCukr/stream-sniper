@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { jwtDecode } from 'jwt-decode'
-import env from 'react-dotenv'
+
+// Use environment variable from build time, fallback to /api for production
+const API_URL = process.env.REACT_APP_API_URL || '/api'
 
 const AuthContext = createContext()
 
@@ -46,7 +48,7 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUserInfo = useCallback(async (authToken) => {
         try {
-            const response = await fetch(`${env.API_URL}/auth/me`, {
+            const response = await fetch(`${API_URL}/auth/me`, {
                 headers: {
                     'Authorization': `Bearer ${authToken}`
                 }
@@ -76,7 +78,7 @@ export const AuthProvider = ({ children }) => {
             setLoading(true)
             setError(null)
 
-            const response = await fetch(`${env.API_URL}/auth/login`, {
+            const response = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -114,7 +116,7 @@ export const AuthProvider = ({ children }) => {
             setLoading(true)
             setError(null)
 
-            const response = await fetch(`${env.API_URL}/auth/register`, {
+            const response = await fetch(`${API_URL}/auth/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -151,7 +153,7 @@ export const AuthProvider = ({ children }) => {
             setLoading(true)
             setError(null)
 
-            const response = await fetch(`${env.API_URL}/auth/me`, {
+            const response = await fetch(`${API_URL}/auth/me`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -182,7 +184,7 @@ export const AuthProvider = ({ children }) => {
             setLoading(true)
             setError(null)
 
-            const response = await fetch(`${env.API_URL}/auth/me/password`, {
+            const response = await fetch(`${API_URL}/auth/me/password`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
