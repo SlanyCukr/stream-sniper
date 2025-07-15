@@ -8,7 +8,9 @@ from .utils import add_timedelta_to_point_in_time
 logger = get_logger(__name__)
 
 
-def update_stream_info(twitch_stream_id: int, started_at: datetime, creator_id: int, title: str, duration: str, thumbnail_url: str):
+def update_stream_info(
+    twitch_stream_id: int, started_at: datetime, creator_id: int, title: str, duration: str, thumbnail_url: str
+):
     logger.debug("Updating stream info.")
 
     stopped_at = add_timedelta_to_point_in_time(started_at, duration)

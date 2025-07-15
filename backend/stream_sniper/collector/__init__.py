@@ -9,7 +9,7 @@ from .database_buffer import DatabaseBuffer
 
 __all__ = [
     "TwitchCollectorFacade",
-    "IrcChatDownloader", 
+    "IrcChatDownloader",
     "ChatProcessor",
     "MessageHandler",
     "TwitchAPI",

@@ -24,11 +24,11 @@ logger = logging.getLogger(__name__)
 
 # Test database configuration
 TEST_DB_CONFIG = {
-    'host': os.getenv('TEST_DB_HOST', 'localhost'),
-    'database': os.getenv('TEST_DB_NAME', 'test_stream_sniper'),
-    'user': os.getenv('TEST_DB_USER', 'postgres'),
-    'password': os.getenv('TEST_DB_PASSWORD', 'password'),
-    'port': os.getenv('TEST_DB_PORT', '5432')
+    "host": os.getenv("TEST_DB_HOST", "localhost"),
+    "database": os.getenv("TEST_DB_NAME", "test_stream_sniper"),
+    "user": os.getenv("TEST_DB_USER", "postgres"),
+    "password": os.getenv("TEST_DB_PASSWORD", "password"),
+    "port": os.getenv("TEST_DB_PORT", "5432"),
 }
 
 # Schema creation SQL
@@ -97,39 +97,37 @@ def test_db_connection():
     """
     # First connect to default database to create test database
     default_config = TEST_DB_CONFIG.copy()
-    default_config['database'] = 'postgres'
-    
+    default_config["database"] = "postgres"
+
     conn = None
     test_conn = None
-    
+
     try:
         # Connect to default database
         conn = psycopg2.connect(**default_config)
         conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cursor = conn.cursor()
-        
+
         # Create test database if it doesn't exist
-        cursor.execute(
-            f"SELECT 1 FROM pg_database WHERE datname = '{TEST_DB_CONFIG['database']}'"
-        )
+        cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{TEST_DB_CONFIG['database']}'")
         if not cursor.fetchone():
             cursor.execute(f"CREATE DATABASE {TEST_DB_CONFIG['database']}")
             logger.info(f"Created test database: {TEST_DB_CONFIG['database']}")
-        
+
         cursor.close()
         conn.close()
-        
+
         # Connect to test database
         test_conn = psycopg2.connect(**TEST_DB_CONFIG)
         test_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        
+
         # Create schema and tables
         cursor = test_conn.cursor()
         cursor.execute(SCHEMA_SQL)
         cursor.close()
-        
+
         yield test_conn
-        
+
     finally:
         if test_conn:
             test_conn.close()
@@ -139,14 +137,14 @@ def test_db_connection():
 def db_cursor(test_db_connection):
     """Provide a database cursor for individual tests."""
     cursor = test_db_connection.cursor()
-    
+
     # Clear all tables before each test
     cursor.execute("SET search_path TO stream_sniper")
     cursor.execute("TRUNCATE message, message_text, chatter, stream, creator RESTART IDENTITY CASCADE")
     test_db_connection.commit()
-    
+
     yield cursor
-    
+
     cursor.close()
 
 
@@ -156,22 +154,18 @@ def mock_connection_pool():
     mock_pool = Mock()
     mock_connection = Mock()
     mock_cursor = Mock()
-    
+
     # Configure mock behavior
     mock_pool.get_connection.return_value.__enter__.return_value = mock_connection
     mock_pool.get_cursor.return_value.__enter__.return_value = mock_cursor
     mock_pool.health_check.return_value = True
-    mock_pool.get_pool_status.return_value = {
-        'status': 'active',
-        'minconn': 2,
-        'maxconn': 20
-    }
-    
+    mock_pool.get_pool_status.return_value = {"status": "active", "minconn": 2, "maxconn": 20}
+
     mock_connection.cursor.return_value = mock_cursor
     mock_cursor.fetchone.return_value = None
     mock_cursor.fetchall.return_value = []
-    
-    with patch('stream_sniper.database.decorators.get_pool', return_value=mock_pool):
+
+    with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
         yield mock_pool, mock_connection, mock_cursor
 
 
@@ -179,8 +173,8 @@ def mock_connection_pool():
 def api_client():
     """Create FastAPI test client."""
     from stream_sniper.api.api import app
-    
-    with patch('stream_sniper.database.decorators.get_pool'):
+
+    with patch("stream_sniper.database.decorators.get_pool"):
         client = TestClient(app)
         yield client
 
@@ -189,10 +183,10 @@ def api_client():
 def sample_creator_data():
     """Sample creator data for testing."""
     return {
-        'nick': 'test_streamer',
-        'display_name': 'Test Streamer',
-        'profile_image_url': 'https://example.com/profile.jpg',
-        'twitch_id': '123456789'
+        "nick": "test_streamer",
+        "display_name": "Test Streamer",
+        "profile_image_url": "https://example.com/profile.jpg",
+        "twitch_id": "123456789",
     }
 
 
@@ -200,36 +194,31 @@ def sample_creator_data():
 def sample_stream_data():
     """Sample stream data for testing."""
     return {
-        'twitch_id': 'stream_123',
-        'title': 'Epic Gaming Session',
-        'start_time': datetime(2024, 1, 15, 20, 0, 0),
-        'end_time': datetime(2024, 1, 15, 23, 30, 0),
-        'thumbnail_url': 'https://example.com/thumbnail.jpg',
-        'message_count': 1250,
-        'creator_id': 1
+        "twitch_id": "stream_123",
+        "title": "Epic Gaming Session",
+        "start_time": datetime(2024, 1, 15, 20, 0, 0),
+        "end_time": datetime(2024, 1, 15, 23, 30, 0),
+        "thumbnail_url": "https://example.com/thumbnail.jpg",
+        "message_count": 1250,
+        "creator_id": 1,
     }
 
 
 @pytest.fixture
 def sample_chatter_data():
     """Sample chatter data for testing."""
-    return [
-        {'nick': 'viewer123'},
-        {'nick': 'chatty_user'},
-        {'nick': 'stream_regular'},
-        {'nick': 'new_viewer'}
-    ]
+    return [{"nick": "viewer123"}, {"nick": "chatty_user"}, {"nick": "stream_regular"}, {"nick": "new_viewer"}]
 
 
 @pytest.fixture
 def sample_message_data():
     """Sample message data for testing."""
     return [
-        {'text': 'Hello everyone!'},
-        {'text': 'Great stream!'},
-        {'text': '@streamer keep it up!'},
-        {'text': 'Thanks for the content!'},
-        {'text': 'PogChamp'}
+        {"text": "Hello everyone!"},
+        {"text": "Great stream!"},
+        {"text": "@streamer keep it up!"},
+        {"text": "Thanks for the content!"},
+        {"text": "PogChamp"},
     ]
 
 
@@ -237,21 +226,9 @@ def sample_message_data():
 def sample_chat_messages():
     """Sample chat messages for processor testing."""
     return [
-        {
-            'author': {'name': 'viewer123'},
-            'message': 'Hello everyone!',
-            'time_in_seconds': 1642287015.0
-        },
-        {
-            'author': {'name': 'chatty_user'},
-            'message': 'Great stream! @test_streamer',
-            'time_in_seconds': 1642287045.0
-        },
-        {
-            'author': {'name': 'stream_regular'},
-            'message': 'PogChamp',
-            'time_in_seconds': 1642287075.0
-        }
+        {"author": {"name": "viewer123"}, "message": "Hello everyone!", "time_in_seconds": 1642287015.0},
+        {"author": {"name": "chatty_user"}, "message": "Great stream! @test_streamer", "time_in_seconds": 1642287045.0},
+        {"author": {"name": "stream_regular"}, "message": "PogChamp", "time_in_seconds": 1642287075.0},
     ]
 
 
@@ -259,15 +236,15 @@ def sample_chat_messages():
 def mock_twitch_api():
     """Mock TwitchAPI for testing."""
     mock_api = Mock()
-    mock_api.get_creator_info.return_value = ('Test Streamer', 'https://example.com/profile.jpg')
-    mock_api.get_creator_twitch_id.return_value = '123456789'
+    mock_api.get_creator_info.return_value = ("Test Streamer", "https://example.com/profile.jpg")
+    mock_api.get_creator_twitch_id.return_value = "123456789"
     mock_api.get_videos.return_value = [
         {
-            'id': 'video_123',
-            'title': 'Epic Gaming Session',
-            'created_at': '2024-01-15T20:00:00Z',
-            'duration': '3h30m',
-            'thumbnail_url': 'https://example.com/thumb.jpg'
+            "id": "video_123",
+            "title": "Epic Gaming Session",
+            "created_at": "2024-01-15T20:00:00Z",
+            "duration": "3h30m",
+            "thumbnail_url": "https://example.com/thumb.jpg",
         }
     ]
     return mock_api
@@ -278,18 +255,12 @@ def mock_chat_downloader():
     """Mock IRC chat downloader for testing."""
     mock_downloader = Mock()
     mock_downloader.download_chat.return_value = (
-        [  # chat messages
-            {
-                'author': {'name': 'viewer123'},
-                'message': 'Hello!',
-                'time_in_seconds': 1642287015.0
-            }
-        ],
-        'stream_123',  # twitch_stream_id
-        '2024-01-15T20:00:00Z',  # started_at
-        'Test Stream',  # title
-        '3h30m',  # duration
-        'https://example.com/thumb.jpg'  # thumbnail_url
+        [{"author": {"name": "viewer123"}, "message": "Hello!", "time_in_seconds": 1642287015.0}],  # chat messages
+        "stream_123",  # twitch_stream_id
+        "2024-01-15T20:00:00Z",  # started_at
+        "Test Stream",  # title
+        "3h30m",  # duration
+        "https://example.com/thumb.jpg",  # thumbnail_url
     )
     return mock_downloader
 
@@ -297,16 +268,16 @@ def mock_chat_downloader():
 @pytest.fixture
 def temp_env_file():
     """Create temporary .env file for testing."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".env", delete=False) as f:
         f.write("TEST_DB_HOST=localhost\n")
         f.write("TEST_DB_NAME=test_stream_sniper\n")
         f.write("TEST_DB_USER=postgres\n")
         f.write("TEST_DB_PASSWORD=password\n")
         f.write("TEST_DB_PORT=5432\n")
         temp_path = f.name
-    
+
     yield temp_path
-    
+
     os.unlink(temp_path)
 
 
@@ -324,18 +295,21 @@ def create_test_creator(cursor, creator_data=None):
     """Helper to create a test creator in the database."""
     if creator_data is None:
         creator_data = {
-            'nick': 'test_creator',
-            'display_name': 'Test Creator',
-            'profile_image_url': 'https://example.com/profile.jpg',
-            'twitch_id': '123456'
+            "nick": "test_creator",
+            "display_name": "Test Creator",
+            "profile_image_url": "https://example.com/profile.jpg",
+            "twitch_id": "123456",
         }
-    
-    cursor.execute("""
+
+    cursor.execute(
+        """
         INSERT INTO creator (nick, display_name, profile_image_url, twitch_id)
         VALUES (%(nick)s, %(display_name)s, %(profile_image_url)s, %(twitch_id)s)
         RETURNING id
-    """, creator_data)
-    
+    """,
+        creator_data,
+    )
+
     return cursor.fetchone()[0]
 
 
@@ -343,36 +317,39 @@ def create_test_stream(cursor, stream_data=None, creator_id=None):
     """Helper to create a test stream in the database."""
     if creator_id is None:
         creator_id = create_test_creator(cursor)
-    
+
     if stream_data is None:
         stream_data = {
-            'twitch_id': 'stream_123',
-            'title': 'Test Stream',
-            'start_time': datetime(2024, 1, 15, 20, 0, 0),
-            'end_time': datetime(2024, 1, 15, 23, 0, 0),
-            'thumbnail_url': 'https://example.com/thumb.jpg',
-            'message_count': 100,
-            'creator_id': creator_id
+            "twitch_id": "stream_123",
+            "title": "Test Stream",
+            "start_time": datetime(2024, 1, 15, 20, 0, 0),
+            "end_time": datetime(2024, 1, 15, 23, 0, 0),
+            "thumbnail_url": "https://example.com/thumb.jpg",
+            "message_count": 100,
+            "creator_id": creator_id,
         }
     else:
-        stream_data['creator_id'] = creator_id
-    
-    cursor.execute("""
+        stream_data["creator_id"] = creator_id
+
+    cursor.execute(
+        """
         INSERT INTO stream (twitch_id, title, start_time, end_time, thumbnail_url, message_count, creator_id)
         VALUES (%(twitch_id)s, %(title)s, %(start_time)s, %(end_time)s, %(thumbnail_url)s, %(message_count)s, %(creator_id)s)
         RETURNING id
-    """, stream_data)
-    
+    """,
+        stream_data,
+    )
+
     return cursor.fetchone()[0]
 
 
-def create_test_chatter(cursor, nick='test_chatter'):
+def create_test_chatter(cursor, nick="test_chatter"):
     """Helper to create a test chatter in the database."""
     cursor.execute("INSERT INTO chatter (nick) VALUES (%s) RETURNING id", (nick,))
     return cursor.fetchone()[0]
 
 
-def create_test_message_text(cursor, text='Test message'):
+def create_test_message_text(cursor, text="Test message"):
     """Helper to create a test message text in the database."""
     cursor.execute("INSERT INTO message_text (text) VALUES (%s) RETURNING id", (text,))
     return cursor.fetchone()[0]

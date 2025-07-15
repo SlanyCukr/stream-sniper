@@ -20,13 +20,13 @@ class DatabaseBuffer:
     Database buffer for batch operations using connection pooling.
     Improved version that uses connection pool instead of maintaining a single connection.
     """
-    
+
     def __init__(self, f: Callable, buffer_len: int = 7500):
         self.f = f
         self.buffer_len = buffer_len
         self.items = []
         self.pool = get_pool()
-        
+
         logger.info(f"DatabaseBuffer initialized with buffer length: {buffer_len}")
 
     def call_db_function(self):
@@ -63,17 +63,17 @@ class DatabaseBuffer:
 
         if len(self.items) >= self.buffer_len:
             self.call_db_function()
-    
+
     def flush(self):
         """Force flush any remaining items in the buffer."""
         if self.items:
             logger.info(f"Flushing {len(self.items)} remaining items from buffer")
             self.call_db_function()
-    
+
     def __enter__(self):
         """Context manager entry."""
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit - ensure buffer is flushed."""
         self.flush()

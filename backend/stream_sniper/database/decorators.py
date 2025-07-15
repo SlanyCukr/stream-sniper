@@ -20,10 +20,11 @@ def with_cursor_connection(f):
     Decorator for database operations that need both cursor and connection access.
     Uses connection pooling for improved performance and resource management.
     """
+
     @wraps(f)
     def wrapper(*args):
         pool = get_pool()
-        
+
         with pool.get_connection() as connection:
             cursor = None
             try:
@@ -36,7 +37,7 @@ def with_cursor_connection(f):
             finally:
                 if cursor:
                     cursor.close()
-    
+
     return wrapper
 
 
@@ -45,10 +46,11 @@ def with_cursor(f):
     Decorator for read-only database operations that only need cursor access.
     Uses connection pooling for improved performance and resource management.
     """
+
     @wraps(f)
     def wrapper(*args):
         pool = get_pool()
-        
+
         with pool.get_cursor() as cursor:
             try:
                 values = f(*args, cursor)
@@ -56,5 +58,5 @@ def with_cursor(f):
             except Exception as e:
                 logger.error(f"Database operation failed in {f.__name__}: {e}")
                 raise
-    
+
     return wrapper

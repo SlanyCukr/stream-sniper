@@ -25,28 +25,28 @@ Environment Variables:
   Database connection will be loaded from .env file or environment
   LOG_LEVEL          Set logging level (DEBUG, INFO, WARNING, ERROR)
   ENVIRONMENT        Set environment (development, production)"""
-    
+
     print(help_text)
 
 
 def main():
     """Main CLI entry point."""
-    if len(sys.argv) < 2 or sys.argv[1] in ['--help', '-h', 'help']:
+    if len(sys.argv) < 2 or sys.argv[1] in ["--help", "-h", "help"]:
         show_help()
-        if sys.argv[1:] and sys.argv[1] in ['--help', '-h', 'help']:
+        if sys.argv[1:] and sys.argv[1] in ["--help", "-h", "help"]:
             sys.exit(0)
         else:
             sys.exit(1)
-    
+
     load_dotenv()
-    
+
     # Set up structured logging
-    setup_logging(environment='development')
+    setup_logging(environment="development")
     logger = get_logger(__name__)
-    
+
     nickname = sys.argv[1]
     logger.info(f"Stream Sniper CLI started for user: {nickname}")
-    
+
     try:
         twitch_collector_facade = TwitchCollectorFacade(nickname)
         twitch_collector_facade.start_processing()
@@ -59,5 +59,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

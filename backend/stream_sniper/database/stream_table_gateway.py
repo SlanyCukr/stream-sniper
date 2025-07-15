@@ -3,12 +3,15 @@ from .decorators import with_cursor, with_cursor_connection
 
 @with_cursor
 def select_last_twitch_stream_id_db(creator_nick, cursor):
-    cursor.execute("SELECT twitch_id FROM "
-                   "stream "
-                   "WHERE creator_id = "
-                   "(SELECT id FROM creator WHERE nick = %s) "
-                   "ORDER BY twitch_id DESC "
-                   "LIMIT 1", (creator_nick,))
+    cursor.execute(
+        "SELECT twitch_id FROM "
+        "stream "
+        "WHERE creator_id = "
+        "(SELECT id FROM creator WHERE nick = %s) "
+        "ORDER BY twitch_id DESC "
+        "LIMIT 1",
+        (creator_nick,),
+    )
     result = cursor.fetchone()
     if not result:
         return None
@@ -17,12 +20,10 @@ def select_last_twitch_stream_id_db(creator_nick, cursor):
 
 @with_cursor
 def select_all_processed_stream_ids_db(creator_nick, cursor):
-    cursor.execute("SELECT twitch_id "
-                   "FROM "
-                   "stream "
-                   "WHERE "
-                   "creator_id = "
-                   "(SELECT id FROM creator WHERE nick = %s)", (creator_nick,))
+    cursor.execute(
+        "SELECT twitch_id " "FROM " "stream " "WHERE " "creator_id = " "(SELECT id FROM creator WHERE nick = %s)",
+        (creator_nick,),
+    )
     result = cursor.fetchall()
     if not result:
         return []
@@ -106,7 +107,7 @@ def update_stream_message_count_db(stream_id, message_count, cursor, connection)
 
 @with_cursor
 def select_stream_comprehensive_db(stream_id, cursor):
-    sql = '''
+    sql = """
     SELECT
         title,
         start,
@@ -119,27 +120,31 @@ def select_stream_comprehensive_db(stream_id, cursor):
         creator_id
     FROM stream
     JOIN creator ON stream.creator_id = creator.id AND stream.id = %s
-    '''
+    """
     cursor.execute(sql, (stream_id,))
     return cursor.fetchone()
 
 
 @with_cursor
 def select_most_active_chatters_db(stream_id, cursor):
-    cursor.execute("""
+    cursor.execute(
+        """
     SELECT chatter_id, (SELECT nick FROM chatter WHERE chatter.id = message.chatter_id), COUNT(chatter_id) AS message_count
      FROM message 
      WHERE stream_id = %s 
      GROUP BY chatter_id 
      ORDER BY message_count DESC 
      LIMIT 3
-    """, (stream_id,))
+    """,
+        (stream_id,),
+    )
     return cursor.fetchall()
 
 
 @with_cursor
 def select_most_tagged_chatters_db(stream_id, cursor):
-    cursor.execute("""
+    cursor.execute(
+        """
     SELECT tagged_chatter_id, (SELECT nick FROM chatter WHERE chatter.id = tagged_chatter_id), COUNT(tagged_chatter_id) AS tag_count
      FROM message 
      WHERE 
@@ -148,33 +153,44 @@ def select_most_tagged_chatters_db(stream_id, cursor):
      HAVING tagged_chatter_id IS NOT NULL 
      ORDER BY tag_count DESC 
      LIMIT 3
-    """, (stream_id,))
+    """,
+        (stream_id,),
+    )
     return cursor.fetchall()
 
 
 @with_cursor
 def select_creators_that_wrote_in_stream_db(stream_id, creator_id, cursor):
-    cursor.execute("""
+    cursor.execute(
+        """
     SELECT DISTINCT(chatter_id), (SELECT nick FROM chatter WHERE chatter_id = chatter.id) AS nick 
     FROM message 
     WHERE 
     chatter_id IN (SELECT chatter.id FROM chatter WHERE nick IN (SELECT nick FROM creator WHERE creator.id != %s))
     AND stream_id = %s
-    """, (creator_id, stream_id))
+    """,
+        (creator_id, stream_id),
+    )
     return cursor.fetchall()
 
 
 @with_cursor
 def select_chatters_in_stream_db(stream_id, cursor):
-    cursor.execute("""
+    cursor.execute(
+        """
     SELECT DISTINCT(chatter_id), (SELECT nick FROM chatter WHERE chatter.id = chatter_id ) FROM message WHERE stream_id = %s
-    """, (stream_id,))
+    """,
+        (stream_id,),
+    )
     return cursor.fetchall()
 
 
 @with_cursor
 def select_chatter_messages_on_stream_db(stream_id, chatter_id, cursor):
-    cursor.execute("""
+    cursor.execute(
+        """
     SELECT (SELECT text FROM message_text WHERE id = message.message_text_id) FROM message WHERE stream_id = %s AND chatter_id = %s
-    """, (stream_id, chatter_id))
+    """,
+        (stream_id, chatter_id),
+    )
     return cursor.fetchall()

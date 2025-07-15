@@ -13,9 +13,13 @@ class IrcChatDownloader:
         self.logger = get_logger(__name__)
         self.available_video_ids = TwitchAPI.instance().get_available_video_ids()
         self.downloader = ChatDownloader()
-        self.logger.info(f"IRC chat downloader initialized for {nickname} with {len(self.available_video_ids)} available videos")
+        self.logger.info(
+            f"IRC chat downloader initialized for {nickname} with {len(self.available_video_ids)} available videos"
+        )
 
-    def download_chat(self) -> Union[Tuple[None, None, None, None, None, None], Tuple[List[dict], str, str, str, str, str]]:
+    def download_chat(
+        self,
+    ) -> Union[Tuple[None, None, None, None, None, None], Tuple[List[dict], str, str, str, str, str]]:
         while True:
             # no available videos
             if len(self.available_video_ids) == 0:
@@ -32,7 +36,12 @@ class IrcChatDownloader:
             self.logger.info(f"Downloading chat for video with ID {video_id}")
 
             try:
-                chat = self.downloader.get_chat(f"https://www.twitch.tv/videos/{video_id}", format="json", message_receive_timeout=0.01, buffer_size=16384)
+                chat = self.downloader.get_chat(
+                    f"https://www.twitch.tv/videos/{video_id}",
+                    format="json",
+                    message_receive_timeout=0.01,
+                    buffer_size=16384,
+                )
                 chat_iterated = [x for x in chat]
 
                 self.logger.info(f"Chat downloaded successfully. Found {len(chat_iterated)} messages")
@@ -46,7 +55,7 @@ class IrcChatDownloader:
                 currently_processed_video.created_at,
                 currently_processed_video.title,
                 currently_processed_video.duration,
-                currently_processed_video.thumbnail_url
+                currently_processed_video.thumbnail_url,
             )
 
             return returned_tuple

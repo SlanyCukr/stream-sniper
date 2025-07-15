@@ -23,7 +23,7 @@ class TwitchAPI:
         self.streamer_nickname = streamer_nickname
 
     async def twitch_api_init(self):
-        self.twitch = await Twitch('9c7juru6rfbukm213trck2mlxwsip5', '52uj87wai8vi71g1zup0q0no6kv7dg')
+        self.twitch = await Twitch("9c7juru6rfbukm213trck2mlxwsip5", "52uj87wai8vi71g1zup0q0no6kv7dg")
 
     @staticmethod
     def get_async_result(async_generator, return_all_values: bool = False) -> Union[List, Any]:
@@ -33,6 +33,7 @@ class TwitchAPI:
         :param return_all_values: If True, return all values from the async generator
         :return: The first value from the async generator
         """
+
         async def get_first_value(async_gen, return_all_values):
             returned_values = []
 
@@ -70,7 +71,9 @@ class TwitchAPI:
 
     def get_available_video_ids(self) -> List[dict]:
         twitch_user_id = self.get_creator_twitch_id()
-        videos = self.get_async_result(self.twitch.get_videos(user_id=twitch_user_id, video_type=VideoType.ARCHIVE), return_all_values=True)
+        videos = self.get_async_result(
+            self.twitch.get_videos(user_id=twitch_user_id, video_type=VideoType.ARCHIVE), return_all_values=True
+        )
 
         if videos is None:
             return []

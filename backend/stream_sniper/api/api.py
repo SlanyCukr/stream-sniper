@@ -15,8 +15,11 @@ from .config import get_config
 from .cache import get_cache, cache_result, warm_cache, CacheTTL
 from .rate_limiter import setup_rate_limiting, limiter, rate_limits
 from .monitoring import (
-    setup_monitoring, get_monitoring_data, record_request_metrics, 
-    record_cache_operation, get_metrics_collector
+    setup_monitoring,
+    get_monitoring_data,
+    record_request_metrics,
+    record_cache_operation,
+    get_metrics_collector,
 )
 from .middleware import setup_middleware
 from .health import get_health_checker, HealthStatus as HealthStatusEnum
@@ -24,16 +27,23 @@ from .health import get_health_checker, HealthStatus as HealthStatusEnum
 from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
 from ..database.creator_table_gateway import select_creators_db
 from ..database.message_table_gateway import select_chatter_messages_db, select_chatter_id_db
-from ..database.stream_table_gateway import select_all_streams_db, select_stream_comprehensive_db, \
-    select_most_active_chatters_db, select_most_tagged_chatters_db, select_creators_that_wrote_in_stream_db, \
-    select_chatters_in_stream_db, select_chatter_messages_on_stream_db, select_all_stream_count_db
+from ..database.stream_table_gateway import (
+    select_all_streams_db,
+    select_stream_comprehensive_db,
+    select_most_active_chatters_db,
+    select_most_tagged_chatters_db,
+    select_creators_that_wrote_in_stream_db,
+    select_chatters_in_stream_db,
+    select_chatter_messages_on_stream_db,
+    select_all_stream_count_db,
+)
 from ..database.connection_pool import get_pool
 from ..logging_config import setup_logging, get_logger, correlation_context, performance_timer
 
 load_dotenv()
 
 # Setup structured logging
-setup_logging(environment='production')
+setup_logging(environment="production")
 logger = get_logger(__name__)
 
 # Get configuration
@@ -41,28 +51,38 @@ config = get_config()
 if not config.validate():
     raise RuntimeError("Invalid configuration. Please check your environment variables.")
 
+
 # Pydantic Models for API Documentation
 class Creator(BaseModel):
     """Twitch creator/streamer information"""
+
     id: int = Field(..., description="Unique creator ID", example=1)
     display_name: str = Field(..., description="Creator's display name on Twitch", example="SomeStreamer")
 
+
 class Chatter(BaseModel):
     """Chat participant information"""
+
     id: int = Field(..., description="Unique chatter ID", example=1)
     nick: str = Field(..., description="Chatter's nickname", example="viewer123")
 
+
 class ChatterID(BaseModel):
     """Chatter ID response"""
+
     id: int = Field(..., description="Unique chatter ID", example=1)
+
 
 class Message(BaseModel):
     """Chat message information"""
+
     text: str = Field(..., description="Message content", example="Hello chat!")
     timestamp: str = Field(..., description="Message timestamp", example="2024-01-15 20:30:15")
 
+
 class StreamBasic(BaseModel):
     """Basic stream information"""
+
     id: int = Field(..., description="Unique stream ID", example=1)
     display_name: str = Field(..., description="Stream title/display name", example="Epic Gaming Session")
     start: str = Field(..., description="Stream start time", example="2024-01-15 20:00:00")
@@ -70,20 +90,26 @@ class StreamBasic(BaseModel):
     thumbnail_url: Optional[str] = Field(None, description="Thumbnail image URL")
     message_count: int = Field(..., description="Total number of chat messages", example=1250)
 
+
 class ActiveChatter(BaseModel):
     """Most active chatter statistics"""
+
     chatter_id: int = Field(..., description="Chatter ID", example=42)
     nick: str = Field(..., description="Chatter nickname", example="chatty_user")
     message_count: int = Field(..., description="Number of messages sent", example=125)
 
+
 class TaggedChatter(BaseModel):
     """Most tagged chatter statistics"""
+
     tagged_chatter_id: int = Field(..., description="Tagged chatter ID", example=15)
     nick: str = Field(..., description="Tagged chatter nickname", example="popular_user")
     tag_count: int = Field(..., description="Number of times tagged", example=45)
 
+
 class StreamComprehensive(BaseModel):
     """Comprehensive stream information with analytics"""
+
     title: str = Field(..., description="Stream title", example="Epic Gaming Session")
     start: str = Field(..., description="Stream start time", example="2024-01-15 20:00:00")
     end: str = Field(..., description="Stream end time", example="2024-01-15 23:30:00")
@@ -94,25 +120,33 @@ class StreamComprehensive(BaseModel):
     profile_image_url: Optional[str] = Field(None, description="Creator profile image URL")
     creator_id: int = Field(..., description="Creator ID", example=5)
 
+
 class StreamDetails(BaseModel):
     """Detailed stream analytics response"""
+
     csi: List[Any] = Field(..., description="Comprehensive stream info tuple")
     mac: List[List[Any]] = Field(..., description="Most active chatters")
     mtc: List[List[Any]] = Field(..., description="Most tagged chatters")
     octw: List[List[Any]] = Field(..., description="Other creators that wrote in stream")
     cis: List[List[Any]] = Field(..., description="Chatters in stream")
 
+
 class StreamsResponse(BaseModel):
     """Paginated streams response"""
+
     streams: List[List[Any]] = Field(..., description="List of stream data tuples")
     max_offset: int = Field(..., description="Maximum offset for pagination", example=1000)
 
+
 class ErrorResponse(BaseModel):
     """Error response model"""
+
     detail: str = Field(..., description="Error message", example="Stream not found")
+
 
 class HealthStatus(BaseModel):
     """API and database health status"""
+
     status: str = Field(..., description="Overall health status", example="healthy")
     database: Dict[str, Any] = Field(..., description="Database connection pool status")
     cache: Dict[str, Any] = Field(..., description="Cache status and statistics")
@@ -120,8 +154,10 @@ class HealthStatus(BaseModel):
     timestamp: str = Field(..., description="Health check timestamp")
     version: str = Field(..., description="API version", example="1.0.0")
 
+
 class DetailedHealthStatus(BaseModel):
     """Comprehensive health status with system metrics"""
+
     status: str = Field(..., description="Overall health status", example="healthy")
     timestamp: str = Field(..., description="Health check timestamp")
     version: str = Field(..., description="API version", example="1.0.0")
@@ -129,13 +165,16 @@ class DetailedHealthStatus(BaseModel):
     components: Dict[str, Any] = Field(..., description="Component health status")
     system: Dict[str, Any] = Field(..., description="System metrics and information")
 
+
 class MetricsResponse(BaseModel):
     """API metrics and monitoring data"""
+
     system: Dict[str, Any] = Field(..., description="System metrics")
     requests: Dict[str, Any] = Field(..., description="Request statistics")
     cache: Dict[str, Any] = Field(..., description="Cache performance metrics")
     rate_limiting: Dict[str, Any] = Field(..., description="Rate limiting metrics")
     endpoints: Dict[str, Any] = Field(..., description="Per-endpoint statistics")
+
 
 # FastAPI App Configuration
 app = FastAPI(
@@ -174,12 +213,7 @@ app = FastAPI(
     license_info={
         "name": "MIT",
     },
-    servers=[
-        {
-            "url": f"http://localhost:{config.port}",
-            "description": "Development server"
-        }
-    ]
+    servers=[{"url": f"http://localhost:{config.port}", "description": "Development server"}],
 )
 
 # Setup structured logging middleware
@@ -187,7 +221,7 @@ setup_middleware(app, config)
 
 # Setup middleware
 if config.cors_enabled:
-    origins = config.cors_origins.split(',') if config.cors_origins != '*' else ['*']
+    origins = config.cors_origins.split(",") if config.cors_origins != "*" else ["*"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -199,9 +233,7 @@ if config.cors_enabled:
 # Add compression middleware
 if config.compression.enabled:
     app.add_middleware(
-        GZipMiddleware,
-        minimum_size=config.compression.min_size,
-        compresslevel=config.compression.compression_level
+        GZipMiddleware, minimum_size=config.compression.min_size, compresslevel=config.compression.compression_level
     )
 
 # Setup rate limiting
@@ -212,26 +244,27 @@ if config.rate_limit.enabled:
 if config.monitoring.enabled:
     setup_monitoring()
 
+
 # Middleware for request metrics
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
     """Middleware to collect request metrics."""
     start_time = time.time()
-    
+
     # Process request
     response = await call_next(request)
-    
+
     # Calculate metrics
     response_time_ms = (time.time() - start_time) * 1000
     client_ip = get_remote_address(request)
     user_agent = request.headers.get("user-agent")
-    
+
     # Check if response came from cache
     cache_hit = response.headers.get("X-Cache") == "HIT"
-    
+
     # Check if request was rate limited
     rate_limited = response.status_code == 429
-    
+
     # Record metrics
     if config.monitoring.collect_request_metrics:
         record_request_metrics(
@@ -242,57 +275,41 @@ async def metrics_middleware(request: Request, call_next):
             client_ip=client_ip,
             user_agent=user_agent,
             cache_hit=cache_hit,
-            rate_limited=rate_limited
+            rate_limited=rate_limited,
         )
-    
+
     # Add health check specific headers
     if request.url.path.startswith("/health"):
         response.headers["X-Health-Check"] = "true"
         response.headers["X-Health-Response-Time"] = str(round(response_time_ms, 2))
-    
+
     return response
+
 
 # Tags for endpoint organization
 tags_metadata = [
-    {
-        "name": "Chatters",
-        "description": "Operations related to chat participants and their messages"
-    },
-    {
-        "name": "Streams",
-        "description": "Stream information, analytics, and chat data"
-    },
-    {
-        "name": "Creators",
-        "description": "Twitch creator/streamer information"
-    },
-    {
-        "name": "Health",
-        "description": "API health monitoring and connection pool status"
-    },
-    {
-        "name": "Monitoring",
-        "description": "Performance metrics and monitoring endpoints"
-    },
-    {
-        "name": "API Info",
-        "description": "General API information and documentation"
-    }
+    {"name": "Chatters", "description": "Operations related to chat participants and their messages"},
+    {"name": "Streams", "description": "Stream information, analytics, and chat data"},
+    {"name": "Creators", "description": "Twitch creator/streamer information"},
+    {"name": "Health", "description": "API health monitoring and connection pool status"},
+    {"name": "Monitoring", "description": "Performance metrics and monitoring endpoints"},
+    {"name": "API Info", "description": "General API information and documentation"},
 ]
+
 
 # Initialize cache warming on startup
 @app.on_event("startup")
 async def startup_event():
     """Initialize cache warming and other startup tasks."""
     logger.info("Starting Stream Sniper API...")
-    
+
     if config.cache.enabled and config.cache.warm_on_startup:
         try:
             warm_cache()
             logger.info("Cache warming completed")
         except Exception as e:
             logger.warning(f"Cache warming failed: {e}")
-    
+
     logger.info(f"API started successfully on {config.host}:{config.port}")
 
 
@@ -306,7 +323,9 @@ async def startup_event():
     Returns a list of [message_text, timestamp] tuples.
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.GENERAL),
+    """.format(
+        rate_limit=rate_limits.GENERAL
+    ),
     responses={
         200: {
             "description": "List of messages with timestamps",
@@ -315,45 +334,43 @@ async def startup_event():
                     "example": [
                         ["Hello everyone!", "2024-01-15 20:30:15"],
                         ["Great stream!", "2024-01-15 20:45:22"],
-                        ["@streamer keep it up!", "2024-01-15 21:10:03"]
+                        ["@streamer keep it up!", "2024-01-15 21:10:03"],
                     ]
                 }
-            }
+            },
         },
         404: {"model": ErrorResponse, "description": "Chatter not found"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"}
-    }
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
 )
 @limiter.limit(rate_limits.GENERAL)
 def get_chatter_messages(
-    request: Request,
-    response: Response,
-    chatter_id: int = Path(..., description="Unique chatter ID", example=42)
+    request: Request, response: Response, chatter_id: int = Path(..., description="Unique chatter ID", example=42)
 ):
     """Get all messages sent by a specific chatter"""
     try:
         # Try cache first
         cache = get_cache()
-        cache_key = cache._generate_key('chatter_messages', chatter_id)
+        cache_key = cache._generate_key("chatter_messages", chatter_id)
         cached_result = cache.get(cache_key)
-        
+
         if cached_result is not None:
             response.headers["X-Cache"] = "HIT"
             record_cache_operation("hit", "chatter_messages")
             return cached_result
-        
+
         # Cache miss - fetch from database
         record_cache_operation("miss", "chatter_messages")
         result = select_chatter_messages_db(chatter_id)
-        
+
         if not result:
             raise HTTPException(status_code=404, detail="Chatter not found or has no messages")
-        
+
         # Cache the result
         cache.set(cache_key, result, CacheTTL.CHATTER_MESSAGES)
         record_cache_operation("set", "chatter_messages")
         response.headers["X-Cache"] = "MISS"
-        
+
         return result
     except HTTPException:
         raise
@@ -373,50 +390,43 @@ def get_chatter_messages(
     Returns the chatter ID that can be used in other endpoints.
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.SEARCH),
+    """.format(
+        rate_limit=rate_limits.SEARCH
+    ),
     responses={
-        200: {
-            "description": "Chatter ID found",
-            "content": {
-                "application/json": {
-                    "example": [42]
-                }
-            }
-        },
+        200: {"description": "Chatter ID found", "content": {"application/json": {"example": [42]}}},
         404: {"model": ErrorResponse, "description": "Chatter not found"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"}
-    }
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
 )
 @limiter.limit(rate_limits.SEARCH)
 def get_chatter_id(
-    request: Request,
-    response: Response,
-    nick: str = Path(..., description="Chatter nickname", example="viewer123")
+    request: Request, response: Response, nick: str = Path(..., description="Chatter nickname", example="viewer123")
 ):
     """Get chatter ID by their nickname"""
     try:
         # Try cache first
         cache = get_cache()
-        cache_key = cache._generate_key('chatter_id', nick)
+        cache_key = cache._generate_key("chatter_id", nick)
         cached_result = cache.get(cache_key)
-        
+
         if cached_result is not None:
             response.headers["X-Cache"] = "HIT"
             record_cache_operation("hit", "chatter_id")
             return cached_result
-        
+
         # Cache miss - fetch from database
         record_cache_operation("miss", "chatter_id")
         result = select_chatter_id_db(nick)
-        
+
         if not result:
             raise HTTPException(status_code=404, detail="Chatter not found")
-        
+
         # Cache the result
         cache.set(cache_key, result, CacheTTL.CHATTER_MESSAGES)
         record_cache_operation("set", "chatter_id")
         response.headers["X-Cache"] = "MISS"
-        
+
         return result
     except HTTPException:
         raise
@@ -427,7 +437,7 @@ def get_chatter_id(
 
 
 @app.get(
-    '/streams/',
+    "/streams/",
     response_model=StreamsResponse,
     tags=["Streams"],
     summary="Get streams with pagination",
@@ -444,7 +454,9 @@ def get_chatter_id(
     - Message count
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.BULK),
+    """.format(
+        rate_limit=rate_limits.BULK
+    ),
     responses={
         200: {
             "description": "Paginated list of streams",
@@ -452,40 +464,54 @@ def get_chatter_id(
                 "application/json": {
                     "example": {
                         "streams": [
-                            [1, "Epic Gaming Session", "2024-01-15 20:00:00", "2024-01-15 23:30:00", "https://example.com/thumb.jpg", 1250],
-                            [2, "Chill Stream", "2024-01-14 18:00:00", "2024-01-14 22:00:00", "https://example.com/thumb2.jpg", 856]
+                            [
+                                1,
+                                "Epic Gaming Session",
+                                "2024-01-15 20:00:00",
+                                "2024-01-15 23:30:00",
+                                "https://example.com/thumb.jpg",
+                                1250,
+                            ],
+                            [
+                                2,
+                                "Chill Stream",
+                                "2024-01-14 18:00:00",
+                                "2024-01-14 22:00:00",
+                                "https://example.com/thumb2.jpg",
+                                856,
+                            ],
                         ],
-                        "max_offset": 1000
+                        "max_offset": 1000,
                     }
                 }
-            }
+            },
         },
         400: {"model": ErrorResponse, "description": "Invalid parameters"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"}
-    }
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
 )
 @limiter.limit(rate_limits.BULK)
 def get_streams(
     request: Request,
     response: Response,
     creator_id: int = Query(..., description="Creator ID (use -1 for all creators)", example=5),
-    offset: int = Query(0, description="Pagination offset", example=0, ge=0)
+    offset: int = Query(0, description="Pagination offset", example=0, ge=0),
 ):
     """Get paginated list of streams for a creator"""
     try:
         cache = get_cache()
-        
+
         # Cache streams data
-        streams_cache_key = cache._generate_key('streams', creator_id, offset)
+        streams_cache_key = cache._generate_key("streams", creator_id, offset)
         cached_streams = cache.get(streams_cache_key)
-        
+
         # Cache max offset data
-        count_cache_key = cache._generate_key('stream_count', creator_id)
+        count_cache_key = cache._generate_key("stream_count", creator_id)
         cached_count = cache.get(count_cache_key)
-        
+
         streams_from_cache = cached_streams is not None
         count_from_cache = cached_count is not None
-        
+
         # Fetch missing data
         if not streams_from_cache:
             record_cache_operation("miss", "streams")
@@ -495,7 +521,7 @@ def get_streams(
         else:
             record_cache_operation("hit", "streams")
             streams = cached_streams
-        
+
         if not count_from_cache:
             record_cache_operation("miss", "stream_count")
             max_offset = select_all_stream_count_db(creator_id)
@@ -504,7 +530,7 @@ def get_streams(
         else:
             record_cache_operation("hit", "stream_count")
             max_offset = cached_count
-        
+
         # Set cache header
         if streams_from_cache and count_from_cache:
             response.headers["X-Cache"] = "HIT"
@@ -512,7 +538,7 @@ def get_streams(
             response.headers["X-Cache"] = "PARTIAL"
         else:
             response.headers["X-Cache"] = "MISS"
-        
+
         return {"streams": streams, "max_offset": max_offset}
     except Exception as e:
         logger.error(f"Error fetching streams: {e}")
@@ -521,7 +547,7 @@ def get_streams(
 
 
 @app.get(
-    '/stream/{stream_id}/chatters',
+    "/stream/{stream_id}/chatters",
     response_model=List[List[Any]],
     tags=["Streams"],
     summary="Get all chatters in a stream",
@@ -530,54 +556,48 @@ def get_streams(
     Returns chatter information including their IDs and nicknames.
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.GENERAL),
+    """.format(
+        rate_limit=rate_limits.GENERAL
+    ),
     responses={
         200: {
             "description": "List of chatters in the stream",
             "content": {
-                "application/json": {
-                    "example": [
-                        [42, "viewer123"],
-                        [15, "chatty_user"],
-                        [87, "stream_regular"]
-                    ]
-                }
-            }
+                "application/json": {"example": [[42, "viewer123"], [15, "chatty_user"], [87, "stream_regular"]]}
+            },
         },
         404: {"model": ErrorResponse, "description": "Stream not found"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"}
-    }
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
 )
 @limiter.limit(rate_limits.GENERAL)
 def get_stream_chatters(
-    request: Request,
-    response: Response,
-    stream_id: int = Path(..., description="Unique stream ID", example=1)
+    request: Request, response: Response, stream_id: int = Path(..., description="Unique stream ID", example=1)
 ):
     """Get all chatters who participated in a stream"""
     try:
         # Try cache first
         cache = get_cache()
-        cache_key = cache._generate_key('stream_chatters', stream_id)
+        cache_key = cache._generate_key("stream_chatters", stream_id)
         cached_result = cache.get(cache_key)
-        
+
         if cached_result is not None:
             response.headers["X-Cache"] = "HIT"
             record_cache_operation("hit", "stream_chatters")
             return cached_result
-        
+
         # Cache miss - fetch from database
         record_cache_operation("miss", "stream_chatters")
         result = select_all_chatters_on_stream_db(stream_id)
-        
+
         if not result:
             raise HTTPException(status_code=404, detail="Stream not found or has no chatters")
-        
+
         # Cache the result
         cache.set(cache_key, result, CacheTTL.STREAM_DETAILS)
         record_cache_operation("set", "stream_chatters")
         response.headers["X-Cache"] = "MISS"
-        
+
         return result
     except HTTPException:
         raise
@@ -588,7 +608,7 @@ def get_stream_chatters(
 
 
 @app.get(
-    '/stream/{stream_id}/',
+    "/stream/{stream_id}/",
     response_model=StreamDetails,
     tags=["Streams"],
     summary="Get comprehensive stream analytics",
@@ -605,58 +625,68 @@ def get_stream_chatters(
     This endpoint provides a complete analytics overview of stream chat activity.
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.ANALYTICS),
+    """.format(
+        rate_limit=rate_limits.ANALYTICS
+    ),
     responses={
         200: {
             "description": "Comprehensive stream analytics",
             "content": {
                 "application/json": {
                     "example": {
-                        "csi": ["Epic Gaming Session", "2024-01-15 20:00:00", "2024-01-15 23:30:00", "https://thumb.jpg", 1250, "streamer123", "Amazing Streamer", "https://profile.jpg", 5],
+                        "csi": [
+                            "Epic Gaming Session",
+                            "2024-01-15 20:00:00",
+                            "2024-01-15 23:30:00",
+                            "https://thumb.jpg",
+                            1250,
+                            "streamer123",
+                            "Amazing Streamer",
+                            "https://profile.jpg",
+                            5,
+                        ],
                         "mac": [[42, "chatty_user", 125], [15, "regular_viewer", 89], [7, "stream_fan", 76]],
                         "mtc": [[15, "popular_user", 45], [23, "famous_chatter", 32], [11, "mentioned_user", 28]],
                         "octw": [[99, "other_streamer"], [101, "guest_creator"]],
-                        "cis": [[287]]
+                        "cis": [[287]],
                     }
                 }
-            }
+            },
         },
         404: {"model": ErrorResponse, "description": "Stream not found"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"}
-    }
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
 )
 @limiter.limit(rate_limits.ANALYTICS)
 def get_stream(
-    request: Request,
-    response: Response,
-    stream_id: int = Path(..., description="Unique stream ID", example=1)
+    request: Request, response: Response, stream_id: int = Path(..., description="Unique stream ID", example=1)
 ):
     """Get comprehensive analytics for a specific stream"""
     try:
         cache = get_cache()
-        
+
         # Check if complete analytics are cached
-        analytics_cache_key = cache._generate_key('stream_analytics', stream_id)
+        analytics_cache_key = cache._generate_key("stream_analytics", stream_id)
         cached_analytics = cache.get(analytics_cache_key)
-        
+
         if cached_analytics is not None:
             response.headers["X-Cache"] = "HIT"
             record_cache_operation("hit", "stream_analytics")
             return cached_analytics
-        
+
         # Cache miss - fetch all data
         record_cache_operation("miss", "stream_analytics")
-        
+
         comprehensive_stream_info = select_stream_comprehensive_db(stream_id)
         if not comprehensive_stream_info:
             raise HTTPException(status_code=404, detail="Stream not found")
-        
+
         # Fetch related analytics data
         most_active_chatters = select_most_active_chatters_db(stream_id)
         most_tagged_chatters = select_most_tagged_chatters_db(stream_id)
         other_creators_that_wrote = select_creators_that_wrote_in_stream_db(stream_id, comprehensive_stream_info[8])
         chatters_in_stream = select_chatters_in_stream_db(stream_id)
-        
+
         analytics_data = {
             "csi": comprehensive_stream_info,
             "mac": most_active_chatters,
@@ -664,12 +694,12 @@ def get_stream(
             "octw": other_creators_that_wrote,
             "cis": chatters_in_stream,
         }
-        
+
         # Cache the complete analytics
         cache.set(analytics_cache_key, analytics_data, CacheTTL.STREAM_ANALYTICS)
         record_cache_operation("set", "stream_analytics")
         response.headers["X-Cache"] = "MISS"
-        
+
         return analytics_data
     except HTTPException:
         raise
@@ -680,7 +710,7 @@ def get_stream(
 
 
 @app.get(
-    '/stream/{stream_id}/chatter/{chatter_id}/messages',
+    "/stream/{stream_id}/chatter/{chatter_id}/messages",
     response_model=List[str],
     tags=["Streams"],
     summary="Get chatter messages in specific stream",
@@ -689,7 +719,9 @@ def get_stream(
     This is useful for analyzing individual user participation in specific streams.
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.GENERAL),
+    """.format(
+        rate_limit=rate_limits.GENERAL
+    ),
     responses={
         200: {
             "description": "List of messages from the chatter in this stream",
@@ -699,47 +731,47 @@ def get_stream(
                         "Hello everyone!",
                         "Great play!",
                         "@streamer that was amazing!",
-                        "Thanks for the stream!"
+                        "Thanks for the stream!",
                     ]
                 }
-            }
+            },
         },
         404: {"model": ErrorResponse, "description": "Stream or chatter not found"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"}
-    }
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
 )
 @limiter.limit(rate_limits.GENERAL)
 def get_chatter_messages_on_stream(
     request: Request,
     response: Response,
     stream_id: int = Path(..., description="Unique stream ID", example=1),
-    chatter_id: int = Path(..., description="Unique chatter ID", example=42)
+    chatter_id: int = Path(..., description="Unique chatter ID", example=42),
 ):
     """Get messages from a specific chatter in a specific stream"""
     try:
         # Try cache first
         cache = get_cache()
-        cache_key = cache._generate_key('chatter_stream_messages', stream_id, chatter_id)
+        cache_key = cache._generate_key("chatter_stream_messages", stream_id, chatter_id)
         cached_result = cache.get(cache_key)
-        
+
         if cached_result is not None:
             response.headers["X-Cache"] = "HIT"
             record_cache_operation("hit", "chatter_stream_messages")
             return cached_result
-        
+
         # Cache miss - fetch from database
         record_cache_operation("miss", "chatter_stream_messages")
         result = select_chatter_messages_on_stream_db(stream_id, chatter_id)
-        
+
         if not result:
             raise HTTPException(status_code=404, detail="No messages found for this chatter in this stream")
-        
+
         # Extract message text and cache
         messages = [message[0] for message in result]
         cache.set(cache_key, messages, CacheTTL.CHATTER_MESSAGES)
         record_cache_operation("set", "chatter_stream_messages")
         response.headers["X-Cache"] = "MISS"
-        
+
         return messages
     except HTTPException:
         raise
@@ -750,7 +782,7 @@ def get_chatter_messages_on_stream(
 
 
 @app.get(
-    '/creators',
+    "/creators",
     response_model=List[List[Any]],
     tags=["Creators"],
     summary="Get all creators",
@@ -759,50 +791,44 @@ def get_chatter_messages_on_stream(
     Each creator entry contains their ID and display name.
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.GENERAL),
+    """.format(
+        rate_limit=rate_limits.GENERAL
+    ),
     responses={
         200: {
             "description": "List of all creators",
             "content": {
                 "application/json": {
-                    "example": [
-                        [1, "Amazing Streamer"],
-                        [2, "Pro Gamer"],
-                        [3, "Chat Master"],
-                        [4, "Stream Legend"]
-                    ]
+                    "example": [[1, "Amazing Streamer"], [2, "Pro Gamer"], [3, "Chat Master"], [4, "Stream Legend"]]
                 }
-            }
+            },
         },
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"}
-    }
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
 )
 @limiter.limit(rate_limits.GENERAL)
-def get_creators(
-    request: Request,
-    response: Response
-):
+def get_creators(request: Request, response: Response):
     """Get all creators in the database"""
     try:
         # Try cache first
         cache = get_cache()
-        cache_key = cache._generate_key('creators')
+        cache_key = cache._generate_key("creators")
         cached_result = cache.get(cache_key)
-        
+
         if cached_result is not None:
             response.headers["X-Cache"] = "HIT"
             record_cache_operation("hit", "creators")
             return cached_result
-        
+
         # Cache miss - fetch from database
         record_cache_operation("miss", "creators")
         result = select_creators_db()
-        
+
         # Cache the result
         cache.set(cache_key, result, CacheTTL.CREATORS)
         record_cache_operation("set", "creators")
         response.headers["X-Cache"] = "MISS"
-        
+
         return result
     except Exception as e:
         logger.error(f"Error fetching creators: {e}")
@@ -822,7 +848,9 @@ def get_creators(
     Returns 200 if system is operational, 503 if critical issues exist.
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.HEALTH),
+    """.format(
+        rate_limit=rate_limits.HEALTH
+    ),
     responses={
         200: {
             "description": "System is healthy",
@@ -833,14 +861,10 @@ def get_creators(
                         "timestamp": "2024-01-15T20:30:15Z",
                         "version": "1.0.0",
                         "uptime_seconds": 3600,
-                        "database": {
-                            "status": "healthy",
-                            "healthy": True,
-                            "response_time_ms": 5.2
-                        }
+                        "database": {"status": "healthy", "healthy": True, "response_time_ms": 5.2},
                     }
                 }
-            }
+            },
         },
         503: {
             "description": "System is unhealthy - critical issues detected",
@@ -851,16 +875,12 @@ def get_creators(
                         "timestamp": "2024-01-15T20:30:15Z",
                         "version": "1.0.0",
                         "uptime_seconds": 3600,
-                        "database": {
-                            "status": "critical",
-                            "healthy": False,
-                            "response_time_ms": 5000
-                        }
+                        "database": {"status": "critical", "healthy": False, "response_time_ms": 5000},
                     }
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 @limiter.limit(rate_limits.HEALTH)
 def health_check(request: Request, response: Response):
@@ -868,15 +888,15 @@ def health_check(request: Request, response: Response):
     try:
         health_checker = get_health_checker()
         overall_status, health_data = health_checker.get_basic_health()
-        
+
         # Set HTTP status code based on health
         if overall_status in [HealthStatusEnum.UNHEALTHY, HealthStatusEnum.CRITICAL]:
             response.status_code = 503
         else:
             response.status_code = 200
-        
+
         return health_data
-        
+
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         response.status_code = 503
@@ -884,7 +904,7 @@ def health_check(request: Request, response: Response):
             "status": "critical",
             "timestamp": datetime.now().isoformat() + "Z",
             "version": config.version,
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -903,15 +923,17 @@ def health_check(request: Request, response: Response):
     * External dependency checks (Twitch API)
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.HEALTH),
+    """.format(
+        rate_limit=rate_limits.HEALTH
+    ),
     responses={
         200: {
             "description": "Detailed system health information",
         },
         503: {
             "description": "System has critical issues",
-        }
-    }
+        },
+    },
 )
 @limiter.limit(rate_limits.HEALTH)
 def detailed_health_check(request: Request, response: Response):
@@ -919,7 +941,7 @@ def detailed_health_check(request: Request, response: Response):
     try:
         health_checker = get_health_checker()
         overall_status, health_data = health_checker.get_detailed_health()
-        
+
         # Set HTTP status code based on health
         if overall_status in [HealthStatusEnum.UNHEALTHY, HealthStatusEnum.CRITICAL]:
             response.status_code = 503
@@ -927,9 +949,9 @@ def detailed_health_check(request: Request, response: Response):
             response.status_code = 200  # Degraded is still operational
         else:
             response.status_code = 200
-        
+
         return health_data
-        
+
     except Exception as e:
         logger.error(f"Detailed health check failed: {e}")
         response.status_code = 503
@@ -937,7 +959,7 @@ def detailed_health_check(request: Request, response: Response):
             "status": "critical",
             "timestamp": datetime.now().isoformat() + "Z",
             "version": config.version,
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -955,7 +977,9 @@ def detailed_health_check(request: Request, response: Response):
     * Application uptime
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.GENERAL),
+    """.format(
+        rate_limit=rate_limits.GENERAL
+    ),
     responses={
         200: {
             "description": "Prometheus metrics in text format",
@@ -967,9 +991,9 @@ stream_sniper_component_health{component="database"} 1.0
 stream_sniper_component_health{component="cache"} 1.0
 """
                 }
-            }
+            },
         }
-    }
+    },
 )
 @limiter.limit(rate_limits.GENERAL)
 def prometheus_metrics(request: Request):
@@ -977,12 +1001,9 @@ def prometheus_metrics(request: Request):
     try:
         health_checker = get_health_checker()
         metrics_text = health_checker.generate_prometheus_metrics()
-        
-        return Response(
-            content=metrics_text,
-            media_type="text/plain; version=0.0.4"
-        )
-        
+
+        return Response(content=metrics_text, media_type="text/plain; version=0.0.4")
+
     except Exception as e:
         logger.error(f"Failed to generate Prometheus metrics: {e}")
         error_time = int(time.time() * 1000)
@@ -990,10 +1011,7 @@ def prometheus_metrics(request: Request):
 # TYPE stream_sniper_metrics_error gauge
 stream_sniper_metrics_error 1 {error_time}
 """
-        return Response(
-            content=error_metrics,
-            media_type="text/plain; version=0.0.4"
-        )
+        return Response(content=error_metrics, media_type="text/plain; version=0.0.4")
 
 
 # Monitoring endpoints
@@ -1013,18 +1031,18 @@ stream_sniper_metrics_error 1 {error_time}
     * System uptime and health
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.GENERAL),
+    """.format(
+        rate_limit=rate_limits.GENERAL
+    ),
     responses={
         200: {
             "description": "Performance metrics data",
         },
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"}
-    }
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
 )
 @limiter.limit(rate_limits.GENERAL)
-def get_metrics(
-    request: Request
-):
+def get_metrics(request: Request):
     """Get comprehensive API performance metrics"""
     try:
         metrics_data = get_monitoring_data()
@@ -1042,31 +1060,31 @@ def get_metrics(
     Get detailed cache performance statistics.
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.GENERAL),
+    """.format(
+        rate_limit=rate_limits.GENERAL
+    ),
     responses={
         200: {
             "description": "Cache statistics",
         },
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"}
-    }
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
 )
 @limiter.limit(rate_limits.GENERAL)
-def get_cache_stats(
-    request: Request
-):
+def get_cache_stats(request: Request):
     """Get detailed cache performance statistics"""
     try:
         cache = get_cache()
         cache_stats = cache.get_stats()
-        
+
         # Add metrics from monitoring
         collector = get_metrics_collector()
         summary = collector.get_summary_stats()
-        
+
         return {
             "redis_stats": cache_stats,
             "performance_metrics": summary.get("cache", {}),
-            "timestamp": datetime.now().isoformat() + "Z"
+            "timestamp": datetime.now().isoformat() + "Z",
         }
     except Exception as e:
         logger.error(f"Error fetching cache stats: {e}")
@@ -1082,23 +1100,23 @@ def get_cache_stats(
     until cache is rebuilt.
     
     **Rate Limit**: {rate_limit}
-    """.format(rate_limit=rate_limits.HEAVY),
+    """.format(
+        rate_limit=rate_limits.HEAVY
+    ),
     responses={
         200: {
             "description": "Cache flushed successfully",
         },
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"}
-    }
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
 )
 @limiter.limit(rate_limits.HEAVY)
-def flush_cache(
-    request: Request
-):
+def flush_cache(request: Request):
     """Flush all cached data"""
     try:
         cache = get_cache()
         success = cache.flush_all()
-        
+
         if success:
             return {"message": "Cache flushed successfully", "timestamp": datetime.now().isoformat() + "Z"}
         else:
@@ -1110,10 +1128,7 @@ def flush_cache(
 
 # Root endpoint for API information
 @app.get(
-    "/",
-    tags=["API Info"],
-    summary="API Information",
-    description="Get basic information about the Stream Sniper API"
+    "/", tags=["API Info"], summary="API Information", description="Get basic information about the Stream Sniper API"
 )
 def root():
     """Welcome endpoint with API information"""
@@ -1127,21 +1142,17 @@ def root():
             "caching": config.cache.enabled,
             "rate_limiting": config.rate_limit.enabled,
             "compression": config.compression.enabled,
-            "monitoring": config.monitoring.enabled
+            "monitoring": config.monitoring.enabled,
         },
         "endpoints": {
             "health": "/health",
             "health_detailed": "/health/detailed",
             "metrics": "/metrics",
             "prometheus_metrics": "/metrics/prometheus",
-            "cache_stats": "/cache/stats"
-        }
+            "cache_stats": "/cache/stats",
+        },
     }
 
-if __name__ == '__main__':
-    uvicorn.run(
-        app, 
-        host=config.host, 
-        port=config.port,
-        log_level="info" if not config.debug else "debug"
-    )
+
+if __name__ == "__main__":
+    uvicorn.run(app, host=config.host, port=config.port, log_level="info" if not config.debug else "debug")

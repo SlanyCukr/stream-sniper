@@ -20,14 +20,14 @@ class ChatProcessor:
 
         chatter_nicks = []
         for line in chat:
-            if line['author'] == {}:
+            if line["author"] == {}:
                 continue
 
-            if 'name' not in line['author']:
-                chatter_nicks.append('Unknown')
+            if "name" not in line["author"]:
+                chatter_nicks.append("Unknown")
                 continue
 
-            chatter_nick = line['author']['name']
+            chatter_nick = line["author"]["name"]
 
             chatter_nicks.append(chatter_nick)
 
@@ -40,7 +40,7 @@ class ChatProcessor:
 
         messages = []
         for line in chat:
-            message = line['message']
+            message = line["message"]
             messages.append(message)
 
         return list(set(messages))
@@ -48,9 +48,9 @@ class ChatProcessor:
     def process_chat(self, chat: List[dict], stream_id: int):
         self.logger.debug("Processing messages.")
         for line in tqdm(chat):
-            message_time = datetime.fromtimestamp(line['timestamp'] / 1000000, UTC)
+            message_time = datetime.fromtimestamp(line["timestamp"] / 1000000, UTC)
 
-            chatter_nick = line['author'].get('name', 'Unknown')
-            message = line['message']
+            chatter_nick = line["author"].get("name", "Unknown")
+            message = line["message"]
 
             self.message_handling_fun(message_time, chatter_nick, message, stream_id)

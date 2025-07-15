@@ -34,17 +34,19 @@ class TwitchCollectorFacade:
         self.message_handler = MessageHandler(nickname, self.db_buffer_insert_message.add_item)
         self.chat_processor = ChatProcessor(self.creator_id, self.message_handler.handle_message)
         self.chat_downloader = IrcChatDownloader(nickname)
-        
+
         self.logger.info(f"Twitch collector initialized successfully for: {nickname}")
 
     @performance_timer("complete_stream_processing", slow_threshold=10.0)
     def start_processing(self):
         self.logger.info("Starting data collection process")
         processed_streams = 0
-        
+
         while True:
             try:
-                chat, twitch_stream_id, started_at, title, duration, thumbnail_url = self.chat_downloader.download_chat()
+                chat, twitch_stream_id, started_at, title, duration, thumbnail_url = (
+                    self.chat_downloader.download_chat()
+                )
 
                 if not chat:
                     self.logger.debug("No more videos to process. Exiting...")
@@ -53,7 +55,9 @@ class TwitchCollectorFacade:
                 self.logger.info(f"Processing stream: {title} (ID: {twitch_stream_id})")
 
                 # transform stream data, insert it into database
-                stream_id = update_stream_info(twitch_stream_id, started_at, self.creator_id, title, duration, thumbnail_url)
+                stream_id = update_stream_info(
+                    twitch_stream_id, started_at, self.creator_id, title, duration, thumbnail_url
+                )
 
                 # process nicks
                 nicks = self.chat_processor.get_nicks(chat)
@@ -79,10 +83,12 @@ class TwitchCollectorFacade:
 
                 # send all hanging items in buffer to database
                 self.db_buffer_insert_message.call_db_function()
-                
+
                 processed_streams += 1
-                self.logger.info(f"Successfully processed stream {twitch_stream_id}. Total streams processed: {processed_streams}")
-                    
+                self.logger.info(
+                    f"Successfully processed stream {twitch_stream_id}. Total streams processed: {processed_streams}"
+                )
+
             except KeyboardInterrupt:
                 self.logger.warning("Processing interrupted by user")
                 break
@@ -90,7 +96,7 @@ class TwitchCollectorFacade:
                 self.logger.error(f"Error processing stream: {e}", exc_info=True)
                 # Continue with next stream instead of stopping completely
                 continue
-        
+
         self.logger.info(f"Data collection completed. Total streams processed: {processed_streams}")
 
     def insert_creator_get_id(self):
@@ -103,7 +109,9 @@ class TwitchCollectorFacade:
             try:
                 display_name, profile_image_url = self.twitch_api.get_creator_info()
                 twitch_creator_id = self.twitch_api.get_creator_twitch_id()
-                new_creator_id = insert_new_creator_db(self.nickname, display_name, profile_image_url, twitch_creator_id)
+                new_creator_id = insert_new_creator_db(
+                    self.nickname, display_name, profile_image_url, twitch_creator_id
+                )
                 if not new_creator_id:
                     self.logger.error(f"Can't create new creator with name {self.nickname}. Exiting...")
                     exit(1)

@@ -28,17 +28,17 @@ class MessageHandler:
         :param message: Message from chat
         :return: ID of the tagged user
         """
-        if '@' not in message:
+        if "@" not in message:
             return None
 
         message = message.lower()
-        at_sign_index = message.find('@')
-        end_of_nick_index = message.find(' ', at_sign_index)
+        at_sign_index = message.find("@")
+        end_of_nick_index = message.find(" ", at_sign_index)
 
         if end_of_nick_index == -1:
-            nick = message[at_sign_index + 1:]
+            nick = message[at_sign_index + 1 :]
         else:
-            nick = message[at_sign_index + 1:end_of_nick_index]
+            nick = message[at_sign_index + 1 : end_of_nick_index]
 
         if nick in self.known_chatters:
             return self.known_chatters[nick]
@@ -57,4 +57,6 @@ class MessageHandler:
             self.known_messages[message] = message_id
 
         message_text_id = self.known_messages[message]
-        self.insert_message_fun((self.known_chatters[chatter_nick], tagged_user_id, stream_id, message_text_id, message_timestamp))
+        self.insert_message_fun(
+            (self.known_chatters[chatter_nick], tagged_user_id, stream_id, message_text_id, message_timestamp)
+        )
