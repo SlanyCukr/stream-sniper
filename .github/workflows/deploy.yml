@@ -19,25 +19,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Update local repository
+      - name: Setup local repository
         run: |
-          cd /home/pi/stream-sniper
-          git pull origin main
+          # Clone or update the repository
+          if [ ! -d "/home/pi/stream-sniper" ]; then
+            echo "🔄 Cloning repository for first time..."
+            cd /home/pi
+            git clone https://github.com/SlanyCukr/stream-sniper.git stream-sniper
+          else
+            echo "🔄 Updating existing repository..."
+            cd /home/pi/stream-sniper
+            git fetch origin
+            git reset --hard origin/main
+            git pull origin main
+          fi
 
-      - name: Build frontend Docker image
+      - name: Build Docker images
         run: |
           cd /home/pi/stream-sniper
+          echo "📦 Building Docker images..."
+          
+          # Build frontend
+          echo "🎨 Building frontend..."
           docker build -f frontend/Dockerfile.prod -t stream-sniper-frontend:latest ./frontend
-
-      - name: Build backend API Docker image
-        run: |
-          cd /home/pi/stream-sniper
+          
+          # Build backend API
+          echo "🚀 Building backend API..."
           docker build -f backend/Dockerfile.api -t stream-sniper-api:latest ./backend
-
-      - name: Build tracking service Docker image
-        run: |
-          cd /home/pi/stream-sniper
-          docker build -f backend/Dockerfile.tracking -t stream-sniper-tracking:latest ./backend
+          
+          echo "✅ All images built successfully"
 
       - name: Stop existing containers
         run: |
@@ -83,12 +93,22 @@ jobs:
           fi
           
           # Test API health endpoint through frontend proxy
-          if curl -f -s http://localhost:3001/api/health > /dev/null; then
-            echo "✅ API health check passed through frontend proxy"
-          else
-            echo "❌ API health check failed through frontend proxy"
-            exit 1
-          fi
+          echo "🔍 Testing API health endpoint..."
+          for i in {1..10}; do
+            if curl -f -s http://localhost:3001/api/health > /dev/null; then
+              echo "✅ API health check passed through frontend proxy"
+              break
+            else
+              echo "⏳ Attempt $i/10: API not ready yet, waiting..."
+              sleep 5
+            fi
+            if [ $i -eq 10 ]; then
+              echo "❌ API health check failed after 10 attempts"
+              echo "Debug: Container logs"
+              docker-compose -f docker-compose.prod.yml logs --tail=50
+              exit 1
+            fi
+          done
           
           # Test database connectivity
           if docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready; then
