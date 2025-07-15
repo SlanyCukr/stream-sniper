@@ -46,7 +46,8 @@ jobs:
       - name: Stop existing containers
         run: |
           cd /home/pi/stream-sniper
-          docker-compose -f docker-compose.prod.yml down || true
+          docker-compose -f docker-compose.prod.yml down --remove-orphans || true
+          docker container prune -f || true
 
       - name: Setup environment configuration
         run: |
@@ -67,7 +68,7 @@ jobs:
         run: |
           cd /home/pi/stream-sniper
           # Use production environment file
-          docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
+          docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
 
       - name: Wait for services to start
         run: |
