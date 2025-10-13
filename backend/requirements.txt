@@ -1,5 +1,5 @@
 twitch-python~=0.0.20
-psycopg2-binary~=2.9.10
+psycopg2-binary~=2.9.11
 twitchAPI~=4.5.0
 tqdm~=4.67.1
 pytimeparse~=1.1.8
