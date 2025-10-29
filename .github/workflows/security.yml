@@ -47,7 +47,7 @@ jobs:
 
     - name: Upload Safety report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: safety-report
         path: safety-report.json
@@ -55,7 +55,7 @@ jobs:
 
     - name: Upload pip-audit report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: pip-audit-report
         path: pip-audit-report.json
@@ -90,7 +90,7 @@ jobs:
 
     - name: Upload Bandit report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: bandit-report
         path: bandit-report.json
@@ -98,7 +98,7 @@ jobs:
 
     - name: Upload Semgrep report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: semgrep-report
         path: semgrep-report.json
@@ -257,7 +257,7 @@ jobs:
         echo "All security reports are available as artifacts for this workflow run." >> security-summary.md
 
     - name: Upload security summary
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: security-summary
         path: security-summary.md
