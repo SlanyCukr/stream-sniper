@@ -27,7 +27,7 @@ class TestChattersEndpoints:
         ]
 
         with TestClient(app) as client:
-            response = client.get("/chatter/42/messages/")
+            response = client.get("/chatter/42/messages")
 
         assert response.status_code == 200
         data = response.json()
@@ -41,7 +41,7 @@ class TestChattersEndpoints:
         mock_select.return_value = None
 
         with TestClient(app) as client:
-            response = client.get("/chatter/999/messages/")
+            response = client.get("/chatter/999/messages")
 
         assert response.status_code == 404
         assert response.json()["detail"] == "Chatter not found or has no messages"
@@ -52,7 +52,7 @@ class TestChattersEndpoints:
         mock_select.side_effect = Exception("Database connection failed")
 
         with TestClient(app) as client:
-            response = client.get("/chatter/42/messages/")
+            response = client.get("/chatter/42/messages")
 
         assert response.status_code == 500
         assert response.json()["detail"] == "Internal server error"
@@ -95,7 +95,7 @@ class TestStreamsEndpoints:
         mock_count.return_value = 1000
 
         with TestClient(app) as client:
-            response = client.get("/streams/?creator_id=5&offset=0")
+            response = client.get("/streams?creator_id=5&offset=0")
 
         assert response.status_code == 200
         data = response.json()
@@ -115,7 +115,7 @@ class TestStreamsEndpoints:
         mock_count.return_value = 0
 
         with TestClient(app) as client:
-            response = client.get("/streams/?creator_id=-1&offset=0")
+            response = client.get("/streams?creator_id=-1&offset=0")
 
         assert response.status_code == 200
         mock_streams.assert_called_once_with(-1, 0)
@@ -172,7 +172,7 @@ class TestStreamsEndpoints:
         mock_chatters.return_value = [[287]]
 
         with TestClient(app) as client:
-            response = client.get("/stream/1/")
+            response = client.get("/stream/1")
 
         assert response.status_code == 200
         data = response.json()
@@ -335,21 +335,21 @@ class TestAPIValidation:
     def test_get_streams_missing_creator_id(self):
         """Test streams endpoint requires creator_id parameter."""
         with TestClient(app) as client:
-            response = client.get("/streams/")
+            response = client.get("/streams")
 
         assert response.status_code == 422  # Validation error
 
     def test_get_streams_negative_offset(self):
         """Test streams endpoint rejects negative offset."""
         with TestClient(app) as client:
-            response = client.get("/streams/?creator_id=1&offset=-1")
+            response = client.get("/streams?creator_id=1&offset=-1")
 
         assert response.status_code == 422  # Validation error
 
     def test_get_chatter_messages_invalid_chatter_id(self):
         """Test chatter messages endpoint with invalid chatter ID."""
         with TestClient(app) as client:
-            response = client.get("/chatter/invalid/messages/")
+            response = client.get("/chatter/invalid/messages")
 
         assert response.status_code == 422  # Validation error
 

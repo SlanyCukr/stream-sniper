@@ -343,7 +343,7 @@ async def metrics_middleware(request: Request, call_next):
 
 
 @app.get(
-    "/chatter/{chatter_id}/messages/",
+    "/chatter/{chatter_id}/messages",
     response_model=List[List[str]],
     tags=["Chatters"],
     summary="Get messages by chatter",
@@ -462,7 +462,7 @@ def get_chatter_id(
 
 
 @app.get(
-    "/streams/",
+    "/streams",
     response_model=StreamsResponse,
     tags=["Streams"],
     summary="Get streams with pagination",
@@ -629,7 +629,7 @@ def get_stream_chatters(
 
 
 @app.get(
-    "/stream/{stream_id}/",
+    "/stream/{stream_id}",
     response_model=StreamDetails,
     tags=["Streams"],
     summary="Get comprehensive stream analytics",
