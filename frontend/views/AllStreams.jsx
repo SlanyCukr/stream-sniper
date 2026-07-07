@@ -131,7 +131,7 @@ const AllStreams = () => {
 
             <Card>
                 <Card.Header>
-                    <h1 id="streams-heading">All streams</h1>
+                    <h1 id="streams-heading" className="page-title mb-0">All streams</h1>
                 </Card.Header>
                 <Card.Body>
                     <div

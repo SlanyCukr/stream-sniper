@@ -2,10 +2,6 @@
   flex-shrink: 0;
   width: $sidebarWidth;
   background-color: $sidebarColor;
-  .sidenav-bg:hover {
-    background-color: $gray-100;
-    border-radius: $border-radius;
-  }
 }
 
 @include media-breakpoint-down(lg) {

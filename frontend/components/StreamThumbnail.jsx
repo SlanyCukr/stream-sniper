@@ -62,36 +62,40 @@ const StreamThumbnail = ({
         end,
     ])
 
+    const isLive = !end
+
     return (
-        <Card className="mx-2 hover-zoom">
+        <Card className="mx-2 stream-card">
             <div
                 onClick={handleNavigation}
                 onKeyDown={handleKeyDown}
                 role="button"
                 tabIndex="0"
                 aria-label={`View details for ${name}'s stream with ${messageCount} messages`}
-                style={{ cursor: 'pointer' }}
             >
-                <Card.Img
-                    src={thumbnailUrl}
-                    variant="top"
-                    width="100%"
-                    alt={`Stream thumbnail for ${name}`}
-                />
-                <Card.Body>
-                    <Card.Title as="h3">
+                <div className="thumb-wrap">
+                    <img
+                        src={thumbnailUrl}
+                        alt={`Stream thumbnail for ${name}`}
+                    />
+                    {isLive
+                        ? <span className="live-chip">LIVE</span>
+                        : <span className="duration-chip">{duration}</span>}
+                </div>
+                <Card.Body className="py-3">
+                    <Card.Title
+                        as="h3"
+                        className="fs-5 mb-2 text-truncate">
                         {name}
                     </Card.Title>
-                    <dl>
-                        <dt className="visually-hidden">Message count:</dt>
-                        <dd>Message count: <span className="fw-bold">{messageCount}</span></dd>
-
-                        <dt className="visually-hidden">Time ago:</dt>
-                        <dd>From now: <span className="fw-bold">{timeAgo}</span></dd>
-
-                        <dt className="visually-hidden">Duration:</dt>
-                        <dd>Duration: <span className="fw-bold">{duration}</span></dd>
-                    </dl>
+                    <div className="stream-meta mb-1">
+                        <span>MSGS</span>
+                        <span className="value">{messageCount.toLocaleString()}</span>
+                    </div>
+                    <div className="stream-meta">
+                        <span>AIRED</span>
+                        <span className="value">{timeAgo}</span>
+                    </div>
                 </Card.Body>
             </div>
         </Card>

@@ -24,7 +24,7 @@ const FiltersCard = React.memo(({
 }) => (
     <Card>
         <Card.Header>
-            <h2 id="filters-heading">Filters</h2>
+            <h2 id="filters-heading" className="page-title fs-6 mb-0">Filters</h2>
         </Card.Header>
         <Card.Body>
             <Container>
@@ -37,6 +37,7 @@ const FiltersCard = React.memo(({
                             Filter by creator
                         </label>
                         <Select
+                            instanceId="creator-select"
                             inputId="creator-select"
                             options={creators}
                             value={selectedCreator}
@@ -61,6 +62,7 @@ const FiltersCard = React.memo(({
                             Sort streams by
                         </label>
                         <Select
+                            instanceId="ordering-select"
                             inputId="ordering-select"
                             options={AVAILABLE_ORDERING}
                             value={selectedOrdering}

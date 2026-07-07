@@ -7,8 +7,6 @@ import {
     useRouter,
 } from 'next/navigation'
 import {
-    Navbar,
-    Nav,
     Dropdown,
     Button,
     Badge,
@@ -58,7 +56,8 @@ const UserDropdown = ({
         show={dropdownOpen}
         onToggle={toggle}>
         <Dropdown.Toggle
-            variant="primary"
+            variant="light"
+            size="sm"
             aria-label="User menu"
             aria-expanded={dropdownOpen}
             aria-haspopup="true"
@@ -110,33 +109,6 @@ const UserDropdown = ({
 )
 
 /**
- * Mobile navigation toggle button
- */
-const MobileNavToggle = ({
-    isOpen, Handletoggle, handleKeyDown,
-}) => (
-    <Button
-        variant="primary"
-        size="sm"
-        className="d-sm-block d-md-none"
-        onClick={Handletoggle}
-        onKeyDown={e => handleKeyDown(e, Handletoggle)}
-        aria-label={isOpen ? 'Close menu' : 'Open menu'}
-        aria-expanded={isOpen}
-    >
-        {isOpen ? (
-            <i
-                className="bi bi-x"
-                aria-hidden="true"></i>
-        ) : (
-            <i
-                className="bi bi-three-dots-vertical"
-                aria-hidden="true"></i>
-        )}
-    </Button>
-)
-
-/**
  * Mobile sidebar toggle button
  */
 const MobileSidebarToggle = ({
@@ -158,10 +130,6 @@ const MobileSidebarToggle = ({
 
 const Header = () => {
     const [
-        isOpen,
-        setIsOpen,
-    ] = useState(false)
-    const [
         dropdownOpen,
         setDropdownOpen,
     ] = useState(false)
@@ -171,7 +139,6 @@ const Header = () => {
     const router = useRouter()
 
     const toggle = () => setDropdownOpen(prevState => !prevState)
-    const Handletoggle = () => setIsOpen(!isOpen)
     const showMobilemenu = () => {
         document.getElementById('sidebarArea').classList.toggle('showSidebar')
     }
@@ -193,46 +160,19 @@ const Header = () => {
     }
 
     return (
-        <Navbar
-            bg="primary"
-            variant="dark"
-            expand="md"
+        <header
+            className="appHeader d-flex align-items-center justify-content-between"
             role="navigation"
             aria-label="Main header navigation"
         >
-            <div className="d-flex align-items-center">
-                <Navbar.Brand
-                    href="/"
-                    className="d-lg-none"
-                    aria-label="Stream Sniper - Home"
-                >
-                    <img
-                        src="/images/xtremelogowhite.svg"
-                        alt="Stream Sniper"
-                    />
-                </Navbar.Brand>
+            <div className="d-flex align-items-center gap-2">
                 <MobileSidebarToggle
                     showMobilemenu={showMobilemenu}
                     handleKeyDown={handleKeyDown}
                 />
             </div>
 
-            <div className="hstack gap-2">
-                <MobileNavToggle
-                    isOpen={isOpen}
-                    Handletoggle={Handletoggle}
-                    handleKeyDown={handleKeyDown}
-                />
-            </div>
-
-            <Navbar.Collapse
-                in={isOpen}
-                role="region"
-                aria-label="Navigation menu">
-                <Nav className="me-auto">
-                    {/* Navigation links can be added here */}
-                </Nav>
-
+            <div className="d-flex align-items-center gap-2">
                 {isAuthenticated ? (
                     <UserDropdown
                         user={user}
@@ -244,7 +184,8 @@ const Header = () => {
                     />
                 ) : (
                     <Button
-                        variant="outline-light"
+                        variant="outline-primary"
+                        size="sm"
                         onClick={handleLogin}
                         aria-label="Login to your account"
                     >
@@ -252,8 +193,8 @@ const Header = () => {
                         Login
                     </Button>
                 )}
-            </Navbar.Collapse>
-        </Navbar>
+            </div>
+        </header>
     )
 }
 

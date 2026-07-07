@@ -96,8 +96,8 @@ const Sidebar = () => {
                                 href={navi.href}
                                 className={
                                     pathname === navi.href
-                                        ? 'text-primary nav-link py-3'
-                                        : 'nav-link text-secondary py-3'
+                                        ? 'nav-link active'
+                                        : 'nav-link'
                                 }
                                 aria-current={pathname === navi.href ? 'page' : null}
                                 aria-label={navi.title}
@@ -115,8 +115,8 @@ const Sidebar = () => {
                     {isAuthenticated && isAdmin && (
                         <>
                             <hr className="my-3" />
-                            <div className="px-3">
-                                <small className="text-muted text-uppercase">Administration</small>
+                            <div className="px-3 pb-1">
+                                <span className="sidebar-section">// Administration</span>
                             </div>
                             {adminNavigation.map((navi, index) => (
                                 <Nav.Item

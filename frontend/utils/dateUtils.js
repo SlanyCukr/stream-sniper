@@ -38,7 +38,7 @@ export const formatTimeAgo = (date, options = {}) => {
         return formatDistanceToNow(dateObj, {
             addSuffix: true,
             ...options,
-        })
+        }).replace(/^(about|over|almost|less than) /, '')
     } catch (error) {
         console.error('Error formatting relative time:', error)
         return 'Invalid date'

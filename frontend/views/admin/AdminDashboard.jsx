@@ -79,7 +79,7 @@ const AdminDashboard = () => {
                     <Col md={3}>
                         <Card className="text-center">
                             <Card.Body>
-                                <Card.Title className="text-primary">Total Users</Card.Title>
+                                <Card.Title className="mono text-secondary fs-6 text-uppercase">Total Users</Card.Title>
                                 <Card.Text className="display-4">{stats.total_users}</Card.Text>
                             </Card.Body>
                         </Card>
@@ -87,7 +87,7 @@ const AdminDashboard = () => {
                     <Col md={3}>
                         <Card className="text-center">
                             <Card.Body>
-                                <Card.Title className="text-success">Active Users</Card.Title>
+                                <Card.Title className="mono text-secondary fs-6 text-uppercase">Active Users</Card.Title>
                                 <Card.Text className="display-4">{stats.active_users}</Card.Text>
                             </Card.Body>
                         </Card>
@@ -95,7 +95,7 @@ const AdminDashboard = () => {
                     <Col md={3}>
                         <Card className="text-center">
                             <Card.Body>
-                                <Card.Title className="text-warning">Admin Users</Card.Title>
+                                <Card.Title className="mono text-secondary fs-6 text-uppercase">Admin Users</Card.Title>
                                 <Card.Text className="display-4">{stats.admin_users}</Card.Text>
                             </Card.Body>
                         </Card>
@@ -103,7 +103,7 @@ const AdminDashboard = () => {
                     <Col md={3}>
                         <Card className="text-center">
                             <Card.Body>
-                                <Card.Title className="text-info">Recent Registrations</Card.Title>
+                                <Card.Title className="mono text-secondary fs-6 text-uppercase">Recent Registrations</Card.Title>
                                 <Card.Text className="display-4">{stats.recent_registrations}</Card.Text>
                                 <small className="text-muted">Last 24 hours</small>
                             </Card.Body>
@@ -128,19 +128,19 @@ const AdminDashboard = () => {
                                 </a>
                                 <a
                                     href="/admin/users/create"
-                                    className="btn btn-success">
+                                    className="btn btn-outline-primary">
                                     <i className="bi bi-person-plus me-2"></i>
                                     Create New User
                                 </a>
                                 <a
                                     href="/admin/tracking"
-                                    className="btn btn-warning">
+                                    className="btn btn-outline-primary">
                                     <i className="bi bi-broadcast me-2"></i>
                                     Stream Tracking
                                 </a>
                                 <a
                                     href="/admin/system"
-                                    className="btn btn-info">
+                                    className="btn btn-outline-primary">
                                     <i className="bi bi-gear me-2"></i>
                                     System Information
                                 </a>

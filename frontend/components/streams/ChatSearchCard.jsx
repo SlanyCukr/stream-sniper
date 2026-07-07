@@ -33,6 +33,7 @@ const ChatSearchCard = ({
                     Select a chatter to view their messages
                 </label>
                 <Select
+                    instanceId="chatter-select"
                     inputId="chatter-select"
                     options={chattersInStream}
                     value={selectedChatterOption}
