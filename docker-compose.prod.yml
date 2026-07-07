@@ -1,5 +1,8 @@
 services:
   stream-sniper-frontend:
+    # image: must match what deploy.yml's `docker build -t` produces, or
+    # `up` silently reuses a stale compose-named image instead
+    image: stream-sniper-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
@@ -16,6 +19,7 @@ services:
       - stream-sniper-api
 
   stream-sniper-api:
+    image: stream-sniper-api:latest
     build:
       context: ./backend
       dockerfile: Dockerfile.api
@@ -45,9 +49,8 @@ services:
       retries: 3
 
   stream-sniper-tracking:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.api
+    # same image as the API, different command — no separate build
+    image: stream-sniper-api:latest
     command: ["python", "-m", "stream_sniper.tracking_service"]
     environment:
       - POSTGRES_HOST=172.17.0.1

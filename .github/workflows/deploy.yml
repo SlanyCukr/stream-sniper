@@ -54,7 +54,7 @@ jobs:
       - name: Stop existing containers
         run: |
           cd /home/pi/stream-sniper
-          docker compose -f docker-compose.prod.yml down --remove-orphans || true
+          docker compose -f docker-compose.prod.yml --env-file .env.prod down --remove-orphans || true
           docker container prune -f || true
 
       - name: Verify environment configuration
@@ -87,7 +87,7 @@ jobs:
         run: |
           cd /home/pi/stream-sniper
           echo "📊 Container status:"
-          docker compose -f docker-compose.prod.yml ps
+          docker compose -f docker-compose.prod.yml --env-file .env.prod ps
           
           echo "🔍 Testing service endpoints..."
           
@@ -112,7 +112,7 @@ jobs:
             if [ $i -eq 10 ]; then
               echo "❌ API health check failed after 10 attempts"
               echo "Debug: Container logs"
-              docker compose -f docker-compose.prod.yml logs --tail=50
+              docker compose -f docker-compose.prod.yml --env-file .env.prod logs --tail=50
               exit 1
             fi
           done
