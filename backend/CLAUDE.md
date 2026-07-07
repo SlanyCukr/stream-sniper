@@ -98,8 +98,9 @@ Roles are `user` / `admin`. Bootstrap an admin: `POST /auth/register`, then
 ## Environment Variables (actually read by the code)
 
 ```bash
-# Database (connection_pool.py) — note the un-prefixed names
-USER, PASSWORD, HOST, DATABASE, PORT
+# Database (connection_pool.py) — POSTGRES_* preferred, legacy un-prefixed fallback
+POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_DB, POSTGRES_PORT
+USER, PASSWORD, HOST, DATABASE, PORT   # legacy .env names, still honored
 DB_POOL_MIN_CONN, DB_POOL_MAX_CONN, DB_CONNECT_TIMEOUT, DB_COMMAND_TIMEOUT
 
 # Auth (auth.py) — one of these is REQUIRED (fail-fast)
@@ -115,8 +116,7 @@ REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_PASSWORD
 ```
 
 See `.env.example` for the full surface (cache TTLs, rate limits, CORS,
-monitoring). Note: prod compose sets `POSTGRES_*` names — the DB loader reads the
-un-prefixed `USER/PASSWORD/HOST/DATABASE/PORT`, so keep both in sync.
+monitoring).
 
 ## Testing
 
