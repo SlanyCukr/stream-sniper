@@ -7,7 +7,11 @@ export function LegacyHashRedirect() {
   const router = useRouter()
   useEffect(() => {
     const h = window.location.hash
-    if (h.startsWith('#/')) router.replace(h.slice(1) || '/')
+    if (!h.startsWith('#/')) return
+    let path = h.slice(1) || '/'
+    // Routes that existed under the old HashRouter but moved in the migration
+    if (path === '/all-streams' || path === '/starter') path = '/'
+    router.replace(path)
   }, [
     router,
   ])

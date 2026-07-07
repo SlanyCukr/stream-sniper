@@ -11,10 +11,16 @@ This backend provides:
 
 ## Installation
 
+Dependencies are managed with [uv](https://docs.astral.sh/uv/) (`uv.lock` is the
+single source of truth; there is no `requirements.txt`).
+
 ```bash
-# Install in development mode
+# Create the virtualenv from the lockfile (includes the dev group)
 cd backend
-pip install -e .
+uv sync
+
+# Run an entry point inside the managed environment
+uv run stream-sniper --help
 ```
 
 ## Usage
@@ -80,9 +86,13 @@ backend/
 ## Development
 
 ```bash
-# Run tests
-pytest
+# Sync the environment (dev tools are in the PEP 735 dev group, installed by default)
+uv sync
 
-# Install dev dependencies
-pip install -e ".[dev]"
+# Run tests
+uv run pytest
+
+# Lint and type-check
+uv run ruff check .
+uv run mypy stream_sniper/
 ```

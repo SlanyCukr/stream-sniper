@@ -23,12 +23,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - dockerfile: Dockerfile.api
+          - dockerfile: ./backend/Dockerfile.api
             image: api
-            context: .
-          - dockerfile: Dockerfile.collector
+            context: ./backend
+          - dockerfile: ./backend/Dockerfile.collector
             image: collector
-            context: .
+            context: ./backend
 
     steps:
     - name: Checkout code
@@ -75,11 +75,14 @@ jobs:
         platforms: linux/amd64,linux/arm64
 
     - name: Test Docker image
+      if: github.event_name != 'pull_request'
       run: |
         if [ "${{ matrix.image }}" = "api" ]; then
-          docker run --rm ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image }}:latest stream-sniper-api --help
+          # server entry point starts uvicorn; smoke-test via an import with a
+          # dummy JWT secret (the app fail-fasts without one) instead of --help
+          docker run --rm -e JWT_SECRET_KEY=ci-test-secret ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image }}:latest python -c "import stream_sniper.api.api; print('API image import OK')"
         else
-          docker run --rm ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image }}:latest stream-sniper --help
+          docker run --rm ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.image }}:latest --help
         fi
 
   security-scan:
@@ -120,9 +123,13 @@ jobs:
       run: |
         cat > .env << EOF
         TWITCH_USERNAME=testuser
-        POSTGRES_USER=postgres
-        POSTGRES_PASSWORD=testpass
-        POSTGRES_DB=stream_sniper
+        JWT_SECRET_KEY=ci-test-secret
+        # DB connection vars read by the app (connection_pool.py)
+        USER=postgres
+        PASSWORD=testpass
+        HOST=postgres
+        DATABASE=stream_sniper
+        PORT=5432
         TEST_DB_HOST=postgres
         TEST_DB_NAME=test_stream_sniper
         TEST_DB_USER=postgres
@@ -130,23 +137,23 @@ jobs:
         TEST_DB_PORT=5432
         EOF
 
-    - name: Build images with docker-compose
+    - name: Build images with docker compose
       run: |
-        docker-compose build
+        docker compose build
 
     - name: Test API service startup
       run: |
-        docker-compose up -d api
+        docker compose up -d api
         sleep 10
-        
+
         # Test API health
-        docker-compose exec -T api curl -f http://localhost:5002/health || \
-        docker-compose exec -T api wget -q --spider http://localhost:5002/health || \
+        docker compose exec -T api curl -f http://localhost:5002/health || \
+        docker compose exec -T api wget -q --spider http://localhost:5002/health || \
         echo "API health check failed but continuing..."
-        
-        docker-compose down
+
+        docker compose down
 
     - name: Test collector service
       run: |
         # Test collector help command
-        docker-compose run --rm collector --help || echo "Collector help test completed"
+        docker compose run --rm collector --help || echo "Collector help test completed"

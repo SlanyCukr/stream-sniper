@@ -318,7 +318,7 @@ def warm_cache():
                 count = select_all_stream_count_db(creator_id)
                 cache_key = cache._generate_key("stream_count", creator_id)
                 cache.set(cache_key, count, ttl=1800)  # 30 minutes
-            except:
+            except Exception:
                 continue
 
         logger.info("Cache warming completed successfully")

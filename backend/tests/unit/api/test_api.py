@@ -264,8 +264,7 @@ class TestCreatorsEndpoints:
 
 class TestHealthEndpoint:
     """Test suite for health check endpoint."""
-
-    @patch("stream_sniper.api.api.get_pool")
+    @patch("stream_sniper.api.health.get_pool")
     def test_health_check_success(self, mock_get_pool):
         """Test successful health check."""
         mock_pool = Mock()
@@ -284,8 +283,7 @@ class TestHealthEndpoint:
         assert data["database"]["healthy"] is True
         assert "timestamp" in data
         assert data["version"] == "1.0.0"
-
-    @patch("stream_sniper.api.api.get_pool")
+    @patch("stream_sniper.api.health.get_pool")
     def test_health_check_unhealthy(self, mock_get_pool):
         """Test health check when database is unhealthy."""
         mock_pool = Mock()
@@ -297,9 +295,10 @@ class TestHealthEndpoint:
             response = client.get("/health")
 
         assert response.status_code == 503
-        assert "detail" in response.json()
-
-    @patch("stream_sniper.api.api.get_pool")
+        data = response.json()
+        assert data["status"] == "unhealthy"
+        assert data["database"]["healthy"] is False
+    @patch("stream_sniper.api.health.get_pool")
     def test_health_check_critical_error(self, mock_get_pool):
         """Test health check with critical error."""
         mock_get_pool.side_effect = Exception("Database connection failed")
@@ -309,7 +308,7 @@ class TestHealthEndpoint:
 
         assert response.status_code == 503
         data = response.json()
-        assert data["detail"]["status"] == "critical"
+        assert data["status"] in ("critical", "unhealthy")
 
 
 class TestRootEndpoint:

@@ -5,16 +5,22 @@ This file contains shared test configuration, fixtures, and mock objects
 used across the test suite for database, API, and collector components.
 """
 
+import contextlib
 import logging
 import os
 import tempfile
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 # Ensure a JWT signing secret exists before any application module is imported.
 # stream_sniper.api.auth fails fast at import time if neither JWT_SECRET_KEY nor
 # SECRET_KEY is set, which would otherwise break collection of API test modules.
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
+
+# Disable startup cache warming for tests. The API lifespan otherwise warms the
+# creators/stream-count caches from the real test DB, so endpoint tests (which mock
+# the gateway functions) would read warmed data instead of exercising their mocks.
+os.environ.setdefault("CACHE_WARM_ON_STARTUP", "false")
 
 import psycopg2
 import pytest
@@ -33,6 +39,16 @@ TEST_DB_CONFIG = {
     "password": os.getenv("TEST_DB_PASSWORD", "password"),
     "port": os.getenv("TEST_DB_PORT", "5432"),
 }
+
+# The table-gateway functions under test open connections through the application's
+# global connection pool (stream_sniper.database.connection_pool.get_pool), which
+# reads the POSTGRES_* env names (with legacy fallbacks). Point that pool at the
+# same test database the db_cursor fixture populates so gateway reads see the data.
+os.environ["POSTGRES_HOST"] = TEST_DB_CONFIG["host"]
+os.environ["POSTGRES_PORT"] = str(TEST_DB_CONFIG["port"])
+os.environ["POSTGRES_USER"] = TEST_DB_CONFIG["user"]
+os.environ["POSTGRES_PASSWORD"] = TEST_DB_CONFIG["password"]
+os.environ["POSTGRES_DB"] = TEST_DB_CONFIG["database"]
 
 # Schema creation SQL
 # Kept in sync with stream_sniper/database/create_table.sql and the column names
@@ -90,6 +106,37 @@ CREATE TABLE IF NOT EXISTS message (
     time              TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 """
+
+
+@pytest.fixture(autouse=True)
+def _reset_global_state():
+    """Isolate process-wide singletons between tests so ordering can't affect outcomes.
+
+    Two shared singletons otherwise leak state across tests:
+      * The DB connection pool -- the API lifespan shutdown calls ``close_pool()``,
+        which nulls the module-level instance but leaves the class-level
+        ``DatabaseConnectionPool`` singleton half-closed (``_pool is None``). A later
+        test calling ``get_pool()`` would then hit "Connection pool not initialized".
+      * The Redis cache -- cached endpoint responses would otherwise leak between
+        tests (e.g. a success test populating a key that a later error test reads,
+        so the mocked gateway is never called).
+
+    Resetting both after every test forces a clean re-initialization on next use.
+    """
+    yield
+
+    from stream_sniper.database import connection_pool as _cp
+
+    with contextlib.suppress(Exception):
+        if _cp._pool_instance is not None:
+            _cp._pool_instance.close_all_connections()
+    _cp._pool_instance = None
+    _cp.DatabaseConnectionPool._instance = None
+
+    with contextlib.suppress(Exception):
+        from stream_sniper.api.cache import get_cache
+
+        get_cache().flush_all()
 
 
 @pytest.fixture(scope="session")
@@ -154,9 +201,9 @@ def db_cursor(test_db_connection):
 @pytest.fixture
 def mock_connection_pool():
     """Mock database connection pool for unit tests."""
-    mock_pool = Mock()
-    mock_connection = Mock()
-    mock_cursor = Mock()
+    mock_pool = MagicMock()
+    mock_connection = MagicMock()
+    mock_cursor = MagicMock()
 
     # Configure mock behavior
     mock_pool.get_connection.return_value.__enter__.return_value = mock_connection

@@ -33,10 +33,11 @@ class MessageHandler:
         at_sign_index = message.find("@")
         end_of_nick_index = message.find(" ", at_sign_index)
 
-        if end_of_nick_index == -1:
-            nick = message[at_sign_index + 1 :]
-        else:
-            nick = message[at_sign_index + 1 : end_of_nick_index]
+        nick = (
+            message[at_sign_index + 1 :]
+            if end_of_nick_index == -1
+            else message[at_sign_index + 1 : end_of_nick_index]
+        )
 
         if nick in self.known_chatters:
             return self.known_chatters[nick]

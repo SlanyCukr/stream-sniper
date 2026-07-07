@@ -252,7 +252,7 @@ class LoggingConfig:
                 test_file = self.log_dir / ".write_test"
                 test_file.touch()
                 test_file.unlink()
-            except (PermissionError, OSError) as e:
+            except (PermissionError, OSError):
                 # Fallback to user's home directory
 
                 fallback_dir = Path.home() / ".stream_sniper_logs"
@@ -281,10 +281,7 @@ class LoggingConfig:
         if self.enable_console_logging:
             console_handler = logging.StreamHandler(sys.stdout)
 
-            if self.enable_json_logging:
-                console_formatter = JSONFormatter()
-            else:
-                console_formatter = ColoredConsoleFormatter()
+            console_formatter = JSONFormatter() if self.enable_json_logging else ColoredConsoleFormatter()
 
             console_handler.setFormatter(console_formatter)
             console_handler.setLevel(self.log_level)

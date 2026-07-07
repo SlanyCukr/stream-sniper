@@ -27,7 +27,7 @@ services:
       - POSTGRES_DB=stream_sniper
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env.prod - refusing to start with a default JWT secret}
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
       - CORS_ORIGINS=["*"]
     restart: unless-stopped
@@ -35,7 +35,7 @@ services:
     networks:
       - stream-sniper-prod
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:5002/health', timeout=5).status == 200 else 1)"]
       interval: 30s
       timeout: 10s
       retries: 3

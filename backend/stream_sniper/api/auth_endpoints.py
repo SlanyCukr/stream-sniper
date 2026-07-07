@@ -10,6 +10,7 @@ from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator
 
+from ..database.connection_pool import get_pool
 from ..database.user_table_gateway import (
     activate_user_db,
     count_users_db,
@@ -1057,7 +1058,3 @@ def create_user_admin(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
-
-
-# Import get_pool for system stats
-from ..database.connection_pool import get_pool

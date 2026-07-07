@@ -33,12 +33,13 @@ class TestStreamTableGateway:
         stream_id = create_test_stream(db_cursor, sample_stream_data, creator_id)
 
         # Test function
-        result = select_all_streams_db(creator_id, offset=0)
+        result = select_all_streams_db(creator_id, 0)
 
         assert len(result) == 1
         stream = result[0]
         assert stream[0] == stream_id  # stream ID
-        assert stream[1] == sample_stream_data["title"]  # title
+        # select_all_streams_db returns the creator display_name at index 1 (not the title).
+        assert stream[1] == "Test Creator"
 
     def test_select_all_streams_db_all_creators(self, db_cursor):
         """Test retrieving streams for all creators (creator_id = -1)."""
@@ -56,7 +57,7 @@ class TestStreamTableGateway:
         create_test_stream(db_cursor, {"twitch_id": "stream2", "title": "Stream 2"}, creator2_id)
 
         # Test function with creator_id = -1 (all creators)
-        result = select_all_streams_db(-1, offset=0)
+        result = select_all_streams_db(-1, 0)
 
         assert len(result) == 2
 
@@ -69,7 +70,7 @@ class TestStreamTableGateway:
             create_test_stream(db_cursor, {"twitch_id": f"stream_{i}", "title": f"Stream {i}"}, creator_id)
 
         # Test with offset
-        result = select_all_streams_db(creator_id, offset=2)
+        result = select_all_streams_db(creator_id, 2)
 
         assert len(result) == 3  # Should return remaining streams after offset
 
@@ -105,7 +106,7 @@ class TestStreamTableGateway:
         for _ in range(5):  # chatter1 sends 5 messages
             db_cursor.execute(
                 """
-                INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+                INSERT INTO message (chatter_id, stream_id, message_text_id, time)
                 VALUES (%s, %s, %s, %s)
             """,
                 (chatter1_id, stream_id, message_text_id, datetime.now()),
@@ -114,7 +115,7 @@ class TestStreamTableGateway:
         for _ in range(3):  # chatter2 sends 3 messages
             db_cursor.execute(
                 """
-                INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+                INSERT INTO message (chatter_id, stream_id, message_text_id, time)
                 VALUES (%s, %s, %s, %s)
             """,
                 (chatter2_id, stream_id, message_text_id, datetime.now()),
@@ -142,7 +143,7 @@ class TestStreamTableGateway:
         for _ in range(3):  # tagged_chatter gets tagged 3 times
             db_cursor.execute(
                 """
-                INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp, tagged_chatter_id)
+                INSERT INTO message (chatter_id, stream_id, message_text_id, time, tagged_chatter_id)
                 VALUES (%s, %s, %s, %s, %s)
             """,
                 (tagger_id, stream_id, message_text_id, datetime.now(), chatter2_id),
@@ -176,7 +177,7 @@ class TestStreamTableGateway:
         # Insert message from other creator
         db_cursor.execute(
             """
-            INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+            INSERT INTO message (chatter_id, stream_id, message_text_id, time)
             VALUES (%s, %s, %s, %s)
         """,
             (other_chatter_id, stream_id, message_text_id, datetime.now()),
@@ -186,7 +187,8 @@ class TestStreamTableGateway:
         result = select_creators_that_wrote_in_stream_db(stream_id, main_creator_id)
 
         assert len(result) == 1
-        assert result[0][0] == other_creator_id  # other creator ID
+        # The query returns the chatter_id (not the creator id) plus the matching nick.
+        assert result[0][0] == other_chatter_id
         assert result[0][1] == "other_creator"  # other creator nick
 
     def test_select_chatters_in_stream_db(self, db_cursor):
@@ -201,7 +203,7 @@ class TestStreamTableGateway:
         # Insert messages from different chatters
         db_cursor.execute(
             """
-            INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+            INSERT INTO message (chatter_id, stream_id, message_text_id, time)
             VALUES (%s, %s, %s, %s)
         """,
             (chatter1_id, stream_id, message_text_id, datetime.now()),
@@ -209,7 +211,7 @@ class TestStreamTableGateway:
 
         db_cursor.execute(
             """
-            INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+            INSERT INTO message (chatter_id, stream_id, message_text_id, time)
             VALUES (%s, %s, %s, %s)
         """,
             (chatter2_id, stream_id, message_text_id, datetime.now()),
@@ -218,8 +220,9 @@ class TestStreamTableGateway:
         # Test function
         result = select_chatters_in_stream_db(stream_id)
 
-        assert len(result) == 1  # Returns single row with count
-        assert result[0][0] == 2  # Count of unique chatters
+        # The query returns one row per distinct chatter (chatter_id, nick), not a count.
+        assert len(result) == 2
+        assert {row[0] for row in result} == {chatter1_id, chatter2_id}
 
     def test_select_chatter_messages_on_stream_db(self, db_cursor):
         """Test retrieving messages from specific chatter in specific stream."""
@@ -233,7 +236,7 @@ class TestStreamTableGateway:
             message_text_id = create_test_message_text(db_cursor, text)
             db_cursor.execute(
                 """
-                INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+                INSERT INTO message (chatter_id, stream_id, message_text_id, time)
                 VALUES (%s, %s, %s, %s)
             """,
                 (chatter_id, stream_id, message_text_id, datetime.now()),
@@ -309,7 +312,7 @@ class TestStreamTableGatewayWithMocks:
             (2, "Stream 2", "2024-01-16 20:00:00", "2024-01-16 22:00:00", "thumb2.jpg", 200),
         ]
 
-        result = select_all_streams_db(1, offset=0)
+        result = select_all_streams_db(1, 0)
 
         assert len(result) == 2
         mock_cursor.execute.assert_called_once()

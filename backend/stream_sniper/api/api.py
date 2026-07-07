@@ -149,14 +149,14 @@ class ErrorResponse(BaseModel):
 
 
 class HealthStatus(BaseModel):
-    """API and database health status"""
+    """Basic health status (database is the only critical component checked)"""
 
     status: str = Field(..., description="Overall health status", json_schema_extra={"example": "healthy"})
-    database: Dict[str, Any] = Field(..., description="Database connection pool status")
-    cache: Dict[str, Any] = Field(..., description="Cache status and statistics")
-    rate_limiting: Dict[str, Any] = Field(..., description="Rate limiting status")
+    database: Optional[Dict[str, Any]] = Field(None, description="Database connection pool status")
     timestamp: str = Field(..., description="Health check timestamp")
     version: str = Field(..., description="API version", json_schema_extra={"example": "1.0.0"})
+    uptime_seconds: Optional[float] = Field(None, description="Application uptime in seconds")
+    error: Optional[str] = Field(None, description="Error detail when the health check itself fails")
 
 
 class DetailedHealthStatus(BaseModel):

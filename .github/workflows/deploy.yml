@@ -49,20 +49,20 @@ jobs:
           docker-compose -f docker-compose.prod.yml down --remove-orphans || true
           docker container prune -f || true
 
-      - name: Setup environment configuration
+      - name: Verify environment configuration
         run: |
           cd /home/pi/stream-sniper
-          # Create .env.prod from template if it doesn't exist
+          # Never fabricate .env.prod with weak/known defaults — deploying with a
+          # guessable JWT signing secret or DB password is a security hole. Fail
+          # loudly and require the operator to provision real production secrets.
           if [ ! -f .env.prod ]; then
-            echo "⚠️  .env.prod not found. Creating from template..."
-            cp .env.prod.template .env.prod
-            # Update with basic working values for automated deployment
-            sed -i 's/your_secure_database_password_here/stream_sniper_password/g' .env.prod
-            sed -i 's/your_very_long_secure_secret_key_for_jwt_signing_change_this_in_production/development_secret_key_change_in_production_123456789/g' .env.prod
-            sed -i 's/your_twitch_client_id/your_twitch_client_id/g' .env.prod
-            sed -i 's/your_twitch_client_secret/your_twitch_client_secret/g' .env.prod
-            echo "✅ Created .env.prod with default values"
+            echo "❌ .env.prod is missing on the deploy host (/home/pi/stream-sniper/.env.prod)."
+            echo "   Create it from the template with REAL production secrets before deploying:"
+            echo "     cp .env.prod.template .env.prod  &&  \$EDITOR .env.prod"
+            echo "   Required: SECRET_KEY (long random), POSTGRES_PASSWORD, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET."
+            exit 1
           fi
+          echo "✅ .env.prod is present"
 
       - name: Deploy new containers
         run: |
@@ -128,5 +128,6 @@ jobs:
 
       - name: Clean up old Docker images
         run: |
+          # Scope cleanup to dangling images only. This RPI is shared with other
+          # projects — `docker system prune --volumes` would destroy their data.
           docker image prune -f
-          docker system prune -f --volumes

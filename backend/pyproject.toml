@@ -104,6 +104,17 @@ ignore = [
     "B904",   # raise-without-from-inside-except (pre-existing style across API error handlers)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Deliberate star-import barrel that re-exports the table-gateway API.
+"stream_sniper/database/__init__.py" = ["F403", "F405"]
+# Test-authoring patterns that are intentional in the test suite:
+#   B017/pytest.raises(Exception) broad-exception assertions,
+#   E712 explicit == True/False against DB-returned values,
+#   B007 unused loop index, B905 zip() without strict=,
+#   SIM117 nested with (patch + pytest.raises) kept for readability,
+#   F841 unused intermediate fixtures/vars in test setup.
+"tests/**" = ["B017", "E712", "B007", "B905", "SIM117", "F841"]
+
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true

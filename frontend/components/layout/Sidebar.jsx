@@ -116,7 +116,7 @@ const Sidebar = () => {
                         <>
                             <hr className="my-3" />
                             <div className="px-3 pb-1">
-                                <span className="sidebar-section">// Administration</span>
+                                <span className="sidebar-section">{'// Administration'}</span>
                             </div>
                             {adminNavigation.map((navi, index) => (
                                 <Nav.Item

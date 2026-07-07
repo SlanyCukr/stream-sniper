@@ -117,9 +117,7 @@ class ProcessingQueue:
     async def _process_job(self, job_tuple: tuple):
         """Process a single job."""
         job_id = job_tuple[0]
-        tracked_streamer_id = job_tuple[1]
         twitch_stream_id = job_tuple[2]
-        current_status = job_tuple[3]
         twitch_username = job_tuple[10]
         
         try:
