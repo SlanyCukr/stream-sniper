@@ -200,7 +200,7 @@ class APIConfig:
                 raise ValueError(f"Invalid database min connections: {self.database.pool_min_conn}")
 
             if self.database.pool_max_conn < self.database.pool_min_conn:
-                raise ValueError(f"Database max connections must be >= min connections")
+                raise ValueError("Database max connections must be >= min connections")
 
             # Validate TTL values
             if self.cache.default_ttl < 1:

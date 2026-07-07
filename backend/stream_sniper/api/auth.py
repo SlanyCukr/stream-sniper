@@ -3,16 +3,17 @@ Authentication utilities and dependencies for the Stream Sniper API.
 """
 
 import os
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from datetime import UTC, datetime, timedelta
+from typing import Any, Dict, Optional
+
 import bcrypt
 import jwt
-from fastapi import HTTPException, Depends, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
 
-from ..database.user_table_gateway import select_user_by_username_db, select_user_by_id_db
+from ..database.user_table_gateway import select_user_by_id_db, select_user_by_username_db
 from ..logging_config import get_logger
 
 load_dotenv()
@@ -20,7 +21,13 @@ load_dotenv()
 logger = get_logger(__name__)
 
 # JWT Configuration
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
+# Read the signing secret from JWT_SECRET_KEY, falling back to SECRET_KEY
+# (production compose/deploy sets SECRET_KEY). Fail fast if neither is set.
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY")
+if not JWT_SECRET_KEY:
+    raise RuntimeError(
+        "JWT signing secret is not configured. Set JWT_SECRET_KEY (or SECRET_KEY) in the environment."
+    )
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
@@ -91,9 +98,9 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     """Create a JWT access token"""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(UTC) + timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)

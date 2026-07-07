@@ -7,14 +7,14 @@ from .decorators import with_cursor, with_cursor_connection
 
 @with_cursor
 def select_all_chatters_on_stream_db(stream_id: int, cursor):
-    sql = f"""
+    sql = """
     SELECT
         id,
         nick
     FROM
         chatter
     WHERE id IN
-        (SELECT chatter_id FROM message WHERE stream_id = {stream_id})
+        (SELECT chatter_id FROM message WHERE stream_id = %s)
     """
 
     cursor.execute(sql, (stream_id,))
@@ -29,7 +29,7 @@ def insert_new_chatter_db(nick, cursor, connection):
     :param nick: Nick of the chatter
     :return: Created chatters ID or Existing chatters ID
     """
-    sql = f"""
+    sql = """
     WITH e AS 
     (
         INSERT INTO 
@@ -58,7 +58,7 @@ def insert_new_chatters_db(nicks: List[str], cursor, connection) -> List[int]:
     :param nicks: Nicks of the chatters
     :return: Created chatters IDs or Existing chatters IDs
     """
-    sql = f"""
+    sql = """
     INSERT INTO 
     chatter 
         (nick) 
@@ -72,7 +72,7 @@ def insert_new_chatters_db(nicks: List[str], cursor, connection) -> List[int]:
 
 @with_cursor
 def select_all_chatters_db(cursor) -> dict:
-    sql = f"""
+    sql = """
     SELECT
         id,
         nick

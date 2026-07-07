@@ -5,12 +5,12 @@ Database connection pool management for improved performance and resource utiliz
 import logging
 import os
 import threading
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from typing import Any, Dict, Optional
 
 import psycopg2
+import psycopg2.pool  # noqa: F401  # imported for side effect: registers psycopg2.pool submodule
 from dotenv import load_dotenv
-from psycopg2 import pool
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class DatabaseConnectionPool:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    cls._instance = super(DatabaseConnectionPool, cls).__new__(cls)
+                    cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
@@ -46,12 +46,23 @@ class DatabaseConnectionPool:
         """Load database configuration from environment variables."""
         load_dotenv()
 
+        # Prefer the explicit POSTGRES_* names (used by prod compose/deploy);
+        # fall back to the legacy un-prefixed names from .env.example. The
+        # legacy USER is checked last because login shells define it.
+        def _db_env(prefixed: str, legacy: str, default: str | None = None) -> str:
+            value = os.environ.get(prefixed) or os.environ.get(legacy) or default
+            if value is None:
+                raise RuntimeError(
+                    f"Database configuration missing: set {prefixed} (or legacy {legacy}) in the environment"
+                )
+            return value
+
         config = {
-            "user": os.environ["USER"],
-            "password": os.environ["PASSWORD"],
-            "host": os.environ["HOST"],
-            "database": os.environ["DATABASE"],
-            "port": int(os.environ.get("PORT", 5432)),
+            "user": _db_env("POSTGRES_USER", "USER"),
+            "password": _db_env("POSTGRES_PASSWORD", "PASSWORD"),
+            "host": _db_env("POSTGRES_HOST", "HOST"),
+            "database": _db_env("POSTGRES_DB", "DATABASE"),
+            "port": int(_db_env("POSTGRES_PORT", "PORT", "5432")),
             "options": "-c search_path=stream_sniper",
         }
 
@@ -124,18 +135,14 @@ class DatabaseConnectionPool:
         except psycopg2.Error as e:
             logger.error(f"Database connection error: {e}")
             if connection:
-                try:
+                with suppress(Exception):
                     connection.rollback()
-                except:
-                    pass
             raise
         except Exception as e:
             logger.error(f"Unexpected error with database connection: {e}")
             if connection:
-                try:
+                with suppress(Exception):
                     connection.rollback()
-                except:
-                    pass
             raise
         finally:
             if connection:

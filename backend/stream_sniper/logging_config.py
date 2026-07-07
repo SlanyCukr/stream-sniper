@@ -16,7 +16,7 @@ import uuid
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Dict, Optional, Union
 
 # Context variable for correlation ID
 correlation_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("correlation_id", default="")
@@ -252,9 +252,8 @@ class LoggingConfig:
                 test_file = self.log_dir / ".write_test"
                 test_file.touch()
                 test_file.unlink()
-            except (PermissionError, OSError) as e:
+            except (PermissionError, OSError):
                 # Fallback to user's home directory
-                import os
 
                 fallback_dir = Path.home() / ".stream_sniper_logs"
                 fallback_dir.mkdir(parents=True, exist_ok=True)
@@ -282,10 +281,7 @@ class LoggingConfig:
         if self.enable_console_logging:
             console_handler = logging.StreamHandler(sys.stdout)
 
-            if self.enable_json_logging:
-                console_formatter = JSONFormatter()
-            else:
-                console_formatter = ColoredConsoleFormatter()
+            console_formatter = JSONFormatter() if self.enable_json_logging else ColoredConsoleFormatter()
 
             console_handler.setFormatter(console_formatter)
             console_handler.setLevel(self.log_level)

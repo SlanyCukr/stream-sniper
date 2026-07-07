@@ -16,8 +16,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -158,13 +158,13 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
-# Virtual environment dirs
-[Bb]in
-[Ii]nclude
-[Ll]ib
-[Ll]ib64
-[Ll]ocal
-[Ss]cripts
+# Virtual environment dirs (anchored to repo root — frontend/lib is real source!)
+/[Bb]in
+/[Ii]nclude
+/[Ll]ib
+/[Ll]ib64
+/[Ll]ocal
+/[Ss]cripts
 pyvenv.cfg
 pip-selfcheck.json
 

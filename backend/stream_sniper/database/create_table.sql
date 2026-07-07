@@ -22,7 +22,7 @@ create table stream_sniper.stream
     twitch_id     bigint        not null,
     title         varchar(255)  not null,
     start         timestamp      not null,
-    end           timestamp      null,
+    "end"         timestamp      null,
     thumbnail_url varchar(255)  null,
     message_count int default 0 not null,
     creator_id    int           null,
@@ -30,6 +30,14 @@ create table stream_sniper.stream
         unique (twitch_id),
     constraint stream__creator_id_fk
         foreign key (creator_id) references stream_sniper.creator (id)
+);
+
+create table stream_sniper.message_text
+(
+    id   serial primary key,
+    text varchar(255) not null,
+    constraint text_uq
+        unique (text)
 );
 
 create table stream_sniper.message
@@ -46,14 +54,6 @@ create table stream_sniper.message
         foreign key (stream_id) references stream_sniper.stream (id),
     constraint message_text_id_fk
         foreign key (message_text_id) references stream_sniper.message_text (id)
-);
-
-create table stream_sniper.message_text
-(
-    id   serial primary key,
-    text varchar(255) not null,
-    constraint text_uq
-        unique (text)
 );
 
 create table stream_sniper.users

@@ -21,11 +21,19 @@ jobs:
 
       - name: Setup local repository
         run: |
-          # Copy checked-out code to deployment directory
+          # Copy checked-out code to deployment directory.
+          # .env.prod is untracked and lives inside the deploy dir — preserve it
+          # across the rm -rf or every deploy would wipe the production secrets.
           echo "🔄 Setting up deployment directory..."
+          if [ -f /home/pi/stream-sniper/.env.prod ]; then
+            cp /home/pi/stream-sniper/.env.prod /home/pi/.env.prod.stream-sniper.keep
+          fi
           rm -rf /home/pi/stream-sniper
           mkdir -p /home/pi
           cp -r /home/pi/actions-runner/_work/stream-sniper/stream-sniper /home/pi/stream-sniper
+          if [ -f /home/pi/.env.prod.stream-sniper.keep ]; then
+            mv /home/pi/.env.prod.stream-sniper.keep /home/pi/stream-sniper/.env.prod
+          fi
           echo "✅ Repository copied to /home/pi/stream-sniper"
 
       - name: Build Docker images
@@ -46,29 +54,29 @@ jobs:
       - name: Stop existing containers
         run: |
           cd /home/pi/stream-sniper
-          docker-compose -f docker-compose.prod.yml down --remove-orphans || true
+          docker compose -f docker-compose.prod.yml down --remove-orphans || true
           docker container prune -f || true
 
-      - name: Setup environment configuration
+      - name: Verify environment configuration
         run: |
           cd /home/pi/stream-sniper
-          # Create .env.prod from template if it doesn't exist
+          # Never fabricate .env.prod with weak/known defaults — deploying with a
+          # guessable JWT signing secret or DB password is a security hole. Fail
+          # loudly and require the operator to provision real production secrets.
           if [ ! -f .env.prod ]; then
-            echo "⚠️  .env.prod not found. Creating from template..."
-            cp .env.prod.template .env.prod
-            # Update with basic working values for automated deployment
-            sed -i 's/your_secure_database_password_here/stream_sniper_password/g' .env.prod
-            sed -i 's/your_very_long_secure_secret_key_for_jwt_signing_change_this_in_production/development_secret_key_change_in_production_123456789/g' .env.prod
-            sed -i 's/your_twitch_client_id/your_twitch_client_id/g' .env.prod
-            sed -i 's/your_twitch_client_secret/your_twitch_client_secret/g' .env.prod
-            echo "✅ Created .env.prod with default values"
+            echo "❌ .env.prod is missing on the deploy host (/home/pi/stream-sniper/.env.prod)."
+            echo "   Create it from the template with REAL production secrets before deploying:"
+            echo "     cp .env.prod.template .env.prod  &&  \$EDITOR .env.prod"
+            echo "   Required: SECRET_KEY (long random), POSTGRES_PASSWORD, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET."
+            exit 1
           fi
+          echo "✅ .env.prod is present"
 
       - name: Deploy new containers
         run: |
           cd /home/pi/stream-sniper
           # Use production environment file
-          docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
 
       - name: Wait for services to start
         run: |
@@ -79,7 +87,7 @@ jobs:
         run: |
           cd /home/pi/stream-sniper
           echo "📊 Container status:"
-          docker-compose -f docker-compose.prod.yml ps
+          docker compose -f docker-compose.prod.yml ps
           
           echo "🔍 Testing service endpoints..."
           
@@ -104,16 +112,17 @@ jobs:
             if [ $i -eq 10 ]; then
               echo "❌ API health check failed after 10 attempts"
               echo "Debug: Container logs"
-              docker-compose -f docker-compose.prod.yml logs --tail=50
+              docker compose -f docker-compose.prod.yml logs --tail=50
               exit 1
             fi
           done
           
-          # Test database connectivity (host PostgreSQL)
-          if pg_isready -h localhost -p 5432; then
-            echo "✅ Host database is ready"
+          # Test database connectivity (shared 'postgres' container; the host
+          # has no postgresql-client installed, so check from inside it)
+          if docker exec postgres pg_isready -q; then
+            echo "✅ Database is ready"
           else
-            echo "❌ Host database not ready"
+            echo "❌ Database not ready"
             exit 1
           fi
           
@@ -128,5 +137,6 @@ jobs:
 
       - name: Clean up old Docker images
         run: |
+          # Scope cleanup to dangling images only. This RPI is shared with other
+          # projects — `docker system prune --volumes` would destroy their data.
           docker image prune -f
-          docker system prune -f --volumes

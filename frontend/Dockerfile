@@ -1,24 +1,11 @@
-# Development Dockerfile for React frontend with hot reload
-FROM node:18-alpine
-
-# Set working directory
+FROM node:22-alpine
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies (including dev dependencies for hot reload)
-RUN npm install --force
-
-# Copy source code
+RUN npm install
 COPY . .
-
-# Expose port for development server
 EXPOSE 3000
-
-# Set environment variable for hot reload
+# Polling for reliable HMR over Docker bind mounts
+ENV WATCHPACK_POLLING=true
 ENV CHOKIDAR_USEPOLLING=true
-ENV GENERATE_SOURCEMAP=false
-
-# Start development server with hot reload
-CMD ["npm", "start"]
+ENV NEXT_TELEMETRY_DISABLED=1
+CMD ["npm", "run", "dev"]

@@ -2,12 +2,11 @@
 Database gateway for user table operations.
 """
 
-from typing import Optional, List, Tuple
-from psycopg2.extras import RealDictCursor
+from typing import List, Optional, Tuple
 
+from ..logging_config import get_logger
 from .connection_pool import get_pool
 from .decorators import log_database_operation
-from ..logging_config import get_logger
 
 logger = get_logger(__name__)
 

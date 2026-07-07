@@ -6,7 +6,7 @@ database connections and error handling across the application.
 """
 
 import logging
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -19,9 +19,9 @@ class TestDatabaseDecorators:
     def test_with_cursor_decorator_success(self):
         """Test successful execution with cursor decorator."""
         # Mock the pool and cursor
-        mock_pool = Mock()
-        mock_cursor = Mock()
-        mock_connection_context = Mock()
+        mock_pool = MagicMock()
+        mock_cursor = MagicMock()
+        mock_connection_context = MagicMock()
 
         # Configure the mock
         mock_pool.get_cursor.return_value.__enter__.return_value = mock_cursor
@@ -45,8 +45,8 @@ class TestDatabaseDecorators:
 
     def test_with_cursor_decorator_exception_handling(self):
         """Test exception handling in cursor decorator."""
-        mock_pool = Mock()
-        mock_cursor = Mock()
+        mock_pool = MagicMock()
+        mock_cursor = MagicMock()
 
         # Configure cursor to raise exception
         mock_pool.get_cursor.return_value.__enter__.return_value = mock_cursor
@@ -65,8 +65,8 @@ class TestDatabaseDecorators:
 
     def test_with_cursor_decorator_logging(self, caplog):
         """Test that decorator logs errors appropriately."""
-        mock_pool = Mock()
-        mock_cursor = Mock()
+        mock_pool = MagicMock()
+        mock_cursor = MagicMock()
 
         mock_pool.get_cursor.return_value.__enter__.return_value = mock_cursor
         mock_cursor.execute.side_effect = Exception("Test database error")
@@ -85,9 +85,9 @@ class TestDatabaseDecorators:
 
     def test_with_cursor_connection_decorator_success(self):
         """Test successful execution with cursor connection decorator."""
-        mock_pool = Mock()
-        mock_connection = Mock()
-        mock_cursor = Mock()
+        mock_pool = MagicMock()
+        mock_connection = MagicMock()
+        mock_cursor = MagicMock()
 
         # Configure the mocks
         mock_pool.get_connection.return_value.__enter__.return_value = mock_connection
@@ -110,9 +110,9 @@ class TestDatabaseDecorators:
 
     def test_with_cursor_connection_decorator_exception(self):
         """Test exception handling in cursor connection decorator."""
-        mock_pool = Mock()
-        mock_connection = Mock()
-        mock_cursor = Mock()
+        mock_pool = MagicMock()
+        mock_connection = MagicMock()
+        mock_cursor = MagicMock()
 
         mock_pool.get_connection.return_value.__enter__.return_value = mock_connection
         mock_connection.cursor.return_value = mock_cursor
@@ -132,9 +132,9 @@ class TestDatabaseDecorators:
 
     def test_with_cursor_connection_cursor_cleanup(self):
         """Test that cursor is properly cleaned up even on exception."""
-        mock_pool = Mock()
-        mock_connection = Mock()
-        mock_cursor = Mock()
+        mock_pool = MagicMock()
+        mock_connection = MagicMock()
+        mock_cursor = MagicMock()
 
         mock_pool.get_connection.return_value.__enter__.return_value = mock_connection
         mock_connection.cursor.return_value = mock_cursor
@@ -153,8 +153,8 @@ class TestDatabaseDecorators:
 
     def test_with_cursor_connection_none_cursor_handling(self):
         """Test handling when cursor is None."""
-        mock_pool = Mock()
-        mock_connection = Mock()
+        mock_pool = MagicMock()
+        mock_connection = MagicMock()
 
         mock_pool.get_connection.return_value.__enter__.return_value = mock_connection
         mock_connection.cursor.return_value = None  # Cursor is None
@@ -172,7 +172,7 @@ class TestDatabaseDecorators:
 
     def test_get_db_config_function(self):
         """Test get_db_config function returns pool configuration."""
-        mock_pool = Mock()
+        mock_pool = MagicMock()
         mock_config = {
             "host": "localhost",
             "database": "test_db",
@@ -208,9 +208,9 @@ class TestDatabaseDecorators:
 
     def test_decorator_argument_passing(self):
         """Test that decorators correctly pass arguments to wrapped functions."""
-        mock_pool = Mock()
-        mock_cursor = Mock()
-        mock_connection = Mock()
+        mock_pool = MagicMock()
+        mock_cursor = MagicMock()
+        mock_connection = MagicMock()
 
         # Test with_cursor argument passing
         mock_pool.get_cursor.return_value.__enter__.return_value = mock_cursor
@@ -219,8 +219,10 @@ class TestDatabaseDecorators:
         def multi_arg_function(arg1, arg2, keyword_arg=None, cursor=None):
             return (arg1, arg2, keyword_arg)
 
+        # The decorator's wrapper is ``def wrapper(*args)`` and calls ``f(*args, cursor)``,
+        # so it only forwards positional arguments (cursor is appended positionally).
         with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
-            result = multi_arg_function("value1", "value2", keyword_arg="keyword_value")
+            result = multi_arg_function("value1", "value2", "keyword_value")
 
         assert result == ("value1", "value2", "keyword_value")
 
@@ -239,8 +241,8 @@ class TestDatabaseDecorators:
 
     def test_decorator_return_value_handling(self):
         """Test that decorators properly handle different return values."""
-        mock_pool = Mock()
-        mock_cursor = Mock()
+        mock_pool = MagicMock()
+        mock_cursor = MagicMock()
 
         mock_pool.get_cursor.return_value.__enter__.return_value = mock_cursor
 

@@ -3,24 +3,16 @@ Stream monitoring service for tracking Twitch streamers.
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from twitchAPI.object.api import Stream
-from twitchAPI.twitch import Twitch
-
+from ..collector.twitch_api import TwitchAPI
+from ..database.processing_jobs_table_gateway import insert_processing_job_db, job_exists_db
 from ..database.tracked_streamers_table_gateway import (
     select_active_tracked_streamers_db,
     update_stream_check_time_db,
-    update_last_processed_stream_db
 )
-from ..database.processing_jobs_table_gateway import (
-    insert_processing_job_db,
-    job_exists_db
-)
-from ..database.stream_table_gateway import select_stream_by_twitch_id_db
-from ..collector.twitch_api import TwitchAPI
 from ..logging_config import get_logger
 
 logger = get_logger(__name__)

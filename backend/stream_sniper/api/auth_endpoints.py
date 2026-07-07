@@ -5,24 +5,38 @@ Authentication endpoints for user registration, login, and user management.
 import re
 from datetime import timedelta
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, status, Request, Response
-from pydantic import BaseModel, Field, validator
-from email_validator import validate_email, EmailNotValidError
 
-from .auth import (
-    User, UserCreate, UserLogin, Token, 
-    hash_password, authenticate_user, create_access_token,
-    get_current_user, get_current_active_user, get_current_admin_user,
-    UserInDB, JWT_ACCESS_TOKEN_EXPIRE_MINUTES
-)
-from .rate_limiter import limiter, rate_limits
+from email_validator import EmailNotValidError, validate_email
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from pydantic import BaseModel, Field, field_validator
+
+from ..database.connection_pool import get_pool
 from ..database.user_table_gateway import (
-    insert_user_db, user_exists_db, select_all_users_db, 
-    count_users_db, deactivate_user_db, activate_user_db,
-    update_user_role_db, update_user_password_db, select_user_by_id_db,
-    delete_user_db
+    activate_user_db,
+    count_users_db,
+    deactivate_user_db,
+    delete_user_db,
+    insert_user_db,
+    select_all_users_db,
+    select_user_by_id_db,
+    update_user_password_db,
+    update_user_role_db,
+    user_exists_db,
 )
 from ..logging_config import get_logger
+from .auth import (
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
+    Token,
+    UserCreate,
+    UserInDB,
+    UserLogin,
+    authenticate_user,
+    create_access_token,
+    get_current_active_user,
+    get_current_admin_user,
+    hash_password,
+)
+from .rate_limiter import limiter
 
 logger = get_logger(__name__)
 
@@ -43,7 +57,8 @@ class UserResponse(BaseModel):
 class UserCreateExtended(UserCreate):
     """Extended user creation with validation"""
     
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def validate_username(cls, v):
         if not v or len(v) < 3:
             raise ValueError('Username must be at least 3 characters long')
@@ -53,7 +68,8 @@ class UserCreateExtended(UserCreate):
             raise ValueError('Username can only contain letters, numbers, hyphens, and underscores')
         return v
     
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email_format(cls, v):
         try:
             validate_email(v)
@@ -61,7 +77,8 @@ class UserCreateExtended(UserCreate):
         except EmailNotValidError:
             raise ValueError('Invalid email format')
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters long')
@@ -86,7 +103,8 @@ class PasswordChange(BaseModel):
     current_password: str = Field(..., description="Current password")
     new_password: str = Field(..., description="New password", min_length=8, max_length=128)
     
-    @validator('new_password')
+    @field_validator('new_password')
+    @classmethod
     def validate_new_password(cls, v):
         if not re.search(r'[A-Za-z]', v):
             raise ValueError('Password must contain at least one letter')
@@ -138,7 +156,7 @@ def convert_user_to_response(user_tuple) -> UserResponse:
     }
 )
 @limiter.limit("5/minute")
-async def register_user(
+def register_user(
     user_data: UserCreateExtended,
     request: Request,
     response: Response
@@ -208,7 +226,7 @@ async def register_user(
     }
 )
 @limiter.limit("10/minute")
-async def login(
+def login(
     user_credentials: UserLogin,
     request: Request,
     response: Response
@@ -265,7 +283,7 @@ async def login(
     }
 )
 @limiter.limit("60/minute")
-async def get_current_user_info(
+def get_current_user_info(
     request: Request,
     response: Response,
     current_user: UserInDB = Depends(get_current_active_user)
@@ -302,7 +320,7 @@ async def get_current_user_info(
     }
 )
 @limiter.limit("10/minute")
-async def update_current_user(
+def update_current_user(
     user_update: UserUpdate,
     request: Request,
     response: Response,
@@ -395,7 +413,7 @@ async def update_current_user(
     }
 )
 @limiter.limit("5/minute")
-async def change_password(
+def change_password(
     password_change: PasswordChange,
     request: Request,
     response: Response,
@@ -456,7 +474,7 @@ async def change_password(
     }
 )
 @limiter.limit("30/minute")
-async def get_all_users(
+def get_all_users(
     request: Request,
     response: Response,
     offset: int = 0,
@@ -506,7 +524,7 @@ async def get_all_users(
     }
 )
 @limiter.limit("10/minute")
-async def update_user_role(
+def update_user_role(
     user_id: int,
     new_role: str,
     request: Request,
@@ -561,7 +579,7 @@ async def update_user_role(
     }
 )
 @limiter.limit("10/minute")
-async def activate_user(
+def activate_user(
     user_id: int,
     request: Request,
     response: Response,
@@ -609,7 +627,7 @@ async def activate_user(
     }
 )
 @limiter.limit("10/minute")
-async def deactivate_user(
+def deactivate_user(
     user_id: int,
     request: Request,
     response: Response,
@@ -657,7 +675,7 @@ async def deactivate_user(
     }
 )
 @limiter.limit("5/minute")
-async def delete_user(
+def delete_user(
     user_id: int,
     request: Request,
     response: Response,
@@ -713,7 +731,7 @@ async def delete_user(
     }
 )
 @limiter.limit("30/minute")
-async def get_user_by_id(
+def get_user_by_id(
     user_id: int,
     request: Request,
     response: Response,
@@ -762,7 +780,7 @@ async def get_user_by_id(
     }
 )
 @limiter.limit("10/minute")
-async def update_user_by_id(
+def update_user_by_id(
     user_id: int,
     user_update: UserUpdate,
     request: Request,
@@ -869,7 +887,7 @@ class SystemStats(BaseModel):
     }
 )
 @limiter.limit("30/minute")
-async def get_system_stats(
+def get_system_stats(
     request: Request,
     response: Response,
     current_user: UserInDB = Depends(get_current_admin_user)
@@ -922,7 +940,8 @@ class UserCreateAdmin(BaseModel):
     role: str = Field(default="user", description="User role (user/admin)")
     is_active: bool = Field(default=True, description="Whether user is active")
     
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def validate_username(cls, v):
         if not v or len(v) < 3:
             raise ValueError('Username must be at least 3 characters long')
@@ -932,7 +951,8 @@ class UserCreateAdmin(BaseModel):
             raise ValueError('Username can only contain letters, numbers, hyphens, and underscores')
         return v
     
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email_format(cls, v):
         try:
             validate_email(v)
@@ -940,7 +960,8 @@ class UserCreateAdmin(BaseModel):
         except EmailNotValidError:
             raise ValueError('Invalid email format')
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters long')
@@ -952,7 +973,8 @@ class UserCreateAdmin(BaseModel):
             raise ValueError('Password must contain at least one number')
         return v
     
-    @validator('role')
+    @field_validator('role')
+    @classmethod
     def validate_role(cls, v):
         if v not in ["user", "admin"]:
             raise ValueError('Role must be either "user" or "admin"')
@@ -981,7 +1003,7 @@ class UserCreateAdmin(BaseModel):
     }
 )
 @limiter.limit("10/minute")
-async def create_user_admin(
+def create_user_admin(
     user_data: UserCreateAdmin,
     request: Request,
     response: Response,
@@ -1036,7 +1058,3 @@ async def create_user_admin(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
-
-
-# Import get_pool for system stats
-from ..database.connection_pool import get_pool

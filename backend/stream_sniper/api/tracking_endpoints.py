@@ -2,33 +2,33 @@
 API endpoints for streamer tracking management.
 """
 
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Depends, status, Request, Response, Query
-from pydantic import BaseModel, Field, validator
+import asyncio
+from typing import Any, Dict, List, Optional
 
-from .auth import get_current_admin_user, UserInDB
-from .rate_limiter import limiter, rate_limits
-from ..database.tracked_streamers_table_gateway import (
-    insert_tracked_streamer_db,
-    select_tracked_streamers_db,
-    select_tracked_streamer_by_id_db,
-    select_tracked_streamer_by_username_db,
-    update_tracked_streamer_db,
-    delete_tracked_streamer_db,
-    count_tracked_streamers_db,
-    streamer_exists_db
-)
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from pydantic import BaseModel, Field, field_validator
+
+from ..collector.twitch_api import TwitchAPI
+from ..database.creator_table_gateway import insert_new_creator_db, select_creator_id_db
 from ..database.processing_jobs_table_gateway import (
-    select_processing_jobs_db,
     count_processing_jobs_db,
     get_processing_stats_db,
-    insert_processing_job_db,
-    select_processing_job_by_id_db
+    select_processing_job_by_id_db,
+    select_processing_jobs_db,
 )
-from ..database.creator_table_gateway import select_creator_id_db, insert_new_creator_db
-from ..collector.twitch_api import TwitchAPI
+from ..database.tracked_streamers_table_gateway import (
+    count_tracked_streamers_db,
+    delete_tracked_streamer_db,
+    insert_tracked_streamer_db,
+    select_tracked_streamer_by_id_db,
+    select_tracked_streamers_db,
+    streamer_exists_db,
+    update_tracked_streamer_db,
+)
 from ..logging_config import get_logger
 from ..tracking.scheduler import get_scheduler
+from .auth import UserInDB, get_current_admin_user
+from .rate_limiter import limiter
 
 logger = get_logger(__name__)
 
@@ -43,7 +43,8 @@ class TrackedStreamerCreate(BaseModel):
     is_active: bool = Field(True, description="Whether tracking is active")
     processing_enabled: bool = Field(True, description="Whether processing is enabled")
     
-    @validator('twitch_username')
+    @field_validator('twitch_username')
+    @classmethod
     def validate_twitch_username(cls, v):
         if not v.replace('_', '').isalnum():
             raise ValueError('Twitch username can only contain letters, numbers, and underscores')
@@ -177,7 +178,7 @@ def convert_processing_job_to_response(job_tuple) -> ProcessingJobResponse:
     }
 )
 @limiter.limit("30/minute")
-async def get_tracked_streamers(
+def get_tracked_streamers(
     request: Request,
     response: Response,
     offset: int = Query(0, description="Pagination offset", ge=0),
@@ -350,7 +351,7 @@ async def add_tracked_streamer(
     }
 )
 @limiter.limit("60/minute")
-async def get_tracked_streamer(
+def get_tracked_streamer(
     streamer_id: int,
     request: Request,
     response: Response,
@@ -399,7 +400,7 @@ async def get_tracked_streamer(
     }
 )
 @limiter.limit("10/minute")
-async def update_tracked_streamer(
+def update_tracked_streamer(
     streamer_id: int,
     streamer_update: TrackedStreamerUpdate,
     request: Request,
@@ -480,7 +481,7 @@ async def update_tracked_streamer(
     }
 )
 @limiter.limit("5/minute")
-async def remove_tracked_streamer(
+def remove_tracked_streamer(
     streamer_id: int,
     request: Request,
     response: Response,
@@ -537,7 +538,7 @@ async def remove_tracked_streamer(
     }
 )
 @limiter.limit("30/minute")
-async def get_processing_jobs(
+def get_processing_jobs(
     request: Request,
     response: Response,
     offset: int = Query(0, description="Pagination offset", ge=0),
@@ -597,7 +598,7 @@ async def get_processing_jobs(
     }
 )
 @limiter.limit("5/minute")
-async def trigger_processing(
+def trigger_processing(
     streamer_id: int,
     request: Request,
     response: Response,
@@ -648,7 +649,7 @@ async def trigger_processing(
     }
 )
 @limiter.limit("30/minute")
-async def get_tracking_stats(
+def get_tracking_stats(
     request: Request,
     response: Response,
     current_user: UserInDB = Depends(get_current_admin_user)
@@ -715,7 +716,7 @@ async def get_tracking_stats(
     }
 )
 @limiter.limit("60/minute")
-async def get_service_status(
+def get_service_status(
     request: Request,
     response: Response,
     current_user: UserInDB = Depends(get_current_admin_user)

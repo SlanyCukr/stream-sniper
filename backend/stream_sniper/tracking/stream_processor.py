@@ -3,7 +3,7 @@ Stream processor service for automated chat data processing.
 """
 
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from ..collector.twitch_collector_facade import TwitchCollectorFacade
 from ..database.tracked_streamers_table_gateway import update_last_processed_stream_db
@@ -45,7 +45,7 @@ class StreamProcessor:
             
             # Run processing in a separate thread to avoid blocking
             # Since TwitchCollectorFacade is not async, we need to run it in an executor
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             
             def run_collector():
                 try:

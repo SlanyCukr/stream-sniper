@@ -7,7 +7,8 @@ Tests chat message processing including:
 - Chat processing workflow
 """
 
-from unittest.mock import Mock, patch
+from datetime import datetime
+from unittest.mock import Mock
 
 import pytest
 
@@ -135,16 +136,19 @@ class TestChatProcessor:
 
         chat_processor.process_chat(sample_chat, stream_id)
 
-        # Verify that handle_message was called for each message
+        # Verify that the handler was called for each message
         assert mock_handler.call_count == len(sample_chat)
 
-        # Verify that each message was processed with correct parameters
+        # process_chat calls the handler as:
+        #   handler(message_time, chatter_nick, message, stream_id)
         for i, call in enumerate(mock_handler.call_args_list):
             args, kwargs = call
-            message_data, actual_stream_id = args
+            message_time, chatter_nick, message, actual_stream_id = args
 
             assert actual_stream_id == stream_id
-            assert message_data == sample_chat[i]
+            assert chatter_nick == sample_chat[i]["author"]["name"]
+            assert message == sample_chat[i]["message"]
+            assert isinstance(message_time, datetime)
 
     def test_process_chat_empty(self, chat_processor, mock_handler):
         """Test processing empty chat."""
@@ -158,7 +162,7 @@ class TestChatProcessor:
     def test_process_chat_single_message(self, chat_processor, mock_handler):
         """Test processing chat with single message."""
         single_message = [
-            {"author": {"name": "single_user"}, "message": "Only message", "time_in_seconds": 1642287015.0}
+            {"author": {"name": "single_user"}, "message": "Only message", "timestamp": 1642287015000000}
         ]
         stream_id = 456
 
@@ -167,12 +171,14 @@ class TestChatProcessor:
         # Handler should be called once
         assert mock_handler.call_count == 1
 
-        # Verify correct parameters
+        # Verify correct parameters: handler(message_time, chatter_nick, message, stream_id)
         args, kwargs = mock_handler.call_args
-        message_data, actual_stream_id = args
+        message_time, chatter_nick, message, actual_stream_id = args
 
         assert actual_stream_id == stream_id
-        assert message_data == single_message[0]
+        assert chatter_nick == "single_user"
+        assert message == "Only message"
+        assert isinstance(message_time, datetime)
 
     def test_creator_id_storage(self, mock_handler):
         """Test that creator_id is stored correctly."""
@@ -225,7 +231,7 @@ class TestChatProcessor:
                 {
                     "author": {"name": f"user_{i % 100}"},  # 100 unique users
                     "message": f"Message {i}",
-                    "time_in_seconds": float(i),
+                    "timestamp": i * 1000000,
                 }
             )
 

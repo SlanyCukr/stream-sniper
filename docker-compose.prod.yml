@@ -4,9 +4,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
     ports:
-      - "3001:80"
+      - "3001:3000"
     environment:
-      - REACT_APP_API_URL=/api
+      - API_PROXY_TARGET=http://stream-sniper-api:5002
+      - NODE_ENV=production
     restart: unless-stopped
     container_name: stream-sniper-frontend
     networks:
@@ -26,15 +27,19 @@ services:
       - POSTGRES_DB=stream_sniper
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env.prod - refusing to start with a default JWT secret}
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
       - CORS_ORIGINS=["*"]
+      - REDIS_HOST=stream-sniper-redis
+      - REDIS_PORT=6379
     restart: unless-stopped
     container_name: stream-sniper-api
     networks:
       - stream-sniper-prod
+    depends_on:
+      - stream-sniper-redis
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:5002/health', timeout=5).status == 200 else 1)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -58,6 +63,19 @@ services:
       - stream-sniper-prod
     depends_on:
       - stream-sniper-api
+
+  stream-sniper-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    container_name: stream-sniper-redis
+    # internal-only: no published ports, reachable solely on the compose network
+    networks:
+      - stream-sniper-prod
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 
 networks:

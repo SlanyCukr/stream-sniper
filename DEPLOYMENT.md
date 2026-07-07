@@ -100,10 +100,11 @@ curl -f http://localhost:5002/health
 ## Services
 
 ### Frontend (Port 3001)
-- React application built with production optimizations
-- Nginx-based container serving static files and proxying API requests
-- HTTPS via reverse proxy at `stream-sniper.slanycukr.com`
-- Internal API proxy at `/api/*` routes to backend
+- Next.js app built with `output: standalone` — a **Node server** runs in the
+  container (`node server.js`), not nginx. Prod compose maps host `3001 -> 3000`.
+- HTTPS via VPS reverse proxy at `stream-sniper.slanycukr.com`
+- Internal API proxy: Next.js `rewrites()` forward `/api/*` to the backend
+  (`API_PROXY_TARGET=http://stream-sniper-api:5002`)
 
 ### Backend API (Internal)
 - FastAPI application with authentication and admin features
@@ -117,9 +118,10 @@ curl -f http://localhost:5002/health
 - Shares database with API service
 
 ### Database
-- PostgreSQL 16 with persistent volume storage
-- Automatic schema initialization
-- Health checks and backup considerations
+- PostgreSQL runs **on the RPI host**, not in Docker Compose. Containers reach it
+  via the Docker bridge gateway (`POSTGRES_HOST=172.17.0.1`).
+- Schema is applied **manually** (`create_table.sql`) — no automatic init and no
+  `postgres_data` Docker volume.
 
 ## Monitoring
 
@@ -127,7 +129,7 @@ curl -f http://localhost:5002/health
 
 - **Frontend**: `curl -f https://stream-sniper.slanycukr.com`
 - **API**: `curl -f https://stream-sniper.slanycukr.com/api/health`
-- **Database**: `docker-compose exec postgres pg_isready`
+- **Database** (host Postgres): `pg_isready -h localhost -p 5432`
 
 ### Logs
 
@@ -154,7 +156,7 @@ docker-compose -f docker-compose.prod.yml ps
 
 1. **Deployment fails**: Check `.env.prod` exists and has correct values
 2. **SSL certificate errors**: Ensure DNS records point to VPS IP
-3. **Database connection**: Verify PostgreSQL container is running
+3. **Database connection**: Verify the host PostgreSQL is running (`pg_isready -h localhost`)
 4. **Port conflicts**: Check autossh tunnels are active
 5. **Permission errors**: Ensure GitHub Actions runner has proper permissions
 
@@ -162,11 +164,12 @@ docker-compose -f docker-compose.prod.yml ps
 
 ```bash
 # Stop all services
-docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.prod.yml down --remove-orphans
 
-# Clean up containers and volumes (⚠️ destroys data)
-docker-compose -f docker-compose.prod.yml down -v
-docker system prune -f
+# Clean up dangling images only (this RPI is shared — do NOT run
+# `docker system prune --volumes`, which can wipe other projects' data).
+# The database lives on the host, so no Docker volumes hold app data.
+docker image prune -f
 
 # Redeploy
 docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
@@ -174,34 +177,38 @@ docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 ## Security Considerations
 
-- All secrets are in `.env.prod` (not committed to git)
-- SSL certificates automatically renewed by Let's Encrypt
-- Database password is secure and not default
-- JWT secret key is cryptographically secure
-- CORS configured for production domains only
-- Nginx security headers enabled
+- All secrets are in `.env.prod` (not committed to git). The API/tracking
+  containers **fail to start** without a JWT signing secret (`SECRET_KEY`).
+- SSL certificates automatically renewed by Let's Encrypt (on the VPS)
+- Database password must be set to a strong, non-default value in `.env.prod`
+- JWT secret key must be a long random string in `.env.prod`
+- Note: `docker-compose.prod.yml` currently sets `CORS_ORIGINS=["*"]`. Tighten to
+  the production domain (`.env.prod.template` shows the intended value).
 
 ## Backup Strategy
 
 ### Database Backup
 
+PostgreSQL runs on the RPI **host**, not in a container — back it up with the
+host `pg_dump`/`psql` directly (there is no `postgres` compose service):
+
 ```bash
-# Create backup
-docker-compose -f docker-compose.prod.yml exec postgres pg_dump -U stream_sniper_user stream_sniper > backup.sql
+# Create backup (run on the RPI host)
+pg_dump -h localhost -p 5432 -U stream_sniper_user stream_sniper > backup.sql
 
 # Restore backup
-docker-compose -f docker-compose.prod.yml exec -T postgres psql -U stream_sniper_user stream_sniper < backup.sql
+psql -h localhost -p 5432 -U stream_sniper_user stream_sniper < backup.sql
 ```
 
 ### Application Data
 
-- Docker volumes are persistent (`postgres_data`)
+- Database data lives in the host Postgres data directory (no Docker volume)
 - Regular system backups of RPI storage recommended
 - Configuration files backed up in git repository
 
 ## Performance Optimization
 
-- Frontend: Static file serving with nginx caching
+- Frontend: Next.js standalone Node server (automatic static/prerender optimization)
 - Backend: FastAPI with async/await patterns
 - Database: PostgreSQL with proper indexing
 - Infrastructure: Local deployment reduces latency

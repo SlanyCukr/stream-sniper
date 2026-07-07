@@ -3,12 +3,12 @@ Scheduler service for coordinating stream monitoring and processing.
 """
 
 import asyncio
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, Optional
 
-from .stream_monitor import StreamMonitor
-from .processing_queue import ProcessingQueue
 from ..logging_config import get_logger
+from .processing_queue import ProcessingQueue
+from .stream_monitor import StreamMonitor
 
 logger = get_logger(__name__)
 
@@ -30,7 +30,8 @@ class TrackingScheduler:
         self.logger = get_logger(__name__)
         self._running = False
         self._start_time: Optional[datetime] = None
-        
+        self._tasks: list[asyncio.Task] = []
+
         # Initialize components
         self.stream_monitor = StreamMonitor(check_interval=monitor_interval)
         self.processing_queue = ProcessingQueue(
@@ -53,15 +54,15 @@ class TrackingScheduler:
             await self.stream_monitor.initialize()
             
             # Start both services concurrently
-            tasks = [
+            self._tasks = [
                 asyncio.create_task(self.stream_monitor.start_monitoring()),
                 asyncio.create_task(self.processing_queue.start_processing())
             ]
-            
+
             self.logger.info("Tracking scheduler started successfully")
-            
+
             # Wait for both tasks to complete (they run indefinitely)
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*self._tasks, return_exceptions=True)
             
         except Exception as e:
             self.logger.error(f"Error in tracking scheduler: {e}")
@@ -84,7 +85,15 @@ class TrackingScheduler:
             self.processing_queue.stop_processing(),
             return_exceptions=True
         )
-        
+
+        # The service loops may be parked in long sleeps (up to the monitor
+        # interval) and only re-check their running flag afterwards — cancel
+        # them so shutdown is immediate.
+        for task in self._tasks:
+            task.cancel()
+        await asyncio.gather(*self._tasks, return_exceptions=True)
+        self._tasks = []
+
         self.logger.info("Tracking scheduler stopped successfully")
     
     async def restart(self):

@@ -5,13 +5,22 @@ This file contains shared test configuration, fixtures, and mock objects
 used across the test suite for database, API, and collector components.
 """
 
-import asyncio
+import contextlib
 import logging
 import os
 import tempfile
 from datetime import datetime
-from typing import Any, Dict, Generator, List
 from unittest.mock import MagicMock, Mock, patch
+
+# Ensure a JWT signing secret exists before any application module is imported.
+# stream_sniper.api.auth fails fast at import time if neither JWT_SECRET_KEY nor
+# SECRET_KEY is set, which would otherwise break collection of API test modules.
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key")
+
+# Disable startup cache warming for tests. The API lifespan otherwise warms the
+# creators/stream-count caches from the real test DB, so endpoint tests (which mock
+# the gateway functions) would read warmed data instead of exercising their mocks.
+os.environ.setdefault("CACHE_WARM_ON_STARTUP", "false")
 
 import psycopg2
 import pytest
@@ -31,62 +40,103 @@ TEST_DB_CONFIG = {
     "port": os.getenv("TEST_DB_PORT", "5432"),
 }
 
+# The table-gateway functions under test open connections through the application's
+# global connection pool (stream_sniper.database.connection_pool.get_pool), which
+# reads the POSTGRES_* env names (with legacy fallbacks). Point that pool at the
+# same test database the db_cursor fixture populates so gateway reads see the data.
+os.environ["POSTGRES_HOST"] = TEST_DB_CONFIG["host"]
+os.environ["POSTGRES_PORT"] = str(TEST_DB_CONFIG["port"])
+os.environ["POSTGRES_USER"] = TEST_DB_CONFIG["user"]
+os.environ["POSTGRES_PASSWORD"] = TEST_DB_CONFIG["password"]
+os.environ["POSTGRES_DB"] = TEST_DB_CONFIG["database"]
+
 # Schema creation SQL
+# Kept in sync with stream_sniper/database/create_table.sql and the column names
+# used by the table gateways (e.g. stream.start / stream."end", message.time).
+# Note: twitch_id columns are VARCHAR here so string-based test ids work, and
+# stream.start is left nullable so fixtures that omit it still insert.
 SCHEMA_SQL = """
 CREATE SCHEMA IF NOT EXISTS stream_sniper;
 SET search_path TO stream_sniper;
 
+-- Chatter table
+CREATE TABLE IF NOT EXISTS chatter (
+    id   SERIAL PRIMARY KEY,
+    nick VARCHAR(255) NOT NULL,
+    CONSTRAINT chatter_name_uindex UNIQUE (nick)
+);
+
 -- Creator table
 CREATE TABLE IF NOT EXISTS creator (
-    id SERIAL PRIMARY KEY,
-    nick VARCHAR(255) NOT NULL UNIQUE,
-    display_name VARCHAR(255),
-    profile_image_url TEXT,
-    twitch_id VARCHAR(255)
+    id                SERIAL PRIMARY KEY,
+    nick              VARCHAR(255) NOT NULL,
+    display_name      VARCHAR(255) NOT NULL,
+    profile_image_url VARCHAR(255) NOT NULL,
+    twitch_id         VARCHAR(255),
+    CONSTRAINT creator_nick_uindex UNIQUE (nick)
 );
 
 -- Stream table
 CREATE TABLE IF NOT EXISTS stream (
-    id SERIAL PRIMARY KEY,
-    twitch_id VARCHAR(255) NOT NULL,
-    title TEXT,
-    start_time TIMESTAMP,
-    end_time TIMESTAMP,
-    thumbnail_url TEXT,
-    message_count INTEGER DEFAULT 0,
-    creator_id INTEGER REFERENCES creator(id)
-);
-
--- Chatter table
-CREATE TABLE IF NOT EXISTS chatter (
-    id SERIAL PRIMARY KEY,
-    nick VARCHAR(255) NOT NULL UNIQUE
+    id            SERIAL PRIMARY KEY,
+    twitch_id     VARCHAR(255) NOT NULL,
+    title         VARCHAR(255) NOT NULL,
+    start         TIMESTAMP,
+    "end"         TIMESTAMP,
+    thumbnail_url VARCHAR(255),
+    message_count INTEGER NOT NULL DEFAULT 0,
+    creator_id    INTEGER REFERENCES creator (id),
+    CONSTRAINT stream__twitch_id_uindex UNIQUE (twitch_id)
 );
 
 -- Message text table (for deduplication)
 CREATE TABLE IF NOT EXISTS message_text (
-    id SERIAL PRIMARY KEY,
-    text TEXT NOT NULL UNIQUE
+    id   SERIAL PRIMARY KEY,
+    text VARCHAR(255) NOT NULL,
+    CONSTRAINT text_uq UNIQUE (text)
 );
 
 -- Message table
 CREATE TABLE IF NOT EXISTS message (
-    id SERIAL PRIMARY KEY,
-    chatter_id INTEGER REFERENCES chatter(id),
-    stream_id INTEGER REFERENCES stream(id),
-    message_text_id INTEGER REFERENCES message_text(id),
-    timestamp TIMESTAMP,
-    tagged_chatter_id INTEGER REFERENCES chatter(id)
+    id                SERIAL PRIMARY KEY,
+    chatter_id        INTEGER REFERENCES chatter (id),
+    tagged_chatter_id INTEGER REFERENCES chatter (id),
+    stream_id         INTEGER REFERENCES stream (id),
+    message_text_id   BIGINT NOT NULL REFERENCES message_text (id),
+    time              TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 """
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+@pytest.fixture(autouse=True)
+def _reset_global_state():
+    """Isolate process-wide singletons between tests so ordering can't affect outcomes.
+
+    Two shared singletons otherwise leak state across tests:
+      * The DB connection pool -- the API lifespan shutdown calls ``close_pool()``,
+        which nulls the module-level instance but leaves the class-level
+        ``DatabaseConnectionPool`` singleton half-closed (``_pool is None``). A later
+        test calling ``get_pool()`` would then hit "Connection pool not initialized".
+      * The Redis cache -- cached endpoint responses would otherwise leak between
+        tests (e.g. a success test populating a key that a later error test reads,
+        so the mocked gateway is never called).
+
+    Resetting both after every test forces a clean re-initialization on next use.
+    """
+    yield
+
+    from stream_sniper.database import connection_pool as _cp
+
+    with contextlib.suppress(Exception):
+        if _cp._pool_instance is not None:
+            _cp._pool_instance.close_all_connections()
+    _cp._pool_instance = None
+    _cp.DatabaseConnectionPool._instance = None
+
+    with contextlib.suppress(Exception):
+        from stream_sniper.api.cache import get_cache
+
+        get_cache().flush_all()
 
 
 @pytest.fixture(scope="session")
@@ -151,9 +201,9 @@ def db_cursor(test_db_connection):
 @pytest.fixture
 def mock_connection_pool():
     """Mock database connection pool for unit tests."""
-    mock_pool = Mock()
-    mock_connection = Mock()
-    mock_cursor = Mock()
+    mock_pool = MagicMock()
+    mock_connection = MagicMock()
+    mock_cursor = MagicMock()
 
     # Configure mock behavior
     mock_pool.get_connection.return_value.__enter__.return_value = mock_connection
@@ -322,22 +372,32 @@ def create_test_stream(cursor, stream_data=None, creator_id=None):
         stream_data = {
             "twitch_id": "stream_123",
             "title": "Test Stream",
-            "start_time": datetime(2024, 1, 15, 20, 0, 0),
-            "end_time": datetime(2024, 1, 15, 23, 0, 0),
+            "start": datetime(2024, 1, 15, 20, 0, 0),
+            "end": datetime(2024, 1, 15, 23, 0, 0),
             "thumbnail_url": "https://example.com/thumb.jpg",
             "message_count": 100,
-            "creator_id": creator_id,
         }
-    else:
-        stream_data["creator_id"] = creator_id
+
+    # Accept either the schema column names (start/end) or the legacy
+    # start_time/end_time keys some fixtures still pass.
+    start = stream_data.get("start", stream_data.get("start_time"))
+    end = stream_data.get("end", stream_data.get("end_time"))
 
     cursor.execute(
         """
-        INSERT INTO stream (twitch_id, title, start_time, end_time, thumbnail_url, message_count, creator_id)
-        VALUES (%(twitch_id)s, %(title)s, %(start_time)s, %(end_time)s, %(thumbnail_url)s, %(message_count)s, %(creator_id)s)
+        INSERT INTO stream (twitch_id, title, start, "end", thumbnail_url, message_count, creator_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         RETURNING id
     """,
-        stream_data,
+        (
+            stream_data["twitch_id"],
+            stream_data["title"],
+            start,
+            end,
+            stream_data.get("thumbnail_url"),
+            stream_data.get("message_count", 0),
+            creator_id,
+        ),
     )
 
     return cursor.fetchone()[0]
