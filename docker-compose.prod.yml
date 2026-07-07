@@ -4,9 +4,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
     ports:
-      - "3001:80"
+      - "3001:3000"
     environment:
-      - REACT_APP_API_URL=/api
+      - API_PROXY_TARGET=http://stream-sniper-api:5002
+      - NODE_ENV=production
     restart: unless-stopped
     container_name: stream-sniper-frontend
     networks:

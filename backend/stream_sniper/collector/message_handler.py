@@ -1,6 +1,5 @@
 import typing
 from datetime import datetime
-from functools import lru_cache
 from typing import Callable
 
 from ..database.chatter_table_gateway import insert_new_chatter_db
@@ -20,7 +19,6 @@ class MessageHandler:
         self.known_chatters[creator_nick] = creator_id
         self.logger.debug(f"Initialized message handler for creator: {creator_nick} (ID: {creator_id})")
 
-    @lru_cache(maxsize=128)
     def find_tagged_user_id(self, message: str) -> typing.Optional[int]:
         """
         Finds tagged user id in known chatters. Not searching in `chatter` database for performance reasons.

@@ -1,7 +1,6 @@
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 from chat_downloader import ChatDownloader
-from twitch.helix import Video
 
 from ..database.stream_table_gateway import select_stream_by_twitch_id_db
 from ..logging_config import get_logger
@@ -26,7 +25,7 @@ class IrcChatDownloader:
             if len(self.available_video_ids) == 0:
                 return None, None, None, None, None, None
 
-            currently_processed_video: Video = self.available_video_ids.pop(0)
+            currently_processed_video: Any = self.available_video_ids.pop(0)
 
             # available video was already processed - is in the database
             if select_stream_by_twitch_id_db(currently_processed_video.id):

@@ -14,6 +14,10 @@ from .message_handler import MessageHandler
 from .twitch_api import TwitchAPI
 
 
+class CreatorCreationError(Exception):
+    """Raised when a creator cannot be created in the database."""
+
+
 class TwitchCollectorFacade:
     def __init__(self, nickname: str):
         self.nickname = nickname
@@ -113,13 +117,15 @@ class TwitchCollectorFacade:
                     self.nickname, display_name, profile_image_url, twitch_creator_id
                 )
                 if not new_creator_id:
-                    self.logger.error(f"Can't create new creator with name {self.nickname}. Exiting...")
-                    exit(1)
+                    self.logger.error(f"Can't create new creator with name {self.nickname}.")
+                    raise CreatorCreationError(f"Failed to create creator {self.nickname}")
                 creator_id = new_creator_id
                 self.logger.info(f"Created new creator in database: {self.nickname} (ID: {creator_id})")
+            except CreatorCreationError:
+                raise
             except Exception as e:
                 self.logger.error(f"Failed to create creator {self.nickname}: {e}", exc_info=True)
-                exit(1)
+                raise CreatorCreationError(f"Failed to create creator {self.nickname}") from e
         else:
             self.logger.info(f"Found existing creator in database: {self.nickname} (ID: {creator_id})")
 

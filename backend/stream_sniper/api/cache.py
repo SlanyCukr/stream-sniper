@@ -7,9 +7,8 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 import redis
 from dotenv import load_dotenv

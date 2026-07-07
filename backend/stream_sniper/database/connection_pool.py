@@ -9,8 +9,8 @@ from contextlib import contextmanager
 from typing import Any, Dict, Optional
 
 import psycopg2
+import psycopg2.pool  # noqa: F401  # imported for side effect: registers psycopg2.pool submodule
 from dotenv import load_dotenv
-from psycopg2 import pool
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class DatabaseConnectionPool:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    cls._instance = super(DatabaseConnectionPool, cls).__new__(cls)
+                    cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):

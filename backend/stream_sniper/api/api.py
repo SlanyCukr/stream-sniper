@@ -1,4 +1,5 @@
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -11,7 +12,7 @@ from pydantic import BaseModel, Field
 from slowapi.util import get_remote_address
 
 from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
-from ..database.connection_pool import get_pool
+from ..database.connection_pool import close_pool
 from ..database.creator_table_gateway import select_creators_db
 from ..database.message_table_gateway import select_chatter_id_db, select_chatter_messages_db
 from ..database.stream_table_gateway import (
@@ -24,8 +25,9 @@ from ..database.stream_table_gateway import (
     select_most_tagged_chatters_db,
     select_stream_comprehensive_db,
 )
-from ..logging_config import correlation_context, get_logger, performance_timer, setup_logging
-from .cache import CacheTTL, cache_result, get_cache, warm_cache
+from ..logging_config import get_logger, setup_logging
+from .auth_endpoints import router as auth_router
+from .cache import CacheTTL, get_cache, warm_cache
 
 # Import our new modules
 from .config import get_config
@@ -40,7 +42,6 @@ from .monitoring import (
     setup_monitoring,
 )
 from .rate_limiter import limiter, rate_limits, setup_rate_limiting
-from .auth_endpoints import router as auth_router
 from .tracking_endpoints import router as tracking_router
 
 load_dotenv()
@@ -59,69 +60,69 @@ if not config.validate():
 class Creator(BaseModel):
     """Twitch creator/streamer information"""
 
-    id: int = Field(..., description="Unique creator ID", example=1)
-    display_name: str = Field(..., description="Creator's display name on Twitch", example="SomeStreamer")
+    id: int = Field(..., description="Unique creator ID", json_schema_extra={"example": 1})
+    display_name: str = Field(..., description="Creator's display name on Twitch", json_schema_extra={"example": "SomeStreamer"})
 
 
 class Chatter(BaseModel):
     """Chat participant information"""
 
-    id: int = Field(..., description="Unique chatter ID", example=1)
-    nick: str = Field(..., description="Chatter's nickname", example="viewer123")
+    id: int = Field(..., description="Unique chatter ID", json_schema_extra={"example": 1})
+    nick: str = Field(..., description="Chatter's nickname", json_schema_extra={"example": "viewer123"})
 
 
 class ChatterID(BaseModel):
     """Chatter ID response"""
 
-    id: int = Field(..., description="Unique chatter ID", example=1)
+    id: int = Field(..., description="Unique chatter ID", json_schema_extra={"example": 1})
 
 
 class Message(BaseModel):
     """Chat message information"""
 
-    text: str = Field(..., description="Message content", example="Hello chat!")
-    timestamp: str = Field(..., description="Message timestamp", example="2024-01-15 20:30:15")
+    text: str = Field(..., description="Message content", json_schema_extra={"example": "Hello chat!"})
+    timestamp: str = Field(..., description="Message timestamp", json_schema_extra={"example": "2024-01-15 20:30:15"})
 
 
 class StreamBasic(BaseModel):
     """Basic stream information"""
 
-    id: int = Field(..., description="Unique stream ID", example=1)
-    display_name: str = Field(..., description="Stream title/display name", example="Epic Gaming Session")
-    start: str = Field(..., description="Stream start time", example="2024-01-15 20:00:00")
-    end: str = Field(..., description="Stream end time", example="2024-01-15 23:30:00")
+    id: int = Field(..., description="Unique stream ID", json_schema_extra={"example": 1})
+    display_name: str = Field(..., description="Stream title/display name", json_schema_extra={"example": "Epic Gaming Session"})
+    start: str = Field(..., description="Stream start time", json_schema_extra={"example": "2024-01-15 20:00:00"})
+    end: str = Field(..., description="Stream end time", json_schema_extra={"example": "2024-01-15 23:30:00"})
     thumbnail_url: Optional[str] = Field(None, description="Thumbnail image URL")
-    message_count: int = Field(..., description="Total number of chat messages", example=1250)
+    message_count: int = Field(..., description="Total number of chat messages", json_schema_extra={"example": 1250})
 
 
 class ActiveChatter(BaseModel):
     """Most active chatter statistics"""
 
-    chatter_id: int = Field(..., description="Chatter ID", example=42)
-    nick: str = Field(..., description="Chatter nickname", example="chatty_user")
-    message_count: int = Field(..., description="Number of messages sent", example=125)
+    chatter_id: int = Field(..., description="Chatter ID", json_schema_extra={"example": 42})
+    nick: str = Field(..., description="Chatter nickname", json_schema_extra={"example": "chatty_user"})
+    message_count: int = Field(..., description="Number of messages sent", json_schema_extra={"example": 125})
 
 
 class TaggedChatter(BaseModel):
     """Most tagged chatter statistics"""
 
-    tagged_chatter_id: int = Field(..., description="Tagged chatter ID", example=15)
-    nick: str = Field(..., description="Tagged chatter nickname", example="popular_user")
-    tag_count: int = Field(..., description="Number of times tagged", example=45)
+    tagged_chatter_id: int = Field(..., description="Tagged chatter ID", json_schema_extra={"example": 15})
+    nick: str = Field(..., description="Tagged chatter nickname", json_schema_extra={"example": "popular_user"})
+    tag_count: int = Field(..., description="Number of times tagged", json_schema_extra={"example": 45})
 
 
 class StreamComprehensive(BaseModel):
     """Comprehensive stream information with analytics"""
 
-    title: str = Field(..., description="Stream title", example="Epic Gaming Session")
-    start: str = Field(..., description="Stream start time", example="2024-01-15 20:00:00")
-    end: str = Field(..., description="Stream end time", example="2024-01-15 23:30:00")
+    title: str = Field(..., description="Stream title", json_schema_extra={"example": "Epic Gaming Session"})
+    start: str = Field(..., description="Stream start time", json_schema_extra={"example": "2024-01-15 20:00:00"})
+    end: str = Field(..., description="Stream end time", json_schema_extra={"example": "2024-01-15 23:30:00"})
     thumbnail_url: Optional[str] = Field(None, description="Thumbnail image URL")
-    message_count: int = Field(..., description="Total chat messages", example=1250)
-    creator_nick: str = Field(..., description="Creator nickname", example="streamer123")
-    creator_display_name: str = Field(..., description="Creator display name", example="Amazing Streamer")
+    message_count: int = Field(..., description="Total chat messages", json_schema_extra={"example": 1250})
+    creator_nick: str = Field(..., description="Creator nickname", json_schema_extra={"example": "streamer123"})
+    creator_display_name: str = Field(..., description="Creator display name", json_schema_extra={"example": "Amazing Streamer"})
     profile_image_url: Optional[str] = Field(None, description="Creator profile image URL")
-    creator_id: int = Field(..., description="Creator ID", example=5)
+    creator_id: int = Field(..., description="Creator ID", json_schema_extra={"example": 5})
 
 
 class StreamDetails(BaseModel):
@@ -138,32 +139,32 @@ class StreamsResponse(BaseModel):
     """Paginated streams response"""
 
     streams: List[List[Any]] = Field(..., description="List of stream data tuples")
-    max_offset: int = Field(..., description="Maximum offset for pagination", example=1000)
+    max_offset: int = Field(..., description="Maximum offset for pagination", json_schema_extra={"example": 1000})
 
 
 class ErrorResponse(BaseModel):
     """Error response model"""
 
-    detail: str = Field(..., description="Error message", example="Stream not found")
+    detail: str = Field(..., description="Error message", json_schema_extra={"example": "Stream not found"})
 
 
 class HealthStatus(BaseModel):
     """API and database health status"""
 
-    status: str = Field(..., description="Overall health status", example="healthy")
+    status: str = Field(..., description="Overall health status", json_schema_extra={"example": "healthy"})
     database: Dict[str, Any] = Field(..., description="Database connection pool status")
     cache: Dict[str, Any] = Field(..., description="Cache status and statistics")
     rate_limiting: Dict[str, Any] = Field(..., description="Rate limiting status")
     timestamp: str = Field(..., description="Health check timestamp")
-    version: str = Field(..., description="API version", example="1.0.0")
+    version: str = Field(..., description="API version", json_schema_extra={"example": "1.0.0"})
 
 
 class DetailedHealthStatus(BaseModel):
     """Comprehensive health status with system metrics"""
 
-    status: str = Field(..., description="Overall health status", example="healthy")
+    status: str = Field(..., description="Overall health status", json_schema_extra={"example": "healthy"})
     timestamp: str = Field(..., description="Health check timestamp")
-    version: str = Field(..., description="API version", example="1.0.0")
+    version: str = Field(..., description="API version", json_schema_extra={"example": "1.0.0"})
     uptime_seconds: float = Field(..., description="Application uptime in seconds")
     components: Dict[str, Any] = Field(..., description="Component health status")
     system: Dict[str, Any] = Field(..., description="System metrics and information")
@@ -191,8 +192,33 @@ tags_metadata = [
     {"name": "API Info", "description": "General API information and documentation"},
 ]
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: warm caches on startup, close resources on shutdown."""
+    logger.info("Starting Stream Sniper API...")
+
+    if config.cache.enabled and config.cache.warm_on_startup:
+        try:
+            warm_cache()
+            logger.info("Cache warming completed")
+        except Exception as e:
+            logger.warning(f"Cache warming failed: {e}")
+
+    logger.info(f"API started successfully on {config.host}:{config.port}")
+
+    yield
+
+    logger.info("Shutting down Stream Sniper API...")
+    try:
+        close_pool()
+        logger.info("Database connection pool closed")
+    except Exception as e:
+        logger.warning(f"Error closing connection pool: {e}")
+
+
 # FastAPI App Configuration
 app = FastAPI(
+    lifespan=lifespan,
     title=config.title,
     description="""
     A comprehensive Twitch stream analytics API that provides access to chat data, 
@@ -316,35 +342,17 @@ async def metrics_middleware(request: Request, call_next):
     return response
 
 
-# Initialize cache warming on startup
-@app.on_event("startup")
-async def startup_event():
-    """Initialize cache warming and other startup tasks."""
-    logger.info("Starting Stream Sniper API...")
-
-    if config.cache.enabled and config.cache.warm_on_startup:
-        try:
-            warm_cache()
-            logger.info("Cache warming completed")
-        except Exception as e:
-            logger.warning(f"Cache warming failed: {e}")
-
-    logger.info(f"API started successfully on {config.host}:{config.port}")
-
-
 @app.get(
     "/chatter/{chatter_id}/messages/",
     response_model=List[List[str]],
     tags=["Chatters"],
     summary="Get messages by chatter",
-    description="""
+    description=f"""
     Retrieve all messages sent by a specific chatter across all streams.
     Returns a list of [message_text, timestamp] tuples.
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.GENERAL
-    ),
+    **Rate Limit**: {rate_limits.GENERAL}
+    """,
     responses={
         200: {
             "description": "List of messages with timestamps",
@@ -364,7 +372,7 @@ async def startup_event():
 )
 @limiter.limit(rate_limits.GENERAL)
 def get_chatter_messages(
-    request: Request, response: Response, chatter_id: int = Path(..., description="Unique chatter ID", example=42)
+    request: Request, response: Response, chatter_id: int = Path(..., description="Unique chatter ID", json_schema_extra={"example": 42})
 ):
     """Get all messages sent by a specific chatter"""
     try:
@@ -404,14 +412,12 @@ def get_chatter_messages(
     response_model=List[int],
     tags=["Chatters"],
     summary="Get chatter ID by nickname",
-    description="""
+    description=f"""
     Look up a chatter's unique ID using their nickname.
     Returns the chatter ID that can be used in other endpoints.
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.SEARCH
-    ),
+    **Rate Limit**: {rate_limits.SEARCH}
+    """,
     responses={
         200: {"description": "Chatter ID found", "content": {"application/json": {"example": [42]}}},
         404: {"model": ErrorResponse, "description": "Chatter not found"},
@@ -420,7 +426,7 @@ def get_chatter_messages(
 )
 @limiter.limit(rate_limits.SEARCH)
 def get_chatter_id(
-    request: Request, response: Response, nick: str = Path(..., description="Chatter nickname", example="viewer123")
+    request: Request, response: Response, nick: str = Path(..., description="Chatter nickname", json_schema_extra={"example": "viewer123"})
 ):
     """Get chatter ID by their nickname"""
     try:
@@ -460,7 +466,7 @@ def get_chatter_id(
     response_model=StreamsResponse,
     tags=["Streams"],
     summary="Get streams with pagination",
-    description="""
+    description=f"""
     Retrieve streams for a specific creator with pagination support.
     Use creator_id = -1 to get streams from all creators.
     
@@ -472,10 +478,8 @@ def get_chatter_id(
     - Thumbnail URL
     - Message count
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.BULK
-    ),
+    **Rate Limit**: {rate_limits.BULK}
+    """,
     responses={
         200: {
             "description": "Paginated list of streams",
@@ -513,8 +517,8 @@ def get_chatter_id(
 def get_streams(
     request: Request,
     response: Response,
-    creator_id: int = Query(..., description="Creator ID (use -1 for all creators)", example=5),
-    offset: int = Query(0, description="Pagination offset", example=0, ge=0),
+    creator_id: int = Query(..., description="Creator ID (use -1 for all creators)", json_schema_extra={"example": 5}),
+    offset: int = Query(0, description="Pagination offset", json_schema_extra={"example": 0}, ge=0),
 ):
     """Get paginated list of streams for a creator"""
     try:
@@ -570,14 +574,12 @@ def get_streams(
     response_model=List[List[Any]],
     tags=["Streams"],
     summary="Get all chatters in a stream",
-    description="""
+    description=f"""
     Retrieve all unique chatters who participated in a specific stream.
     Returns chatter information including their IDs and nicknames.
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.GENERAL
-    ),
+    **Rate Limit**: {rate_limits.GENERAL}
+    """,
     responses={
         200: {
             "description": "List of chatters in the stream",
@@ -591,7 +593,7 @@ def get_streams(
 )
 @limiter.limit(rate_limits.GENERAL)
 def get_stream_chatters(
-    request: Request, response: Response, stream_id: int = Path(..., description="Unique stream ID", example=1)
+    request: Request, response: Response, stream_id: int = Path(..., description="Unique stream ID", json_schema_extra={"example": 1})
 ):
     """Get all chatters who participated in a stream"""
     try:
@@ -631,7 +633,7 @@ def get_stream_chatters(
     response_model=StreamDetails,
     tags=["Streams"],
     summary="Get comprehensive stream analytics",
-    description="""
+    description=f"""
     Get detailed analytics and information for a specific stream.
     
     Returns comprehensive data including:
@@ -643,10 +645,8 @@ def get_stream_chatters(
     
     This endpoint provides a complete analytics overview of stream chat activity.
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.ANALYTICS
-    ),
+    **Rate Limit**: {rate_limits.ANALYTICS}
+    """,
     responses={
         200: {
             "description": "Comprehensive stream analytics",
@@ -678,7 +678,7 @@ def get_stream_chatters(
 )
 @limiter.limit(rate_limits.ANALYTICS)
 def get_stream(
-    request: Request, response: Response, stream_id: int = Path(..., description="Unique stream ID", example=1)
+    request: Request, response: Response, stream_id: int = Path(..., description="Unique stream ID", json_schema_extra={"example": 1})
 ):
     """Get comprehensive analytics for a specific stream"""
     try:
@@ -733,14 +733,12 @@ def get_stream(
     response_model=List[str],
     tags=["Streams"],
     summary="Get chatter messages in specific stream",
-    description="""
+    description=f"""
     Retrieve all messages sent by a specific chatter during a particular stream.
     This is useful for analyzing individual user participation in specific streams.
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.GENERAL
-    ),
+    **Rate Limit**: {rate_limits.GENERAL}
+    """,
     responses={
         200: {
             "description": "List of messages from the chatter in this stream",
@@ -763,8 +761,8 @@ def get_stream(
 def get_chatter_messages_on_stream(
     request: Request,
     response: Response,
-    stream_id: int = Path(..., description="Unique stream ID", example=1),
-    chatter_id: int = Path(..., description="Unique chatter ID", example=42),
+    stream_id: int = Path(..., description="Unique stream ID", json_schema_extra={"example": 1}),
+    chatter_id: int = Path(..., description="Unique chatter ID", json_schema_extra={"example": 42}),
 ):
     """Get messages from a specific chatter in a specific stream"""
     try:
@@ -805,14 +803,12 @@ def get_chatter_messages_on_stream(
     response_model=List[List[Any]],
     tags=["Creators"],
     summary="Get all creators",
-    description="""
+    description=f"""
     Retrieve a list of all Twitch creators/streamers in the database.
     Each creator entry contains their ID and display name.
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.GENERAL
-    ),
+    **Rate Limit**: {rate_limits.GENERAL}
+    """,
     responses={
         200: {
             "description": "List of all creators",
@@ -860,16 +856,14 @@ def get_creators(request: Request, response: Response):
     response_model=HealthStatus,
     tags=["Health"],
     summary="Basic Health Check",
-    description="""
+    description=f"""
     Basic health check endpoint for load balancer health checks.
     Only checks critical components (database connectivity).
     
     Returns 200 if system is operational, 503 if critical issues exist.
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.HEALTH
-    ),
+    **Rate Limit**: {rate_limits.HEALTH}
+    """,
     responses={
         200: {
             "description": "System is healthy",
@@ -932,7 +926,7 @@ def health_check(request: Request, response: Response):
     response_model=DetailedHealthStatus,
     tags=["Health"],
     summary="Detailed Health Check",
-    description="""
+    description=f"""
     Comprehensive health check with detailed system monitoring.
     
     Includes:
@@ -941,10 +935,8 @@ def health_check(request: Request, response: Response):
     * Component response times and detailed status
     * External dependency checks (Twitch API)
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.HEALTH
-    ),
+    **Rate Limit**: {rate_limits.HEALTH}
+    """,
     responses={
         200: {
             "description": "Detailed system health information",
@@ -986,7 +978,7 @@ def detailed_health_check(request: Request, response: Response):
     "/metrics/prometheus",
     tags=["Monitoring"],
     summary="Prometheus Metrics",
-    description="""
+    description=f"""
     Prometheus-compatible metrics endpoint for monitoring systems.
     
     Returns metrics in Prometheus exposition format including:
@@ -995,10 +987,8 @@ def detailed_health_check(request: Request, response: Response):
     * System resource utilization
     * Application uptime
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.GENERAL
-    ),
+    **Rate Limit**: {rate_limits.GENERAL}
+    """,
     responses={
         200: {
             "description": "Prometheus metrics in text format",
@@ -1039,7 +1029,7 @@ stream_sniper_metrics_error 1 {error_time}
     response_model=MetricsResponse,
     tags=["Monitoring"],
     summary="API Performance Metrics",
-    description="""
+    description=f"""
     Get comprehensive performance metrics and monitoring data.
     
     Includes:
@@ -1049,10 +1039,8 @@ stream_sniper_metrics_error 1 {error_time}
     * Per-endpoint performance metrics
     * System uptime and health
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.GENERAL
-    ),
+    **Rate Limit**: {rate_limits.GENERAL}
+    """,
     responses={
         200: {
             "description": "Performance metrics data",
@@ -1075,13 +1063,11 @@ def get_metrics(request: Request):
     "/cache/stats",
     tags=["Monitoring"],
     summary="Cache Statistics",
-    description="""
+    description=f"""
     Get detailed cache performance statistics.
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.GENERAL
-    ),
+    **Rate Limit**: {rate_limits.GENERAL}
+    """,
     responses={
         200: {
             "description": "Cache statistics",
@@ -1114,14 +1100,12 @@ def get_cache_stats(request: Request):
     "/cache/flush",
     tags=["Monitoring"],
     summary="Flush Cache",
-    description="""
+    description=f"""
     Flush all cached data. Use with caution as this will impact performance
     until cache is rebuilt.
     
-    **Rate Limit**: {rate_limit}
-    """.format(
-        rate_limit=rate_limits.HEAVY
-    ),
+    **Rate Limit**: {rate_limits.HEAVY}
+    """,
     responses={
         200: {
             "description": "Cache flushed successfully",

@@ -16,7 +16,7 @@ import uuid
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Dict, Optional, Union
 
 # Context variable for correlation ID
 correlation_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("correlation_id", default="")
@@ -254,7 +254,6 @@ class LoggingConfig:
                 test_file.unlink()
             except (PermissionError, OSError) as e:
                 # Fallback to user's home directory
-                import os
 
                 fallback_dir = Path.home() / ".stream_sniper_logs"
                 fallback_dir.mkdir(parents=True, exist_ok=True)

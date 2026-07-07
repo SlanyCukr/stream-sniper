@@ -7,7 +7,7 @@ Tests chat message processing including:
 - Chat processing workflow
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 

@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Any, List, Tuple, Union
 
 from twitchAPI.object.api import Stream, TwitchUser
@@ -10,7 +11,7 @@ class TwitchAPI:
     _instance = None
 
     def __init__(self):
-        if not TwitchAPI._instance:
+        if TwitchAPI._instance is None:
             TwitchAPI._instance = self
 
     @classmethod
@@ -23,7 +24,13 @@ class TwitchAPI:
         self.streamer_nickname = streamer_nickname
 
     async def twitch_api_init(self):
-        self.twitch = await Twitch("9c7juru6rfbukm213trck2mlxwsip5", "52uj87wai8vi71g1zup0q0no6kv7dg")
+        client_id = os.environ.get("TWITCH_CLIENT_ID")
+        client_secret = os.environ.get("TWITCH_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            raise RuntimeError(
+                "TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET environment variables must be set"
+            )
+        self.twitch = await Twitch(client_id, client_secret)
 
     @staticmethod
     def get_async_result(async_generator, return_all_values: bool = False) -> Union[List, Any]:

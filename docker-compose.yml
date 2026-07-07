@@ -6,17 +6,13 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Mount source code for hot reload
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
-      - ./frontend/package.json:/app/package.json
-      # - ./frontend/package-lock.json:/app/package-lock.json
-      # Exclude node_modules to avoid conflicts
+      - ./frontend:/app
       - /app/node_modules
+      - /app/.next
     environment:
-      - CHOKIDAR_USEPOLLING=true
-      - GENERATE_SOURCEMAP=false
-      - REACT_APP_API_URL=http://localhost:5002
+      - API_PROXY_TARGET=http://api:5002
+      - WATCHPACK_POLLING=true
+      - NEXT_TELEMETRY_DISABLED=1
     depends_on:
       - api
     restart: unless-stopped
@@ -30,16 +26,28 @@ services:
     ports:
       - "5002:5002"
     volumes:
-      # Mount source code for hot reload
-      - ./backend/stream_sniper:/app/stream_sniper
-      - ./backend/pyproject.toml:/app/pyproject.toml
-      - ./backend/CLAUDE.md:/app/CLAUDE.md
+      # Dev hot reload: the image is built with `uv sync --no-editable`, i.e. the
+      # project is installed as a real wheel inside the venv, not editable-linked
+      # back to a source tree (that's what makes the prod image self-contained —
+      # see Dockerfile.api). To get hot reload in dev without a second Dockerfile
+      # target, we bind-mount the live source directly on top of the *installed*
+      # package path inside the venv's site-packages, then run uvicorn --reload
+      # watching that same path (command below).
+      - ./backend/stream_sniper:/app/.venv/lib/python3.12/site-packages/stream_sniper
+    command:
+      [
+        "uvicorn",
+        "stream_sniper.api.api:app",
+        "--host", "0.0.0.0",
+        "--port", "5002",
+        "--reload",
+        "--reload-dir", "/app/.venv/lib/python3.12/site-packages/stream_sniper",
+      ]
     env_file:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
       - REDIS_HOST=redis
-      - PYTHONPATH=/app
     depends_on:
       - redis
     restart: unless-stopped
@@ -51,16 +59,14 @@ services:
       context: ./backend
       dockerfile: Dockerfile.collector
     volumes:
-      # Mount source code for hot reload
-      - ./backend/stream_sniper:/app/stream_sniper
-      - ./backend/pyproject.toml:/app/pyproject.toml
-      - ./backend/CLAUDE.md:/app/CLAUDE.md
+      # Same hot-reload approach as the api service (see comment above): bind
+      # the live source over the installed package path in the venv.
+      - ./backend/stream_sniper:/app/.venv/lib/python3.12/site-packages/stream_sniper
       - ./logs:/app/logs
     env_file:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
-      - PYTHONPATH=/app
     command: ["${TWITCH_USERNAME:-defaultuser}"]
     restart: "no"
     networks:

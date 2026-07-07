@@ -3,16 +3,15 @@ Processing queue service for managing stream processing jobs.
 """
 
 import asyncio
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+from typing import Any, Dict
 
 from ..database.processing_jobs_table_gateway import (
-    select_pending_jobs_db,
-    select_failed_jobs_for_retry_db,
-    start_processing_job_db,
     complete_processing_job_db,
     fail_processing_job_db,
-    update_processing_job_db
+    select_failed_jobs_for_retry_db,
+    select_pending_jobs_db,
+    start_processing_job_db,
+    update_processing_job_db,
 )
 from ..logging_config import get_logger
 

@@ -10,7 +10,6 @@ Tests all API endpoints with mocked database responses to ensure:
 
 from unittest.mock import Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 from stream_sniper.api.api import app

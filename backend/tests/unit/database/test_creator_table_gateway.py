@@ -7,7 +7,6 @@ Tests all creator-related database operations including:
 - Creator Twitch ID retrieval
 """
 
-from unittest.mock import Mock, patch
 
 import pytest
 

@@ -3,12 +3,12 @@ Scheduler service for coordinating stream monitoring and processing.
 """
 
 import asyncio
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, Optional
 
-from .stream_monitor import StreamMonitor
-from .processing_queue import ProcessingQueue
 from ..logging_config import get_logger
+from .processing_queue import ProcessingQueue
+from .stream_monitor import StreamMonitor
 
 logger = get_logger(__name__)
 

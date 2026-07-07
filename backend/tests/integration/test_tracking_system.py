@@ -2,28 +2,13 @@
 Integration tests for the tracking system.
 """
 
-import pytest
-import asyncio
 from unittest.mock import Mock, patch
 
-from stream_sniper.database.tracked_streamers_table_gateway import (
-    insert_tracked_streamer_db,
-    select_tracked_streamers_db,
-    update_tracked_streamer_db,
-    delete_tracked_streamer_db,
-    streamer_exists_db
-)
-from stream_sniper.database.processing_jobs_table_gateway import (
-    insert_processing_job_db,
-    select_processing_jobs_db,
-    update_processing_job_db,
-    start_processing_job_db,
-    complete_processing_job_db,
-    fail_processing_job_db
-)
-from stream_sniper.tracking.stream_monitor import StreamMonitor
+import pytest
+
 from stream_sniper.tracking.processing_queue import ProcessingQueue
 from stream_sniper.tracking.scheduler import TrackingScheduler
+from stream_sniper.tracking.stream_monitor import StreamMonitor
 
 
 class TestTrackingSystem:

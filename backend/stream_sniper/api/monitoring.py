@@ -3,9 +3,7 @@ Monitoring and metrics collection for API performance, cache hits/misses, and ra
 Provides comprehensive insights into system performance and usage patterns.
 """
 
-import json
 import logging
-import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta

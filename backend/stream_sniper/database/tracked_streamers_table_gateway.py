@@ -2,12 +2,12 @@
 Database gateway for tracked_streamers table operations.
 """
 
-from typing import Optional, List, Tuple
 from datetime import datetime
+from typing import List, Optional, Tuple
 
+from ..logging_config import get_logger
 from .connection_pool import get_pool
 from .decorators import log_database_operation
-from ..logging_config import get_logger
 
 logger = get_logger(__name__)
 

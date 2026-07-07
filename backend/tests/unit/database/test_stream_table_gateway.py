@@ -8,9 +8,6 @@ Tests all stream-related database operations including:
 """
 
 from datetime import datetime
-from unittest.mock import Mock
-
-import pytest
 
 from stream_sniper.database.stream_table_gateway import (
     select_all_stream_count_db,

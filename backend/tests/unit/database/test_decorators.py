@@ -6,7 +6,7 @@ database connections and error handling across the application.
 """
 
 import logging
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
