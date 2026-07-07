@@ -26,8 +26,13 @@ const Login = () => {
     const router = useRouter()
     const searchParams = useSearchParams()
 
-    // Get the intended destination from the query string, default to home
-    const from = searchParams.get('from') || '/'
+    // Get the intended destination from the query string, default to home.
+    // Only accept same-origin paths — anything else (absolute URLs,
+    // protocol-relative //host, javascript:) is an open-redirect/XSS vector.
+    const rawFrom = searchParams.get('from')
+    const from = rawFrom && rawFrom.startsWith('/') && !rawFrom.startsWith('//')
+        ? rawFrom
+        : '/'
 
     useEffect(() => {
         // If already authenticated, redirect to intended destination

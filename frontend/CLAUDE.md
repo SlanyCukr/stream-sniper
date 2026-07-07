@@ -43,9 +43,12 @@ strips the `/api` prefix and forwards to the server-side env var
 **`API_PROXY_TARGET`** (e.g. `/api/auth/me` -> `<target>/auth/me`). This mirrors
 the old nginx `proxy_pass .../;` trailing-slash strip.
 
-- Dev compose: `API_PROXY_TARGET=http://api:5002`
-- Prod compose: `API_PROXY_TARGET=http://stream-sniper-api:5002`
-- Bare metal: `API_PROXY_TARGET=http://localhost:5002`
+- Dev compose: `API_PROXY_TARGET=http://api:5002` (runtime — `next dev` re-reads it)
+- Prod: **baked at build time** — `next build` writes rewrites into
+  `routes-manifest.json`, so runtime env cannot change it. `Dockerfile.prod`
+  sets `ARG/ENV API_PROXY_TARGET=http://stream-sniper-api:5002` before the
+  build; override with `--build-arg` if the api service name ever changes.
+- Bare metal: `API_PROXY_TARGET=http://localhost:5002` in `.env.local`
 
 `lib/api.ts` is the one axios instance (`baseURL: '/api'`). A request interceptor
 attaches `Authorization: Bearer <token>` from `localStorage` to **every** `/api`

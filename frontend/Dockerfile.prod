@@ -10,6 +10,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# rewrites() are baked into the build; this must match the prod api service name
+ARG API_PROXY_TARGET=http://stream-sniper-api:5002
+ENV API_PROXY_TARGET=$API_PROXY_TARGET
 RUN npm run build
 
 # ---- runner ----
