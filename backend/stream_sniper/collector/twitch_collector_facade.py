@@ -38,7 +38,7 @@ class TwitchCollectorFacade:
         self.db_buffer_insert_message = DatabaseBuffer(insert_message_db, 5000)
         self.message_handler = MessageHandler(nickname, self.db_buffer_insert_message.add_item)
         self.chat_processor = ChatProcessor(self.creator_id, self.message_handler.handle_message)
-        self.chat_downloader = IrcChatDownloader(nickname)
+        self.chat_downloader = IrcChatDownloader(nickname, self.twitch_api)
 
         self.logger.info(f"Twitch collector initialized successfully for: {nickname}")
 

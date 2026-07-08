@@ -9,10 +9,15 @@ from .twitch_api import TwitchAPI
 
 
 class IrcChatDownloader:
-    def __init__(self, nickname: str):
+    def __init__(self, nickname: str, twitch_api: TwitchAPI):
         self.nickname = nickname
         self.logger = get_logger(__name__)
-        self.available_video_ids = TwitchAPI.instance().get_available_video_ids()
+        # Use the caller's TwitchAPI instance, NOT TwitchAPI.instance(). The
+        # singleton is the first instance ever created; in the tracking service
+        # that's the stream monitor's, whose streamer_nickname it rewrites on
+        # every poll — so instance().get_available_video_ids() would return a
+        # different streamer's VODs than the one this collector is processing.
+        self.available_video_ids = twitch_api.get_available_video_ids()
         self.downloader = ChatDownloader()
         self.logger.info(
             f"IRC chat downloader initialized for {nickname} with {len(self.available_video_ids)} available videos"
