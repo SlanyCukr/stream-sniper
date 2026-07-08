@@ -44,16 +44,17 @@ class StreamProcessor:
         try:
             self.logger.info(f"Starting stream processing for {twitch_username}, stream {twitch_stream_id}")
 
-            # Create collector facade
-            collector = TwitchCollectorFacade(twitch_username)
-
-            # Run processing in a separate thread to avoid blocking
-            # Since TwitchCollectorFacade is not async, we need to run it in an executor
+            # Run processing in a separate thread to avoid blocking. The
+            # TwitchCollectorFacade is fully synchronous and calls asyncio.run()
+            # in its constructor, so it must be BOTH constructed and run inside
+            # the executor thread (which has no running loop). Building it here
+            # in the async context raises "asyncio.run() cannot be called from a
+            # running event loop".
             loop = asyncio.get_running_loop()
 
             def run_collector():
                 try:
-                    # Process the stream
+                    collector = TwitchCollectorFacade(twitch_username)
                     collector.start_processing(max_streams=max_streams)
                     return True
                 except Exception as e:
