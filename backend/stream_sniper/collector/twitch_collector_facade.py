@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 
 from ..database.chatter_table_gateway import insert_new_chatters_db, select_all_chatters_db
 from ..database.creator_table_gateway import insert_new_creator_db, select_creator_id_db
@@ -42,11 +43,14 @@ class TwitchCollectorFacade:
         self.logger.info(f"Twitch collector initialized successfully for: {nickname}")
 
     @performance_timer("complete_stream_processing", slow_threshold=10.0)
-    def start_processing(self):
+    def start_processing(self, max_streams: Optional[int] = None):
         self.logger.info("Starting data collection process")
         processed_streams = 0
 
         while True:
+            if max_streams is not None and processed_streams >= max_streams:
+                self.logger.info(f"Reached max_streams={max_streams}; stopping data collection")
+                break
             try:
                 chat, twitch_stream_id, started_at, title, duration, thumbnail_url = (
                     self.chat_downloader.download_chat()
