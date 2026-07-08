@@ -265,8 +265,8 @@ async def add_tracked_streamer(
                 await twitch_api.twitch_api_init()
                 twitch_api.set_streamer_nickname(streamer_data.twitch_username)
                 
-                display_name, profile_image_url = twitch_api.get_creator_info()
-                twitch_creator_id = twitch_api.get_creator_twitch_id()
+                display_name, profile_image_url = await twitch_api.get_creator_info_async()
+                twitch_creator_id = await twitch_api.get_creator_twitch_id_async()
                 
                 creator_id = insert_new_creator_db(
                     streamer_data.twitch_username,

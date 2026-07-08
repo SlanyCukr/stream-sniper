@@ -141,7 +141,7 @@ class StreamMonitor:
             self.twitch_api.set_streamer_nickname(twitch_username)
             
             # Get stream info
-            stream_info = self.twitch_api.get_stream_info()
+            stream_info = await self.twitch_api.get_stream_info_async()
             
             if stream_info:
                 return StreamStatus(
@@ -208,7 +208,7 @@ class StreamMonitor:
             self.twitch_api.set_streamer_nickname(twitch_username)
             
             # Get available video IDs (recent streams)
-            videos = self.twitch_api.get_available_video_ids()
+            videos = await self.twitch_api.get_available_video_ids_async()
             
             # Return the most recent videos (limited)
             return videos[:limit] if videos else []
