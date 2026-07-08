@@ -7,7 +7,7 @@ def select_chatter_messages_db(chatter_id, cursor):
     return cursor.fetchall()
 
 
-def insert_message_db(items: [tuple], cursor, connection):
+def insert_message_db(items: list[tuple], cursor, connection):
     cursor.executemany(
         "INSERT INTO "
         "message "
