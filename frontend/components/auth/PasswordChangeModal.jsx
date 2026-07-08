@@ -147,7 +147,7 @@ const PasswordChangeModal = ({
                 </Modal.Body>
                 <Modal.Footer>
                     <Button
-                        variant="secondary"
+                        variant="outline-primary"
                         onClick={handleClose}
                         disabled={isSubmitting || loading}
                     >

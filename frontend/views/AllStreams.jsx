@@ -3,18 +3,13 @@ import {
     useState, useCallback, useMemo,
 } from 'react'
 import {
-    Card,
-    CardGroup,
-} from 'react-bootstrap'
-import {
     useStreams, useCreators,
 } from '@/hooks/useApiQuery'
-import LoadingSpinner from '@/components/LoadingSpinner'
 import StreamThumbnail from '@/components/StreamThumbnail'
+import StreamGridSkeleton from '@/components/streams/StreamGridSkeleton'
 import ErrorDisplay from '@/components/streams/ErrorDisplay'
 import FiltersCard from '@/components/streams/FiltersCard'
 import PaginationComponent from '@/components/streams/PaginationComponent'
-import { chunks } from '@/utils/utils'
 
 
 const AllStreams = () => {
@@ -106,13 +101,12 @@ const AllStreams = () => {
 
     return (
         <>
-            {isLoading && (
-                <LoadingSpinner
-                    size="lg"
-                    text="Loading streams and creators..."
-                    card
-                />
-            )}
+            <div className="page-head">
+                <div>
+                    <h1 id="streams-heading" className="page-title">All streams</h1>
+                    <p className="page-sub">Captured VODs · chat intelligence</p>
+                </div>
+            </div>
 
             <ErrorDisplay
                 streamsError={streamsError}
@@ -127,59 +121,63 @@ const AllStreams = () => {
                 onCreatorChange={handleCreatorChange}
                 selectedOrdering={selectedOrdering}
                 onOrderingChange={handleOrderingChange}
+                page={offset + 1}
+                pagesCount={pagesCount}
             />
 
-            <Card>
-                <Card.Header>
-                    <h1 id="streams-heading" className="page-title mb-0">All streams</h1>
-                </Card.Header>
-                <Card.Body>
+            {isLoading && <StreamGridSkeleton />}
+
+            {!isLoading && (
+                <div
+                    role="region"
+                    aria-labelledby="streams-heading"
+                    aria-live="polite"
+                    aria-describedby="streams-description"
+                >
                     <div
-                        role="region"
-                        aria-labelledby="streams-heading"
-                        aria-live="polite"
-                        aria-describedby="streams-description"
-                    >
-                        <div
-                            id="streams-description"
-                            className="visually-hidden">
-                            {streams.length > 0
-                                ? `Showing ${streams.length} streams on page ${offset + 1} of ${pagesCount}`
-                                : 'No streams found'
-                            }
-                        </div>
-                        {useMemo(() =>
-                            chunks(streams, 4).map((chunk, chunkIndex) =>
-                                <CardGroup
-                                    key={chunkIndex}
-                                    className="mb-4"
-                                    role="group"
-                                    aria-label={`Stream row ${chunkIndex + 1}`}
-                                >
-                                    {chunk.map((stream, streamIndex) =>
-                                        <StreamThumbnail
-                                            key={`${stream[0]}-${streamIndex}`}
-                                            id={stream[0]}
-                                            name={stream[1]}
-                                            start={stream[2]}
-                                            end={stream[3]}
-                                            thumbnailSrc={stream[4]}
-                                            messageCount={stream[5]}
-                                        />,
-                                    )}
-                                </CardGroup>,
-                            ), [
-                            streams,
-                        ],
-                        )}
-                        <PaginationComponent
-                            pagesCount={pagesCount}
-                            offset={offset}
-                            updateOffset={updateOffset}
-                        />
+                        id="streams-description"
+                        className="visually-hidden">
+                        {streams.length > 0
+                            ? `Showing ${streams.length} streams on page ${offset + 1} of ${pagesCount}`
+                            : 'No streams found'
+                        }
                     </div>
-                </Card.Body>
-            </Card>
+
+                    {streams.length === 0 ? (
+                        <div className="card">
+                            <div className="empty-state">
+                                <div
+                                    className="empty-scope"
+                                    aria-hidden="true" />
+                                <p className="empty-title">No streams in scope</p>
+                                <p className="empty-hint">
+                                    No captured streams match this filter yet. Streams appear here once the collector has processed a VOD.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="stream-grid">
+                            {streams.map((stream, streamIndex) => (
+                                <StreamThumbnail
+                                    key={`${stream[0]}-${streamIndex}`}
+                                    id={stream[0]}
+                                    name={stream[1]}
+                                    start={stream[2]}
+                                    end={stream[3]}
+                                    thumbnailSrc={stream[4]}
+                                    messageCount={stream[5]}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    <PaginationComponent
+                        pagesCount={pagesCount}
+                        offset={offset}
+                        updateOffset={updateOffset}
+                    />
+                </div>
+            )}
         </>
     )
 }

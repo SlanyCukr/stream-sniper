@@ -63,8 +63,12 @@ const SpinnerContent = ({
  */
 const OverlaySpinner = ({ children }) => (
     <div
-        className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white bg-opacity-75"
-        style={{ zIndex: 1000 }}
+        className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+        style={{
+            zIndex: 1000,
+            background: 'rgba(11, 14, 19, 0.75)',
+            backdropFilter: 'blur(2px)',
+        }}
     >
         {children}
     </div>

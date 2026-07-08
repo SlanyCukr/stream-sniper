@@ -12,12 +12,12 @@ const navigation = [
     {
         title: 'All streams',
         href: '/',
-        icon: 'bi bi-person',
+        icon: 'bi bi-collection-play',
     },
     {
-        title: 'Get chatter messages',
+        title: 'Chatter messages',
         href: '/chatter-messages',
-        icon: 'bi bi-person',
+        icon: 'bi bi-chat-left-text',
     },
     {
         title: 'Streamer regulars',
@@ -27,27 +27,66 @@ const navigation = [
     {
         title: 'Chatter footprint',
         href: '/chatter-footprint',
-        icon: 'bi bi-graph-up',
+        icon: 'bi bi-fingerprint',
     },
 ]
 
 const adminNavigation = [
     {
-        title: 'Admin Dashboard',
+        title: 'Dashboard',
         href: '/admin/dashboard',
-        icon: 'bi bi-shield-check',
+        icon: 'bi bi-speedometer2',
     },
     {
-        title: 'User Management',
+        title: 'Users',
         href: '/admin/users',
-        icon: 'bi bi-people',
+        icon: 'bi bi-person-gear',
     },
     {
-        title: 'System Information',
+        title: 'Tracking',
+        href: '/admin/tracking',
+        icon: 'bi bi-broadcast',
+    },
+    {
+        title: 'System',
         href: '/admin/system',
-        icon: 'bi bi-gear',
+        icon: 'bi bi-cpu',
     },
 ]
+
+/** Active when the path matches exactly, or is nested under a non-root href. */
+const isActivePath = (pathname, href) => {
+    if (href === '/') {
+        return pathname === '/'
+    }
+    return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+const NavLinks = ({
+    items, pathname, keyPrefix,
+}) => items.map((navi, index) => (
+    <Nav.Item
+        key={`${keyPrefix}${index}`}
+        role="none"
+    >
+        <Link
+            href={navi.href}
+            className={
+                isActivePath(pathname, navi.href)
+                    ? 'nav-link active'
+                    : 'nav-link'
+            }
+            aria-current={isActivePath(pathname, navi.href) ? 'page' : null}
+            aria-label={navi.title}
+        >
+            <i
+                className={navi.icon}
+                aria-hidden="true"
+            ></i>
+            <span className="ms-3 d-inline-block">{navi.title}</span>
+        </Link>
+    </Nav.Item>
+))
 
 const Sidebar = () => {
     const {
@@ -76,7 +115,7 @@ const Sidebar = () => {
     const pathname = usePathname()
 
     return (
-        <div className="p-3">
+        <div className="sidebar-inner p-3 pb-0">
             <div className="d-flex align-items-center">
                 <Logo />
                 <Button
@@ -90,72 +129,44 @@ const Sidebar = () => {
                 />
             </div>
             <nav
-                className="pt-4 mt-2"
+                className="pt-4 mt-2 flex-grow-1 d-flex flex-column"
                 aria-label="Main navigation">
                 <Nav
                     className="flex-column sidebarNav"
                     role="navigation"
                 >
-                    {navigation.map((navi, index) => (
-                        <Nav.Item
-                            key={index}
-                            className="sidenav-bg"
-                            role="none"
-                        >
-                            <Link
-                                href={navi.href}
-                                className={
-                                    pathname === navi.href
-                                        ? 'nav-link active'
-                                        : 'nav-link'
-                                }
-                                aria-current={pathname === navi.href ? 'page' : null}
-                                aria-label={navi.title}
-                            >
-                                <i
-                                    className={navi.icon}
-                                    aria-hidden="true"
-                                ></i>
-                                <span className="ms-3 d-inline-block">{navi.title}</span>
-                            </Link>
-                        </Nav.Item>
-                    ))}
+                    <div className="px-3 pb-1">
+                        <span className="sidebar-section">Intel</span>
+                    </div>
+                    <NavLinks
+                        items={navigation}
+                        pathname={pathname}
+                        keyPrefix=""
+                    />
 
                     {/* Admin Navigation */}
                     {isAuthenticated && isAdmin && (
                         <>
                             <hr className="my-3" />
                             <div className="px-3 pb-1">
-                                <span className="sidebar-section">{'// Administration'}</span>
+                                <span className="sidebar-section">Command</span>
                             </div>
-                            {adminNavigation.map((navi, index) => (
-                                <Nav.Item
-                                    key={`admin-${index}`}
-                                    className="sidenav-bg"
-                                    role="none"
-                                >
-                                    <Link
-                                        href={navi.href}
-                                        className={
-                                            pathname === navi.href
-                                                ? 'text-primary nav-link py-3'
-                                                : 'nav-link text-secondary py-3'
-                                        }
-                                        aria-current={pathname === navi.href ? 'page' : null}
-                                        aria-label={navi.title}
-                                    >
-                                        <i
-                                            className={navi.icon}
-                                            aria-hidden="true"
-                                        ></i>
-                                        <span className="ms-3 d-inline-block">{navi.title}</span>
-                                    </Link>
-                                </Nav.Item>
-                            ))}
+                            <NavLinks
+                                items={adminNavigation}
+                                pathname={pathname}
+                                keyPrefix="admin-"
+                            />
                         </>
                     )}
                 </Nav>
             </nav>
+            <div
+                className="sidebar-status"
+                aria-hidden="true"
+            >
+                <span className="status-dot"></span>
+                <span>Link active</span>
+            </div>
         </div>
     )
 }

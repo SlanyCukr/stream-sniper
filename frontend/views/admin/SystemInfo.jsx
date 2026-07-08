@@ -4,11 +4,8 @@ import {
 } from 'react'
 import {
     Container,
-    Row,
-    Col,
     Alert,
     Spinner,
-    Badge,
     Button,
 } from 'react-bootstrap'
 import SystemHealthOverview from '@/components/admin/SystemHealthOverview'
@@ -39,6 +36,10 @@ const SystemInfo = () => {
     const [
         error,
         setError,
+    ] = useState(null)
+    const [
+        success,
+        setSuccess,
     ] = useState(null)
 
     const fetchSystemInfo = useCallback(async () => {
@@ -93,23 +94,29 @@ const SystemInfo = () => {
 
     const getStatusBadge = status => {
         const statusMap = {
-            'healthy': 'success',
-            'degraded': 'warning',
-            'unhealthy': 'danger',
-            'critical': 'danger',
+            'healthy': 'is-ok',
+            'degraded': 'is-warn',
+            'unhealthy': 'is-err',
+            'critical': 'is-err',
         }
-        return <Badge bg={statusMap[status] || 'secondary'}>{status}</Badge>
+        const modifier = statusMap[status]
+        return (
+            <span className={modifier ? `status-chip ${modifier}` : 'status-chip'}>
+                {status}
+            </span>
+        )
     }
 
     const flushCache = async () => {
+        setError(null)
+        setSuccess(null)
         try {
             await api.post('/cache/flush')
-            alert('Cache flushed successfully')
+            setSuccess('Cache flushed successfully')
             fetchSystemInfo()
         } catch (flushError) {
             console.error('Error flushing cache:', flushError)
             setError(flushError.response?.data?.detail || flushError.message || 'Error flushing cache')
-            alert('Error flushing cache: ' + (flushError.response?.data?.detail || flushError.message))
         }
     }
 
@@ -127,27 +134,55 @@ const SystemInfo = () => {
 
     return (
         <Container>
-            <Row className="mb-4">
-                <Col>
-                    <h2>System Information</h2>
-                    <p className="text-muted">System health, performance metrics, and monitoring data</p>
-                </Col>
-                <Col xs="auto">
+            <div className="page-head">
+                <div>
+                    <h1 className="page-title">System information</h1>
+                    <p className="page-sub">Health · metrics · monitoring</p>
+                </div>
+                <div className="page-actions">
                     <Button
                         variant="outline-primary"
                         onClick={fetchSystemInfo}>
                         <i className="bi bi-arrow-clockwise me-2"></i>
                         Refresh
                     </Button>
-                </Col>
-            </Row>
+                </div>
+            </div>
 
             {error && (
                 <Alert
                     variant="danger"
-                    className="mb-4">
+                    className="mb-4"
+                    dismissible
+                    onClose={() => setError(null)}>
                     {error}
                 </Alert>
+            )}
+
+            {success && (
+                <Alert
+                    variant="success"
+                    className="mb-4"
+                    dismissible
+                    onClose={() => setSuccess(null)}>
+                    {success}
+                </Alert>
+            )}
+
+            {!healthData && !metricsData && !cacheStats && (
+                <div className="card">
+                    <div className="empty-state">
+                        <div
+                            className="empty-scope"
+                            aria-hidden="true" />
+                        <p className="empty-title">Telemetry offline</p>
+                        <p className="empty-hint">
+                            None of the monitoring endpoints responded (health, metrics, cache).
+                            The API may be up while its metrics backend is down — try Refresh, and
+                            check the api container logs if this persists.
+                        </p>
+                    </div>
+                </div>
             )}
 
             {healthData && (

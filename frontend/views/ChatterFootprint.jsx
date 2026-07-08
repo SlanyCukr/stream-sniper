@@ -50,6 +50,11 @@ const ChatterFootprint = () => {
         activityData,
     ])
 
+    // Max message count across rows, for the relative magnitude bars
+    const maxMessages = useMemo(() => Math.max(1, ...activity.map(row => row[5] || 0)), [
+        activity,
+    ])
+
     /**
      * Handles the nick lookup form submission
      * @param {object} event
@@ -66,57 +71,87 @@ const ChatterFootprint = () => {
 
     return (
         <>
-            <Card className="mb-4">
-                <Card.Header>
-                    <h1 id="footprint-heading" className="page-title mb-0">Chatter footprint</h1>
-                </Card.Header>
-                <Card.Body>
-                    <Form
-                        onSubmit={handleSubmit}
-                        className="d-flex gap-2"
-                        role="search"
+            <div className="page-head">
+                <div>
+                    <h1 id="footprint-heading" className="page-title">Chatter footprint</h1>
+                    <p className="page-sub">Cross-stream presence trace</p>
+                </div>
+            </div>
+
+            <Form
+                onSubmit={handleSubmit}
+                className="toolbar"
+                role="search"
+            >
+                <span
+                    className="toolbar-label"
+                    aria-hidden="true">
+                    Trace
+                </span>
+                <div className="toolbar-field">
+                    <label
+                        htmlFor="footprint-nick-input"
+                        className="visually-hidden"
                     >
-                        <label
-                            htmlFor="footprint-nick-input"
-                            className="visually-hidden"
-                        >
-                            Chatter nickname
-                        </label>
-                        <Form.Control
-                            id="footprint-nick-input"
-                            type="text"
-                            value={nickInput}
-                            onChange={event => setNickInput(event.target.value)}
-                            placeholder="Enter chatter nickname..."
-                            aria-label="Chatter nickname"
-                        />
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            disabled={!nickInput.trim()}
-                        >
-                            Search
-                        </Button>
-                    </Form>
-                </Card.Body>
-            </Card>
+                        Chatter nickname
+                    </label>
+                    <Form.Control
+                        id="footprint-nick-input"
+                        type="text"
+                        value={nickInput}
+                        onChange={event => setNickInput(event.target.value)}
+                        placeholder="Enter chatter nickname..."
+                        aria-label="Chatter nickname"
+                    />
+                </div>
+                <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={!nickInput.trim()}
+                >
+                    <i
+                        className="bi bi-crosshair me-2"
+                        aria-hidden="true"></i>
+                    Trace
+                </Button>
+                {submittedNick && activity.length > 0 && !isLoading && (
+                    <span className="toolbar-readout">
+                        <strong>{activity.length}</strong> streams · target <strong>{submittedNick}</strong>
+                    </span>
+                )}
+            </Form>
 
             <Card>
-                <Card.Body>
+                <Card.Body className={!submittedNick || isNotFound || (chatterId && activity.length === 0 && !isLoading) ? 'p-0' : ''}>
                     {!submittedNick && (
-                        <p className="mb-0">Enter a chatter nickname to see every stream they appear in.</p>
+                        <div className="empty-state">
+                            <div
+                                className="empty-scope"
+                                aria-hidden="true" />
+                            <p className="empty-title">Awaiting target</p>
+                            <p className="empty-hint">
+                                Enter a chatter nickname to see every captured stream they appear in.
+                            </p>
+                        </div>
                     )}
 
                     {isLoading && (
                         <LoadingSpinner
                             size="lg"
-                            text="Loading chatter footprint..."
-                            card
+                            text="Tracing chatter footprint..."
                         />
                     )}
 
                     {isNotFound && !isLoading && (
-                        <p className="mb-0">No chatter found with the nickname <strong>{submittedNick}</strong>.</p>
+                        <div className="empty-state">
+                            <div
+                                className="empty-scope"
+                                aria-hidden="true" />
+                            <p className="empty-title">No signal</p>
+                            <p className="empty-hint">
+                                No chatter found with the nickname <strong>{submittedNick}</strong>.
+                            </p>
+                        </div>
                     )}
 
                     {chatterIdError && !isNotFound && !isLoading && (
@@ -144,10 +179,17 @@ const ChatterFootprint = () => {
                             aria-live="polite"
                         >
                             {activity.length === 0
-                                ? <p className="mb-0">This chatter has no recorded stream activity.</p>
+                                ? (
+                                    <div className="empty-state">
+                                        <div
+                                            className="empty-scope"
+                                            aria-hidden="true" />
+                                        <p className="empty-title">No activity</p>
+                                        <p className="empty-hint">This chatter has no recorded stream activity.</p>
+                                    </div>
+                                )
                                 : (
                                     <Table
-                                        striped
                                         hover
                                         responsive
                                     >
@@ -156,7 +198,9 @@ const ChatterFootprint = () => {
                                                 <th scope="col">Stream</th>
                                                 <th scope="col">Streamer</th>
                                                 <th scope="col">Started</th>
-                                                <th scope="col">Messages</th>
+                                                <th
+                                                    scope="col"
+                                                    className="text-end">Messages</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -168,8 +212,20 @@ const ChatterFootprint = () => {
                                                         </Link>
                                                     </td>
                                                     <td>{row[4]}</td>
-                                                    <td>{formatStreamTimestamp(row[2])}</td>
-                                                    <td>{row[5]?.toLocaleString()}</td>
+                                                    <td className="mono small">{formatStreamTimestamp(row[2])}</td>
+                                                    <td
+                                                        className="mono text-end"
+                                                        style={{ minWidth: '110px' }}>
+                                                        {row[5]?.toLocaleString()}
+                                                        <span
+                                                            className="data-bar"
+                                                            aria-hidden="true">
+                                                            <span
+                                                                className="data-bar-fill"
+                                                                style={{ width: `${Math.max(2, Math.round(((row[5] || 0) / maxMessages) * 100))}%` }}
+                                                            />
+                                                        </span>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

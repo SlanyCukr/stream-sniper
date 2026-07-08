@@ -6,6 +6,11 @@ import {
     Container,
 } from 'react-bootstrap'
 
+/** Closes the mobile sidebar when the dimmed backdrop is tapped. */
+const closeMobileSidebar = () => {
+    document.getElementById('sidebarArea')?.classList.remove('showSidebar')
+}
+
 const FullLayout = ({ children }) => (
     <>
         {/* Skip link for keyboard navigation */}
@@ -19,11 +24,17 @@ const FullLayout = ({ children }) => (
         <div className="pageWrapper d-lg-flex">
             {/********Sidebar**********/}
             <aside
-                className="sidebarArea shadow"
+                className="sidebarArea"
                 id="sidebarArea"
                 aria-label="Main navigation sidebar">
                 <Sidebar />
             </aside>
+            {/* mobile-only dimmed backdrop; visible while the sidebar is open */}
+            <div
+                className="sidebar-backdrop d-lg-none"
+                onClick={closeMobileSidebar}
+                aria-hidden="true"
+            />
             {/********Content Area**********/}
 
             <div className="contentArea">
@@ -35,7 +46,7 @@ const FullLayout = ({ children }) => (
                     aria-label="Main content area"
                 >
                     <Container
-                        className="p-4 wrapper"
+                        className="p-3 p-md-4 wrapper"
                         fluid>
                         {children}
                     </Container>

@@ -4,7 +4,7 @@ import {
 } from 'react'
 import Select from 'react-select'
 import {
-    Card, Container, Row, Col, Table,
+    Card, Table,
 } from 'react-bootstrap'
 import {
     useCreators, useCreatorTopChatters,
@@ -49,6 +49,11 @@ const StreamerRegulars = () => {
         topChattersData,
     ])
 
+    // Max message count for relative magnitude bars
+    const maxMessages = useMemo(() => Math.max(1, ...topChatters.map(chatter => chatter[2] || 0)), [
+        topChatters,
+    ])
+
     /**
      * Handles creator selection change
      * @param {object} selectedOption
@@ -60,6 +65,13 @@ const StreamerRegulars = () => {
 
     return (
         <>
+            <div className="page-head">
+                <div>
+                    <h1 id="regulars-heading" className="page-title">Streamer regulars</h1>
+                    <p className="page-sub">Top {TOP_CHATTERS_LIMIT} chatters across all captured streams</p>
+                </div>
+            </div>
+
             {creatorsError && (
                 <ErrorAlert
                     error={creatorsError}
@@ -69,50 +81,58 @@ const StreamerRegulars = () => {
                 />
             )}
 
-            <Card className="mb-4">
-                <Card.Header>
-                    <h2 id="regulars-filter-heading" className="page-title fs-6 mb-0">Select creator</h2>
-                </Card.Header>
-                <Card.Body>
-                    <Container>
-                        <Row>
-                            <Col>
-                                <label
-                                    htmlFor="regulars-creator-select"
-                                    className="visually-hidden"
-                                >
-                                    Select a creator
-                                </label>
-                                <Select
-                                    instanceId="regulars-creator-select"
-                                    inputId="regulars-creator-select"
-                                    options={creators}
-                                    value={selectedCreator}
-                                    onChange={handleCreatorChange}
-                                    placeholder="Select creator..."
-                                    isClearable
-                                    aria-label="Select a creator to view their regulars"
-                                />
-                            </Col>
-                        </Row>
-                    </Container>
-                </Card.Body>
-            </Card>
+            <div
+                className="toolbar"
+                role="search"
+                aria-label="Creator selection">
+                <span
+                    className="toolbar-label"
+                    aria-hidden="true">
+                    Creator
+                </span>
+                <div className="toolbar-field">
+                    <label
+                        htmlFor="regulars-creator-select"
+                        className="visually-hidden"
+                    >
+                        Select a creator
+                    </label>
+                    <Select
+                        instanceId="regulars-creator-select"
+                        inputId="regulars-creator-select"
+                        options={creators}
+                        value={selectedCreator}
+                        onChange={handleCreatorChange}
+                        placeholder="Select creator..."
+                        isClearable
+                        aria-label="Select a creator to view their regulars"
+                    />
+                </div>
+                {selectedCreatorId && topChatters.length > 0 && !isLoading && (
+                    <span className="toolbar-readout">
+                        <strong>{topChatters.length}</strong> regulars
+                    </span>
+                )}
+            </div>
 
             <Card>
-                <Card.Header>
-                    <h1 id="regulars-heading" className="page-title mb-0">Streamer regulars</h1>
-                </Card.Header>
-                <Card.Body>
+                <Card.Body className={!selectedCreatorId || (selectedCreatorId && !isLoading && !error && topChatters.length === 0) ? 'p-0' : ''}>
                     {!selectedCreatorId && (
-                        <p className="mb-0">Select a creator to see their most active chatters across all streams.</p>
+                        <div className="empty-state">
+                            <div
+                                className="empty-scope"
+                                aria-hidden="true" />
+                            <p className="empty-title">No creator selected</p>
+                            <p className="empty-hint">
+                                Select a creator to see their most loyal chatters across all captured streams.
+                            </p>
+                        </div>
                     )}
 
                     {isLoading && (
                         <LoadingSpinner
                             size="lg"
                             text="Loading regulars..."
-                            card
                         />
                     )}
 
@@ -132,10 +152,17 @@ const StreamerRegulars = () => {
                             aria-live="polite"
                         >
                             {topChatters.length === 0
-                                ? <p className="mb-0">No chatters found for this creator.</p>
+                                ? (
+                                    <div className="empty-state">
+                                        <div
+                                            className="empty-scope"
+                                            aria-hidden="true" />
+                                        <p className="empty-title">No regulars found</p>
+                                        <p className="empty-hint">No chatters recorded for this creator yet.</p>
+                                    </div>
+                                )
                                 : (
                                     <Table
-                                        striped
                                         hover
                                         responsive
                                     >
@@ -143,15 +170,29 @@ const StreamerRegulars = () => {
                                             <tr>
                                                 <th scope="col">#</th>
                                                 <th scope="col">Chatter</th>
-                                                <th scope="col">Messages</th>
+                                                <th
+                                                    scope="col"
+                                                    className="text-end">Messages</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {topChatters.map((chatter, index) => (
                                                 <tr key={chatter[0]}>
-                                                    <td>{index + 1}</td>
+                                                    <td className="rank-num">{String(index + 1).padStart(2, '0')}</td>
                                                     <td>{chatter[1]}</td>
-                                                    <td>{chatter[2]?.toLocaleString()}</td>
+                                                    <td
+                                                        className="mono text-end"
+                                                        style={{ minWidth: '140px' }}>
+                                                        {chatter[2]?.toLocaleString()}
+                                                        <span
+                                                            className="data-bar"
+                                                            aria-hidden="true">
+                                                            <span
+                                                                className="data-bar-fill"
+                                                                style={{ width: `${Math.max(2, Math.round(((chatter[2] || 0) / maxMessages) * 100))}%` }}
+                                                            />
+                                                        </span>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

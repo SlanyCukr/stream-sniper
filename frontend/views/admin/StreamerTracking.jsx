@@ -3,7 +3,7 @@ import {
     useState, useEffect, useCallback,
 } from 'react'
 import {
-    Container, Row, Col, Card, Table, Button, Alert, Spinner, Badge, Modal, Form, Pagination,
+    Card, Table, Button, Alert, Spinner, Modal, Form, Pagination,
 } from 'react-bootstrap'
 import { api } from '@/lib/api'
 
@@ -29,6 +29,10 @@ const StreamerTracking = () => {
         showAddModal,
         setShowAddModal,
     ] = useState(false)
+    const [
+        removeTarget,
+        setRemoveTarget,
+    ] = useState(null)
     const [
         pagination,
         setPagination,
@@ -151,11 +155,7 @@ const StreamerTracking = () => {
         }
     }
 
-    const handleRemoveStreamer = async (streamerId, username) => {
-        if (!window.confirm(`Are you sure you want to remove ${username} from tracking?`)) {
-            return
-        }
-
+    const handleRemoveStreamer = async streamerId => {
         try {
             await api.delete(`/admin/tracking/streamers/${streamerId}`)
             setSuccess('Streamer removed successfully')
@@ -163,6 +163,8 @@ const StreamerTracking = () => {
         } catch (removeError) {
             console.error('Error removing streamer:', removeError)
             setError(removeError.response?.data?.detail || removeError.message || 'Failed to remove streamer')
+        } finally {
+            setRemoveTarget(null)
         }
     }
 
@@ -181,34 +183,36 @@ const StreamerTracking = () => {
         return new Date(dateString).toLocaleString()
     }
 
-    const getStatusBadge = isActive => isActive ?
-        <Badge bg="success">Active</Badge> :
-        <Badge bg="secondary">Inactive</Badge>
+    const getStatusChip = isActive => isActive ?
+        <span className="status-chip is-ok">Active</span> :
+        <span className="status-chip is-err">Inactive</span>
 
-    const getProcessingBadge = isEnabled => isEnabled ?
-        <Badge bg="primary">Enabled</Badge> :
-        <Badge bg="warning">Disabled</Badge>
+    const getProcessingChip = isEnabled => isEnabled ?
+        <span className="status-chip is-ok">Enabled</span> :
+        <span className="status-chip is-warn">Disabled</span>
 
     const totalPages = Math.ceil(pagination.total / pagination.limit)
 
     return (
-        <Container fluid>
-            <Row className="mb-4">
-                <Col>
-                    <h2>Streamer Tracking</h2>
-                    <p className="text-muted">Manage automated tracking of Twitch streamers</p>
-                </Col>
-                <Col xs="auto">
+        <>
+            <div className="page-head">
+                <div>
+                    <h1 className="page-title">Streamer tracking</h1>
+                    <p className="page-sub">Automated VOD collection targets</p>
+                </div>
+                <div className="page-actions">
                     <Button
                         variant="primary"
                         onClick={() => setShowAddModal(true)}
                         disabled={loading}
                     >
-                        <i className="bi bi-plus-circle me-2"></i>
-                        Add Streamer
+                        <i
+                            className="bi bi-plus-circle me-2"
+                            aria-hidden="true" />
+                        Add streamer
                     </Button>
-                </Col>
-            </Row>
+                </div>
+            </div>
 
             {error && (
                 <Alert
@@ -230,160 +234,178 @@ const StreamerTracking = () => {
                 </Alert>
             )}
 
-            <Row className="mb-4">
-                <Col md={4}>
-                    <Card>
-                        <Card.Body>
-                            <h5>Filters</h5>
-                            <Form>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Status</Form.Label>
-                                    <Form.Select
-                                        value={filters.is_active === null ? '' : filters.is_active.toString()}
-                                        onChange={e => setFilters(prev => ({
-                                            ...prev,
-                                            is_active: e.target.value === '' ? null : e.target.value === 'true',
-                                        }))}
-                                    >
-                                        <option value="">All</option>
-                                        <option value="true">Active</option>
-                                        <option value="false">Inactive</option>
-                                    </Form.Select>
-                                </Form.Group>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Processing</Form.Label>
-                                    <Form.Select
-                                        value={filters.processing_enabled === null ? '' : filters.processing_enabled.toString()}
-                                        onChange={e => setFilters(prev => ({
-                                            ...prev,
-                                            processing_enabled: e.target.value === '' ? null : e.target.value === 'true',
-                                        }))}
-                                    >
-                                        <option value="">All</option>
-                                        <option value="true">Enabled</option>
-                                        <option value="false">Disabled</option>
-                                    </Form.Select>
-                                </Form.Group>
-                            </Form>
-                        </Card.Body>
-                    </Card>
-                </Col>
-                <Col md={8}>
-                    <Card>
-                        <Card.Header>
-                            <Card.Title>Tracked Streamers ({pagination.total})</Card.Title>
-                        </Card.Header>
-                        <Card.Body>
-                            {loading ? (
-                                <div className="text-center">
-                                    <Spinner
-                                        animation="border"
-                                        variant="primary" />
-                                </div>
-                            ) : streamers.length === 0 ? (
-                                <Alert variant="info">No streamers found</Alert>
-                            ) : (
-                                <>
-                                    <Table
-                                        striped
-                                        bordered
-                                        hover
-                                        responsive>
-                                        <thead>
-                                            <tr>
-                                                <th>Username</th>
-                                                <th>Display Name</th>
-                                                <th>Status</th>
-                                                <th>Processing</th>
-                                                <th>Last Check</th>
-                                                <th>Created</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {streamers.map(streamer => (
-                                                <tr key={streamer.id}>
-                                                    <td>
-                                                        <strong>{streamer.twitch_username}</strong>
-                                                    </td>
-                                                    <td>{streamer.display_name}</td>
-                                                    <td>{getStatusBadge(streamer.is_active)}</td>
-                                                    <td>{getProcessingBadge(streamer.processing_enabled)}</td>
-                                                    <td>{formatDateTime(streamer.last_stream_check)}</td>
-                                                    <td>{formatDateTime(streamer.created_at)}</td>
-                                                    <td>
-                                                        <Button
-                                                            variant={streamer.is_active ? 'warning' : 'success'}
-                                                            size="sm"
-                                                            className="me-2"
-                                                            onClick={() => handleToggleActive(streamer.id, streamer.is_active)}
-                                                        >
-                                                            {streamer.is_active ? 'Deactivate' : 'Activate'}
-                                                        </Button>
-                                                        <Button
-                                                            variant={streamer.processing_enabled ? 'secondary' : 'primary'}
-                                                            size="sm"
-                                                            className="me-2"
-                                                            onClick={() => handleToggleProcessing(streamer.id, streamer.processing_enabled)}
-                                                        >
-                                                            {streamer.processing_enabled ? 'Disable' : 'Enable'}
-                                                        </Button>
-                                                        <Button
-                                                            variant="danger"
-                                                            size="sm"
-                                                            onClick={() => handleRemoveStreamer(streamer.id, streamer.twitch_username)}
-                                                        >
-                                                            Remove
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </Table>
+            <div className="toolbar">
+                <span
+                    className="toolbar-label"
+                    aria-hidden="true">
+                    Filter
+                </span>
+                <div className="toolbar-field">
+                    <label
+                        htmlFor="tracking-status-filter"
+                        className="visually-hidden"
+                    >
+                        Filter by status
+                    </label>
+                    <Form.Select
+                        id="tracking-status-filter"
+                        value={filters.is_active === null ? '' : filters.is_active.toString()}
+                        onChange={e => setFilters(prev => ({
+                            ...prev,
+                            is_active: e.target.value === '' ? null : e.target.value === 'true',
+                        }))}
+                    >
+                        <option value="">All statuses</option>
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </Form.Select>
+                </div>
+                <div className="toolbar-field">
+                    <label
+                        htmlFor="tracking-processing-filter"
+                        className="visually-hidden"
+                    >
+                        Filter by processing
+                    </label>
+                    <Form.Select
+                        id="tracking-processing-filter"
+                        value={filters.processing_enabled === null ? '' : filters.processing_enabled.toString()}
+                        onChange={e => setFilters(prev => ({
+                            ...prev,
+                            processing_enabled: e.target.value === '' ? null : e.target.value === 'true',
+                        }))}
+                    >
+                        <option value="">All processing</option>
+                        <option value="true">Processing enabled</option>
+                        <option value="false">Processing disabled</option>
+                    </Form.Select>
+                </div>
+                <span className="toolbar-readout">
+                    {pagination.total} tracked
+                </span>
+            </div>
 
-                                    {totalPages > 1 && (
-                                        <Pagination className="justify-content-center">
-                                            <Pagination.First
-                                                onClick={() => handlePageChange(1)}
-                                                disabled={pagination.currentPage === 1}
-                                            />
-                                            <Pagination.Prev
-                                                onClick={() => handlePageChange(pagination.currentPage - 1)}
-                                                disabled={pagination.currentPage === 1}
-                                            />
-                                            {[
-                                                ...Array(Math.min(5, totalPages)),
-                                            ].map((_, i) => {
-                                                const page = Math.max(1, pagination.currentPage - 2) + i
-                                                if (page <= totalPages) {
-                                                    return (
-                                                        <Pagination.Item
-                                                            key={page}
-                                                            active={page === pagination.currentPage}
-                                                            onClick={() => handlePageChange(page)}
-                                                        >
-                                                            {page}
-                                                        </Pagination.Item>
-                                                    )
-                                                }
-                                                return null
-                                            })}
-                                            <Pagination.Next
-                                                onClick={() => handlePageChange(pagination.currentPage + 1)}
-                                                disabled={pagination.currentPage === totalPages}
-                                            />
-                                            <Pagination.Last
-                                                onClick={() => handlePageChange(totalPages)}
-                                                disabled={pagination.currentPage === totalPages}
-                                            />
-                                        </Pagination>
-                                    )}
-                                </>
-                            )}
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
+            <Card>
+                <Card.Body className={!loading && streamers.length === 0 ? 'p-0' : ''}>
+                    {loading ? (
+                        <div className="text-center py-5">
+                            <Spinner
+                                animation="border"
+                                variant="primary" />
+                        </div>
+                    ) : streamers.length === 0 ? (
+                        <div className="empty-state">
+                            <div
+                                className="empty-scope"
+                                aria-hidden="true" />
+                            <p className="empty-title">No tracked streamers</p>
+                            <p className="empty-hint">
+                                No streamers match this filter. Add a streamer to start automated VOD collection.
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <Table
+                                hover
+                                responsive>
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Display Name</th>
+                                        <th>Status</th>
+                                        <th>Processing</th>
+                                        <th>Last Check</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {streamers.map(streamer => (
+                                        <tr key={streamer.id}>
+                                            <td>
+                                                <strong>{streamer.twitch_username}</strong>
+                                            </td>
+                                            <td>{streamer.display_name}</td>
+                                            <td>{getStatusChip(streamer.is_active)}</td>
+                                            <td>{getProcessingChip(streamer.processing_enabled)}</td>
+                                            <td className="mono">{formatDateTime(streamer.last_stream_check)}</td>
+                                            <td className="mono">{formatDateTime(streamer.created_at)}</td>
+                                            <td>
+                                                <Button
+                                                    variant="outline-primary"
+                                                    size="sm"
+                                                    className="me-2"
+                                                    onClick={() => handleToggleActive(streamer.id, streamer.is_active)}
+                                                >
+                                                    {streamer.is_active ? 'Deactivate' : 'Activate'}
+                                                </Button>
+                                                <Button
+                                                    variant="outline-primary"
+                                                    size="sm"
+                                                    className="me-2"
+                                                    onClick={() => handleToggleProcessing(streamer.id, streamer.processing_enabled)}
+                                                >
+                                                    {streamer.processing_enabled ? 'Disable' : 'Enable'}
+                                                </Button>
+                                                <Button
+                                                    variant="outline-danger"
+                                                    size="sm"
+                                                    onClick={() => setRemoveTarget(streamer)}
+                                                >
+                                                    Remove
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </Table>
+
+                            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+                                <span className="mono small text-muted">
+                                    Showing {streamers.length} of {pagination.total}
+                                </span>
+                                {totalPages > 1 && (
+                                    <Pagination className="mb-0">
+                                        <Pagination.First
+                                            onClick={() => handlePageChange(1)}
+                                            disabled={pagination.currentPage === 1}
+                                        />
+                                        <Pagination.Prev
+                                            onClick={() => handlePageChange(pagination.currentPage - 1)}
+                                            disabled={pagination.currentPage === 1}
+                                        />
+                                        {[
+                                            ...Array(Math.min(5, totalPages)),
+                                        ].map((_, i) => {
+                                            const page = Math.max(1, pagination.currentPage - 2) + i
+                                            if (page <= totalPages) {
+                                                return (
+                                                    <Pagination.Item
+                                                        key={page}
+                                                        active={page === pagination.currentPage}
+                                                        onClick={() => handlePageChange(page)}
+                                                    >
+                                                        {page}
+                                                    </Pagination.Item>
+                                                )
+                                            }
+                                            return null
+                                        })}
+                                        <Pagination.Next
+                                            onClick={() => handlePageChange(pagination.currentPage + 1)}
+                                            disabled={pagination.currentPage === totalPages}
+                                        />
+                                        <Pagination.Last
+                                            onClick={() => handlePageChange(totalPages)}
+                                            disabled={pagination.currentPage === totalPages}
+                                        />
+                                    </Pagination>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </Card.Body>
+            </Card>
 
             {/* Add Streamer Modal */}
             <Modal
@@ -445,7 +467,7 @@ const StreamerTracking = () => {
                     </Modal.Body>
                     <Modal.Footer>
                         <Button
-                            variant="secondary"
+                            variant="outline-primary"
                             onClick={() => setShowAddModal(false)}>
                             Cancel
                         </Button>
@@ -468,7 +490,33 @@ const StreamerTracking = () => {
                     </Modal.Footer>
                 </Form>
             </Modal>
-        </Container>
+
+            {/* Remove Streamer Confirmation Modal */}
+            <Modal
+                show={removeTarget !== null}
+                onHide={() => setRemoveTarget(null)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Remove streamer</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    Are you sure you want to remove{' '}
+                    <strong>{removeTarget?.twitch_username}</strong>{' '}
+                    from tracking?
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button
+                        variant="outline-primary"
+                        onClick={() => setRemoveTarget(null)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="outline-danger"
+                        onClick={() => handleRemoveStreamer(removeTarget?.id)}>
+                        Remove
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+        </>
     )
 }
 

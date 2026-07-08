@@ -6,7 +6,13 @@ import {
 import UserProfile from '@/components/auth/UserProfile'
 
 const Profile = () => (
-    <Container className="mt-4">
+    <Container className="p-0">
+        <div className="page-head">
+            <div>
+                <h1 className="page-title">Operator profile</h1>
+                <p className="page-sub">Account &amp; credentials</p>
+            </div>
+        </div>
         <Row>
             <Col
                 lg={8}

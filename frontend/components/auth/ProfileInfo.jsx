@@ -1,7 +1,7 @@
 'use client'
 
 import {
-    Form, Row, Col, Badge,
+    Form, Row, Col,
 } from 'react-bootstrap'
 
 /**
@@ -19,7 +19,6 @@ const ProfileInfo = ({
                         type="text"
                         value={user?.username || ''}
                         disabled
-                        className="bg-light"
                     />
                     <small className="text-muted">Username cannot be changed</small>
                 </Form.Group>
@@ -28,12 +27,9 @@ const ProfileInfo = ({
                 <Form.Group className="mb-3">
                     <Form.Label>Role</Form.Label>
                     <div>
-                        <Badge
-                            variant={user?.role === 'admin' ? 'danger' : 'primary'}
-                            className="fs-6"
-                        >
+                        <span className={user?.role === 'admin' ? 'status-chip is-warn' : 'status-chip is-ok'}>
                             {user?.role || 'user'}
-                        </Badge>
+                        </span>
                     </div>
                 </Form.Group>
             </Col>
@@ -53,21 +49,26 @@ const ProfileInfo = ({
             />
         </Form.Group>
 
-        <Form.Group className="mb-3">
-            <Form.Label>Account Status</Form.Label>
-            <div>
-                <Badge variant={user?.is_active ? 'success' : 'warning'}>
-                    {user?.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-            </div>
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-            <Form.Label>Member Since</Form.Label>
-            <div className="text-muted">
-                {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-            </div>
-        </Form.Group>
+        <Row>
+            <Col md={6}>
+                <Form.Group className="mb-3">
+                    <Form.Label>Account Status</Form.Label>
+                    <div>
+                        <span className={user?.is_active ? 'status-chip is-ok' : 'status-chip is-err'}>
+                            {user?.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+                </Form.Group>
+            </Col>
+            <Col md={6}>
+                <Form.Group className="mb-3">
+                    <Form.Label>Member Since</Form.Label>
+                    <div className="mono text-muted small pt-1">
+                        {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                    </div>
+                </Form.Group>
+            </Col>
+        </Row>
     </>
 )
 

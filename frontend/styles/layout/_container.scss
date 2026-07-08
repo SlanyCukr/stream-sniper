@@ -4,15 +4,16 @@
 
 .contentArea {
     flex-grow: 1;
+    min-width: 0;
 }
 
 .wrapper {
-    max-width: 1300px;
+    max-width: 1360px;
     margin: 0 auto;
 }
 
 .card {
-    margin-bottom: 30px;
+    margin-bottom: 1.5rem;
 }
 
 .circle-box {

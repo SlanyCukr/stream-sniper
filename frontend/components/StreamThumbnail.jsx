@@ -8,6 +8,7 @@ import {
 } from 'react-bootstrap'
 import { useRouter } from 'next/navigation'
 import { findThumbnailSrc } from '@/utils/utils'
+import ThumbImage from '@/components/streams/ThumbImage'
 import { THUMBNAIL } from '@/constants'
 import {
     formatTimeAgo, formatDurationBetween,
@@ -65,7 +66,7 @@ const StreamThumbnail = ({
     const isLive = !end
 
     return (
-        <Card className="mx-2 stream-card">
+        <Card className="stream-card">
             <div
                 onClick={handleNavigation}
                 onKeyDown={handleKeyDown}
@@ -74,7 +75,7 @@ const StreamThumbnail = ({
                 aria-label={`View details for ${name}'s stream with ${messageCount} messages`}
             >
                 <div className="thumb-wrap">
-                    <img
+                    <ThumbImage
                         src={thumbnailUrl}
                         alt={`Stream thumbnail for ${name}`}
                     />

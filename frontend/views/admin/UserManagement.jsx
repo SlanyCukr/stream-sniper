@@ -4,8 +4,6 @@ import {
 } from 'react'
 import {
     Container,
-    Row,
-    Col,
     Card,
     Button,
     Alert,
@@ -164,20 +162,22 @@ const UserManagement = () => {
 
     return (
         <Container>
-            <Row className="mb-4">
-                <Col>
-                    <h2>User Management</h2>
-                    <p className="text-muted">Manage user accounts and permissions</p>
-                </Col>
-                <Col xs="auto">
+            <div className="page-head">
+                <div>
+                    <h1 className="page-title">User management</h1>
+                    <p className="page-sub">Accounts &amp; permissions</p>
+                </div>
+                <div className="page-actions">
                     <Button
-                        variant="success"
+                        variant="primary"
                         href="/admin/users/create">
-                        <i className="bi bi-person-plus me-2"></i>
-                        Create New User
+                        <i
+                            className="bi bi-person-plus me-2"
+                            aria-hidden="true" />
+                        Create user
                     </Button>
-                </Col>
-            </Row>
+                </div>
+            </div>
 
             {error && (
                 <Alert
@@ -198,16 +198,21 @@ const UserManagement = () => {
             )}
 
             <Card>
-                <Card.Header className="d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0">Users ({totalUsers})</h5>
-                    <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={fetchUsers}>
-                        <i className="bi bi-arrow-clockwise"></i> Refresh
-                    </Button>
-                </Card.Header>
                 <Card.Body>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h3 className="section-label mb-0">
+                            Users <span className="mono">({totalUsers})</span>
+                        </h3>
+                        <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={fetchUsers}>
+                            <i
+                                className="bi bi-arrow-clockwise me-2"
+                                aria-hidden="true" />
+                            Refresh
+                        </Button>
+                    </div>
                     <UserManagementTable
                         users={users}
                         authenticatedUser={authenticatedUser}
@@ -219,7 +224,7 @@ const UserManagement = () => {
                 </Card.Body>
                 <Card.Footer>
                     <div className="d-flex justify-content-between align-items-center">
-                        <span>
+                        <span className="mono small text-muted">
                             Showing {((currentPage - 1) * usersPerPage) + 1} to {Math.min(currentPage * usersPerPage, totalUsers)} of {totalUsers} users
                         </span>
                         {renderPagination(currentPage, totalPages, setCurrentPage)}
