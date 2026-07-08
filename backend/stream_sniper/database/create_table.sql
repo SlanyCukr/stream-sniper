@@ -36,7 +36,7 @@ create table stream_sniper.stream
 create table stream_sniper.message_text
 (
     id   serial primary key,
-    text varchar(255) not null,
+    text text not null,
     constraint text_uq
         unique (text)
 );
