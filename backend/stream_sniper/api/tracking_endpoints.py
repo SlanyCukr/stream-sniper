@@ -13,9 +13,12 @@ from ..database.creator_table_gateway import insert_new_creator_db, select_creat
 from ..database.processing_jobs_table_gateway import (
     count_processing_jobs_db,
     get_processing_stats_db,
+    insert_processing_job_db,
+    job_exists_db,
     select_processing_job_by_id_db,
     select_processing_jobs_db,
 )
+from ..database.stream_table_gateway import select_stream_by_twitch_id_db
 from ..database.tracked_streamers_table_gateway import (
     count_tracked_streamers_db,
     delete_tracked_streamer_db,
@@ -598,13 +601,20 @@ def get_processing_jobs(
     }
 )
 @limiter.limit("5/minute")
-def trigger_processing(
+async def trigger_processing(
     streamer_id: int,
     request: Request,
     response: Response,
     current_user: UserInDB = Depends(get_current_admin_user)
 ):
-    """Manually trigger processing for a streamer (admin only)"""
+    """
+    Queue the streamer's newest not-yet-collected VOD for processing (admin only).
+
+    Finds the most recent archived VOD that isn't already in the database and
+    enqueues a processing job for it. The tracking service's processing queue
+    picks the job up and runs the collector (bounded to that single VOD).
+    Trigger repeatedly to walk back through older un-collected VODs.
+    """
     try:
         # Check if streamer exists
         streamer_tuple = select_tracked_streamer_by_id_db(streamer_id)
@@ -613,13 +623,57 @@ def trigger_processing(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Tracked streamer not found"
             )
-        
-        # TODO: Implement manual processing trigger
-        # This would involve getting the latest stream and creating a processing job
-        
-        logger.info(f"Manual processing triggered by admin {current_user.username}: streamer_id={streamer_id}")
-        return {"message": "Processing triggered successfully"}
-        
+
+        twitch_username = streamer_tuple[2]
+
+        # List archived VODs from Twitch (newest first).
+        try:
+            twitch_api = TwitchAPI()
+            await twitch_api.twitch_api_init()
+            twitch_api.set_streamer_nickname(twitch_username)
+            videos = await twitch_api.get_available_video_ids_async()
+        except Exception as e:
+            logger.error(f"Failed to list VODs for {twitch_username}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Failed to list VODs from Twitch"
+            )
+
+        # Pick the newest VOD not already collected into the stream table.
+        target = next(
+            (v for v in videos if not select_stream_by_twitch_id_db(int(v.id))),
+            None
+        )
+        if target is None:
+            return {"message": "No un-collected VODs available for this streamer", "queued": False}
+
+        twitch_stream_id = int(target.id)
+        if job_exists_db(streamer_id, twitch_stream_id):
+            return {
+                "message": "A job for this VOD is already queued",
+                "queued": False,
+                "twitch_stream_id": twitch_stream_id,
+            }
+
+        job_id = insert_processing_job_db(streamer_id, twitch_stream_id)
+        if not job_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create processing job"
+            )
+
+        logger.info(
+            f"Manual processing queued by admin {current_user.username}: "
+            f"streamer_id={streamer_id}, job_id={job_id}, vod={twitch_stream_id}"
+        )
+        return {
+            "message": "Processing queued",
+            "queued": True,
+            "job_id": job_id,
+            "twitch_stream_id": twitch_stream_id,
+            "vod_title": target.title,
+        }
+
     except HTTPException:
         raise
     except Exception as e:

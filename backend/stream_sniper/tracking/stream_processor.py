@@ -24,33 +24,37 @@ class StreamProcessor:
         self,
         twitch_username: str,
         twitch_stream_id: int,
-        job_id: Optional[int] = None
+        job_id: Optional[int] = None,
+        max_streams: Optional[int] = None
     ) -> bool:
         """
         Process a stream's chat data.
-        
+
         Args:
             twitch_username: Twitch username of the streamer
             twitch_stream_id: Twitch stream ID to process
             job_id: Optional job ID for tracking
-            
+            max_streams: Optional cap on how many VODs the collector processes in
+                this run (None = all un-collected VODs). Queued jobs pass 1 so a
+                single job ingests one VOD rather than the whole backlog.
+
         Returns:
             True if processing was successful, False otherwise
         """
         try:
             self.logger.info(f"Starting stream processing for {twitch_username}, stream {twitch_stream_id}")
-            
+
             # Create collector facade
             collector = TwitchCollectorFacade(twitch_username)
-            
+
             # Run processing in a separate thread to avoid blocking
             # Since TwitchCollectorFacade is not async, we need to run it in an executor
             loop = asyncio.get_running_loop()
-            
+
             def run_collector():
                 try:
                     # Process the stream
-                    collector.start_processing()
+                    collector.start_processing(max_streams=max_streams)
                     return True
                 except Exception as e:
                     self.logger.error(f"Error in collector processing: {e}")

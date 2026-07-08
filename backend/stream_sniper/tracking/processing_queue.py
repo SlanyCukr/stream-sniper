@@ -134,11 +134,13 @@ class ProcessingQueue:
             # Create stream processor
             processor = StreamProcessor()
             
-            # Process the stream
+            # Process the stream. Bound each queued job to a single VOD so one
+            # job ingests one stream rather than the streamer's entire backlog.
             success = await processor.process_stream(
                 twitch_username=twitch_username,
                 twitch_stream_id=twitch_stream_id,
-                job_id=job_id
+                job_id=job_id,
+                max_streams=1
             )
             
             if success:
