@@ -1,33 +1,34 @@
-// Accessibility improvements for Stream Sniper
+// Accessibility layer — tuned for the night-ops dark theme.
+// (Focus rings use phosphor so they read against the dark surfaces.)
 
-// Enhanced focus indicators
-*:focus {
-  outline: 2px solid #0d6efd !important;
-  outline-offset: 2px !important;
-  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25) !important;
+// Visible focus for keyboard users only; pointer users keep clean chrome.
+:focus-visible {
+  outline: 2px solid rgba($phosphor, 0.85);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
-// High contrast focus for better visibility
-.btn:focus,
-.nav-link:focus,
-[role="button"]:focus {
-  outline: 3px solid #0d6efd !important;
-  outline-offset: 2px !important;
-  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.5) !important;
+.btn:focus-visible,
+.nav-link:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid rgba($phosphor, 0.85);
+  outline-offset: 2px;
 }
 
-// Skip links for keyboard navigation
+// Skip link for keyboard navigation
 .skip-link {
   position: absolute;
-  top: -40px;
+  top: -48px;
   left: 6px;
-  background: #0d6efd;
-  color: white;
-  padding: 8px;
+  background: $phosphor;
+  color: $bg-base;
+  font-family: $font-family-monospace;
+  font-size: 0.78rem;
+  padding: 8px 12px;
   text-decoration: none;
-  z-index: 1000;
-  border-radius: 4px;
-  
+  z-index: 2000;
+  border-radius: 3px;
+
   &:focus {
     top: 6px;
   }
@@ -35,48 +36,22 @@
 
 // Ensure interactive elements have proper cursor
 [role="button"],
-.hover-zoom > div,
-.pagination-item {
+.pagination .page-link {
   cursor: pointer;
 }
 
-// Improve text contrast for better readability
-.text-muted {
-  color: #495057 !important; // Improved contrast from Bootstrap's default
-}
-
-// Ensure sufficient color contrast for links
+// Links: phosphor-tinted, readable on dark surfaces
 a {
-  color: #0056b3;
-  
+  color: #b9f34d;
+  text-decoration: none;
+
   &:hover {
-    color: #004085;
+    color: $phosphor;
+    text-decoration: underline;
   }
 }
 
-// Better focus for custom select components
-.react-select__control:focus-within {
-  outline: 2px solid #0d6efd !important;
-  outline-offset: 1px !important;
-  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25) !important;
-}
-
-// Improve pagination focus visibility
-.pagination .page-link:focus {
-  z-index: 3;
-  outline: 2px solid #0d6efd !important;
-  outline-offset: 1px !important;
-  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25) !important;
-}
-
-// Improve dropdown focus
-.dropdown-item:focus {
-  background-color: #e9ecef;
-  outline: 2px solid #0d6efd !important;
-  outline-offset: -2px !important;
-}
-
-// Screen reader only text (visually hidden but accessible to screen readers)
+// Screen reader only text
 .visually-hidden {
   position: absolute !important;
   width: 1px !important;
@@ -89,49 +64,7 @@ a {
   border: 0 !important;
 }
 
-// Ensure focus is visible on custom interactive elements
-.sidenav-bg .nav-link:focus {
-  background-color: rgba(13, 110, 253, 0.1);
-  outline: 2px solid #0d6efd !important;
-  outline-offset: -2px !important;
-}
-
-// Chat message focus improvements
-[role="log"] {
-  &:focus {
-    outline: 2px solid #0d6efd !important;
-    outline-offset: 2px !important;
-  }
-}
-
-// Improve card focus when used as interactive elements
-.card [role="button"]:focus {
-  .card {
-    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25) !important;
-  }
-}
-
-// Ensure error messages have proper contrast
-[role="alert"] {
-  color: #721c24;
-  background-color: #f8d7da;
-  border-color: #f5c6cb;
-  padding: 0.75rem 1.25rem;
-  border: 1px solid;
-  border-radius: 0.25rem;
-}
-
-// Loading state improvements
-[role="status"] {
-  color: #0f5132;
-  background-color: #d1e7dd;
-  border-color: #badbcc;
-  padding: 0.5rem 1rem;
-  border: 1px solid;
-  border-radius: 0.25rem;
-}
-
-// Responsive text scaling
+// Smooth scrolling for those who don't mind motion
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
@@ -155,21 +88,8 @@ a {
   .btn {
     border: 2px solid !important;
   }
-  
-  .card {
-    border: 2px solid #000 !important;
-  }
-  
-  .text-muted {
-    color: #000 !important;
-  }
-}
 
-// Dark mode considerations
-@media (prefers-color-scheme: dark) {
-  // Focus indicators should be more visible in dark mode
-  *:focus {
-    outline-color: #6ea8fe !important;
-    box-shadow: 0 0 0 2px rgba(110, 168, 254, 0.25) !important;
+  .card {
+    border: 2px solid $gray-300 !important;
   }
 }

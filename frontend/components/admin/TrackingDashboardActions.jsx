@@ -2,6 +2,7 @@
 import {
     Row, Col, Card,
 } from 'react-bootstrap'
+import Link from 'next/link'
 
 /**
  * Tracking Dashboard Actions and System Health Component
@@ -11,30 +12,34 @@ const TrackingDashboardActions = ({
 }) => (
     <Row>
         <Col md={6}>
-            <Card>
-                <Card.Header>
-                    <Card.Title>Quick Actions</Card.Title>
-                </Card.Header>
+            <Card className="mb-4">
                 <Card.Body>
+                    <h3 className="section-label mb-3">Quick actions</h3>
                     <div className="d-grid gap-2">
-                        <a
+                        <Link
                             href="/admin/tracking/streamers"
                             className="btn btn-primary">
-                            <i className="bi bi-people me-2"></i>
+                            <i
+                                className="bi bi-people me-2"
+                                aria-hidden="true" />
                             Manage Tracked Streamers
-                        </a>
-                        <a
+                        </Link>
+                        <Link
                             href="/admin/tracking/jobs"
-                            className="btn btn-info">
-                            <i className="bi bi-list-check me-2"></i>
+                            className="btn btn-outline-primary">
+                            <i
+                                className="bi bi-list-check me-2"
+                                aria-hidden="true" />
                             View Processing Jobs
-                        </a>
+                        </Link>
                         <button
-                            className="btn btn-success"
+                            className="btn btn-outline-primary"
                             onClick={fetchStats}
                             disabled={loading}
                         >
-                            <i className="bi bi-arrow-clockwise me-2"></i>
+                            <i
+                                className="bi bi-arrow-clockwise me-2"
+                                aria-hidden="true" />
                             Refresh Statistics
                         </button>
                     </div>
@@ -42,13 +47,11 @@ const TrackingDashboardActions = ({
             </Card>
         </Col>
         <Col md={6}>
-            <Card>
-                <Card.Header>
-                    <Card.Title>System Health</Card.Title>
-                </Card.Header>
+            <Card className="mb-4">
                 <Card.Body>
+                    <h3 className="section-label mb-3">System health</h3>
                     <div className="mb-3">
-                        <div className="d-flex justify-content-between">
+                        <div className="d-flex justify-content-between align-items-center">
                             <span>Overall System</span>
                             {getHealthBadge(
                                 stats.system_status.monitoring_active &&
@@ -57,19 +60,19 @@ const TrackingDashboardActions = ({
                         </div>
                     </div>
                     <div className="mb-3">
-                        <div className="d-flex justify-content-between">
+                        <div className="d-flex justify-content-between align-items-center">
                             <span>Stream Monitoring</span>
                             {getHealthBadge(stats.system_status.monitoring_active)}
                         </div>
                     </div>
                     <div className="mb-3">
-                        <div className="d-flex justify-content-between">
+                        <div className="d-flex justify-content-between align-items-center">
                             <span>Processing Queue</span>
                             {getHealthBadge(stats.system_status.processing_queue_size < 100)}
                         </div>
                     </div>
                     <div className="mb-3">
-                        <div className="d-flex justify-content-between">
+                        <div className="d-flex justify-content-between align-items-center">
                             <span>Error Rate</span>
                             {getHealthBadge(stats.system_status.failed_jobs < 10)}
                         </div>

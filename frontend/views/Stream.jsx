@@ -145,13 +145,27 @@ const Stream = ({ streamId }) => {
         }
 
         return(
-            <section aria-labelledby="other-creators-heading">
-                <h3 id="other-creators-heading">Other creators that wrote</h3>
-                <ul
+            <section
+                aria-labelledby="other-creators-heading"
+                className="mt-4">
+                <h3
+                    id="other-creators-heading"
+                    className="section-label mb-3">
+                    Other creators in chat
+                </h3>
+                <div
+                    className="d-flex flex-wrap gap-2"
                     role="list"
                     aria-label="Other creators who participated in this stream">
-                    {otherCreatorsThatWrote?.map(creator => <li key={creator[0]}>{creator[1]}</li>)}
-                </ul>
+                    {otherCreatorsThatWrote?.map(creator => (
+                        <span
+                            key={creator[0]}
+                            role="listitem"
+                            className="status-chip">
+                            {creator[1]}
+                        </span>
+                    ))}
+                </div>
             </section>
         )
     }, [

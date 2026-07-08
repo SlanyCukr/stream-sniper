@@ -4,12 +4,11 @@ import {
     useState,
 } from 'react'
 import {
-    useRouter,
+    useRouter, usePathname,
 } from 'next/navigation'
 import {
     Dropdown,
     Button,
-    Badge,
 } from 'react-bootstrap'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -24,7 +23,7 @@ const AdminMenuItems = ({ navigate }) => (
             tabIndex="0"
             onClick={() => navigate('/admin/dashboard')}
         >
-            <i className="bi bi-shield-check me-2"></i>
+            <i className="bi bi-speedometer2 me-2"></i>
             Admin Dashboard
         </Dropdown.Item>
         <Dropdown.Item
@@ -32,7 +31,7 @@ const AdminMenuItems = ({ navigate }) => (
             tabIndex="0"
             onClick={() => navigate('/admin/users')}
         >
-            <i className="bi bi-people me-2"></i>
+            <i className="bi bi-person-gear me-2"></i>
             User Management
         </Dropdown.Item>
         <Dropdown.Item
@@ -40,7 +39,7 @@ const AdminMenuItems = ({ navigate }) => (
             tabIndex="0"
             onClick={() => navigate('/admin/system')}
         >
-            <i className="bi bi-gear me-2"></i>
+            <i className="bi bi-cpu me-2"></i>
             System Information
         </Dropdown.Item>
     </>
@@ -54,30 +53,28 @@ const UserDropdown = ({
 }) => (
     <Dropdown
         show={dropdownOpen}
-        onToggle={toggle}>
+        onToggle={toggle}
+        align="end">
         <Dropdown.Toggle
-            variant="light"
+            variant="dark"
             size="sm"
             aria-label="User menu"
             aria-expanded={dropdownOpen}
             aria-haspopup="true"
-            className="d-flex align-items-center"
+            className="user-chip"
         >
-            <img
-                src="/images/user1.jpg"
-                alt="User profile picture"
-                className="rounded-circle me-2"
-                width="30"
-            />
+            <span
+                className="avatar-orb"
+                aria-hidden="true">
+                {user?.username?.charAt(0) || '?'}
+            </span>
             <span className="d-none d-md-inline">
                 {user?.username}
             </span>
             {user?.role === 'admin' && (
-                <Badge
-                    bg="warning"
-                    className="ms-2">
+                <span className="role-chip d-none d-md-inline">
                     Admin
-                </Badge>
+                </span>
             )}
         </Dropdown.Toggle>
         <Dropdown.Menu
@@ -115,7 +112,8 @@ const MobileSidebarToggle = ({
     showMobilemenu, handleKeyDown,
 }) => (
     <Button
-        variant="primary"
+        variant="outline-primary"
+        size="sm"
         className="d-lg-none"
         onClick={() => showMobilemenu()}
         onKeyDown={e => handleKeyDown(e, showMobilemenu)}
@@ -128,6 +126,31 @@ const MobileSidebarToggle = ({
     </Button>
 )
 
+/** Mono breadcrumb-style readout of the current route. */
+const HeaderPath = ({ pathname }) => {
+    const segments = pathname === '/'
+        ? [
+            'streams',
+        ]
+        : pathname.split('/').filter(Boolean)
+
+    return (
+        <span
+            className="header-path d-none d-sm-inline"
+            aria-hidden="true">
+            ~
+            {segments.map((segment, index) => (
+                <span key={index}>
+                    <span className="path-sep">/</span>
+                    <span className={index === segments.length - 1 ? 'path-current' : ''}>
+                        {segment}
+                    </span>
+                </span>
+            ))}
+        </span>
+    )
+}
+
 const Header = () => {
     const [
         dropdownOpen,
@@ -137,6 +160,7 @@ const Header = () => {
         isAuthenticated, user, logout,
     } = useAuth()
     const router = useRouter()
+    const pathname = usePathname()
 
     const toggle = () => setDropdownOpen(prevState => !prevState)
     const showMobilemenu = () => {
@@ -165,11 +189,12 @@ const Header = () => {
             role="navigation"
             aria-label="Main header navigation"
         >
-            <div className="d-flex align-items-center gap-2">
+            <div className="d-flex align-items-center gap-3">
                 <MobileSidebarToggle
                     showMobilemenu={showMobilemenu}
                     handleKeyDown={handleKeyDown}
                 />
+                <HeaderPath pathname={pathname} />
             </div>
 
             <div className="d-flex align-items-center gap-2">

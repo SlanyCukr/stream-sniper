@@ -1,6 +1,6 @@
 'use client'
 import {
-    Row, Col, Card, Table,
+    Row, Col, Card,
 } from 'react-bootstrap'
 
 /**
@@ -10,28 +10,18 @@ const RateLimitingMetrics = ({ metricsData }) => (
     <Row className="mb-4">
         <Col>
             <Card>
-                <Card.Header>
-                    <h5 className="mb-0">Rate Limiting</h5>
-                </Card.Header>
                 <Card.Body>
-                    <Table responsive>
-                        <tbody>
-                            <tr>
-                                <td>Total Requests</td>
-                                <td>{metricsData.rate_limiting.total_requests}</td>
-                            </tr>
-                            <tr>
-                                <td>Rate Limited</td>
-                                <td>{metricsData.rate_limiting.rate_limited_requests}</td>
-                            </tr>
-                            <tr>
-                                <td>Rate Limit Percentage</td>
-                                <td>
-                                    {(metricsData.rate_limiting.rate_limit_percentage * 100).toFixed(2)}%
-                                </td>
-                            </tr>
-                        </tbody>
-                    </Table>
+                    <h3 className="section-label mb-3">Rate limiting</h3>
+                    <dl className="spec-list">
+                        <dt>Total requests</dt>
+                        <dd className="mono">{metricsData.rate_limiting.total_requests}</dd>
+                        <dt>Rate limited</dt>
+                        <dd className="mono">{metricsData.rate_limiting.rate_limited_requests}</dd>
+                        <dt>Rate limit percentage</dt>
+                        <dd className="mono">
+                            {(metricsData.rate_limiting.rate_limit_percentage * 100).toFixed(2)}%
+                        </dd>
+                    </dl>
                 </Card.Body>
             </Card>
         </Col>

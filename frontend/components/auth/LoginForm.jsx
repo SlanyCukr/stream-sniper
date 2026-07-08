@@ -93,9 +93,9 @@ const LoginForm = ({
     const displayError = localError || error
 
     return (
-        <Card className="shadow-sm">
+        <Card className="auth-card">
             <Card.Header>
-                <h4 className="mb-0">Login</h4>
+                <h1 className="auth-mode">Sign in</h1>
             </Card.Header>
             <Card.Body>
                 {displayError && (

@@ -3,32 +3,40 @@ import React, {
     useMemo,
     useCallback,
 } from 'react'
+import { Virtuoso } from 'react-virtuoso'
 import { EMOTES } from '@/lib/bettertv_emotes'
+
+/* Twitch-style username palette (dark-theme readable). */
+const NICK_COLORS = [
+    '#ff7a7a',
+    '#f5b759',
+    '#9fef00',
+    '#2dd4a7',
+    '#58a6ff',
+    '#c58fff',
+    '#ff8fd0',
+    '#5edfff',
+    '#ffb86b',
+    '#a3e635',
+]
+
+/** Deterministic color per nick so it stays stable across renders. */
+const nickColor = nick => {
+    let hash = 0
+    for (let i = 0; i < nick.length; i++) {
+        hash = (hash * 31 + nick.charCodeAt(i)) | 0
+    }
+    return NICK_COLORS[Math.abs(hash) % NICK_COLORS.length]
+}
 
 const TwitchChatLookalike = ({
     nick,
     messages,
 }) => {
-    const generateRandomColor = () => {
-
-        while(true){
-            let randomHue = Math.random() * 360
-            if ((randomHue >= 45 && randomHue <= 90) || (randomHue >= 140 && randomHue <= 195)){
-                continue
-            }
-
-            const randomColor = `hsla(${randomHue}, 100%, 50%, 1)`
-            return randomColor
-        }
-    }
-
     /**
      * Applies BetterTV emotes to the message with memoization.
      * @param {string} message
      * @returns {JSX.Element}
-     * @example
-     * // returns <img src="https://cdn.betterttv.net/emote/5e1a9a9f6b77c70ebf4b3b7f/1x" alt="LUL" />
-     * applyBetterTvEmotes('LUL')
      */
     const applyBetterTvEmotes = useCallback(message => {
         if (!message) {
@@ -55,54 +63,67 @@ const TwitchChatLookalike = ({
     }, [
     ])
 
-    // Memoize the random color to prevent regeneration on every render
-    const randomColor = useMemo(() => generateRandomColor(), [
+    const color = useMemo(() => nickColor(nick || ''), [
+        nick,
     ])
 
-    // Memoize the processed messages to avoid re-processing on every render
-    const processedMessages = useMemo(() => {
-        if (!messages || messages.length === 0) {
-            return null
-        }
-
-        return messages.map((message, index) => (
-            <div
-                key={index}
-                className='my-2'
-                role="listitem"
-                aria-label={`Message ${index + 1} from ${nick}: ${message}`}
+    // Virtualized row renderer — only visible messages hit the DOM
+    const renderLine = useCallback((index, message) => (
+        <p
+            className="chat-line"
+            role="listitem"
+        >
+            <span
+                className="chat-nick"
+                style={{ color }}
             >
-                <span
-                    style={{ color: randomColor }}
-                    aria-label={`Message from ${nick}`}
-                >
-                    {nick}
-                </span>
-                <span aria-hidden="true">: </span>
-                <span role="text">
-                    {applyBetterTvEmotes(message)}
-                </span>
-            </div>
-        ))
-    }, [
-        messages,
-        randomColor,
+                {nick}
+            </span>
+            <span aria-hidden="true">: </span>
+            <span>
+                {applyBetterTvEmotes(message)}
+            </span>
+        </p>
+    ), [
+        color,
         nick,
         applyBetterTvEmotes,
     ])
 
+    const hasMessages = messages && messages.length > 0
+    // Keep short replays compact instead of forcing a tall empty panel
+    const panelHeight = useMemo(() => Math.min(480, Math.max(120, (messages?.length || 0) * 32)), [
+        messages?.length,
+    ])
+
     return (
         <div
-            className="my-3"
+            className="chat-panel"
             role="log"
             aria-live="polite"
             aria-label={`Chat messages from ${nick}`}
             tabIndex="0"
         >
             <div
+                className="chat-panel-head"
+                aria-hidden="true">
+                <i className="bi bi-chat-left-text"></i>
+                <span>Chat replay // {nick}</span>
+                <span className="chat-count">{(messages?.length || 0).toLocaleString()} msgs</span>
+            </div>
+            <div
+                className="chat-panel-body"
                 role="list"
                 aria-label={`${messages?.length || 0} messages from ${nick}`}>
-                {processedMessages}
+                {hasMessages ? (
+                    <Virtuoso
+                        data={messages}
+                        itemContent={renderLine}
+                        style={{ height: `${panelHeight}px` }}
+                    />
+                ) : (
+                    <p className="text-muted small mb-0 py-2">No messages recorded for this chatter.</p>
+                )}
             </div>
         </div>
     )

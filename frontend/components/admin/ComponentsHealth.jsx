@@ -12,11 +12,11 @@ const ComponentsHealth = ({
     <Row className="mb-4">
         <Col>
             <Card>
-                <Card.Header>
-                    <h5 className="mb-0">Components Health</h5>
-                </Card.Header>
                 <Card.Body>
-                    <Table responsive>
+                    <h3 className="section-label mb-3">Components</h3>
+                    <Table
+                        hover
+                        responsive>
                         <thead>
                             <tr>
                                 <th>Component</th>
@@ -33,12 +33,12 @@ const ComponentsHealth = ({
                                 <tr key={component}>
                                     <td className="text-capitalize">{component}</td>
                                     <td>{getStatusBadge(data.status)}</td>
-                                    <td>
+                                    <td className="mono">
                                         {data.response_time_ms ? `${data.response_time_ms.toFixed(2)}ms` : 'N/A'}
                                     </td>
                                     <td>
                                         {data.details && (
-                                            <small className="text-muted">
+                                            <small className="text-muted mono">
                                                 {typeof data.details === 'object'
                                                     ? JSON.stringify(data.details, null, 2)
                                                     : data.details}

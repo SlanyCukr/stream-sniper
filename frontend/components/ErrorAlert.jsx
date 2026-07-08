@@ -13,23 +13,23 @@ import ErrorActions from './ErrorActions'
 import ErrorDetails from './ErrorDetails'
 
 /**
- * Helper function to get error icon based on error type
+ * Helper function to get error icon class based on error type
  */
 const getErrorIcon = type => {
     switch (type) {
         case 'network':
-            return '🌐'
+            return 'bi bi-wifi-off'
         case 'authentication':
         case 'authorization':
-            return '🔐'
+            return 'bi bi-shield-lock'
         case 'not_found':
-            return '🔍'
+            return 'bi bi-search'
         case 'server':
-            return '🚫'
+            return 'bi bi-x-octagon'
         case 'validation':
-            return '⚠️'
+            return 'bi bi-exclamation-triangle'
         default:
-            return '❌'
+            return 'bi bi-x-circle'
     }
 }
 
@@ -101,13 +101,11 @@ const ErrorAlert = ({
             {...props}
         >
             <div className="d-flex align-items-start">
-                <span
-                    className="me-2 fs-4"
+                <i
+                    className={`${getErrorIcon(errorInfo.type)} me-3 fs-4`}
                     role="img"
                     aria-label={`${errorInfo.type} error`}
-                >
-                    {getErrorIcon(errorInfo.type)}
-                </span>
+                ></i>
                 <div className="flex-grow-1">
                     <ErrorHeader
                         title={title}

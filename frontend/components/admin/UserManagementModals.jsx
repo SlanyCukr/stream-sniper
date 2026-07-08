@@ -44,14 +44,17 @@ const UserManagementModals = ({
             </Modal.Body>
             <Modal.Footer>
                 <Button
-                    variant="secondary"
+                    variant="outline-primary"
                     onClick={() => setShowDeleteModal(false)}>
                     Cancel
                 </Button>
                 <Button
-                    variant="danger"
+                    variant="outline-danger"
                     onClick={handleUserDelete}>
-                    Delete User
+                    <i
+                        className="bi bi-trash me-2"
+                        aria-hidden="true" />
+                    Delete user
                 </Button>
             </Modal.Footer>
         </Modal>

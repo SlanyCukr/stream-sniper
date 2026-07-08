@@ -64,7 +64,7 @@ const EditUserForm = ({
             </Form.Group>
             <div className="d-flex justify-content-end">
                 <Button
-                    variant="secondary"
+                    variant="outline-primary"
                     onClick={onCancel}
                     className="me-2">
                     Cancel

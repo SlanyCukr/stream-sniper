@@ -1,37 +1,35 @@
 'use client'
-import {
-    Card, Badge,
-} from 'react-bootstrap'
+import { Card } from 'react-bootstrap'
 
 /**
  * Tracked Streamers Card Component
  */
 const TrackedStreamersCard = ({ stats }) => (
-    <Card>
+    <Card className="h-100">
         <Card.Body>
-            <h5>Tracked Streamers</h5>
+            <h3 className="section-label mb-3">Tracked streamers</h3>
             <div className="mb-3">
-                <div className="d-flex justify-content-between">
+                <div className="d-flex justify-content-between align-items-center">
                     <span>Total Streamers</span>
-                    <Badge bg="primary">{stats.tracked_streamers.total}</Badge>
+                    <span className="mono">{stats.tracked_streamers.total}</span>
                 </div>
             </div>
             <div className="mb-3">
-                <div className="d-flex justify-content-between">
+                <div className="d-flex justify-content-between align-items-center">
                     <span>Active</span>
-                    <Badge bg="success">{stats.tracked_streamers.active}</Badge>
+                    <span className="status-chip is-ok">{stats.tracked_streamers.active}</span>
                 </div>
             </div>
             <div className="mb-3">
-                <div className="d-flex justify-content-between">
+                <div className="d-flex justify-content-between align-items-center">
                     <span>Processing Enabled</span>
-                    <Badge bg="info">{stats.tracked_streamers.processing_enabled}</Badge>
+                    <span className="mono">{stats.tracked_streamers.processing_enabled}</span>
                 </div>
             </div>
             <div className="mb-3">
-                <div className="d-flex justify-content-between">
+                <div className="d-flex justify-content-between align-items-center">
                     <span>Inactive</span>
-                    <Badge bg="secondary">{stats.tracked_streamers.inactive}</Badge>
+                    <span className="status-chip">{stats.tracked_streamers.inactive}</span>
                 </div>
             </div>
         </Card.Body>

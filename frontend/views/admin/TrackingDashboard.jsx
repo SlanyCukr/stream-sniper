@@ -3,7 +3,7 @@ import {
     useState, useEffect, useCallback,
 } from 'react'
 import {
-    Container, Row, Col, Alert, Spinner, Badge,
+    Container, Row, Col, Alert, Spinner,
 } from 'react-bootstrap'
 import SystemStatusCard from '@/components/admin/SystemStatusCard'
 import TrackedStreamersCard from '@/components/admin/TrackedStreamersCard'
@@ -51,12 +51,12 @@ const TrackingDashboard = () => {
     ])
 
     const getHealthBadge = isHealthy => isHealthy ?
-        <Badge bg="success">Healthy</Badge> :
-        <Badge bg="danger">Unhealthy</Badge>
+        <span className="status-chip is-ok">Healthy</span> :
+        <span className="status-chip is-err">Unhealthy</span>
 
     const getStatusBadge = isActive => isActive ?
-        <Badge bg="success">Active</Badge> :
-        <Badge bg="secondary">Inactive</Badge>
+        <span className="status-chip is-ok">Active</span> :
+        <span className="status-chip">Inactive</span>
 
     const calculateSuccessRate = (completed, total) => {
         if (total === 0) {
@@ -79,15 +79,17 @@ const TrackingDashboard = () => {
 
     return (
         <Container fluid>
-            <Row className="mb-4">
-                <Col>
-                    <h2>Tracking Dashboard</h2>
-                    <p className="text-muted">
-                        Overview of automated stream tracking and processing system
-                        {stats && <small className="ms-2">Last updated: {new Date().toLocaleTimeString()}</small>}
-                    </p>
-                </Col>
-            </Row>
+            <div className="page-head">
+                <div>
+                    <h1 className="page-title">Tracking dashboard</h1>
+                    <p className="page-sub">Automated stream tracking · processing system</p>
+                </div>
+                {stats && (
+                    <div className="page-actions">
+                        <span className="mono small text-muted">Last updated: {new Date().toLocaleTimeString()}</span>
+                    </div>
+                )}
+            </div>
 
             {error && (
                 <Alert

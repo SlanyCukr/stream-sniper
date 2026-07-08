@@ -126,15 +126,19 @@ const CreateUser = () => {
 
     return (
         <Container>
-            <Row className="justify-content-center">
+            <div className="page-head">
+                <div>
+                    <h1 className="page-title">Create user</h1>
+                    <p className="page-sub">Provision a new account</p>
+                </div>
+            </div>
+            <Row>
                 <Col
-                    md={8}
-                    lg={6}>
+                    lg={8}
+                    className="mx-auto">
                     <Card>
-                        <Card.Header>
-                            <h3 className="mb-0">Create New User</h3>
-                        </Card.Header>
                         <Card.Body>
+                            <h3 className="section-label mb-3">Account details</h3>
                             {error && (
                                 <Alert
                                     variant="danger"
@@ -251,11 +255,16 @@ const CreateUser = () => {
                                                 Creating User...
                                             </>
                                         ) : (
-                                            'Create User'
+                                            <>
+                                                <i
+                                                    className="bi bi-person-plus me-2"
+                                                    aria-hidden="true" />
+                                                Create user
+                                            </>
                                         )}
                                     </Button>
                                     <Button
-                                        variant="secondary"
+                                        variant="outline-primary"
                                         onClick={() => router.push('/admin/users')}
                                         disabled={loading}
                                     >

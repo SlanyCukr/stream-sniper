@@ -1,6 +1,6 @@
 'use client'
 import {
-    Card, Badge, ProgressBar,
+    Card, ProgressBar,
 } from 'react-bootstrap'
 
 /**
@@ -12,13 +12,13 @@ const ProcessingOverviewCard = ({
     const successRate = calculateSuccessRate(stats.processing_jobs.completed, stats.processing_jobs.total)
 
     return (
-        <Card>
+        <Card className="h-100">
             <Card.Body>
-                <h5>Processing Overview</h5>
+                <h3 className="section-label mb-3">Processing overview</h3>
                 <div className="mb-3">
-                    <div className="d-flex justify-content-between">
+                    <div className="d-flex justify-content-between align-items-center">
                         <span>Success Rate</span>
-                        <Badge bg="success">{successRate}%</Badge>
+                        <span className="mono">{successRate}%</span>
                     </div>
                     <ProgressBar
                         now={successRate}
@@ -27,9 +27,9 @@ const ProcessingOverviewCard = ({
                     />
                 </div>
                 <div className="mb-3">
-                    <div className="d-flex justify-content-between">
+                    <div className="d-flex justify-content-between align-items-center">
                         <span>Recent Activity</span>
-                        <Badge bg="info">{stats.processing_jobs.recent_24h} jobs (24h)</Badge>
+                        <span className="mono">{stats.processing_jobs.recent_24h} jobs (24h)</span>
                     </div>
                 </div>
             </Card.Body>

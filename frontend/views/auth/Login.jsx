@@ -4,12 +4,13 @@ import {
     useState, useEffect,
 } from 'react'
 import {
-    Container, Row, Col, Alert,
+    Alert,
 } from 'react-bootstrap'
 import {
     useRouter, useSearchParams,
 } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import Logo from '@/components/layout/Logo'
 import LoginForm from '@/components/auth/LoginForm'
 import RegisterForm from '@/components/auth/RegisterForm'
 
@@ -69,40 +70,34 @@ const Login = () => {
     }
 
     return (
-        <Container className="mt-5">
-            <Row className="justify-content-center">
-                <Col
-                    md={6}
-                    lg={5}>
-                    <div className="text-center mb-4">
-                        <h2 className="text-primary">Stream Sniper</h2>
-                        <p className="text-muted">
-                            {showRegister ? 'Create your account' : 'Sign in to your account'}
-                        </p>
-                    </div>
+        <div className="auth-screen">
+            <div className="auth-panel">
+                <div className="auth-brand">
+                    <Logo />
+                    <span className="auth-tagline">Twitch chat intelligence</span>
+                </div>
 
-                    {successMessage && (
-                        <Alert
-                            variant="success"
-                            className="mb-3">
-                            {successMessage}
-                        </Alert>
-                    )}
+                {successMessage && (
+                    <Alert
+                        variant="success"
+                        className="mb-3">
+                        {successMessage}
+                    </Alert>
+                )}
 
-                    {showRegister ? (
-                        <RegisterForm
-                            onSwitchToLogin={handleSwitchToLogin}
-                            onSuccess={handleSuccess}
-                        />
-                    ) : (
-                        <LoginForm
-                            onSwitchToRegister={handleSwitchToRegister}
-                            onSuccess={handleSuccess}
-                        />
-                    )}
-                </Col>
-            </Row>
-        </Container>
+                {showRegister ? (
+                    <RegisterForm
+                        onSwitchToLogin={handleSwitchToLogin}
+                        onSuccess={handleSuccess}
+                    />
+                ) : (
+                    <LoginForm
+                        onSwitchToRegister={handleSwitchToRegister}
+                        onSuccess={handleSuccess}
+                    />
+                )}
+            </div>
+        </div>
     )
 }
 

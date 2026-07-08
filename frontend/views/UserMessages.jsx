@@ -24,11 +24,6 @@ const UserMessages = () => {
         streamsData?.streams,
     ])
 
-    // Memoize streams count calculation
-    const streamsCount = useMemo(() => streams.length, [
-        streams.length,
-    ])
-
     if (isLoading) {
         return (
             <LoadingSpinner
@@ -51,21 +46,35 @@ const UserMessages = () => {
     }
 
     return (
-        <Card>
-            <Card.Header>
-                <h1 id="chatter-messages-heading">Chatter messages</h1>
-            </Card.Header>
-            <Card.Body>
-                <div
-                    role="status"
-                    aria-live="polite"
-                    aria-labelledby="chatter-messages-heading"
-                >
-                    <p>Found <strong>{streamsCount}</strong> streams</p>
-                    <p>TODO: Implement chatter message analysis functionality</p>
+        <>
+            <div className="page-head">
+                <div>
+                    <h1 id="chatter-messages-heading" className="page-title">Chatter messages</h1>
+                    <p className="page-sub">Cross-stream message analysis</p>
                 </div>
-            </Card.Body>
-        </Card>
+            </div>
+
+            <Card>
+                <Card.Body className="p-0">
+                    <div
+                        className="empty-state"
+                        role="status"
+                        aria-live="polite"
+                        aria-labelledby="chatter-messages-heading"
+                    >
+                        <div
+                            className="empty-scope"
+                            aria-hidden="true" />
+                        <p className="empty-title">Module under construction</p>
+                        <p className="empty-hint">
+                            Chatter message analysis is not wired up yet.
+                            {' '}{streams.length.toLocaleString()} streams are already captured and waiting —
+                            in the meantime, open a stream and use its chat replay.
+                        </p>
+                    </div>
+                </Card.Body>
+            </Card>
+        </>
     )
 }
 

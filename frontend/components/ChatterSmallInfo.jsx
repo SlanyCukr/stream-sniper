@@ -1,52 +1,30 @@
 'use client'
-import React, {
-    useMemo,
-} from 'react'
-import {
-    OverlayTrigger,
-    Tooltip,
-} from 'react-bootstrap'
+import React from 'react'
 
+/** One row in a ranked chatter leaderboard. */
 const ChatterSmallInfo = ({
-    id,
+    rank,
     nick,
     count,
     noun,
-}) => {
-    // Memoize the chatter ID to prevent string concatenation on every render
-    const chatterId = useMemo(() => `chatter-${id}`, [
-        id,
-    ])
-
-    // Memoize the tooltip content
-    const tooltipContent = useMemo(() => `${noun}: ${count}`, [
-        noun,
-        count,
-    ])
-
-    return (
-        <OverlayTrigger
-            placement="left"
-            overlay={
-                <Tooltip
-                    id={chatterId}
-                    role="tooltip"
-                >
-                    {tooltipContent}
-                </Tooltip>
-            }
-        >
-            <li
-                tabIndex="0"
-                role="listitem"
-                aria-describedby={chatterId}
-                aria-label={`${nick}, ${tooltipContent}`}
-                style={{ cursor: 'pointer' }}
-            >
-                {nick}
-            </li>
-        </OverlayTrigger>
-    )
-}
+}) => (
+    <li
+        tabIndex="0"
+        role="listitem"
+        aria-label={`Rank ${rank}: ${nick}, ${count} ${noun}`}
+    >
+        <span
+            className="rank"
+            aria-hidden="true">
+            {String(rank).padStart(2, '0')}
+        </span>
+        <span className="nick">{nick}</span>
+        <span
+            className="count"
+            aria-hidden="true">
+            {count?.toLocaleString()}
+        </span>
+    </li>
+)
 
 export default React.memo(ChatterSmallInfo)
