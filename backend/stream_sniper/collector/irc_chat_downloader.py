@@ -4,6 +4,7 @@ from chat_downloader import ChatDownloader
 
 from ..database.stream_table_gateway import select_stream_by_twitch_id_db
 from ..logging_config import get_logger
+from . import twitch_gql_patch  # noqa: F401  (import applies the VideoMetadata GQL patch)
 from .twitch_api import TwitchAPI
 
 
@@ -41,6 +42,11 @@ class IrcChatDownloader:
                     format="json",
                     message_receive_timeout=0.01,
                     buffer_size=16384,
+                    # The collector runs in a worker thread inside a container:
+                    # chat_downloader's default interactive retry prompt uses
+                    # signal-based timed stdin, which raises PermissionError off
+                    # the main thread. Fall back to plain back-off retries.
+                    interruptible_retry=False,
                 )
                 chat_iterated = [x for x in chat]
 
