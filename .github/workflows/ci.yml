@@ -27,8 +27,8 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Set up Python 3.12
-      run: uv python install 3.12
+    - name: Set up Python 3.14
+      run: uv python install 3.14
 
     - name: Install dependencies
       run: uv sync --locked
@@ -43,7 +43,7 @@ jobs:
       run: uv run mypy stream_sniper/ || true
 
   test:
-    name: Tests (Python 3.12)
+    name: Tests (Python 3.14)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -84,8 +84,8 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Set up Python 3.12
-      run: uv python install 3.12
+    - name: Set up Python 3.14
+      run: uv python install 3.14
 
     - name: Install dependencies
       run: uv sync --locked
@@ -152,10 +152,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python 3.12
+    - name: Set up Python 3.14
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: "3.14"
 
     - name: Test package installation
       run: |
@@ -230,8 +230,8 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Set up Python 3.12
-      run: uv python install 3.12
+    - name: Set up Python 3.14
+      run: uv python install 3.14
 
     - name: Export dependency list for scanning
       run: uv export --format requirements-txt --no-hashes --no-emit-project -o requirements.txt

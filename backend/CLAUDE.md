@@ -1,6 +1,6 @@
 # Stream Sniper Backend - Developer Instructions
 
-Python 3.12 + FastAPI Twitch analytics backend. See `/CLAUDE.md` (project) and
+Python 3.14 + FastAPI Twitch analytics backend. See `/CLAUDE.md` (project) and
 `/frontend/CLAUDE.md` (frontend).
 
 ## Development Workflow
@@ -134,7 +134,7 @@ Layout: `tests/unit/`, `tests/integration/`, `tests/fixtures/`.
 
 ## Docker
 
-Multi-stage **uv** builds (`ghcr.io/astral-sh/uv` builder → `python:3.12-slim`
+Multi-stage **uv** builds (`ghcr.io/astral-sh/uv` builder → `python:3.14-slim`
 runtime, non-root `app` user, no gcc needed — all deps ship manylinux wheels):
 
 - `Dockerfile.api` — API image. CMD runs `uvicorn ... :5002` **without** `--reload`.

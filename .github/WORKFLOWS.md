@@ -23,13 +23,13 @@ The CI/CD pipeline consists of four main workflows:
 **Jobs:**
 
 #### `lint` - Code Quality & Linting
-- Runs on Ubuntu with Python 3.12
+- Runs on Ubuntu with Python 3.14
 - Code formatting check with Black
 - Import sorting check with isort
 - Linting with flake8
 - Type checking with mypy
 
-#### `test` - Tests (Python 3.11, 3.12)
+#### `test` - Tests (Python 3.14)
 - Matrix strategy testing multiple Python versions
 - PostgreSQL service container for integration tests
 - Unit and integration test execution

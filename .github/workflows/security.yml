@@ -31,8 +31,8 @@ jobs:
       with:
         enable-cache: true
 
-    - name: Set up Python 3.12
-      run: uv python install 3.12
+    - name: Set up Python 3.14
+      run: uv python install 3.14
 
     - name: Export dependency list
       run: uv export --format requirements-txt --no-hashes --no-emit-project -o requirements.txt
@@ -72,10 +72,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python 3.12
+    - name: Set up Python 3.14
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: "3.14"
 
     - name: Install security tools
       run: |
@@ -130,10 +130,10 @@ jobs:
         languages: ${{ matrix.language }}
         config-file: ./.github/codeql/codeql-config.yml
 
-    - name: Set up Python 3.12
+    - name: Set up Python 3.14
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: "3.14"
 
     - name: Install dependencies
       working-directory: backend

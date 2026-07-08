@@ -7,7 +7,7 @@ name = "stream-sniper"
 version = "2.0.0"
 description = "A comprehensive Twitch stream analytics platform that collects, processes, and analyzes chat data from streams with REST API and Docker support"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 license = {text = "MIT"}
 authors = [
     {name = "slanycukr"},  # Email removed for privacy
@@ -18,7 +18,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Communications :: Chat",
@@ -88,7 +88,7 @@ include = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py312"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
@@ -116,7 +116,7 @@ ignore = [
 "tests/**" = ["B017", "E712", "B007", "B905", "SIM117", "F841"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
