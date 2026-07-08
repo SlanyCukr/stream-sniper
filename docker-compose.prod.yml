@@ -36,6 +36,10 @@ services:
       - CORS_ORIGINS=["*"]
       - REDIS_HOST=stream-sniper-redis
       - REDIS_PORT=6379
+      # Adding a tracked streamer via the API calls the Twitch API (creator
+      # lookup), so the api process needs Twitch creds too — not just tracking.
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
     restart: unless-stopped
     container_name: stream-sniper-api
     networks:
