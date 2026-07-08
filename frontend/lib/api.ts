@@ -37,3 +37,5 @@ export const retrieveStreams = (creatorId: string | number, offset: number) => a
 export const retrieveStreamComprehensive = (streamId: string | number) => api.get(`/stream/${streamId}`)
 export const retrieveChatterOnStreamMessages = (streamId: string | number, chatterId: string | number) => api.get(`/stream/${streamId}/chatter/${chatterId}/messages`)
 export const retrieveAllCreators = () => api.get('/creators')
+export const retrieveCreatorTopChatters = (creatorId: string | number, limit: number) => api.get(`/creator/${creatorId}/top-chatters?limit=${limit}`)
+export const retrieveChatterStreamActivity = (chatterId: string | number) => api.get(`/chatter/${chatterId}/stream-activity`)

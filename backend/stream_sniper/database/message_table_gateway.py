@@ -23,3 +23,21 @@ def insert_message_db(items: [tuple], cursor, connection):
 def select_chatter_id_db(nick, cursor):
     cursor.execute("SELECT id FROM chatter WHERE nick = %s", (nick,))
     return cursor.fetchone()
+
+
+@with_cursor
+def select_chatter_stream_activity_db(chatter_id, cursor):
+    cursor.execute(
+        """
+    SELECT m.stream_id, s.title, s.start, cr.id, cr.display_name, COUNT(*) AS message_count
+    FROM message m
+    JOIN stream s ON s.id = m.stream_id
+    JOIN creator cr ON cr.id = s.creator_id
+    WHERE m.chatter_id = %s
+    GROUP BY m.stream_id, s.title, s.start, cr.id, cr.display_name
+    ORDER BY message_count DESC
+    LIMIT 100
+    """,
+        (chatter_id,),
+    )
+    return cursor.fetchall()

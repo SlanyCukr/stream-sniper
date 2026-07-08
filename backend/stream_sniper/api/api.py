@@ -13,8 +13,12 @@ from slowapi.util import get_remote_address
 
 from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
 from ..database.connection_pool import close_pool
-from ..database.creator_table_gateway import select_creators_db
-from ..database.message_table_gateway import select_chatter_id_db, select_chatter_messages_db
+from ..database.creator_table_gateway import select_creator_top_chatters_db, select_creators_db
+from ..database.message_table_gateway import (
+    select_chatter_id_db,
+    select_chatter_messages_db,
+    select_chatter_stream_activity_db,
+)
 from ..database.stream_table_gateway import (
     select_all_stream_count_db,
     select_all_streams_db,
@@ -848,6 +852,133 @@ def get_creators(request: Request, response: Response):
     except Exception as e:
         logger.error(f"Error fetching creators: {e}")
         record_cache_operation("error", "creators")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get(
+    "/creator/{creator_id}/top-chatters",
+    response_model=List[List[Any]],
+    tags=["Creators"],
+    summary="Get a creator's most active chatters",
+    description=f"""
+    Retrieve the most active chatters across ALL of a creator's streams.
+    Returns a list of [chatter_id, nick, message_count] tuples ordered by
+    message count descending.
+
+    An empty list is returned when the creator has no chat activity.
+
+    **Rate Limit**: {rate_limits.GENERAL}
+    """,
+    responses={
+        200: {
+            "description": "List of the creator's most active chatters",
+            "content": {
+                "application/json": {
+                    "example": [[42, "chatty_user", 1250], [15, "regular_viewer", 980], [7, "stream_fan", 640]]
+                }
+            },
+        },
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit(rate_limits.GENERAL)
+def get_creator_top_chatters(
+    request: Request,
+    response: Response,
+    creator_id: int = Path(..., description="Unique creator ID", json_schema_extra={"example": 5}),
+    limit: int = Query(25, ge=1, le=200, description="Maximum number of chatters to return", json_schema_extra={"example": 25}),
+):
+    """Get the most active chatters across all of a creator's streams"""
+    try:
+        # Try cache first
+        cache = get_cache()
+        cache_key = cache._generate_key("creator_top_chatters", creator_id, limit)
+        cached_result = cache.get(cache_key)
+
+        if cached_result is not None:
+            response.headers["X-Cache"] = "HIT"
+            record_cache_operation("hit", "creator_top_chatters")
+            return cached_result
+
+        # Cache miss - fetch from database
+        record_cache_operation("miss", "creator_top_chatters")
+        result = select_creator_top_chatters_db(creator_id, limit)
+
+        # Cache the result (an empty list is a valid, cacheable state)
+        cache.set(cache_key, result, CacheTTL.STREAM_DETAILS)
+        record_cache_operation("set", "creator_top_chatters")
+        response.headers["X-Cache"] = "MISS"
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching creator top chatters: {e}")
+        record_cache_operation("error", "creator_top_chatters")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get(
+    "/chatter/{chatter_id}/stream-activity",
+    response_model=List[List[Any]],
+    tags=["Chatters"],
+    summary="Get a chatter's cross-stream footprint",
+    description=f"""
+    Retrieve the streams a chatter appeared in (up to their 100 most active),
+    along with their message count per stream. Returns a list of
+    [stream_id, title, start, creator_id, creator_display_name, message_count]
+    tuples ordered by message count descending.
+
+    An empty list is returned when the chatter has no recorded activity.
+
+    **Rate Limit**: {rate_limits.GENERAL}
+    """,
+    responses={
+        200: {
+            "description": "List of streams the chatter appeared in with per-stream message counts",
+            "content": {
+                "application/json": {
+                    "example": [
+                        [1, "Epic Gaming Session", "2024-01-15 20:00:00", 5, "Amazing Streamer", 125],
+                        [2, "Chill Stream", "2024-01-14 18:00:00", 5, "Amazing Streamer", 42],
+                    ]
+                }
+            },
+        },
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit(rate_limits.GENERAL)
+def get_chatter_stream_activity(
+    request: Request, response: Response, chatter_id: int = Path(..., description="Unique chatter ID", json_schema_extra={"example": 42})
+):
+    """Get every stream a chatter appeared in with their per-stream message count"""
+    try:
+        # Try cache first
+        cache = get_cache()
+        cache_key = cache._generate_key("chatter_stream_activity", chatter_id)
+        cached_result = cache.get(cache_key)
+
+        if cached_result is not None:
+            response.headers["X-Cache"] = "HIT"
+            record_cache_operation("hit", "chatter_stream_activity")
+            return cached_result
+
+        # Cache miss - fetch from database
+        record_cache_operation("miss", "chatter_stream_activity")
+        result = select_chatter_stream_activity_db(chatter_id)
+
+        # Cache the result (an empty list is a valid, cacheable state)
+        cache.set(cache_key, result, CacheTTL.STREAM_DETAILS)
+        record_cache_operation("set", "chatter_stream_activity")
+        response.headers["X-Cache"] = "MISS"
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching chatter stream activity: {e}")
+        record_cache_operation("error", "chatter_stream_activity")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

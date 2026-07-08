@@ -262,6 +262,105 @@ class TestCreatorsEndpoints:
         assert response.json()["detail"] == "Internal server error"
 
 
+class TestCreatorTopChattersEndpoint:
+    """Test suite for the creator cross-stream top-chatters endpoint."""
+
+    @patch("stream_sniper.api.api.select_creator_top_chatters_db")
+    def test_get_creator_top_chatters_success(self, mock_select):
+        """Test successful retrieval of a creator's most active chatters."""
+        mock_select.return_value = [
+            [42, "chatty_user", 1250],
+            [15, "regular_viewer", 980],
+            [7, "stream_fan", 640],
+        ]
+
+        with TestClient(app) as client:
+            response = client.get("/creator/5/top-chatters")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 3
+        assert data[0] == [42, "chatty_user", 1250]
+        # Default limit of 25 is applied when ?limit is omitted
+        mock_select.assert_called_once_with(5, 25)
+
+    @patch("stream_sniper.api.api.select_creator_top_chatters_db")
+    def test_get_creator_top_chatters_custom_limit(self, mock_select):
+        """Test that a custom limit is passed through to the gateway."""
+        mock_select.return_value = [[42, "chatty_user", 1250]]
+
+        with TestClient(app) as client:
+            response = client.get("/creator/5/top-chatters?limit=10")
+
+        assert response.status_code == 200
+        mock_select.assert_called_once_with(5, 10)
+
+    @patch("stream_sniper.api.api.select_creator_top_chatters_db")
+    def test_get_creator_top_chatters_empty_returns_200(self, mock_select):
+        """Test that an empty result is a valid 200 with an empty list."""
+        mock_select.return_value = []
+
+        with TestClient(app) as client:
+            response = client.get("/creator/5/top-chatters")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    @patch("stream_sniper.api.api.select_creator_top_chatters_db")
+    def test_get_creator_top_chatters_server_error(self, mock_select):
+        """Test creator top-chatters endpoint with database error."""
+        mock_select.side_effect = Exception("Database connection failed")
+
+        with TestClient(app) as client:
+            response = client.get("/creator/5/top-chatters")
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "Internal server error"
+
+
+class TestChatterStreamActivityEndpoint:
+    """Test suite for the chatter cross-stream footprint endpoint."""
+
+    @patch("stream_sniper.api.api.select_chatter_stream_activity_db")
+    def test_get_chatter_stream_activity_success(self, mock_select):
+        """Test successful retrieval of a chatter's cross-stream footprint."""
+        mock_select.return_value = [
+            [1, "Epic Gaming Session", "2024-01-15 20:00:00", 5, "Amazing Streamer", 125],
+            [2, "Chill Stream", "2024-01-14 18:00:00", 5, "Amazing Streamer", 42],
+        ]
+
+        with TestClient(app) as client:
+            response = client.get("/chatter/42/stream-activity")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 2
+        assert data[0] == [1, "Epic Gaming Session", "2024-01-15 20:00:00", 5, "Amazing Streamer", 125]
+        mock_select.assert_called_once_with(42)
+
+    @patch("stream_sniper.api.api.select_chatter_stream_activity_db")
+    def test_get_chatter_stream_activity_empty_returns_200(self, mock_select):
+        """Test that an empty result is a valid 200 with an empty list."""
+        mock_select.return_value = []
+
+        with TestClient(app) as client:
+            response = client.get("/chatter/999/stream-activity")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    @patch("stream_sniper.api.api.select_chatter_stream_activity_db")
+    def test_get_chatter_stream_activity_server_error(self, mock_select):
+        """Test chatter stream-activity endpoint with database error."""
+        mock_select.side_effect = Exception("Database connection failed")
+
+        with TestClient(app) as client:
+            response = client.get("/chatter/42/stream-activity")
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "Internal server error"
+
+
 class TestHealthEndpoint:
     """Test suite for health check endpoint."""
     @patch("stream_sniper.api.health.get_pool")
