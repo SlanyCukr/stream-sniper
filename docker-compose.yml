@@ -33,7 +33,7 @@ services:
       # target, we bind-mount the live source directly on top of the *installed*
       # package path inside the venv's site-packages, then run uvicorn --reload
       # watching that same path (command below).
-      - ./backend/stream_sniper:/app/.venv/lib/python3.12/site-packages/stream_sniper
+      - ./backend/stream_sniper:/app/.venv/lib/python3.14/site-packages/stream_sniper
     command:
       [
         "uvicorn",
@@ -41,7 +41,7 @@ services:
         "--host", "0.0.0.0",
         "--port", "5002",
         "--reload",
-        "--reload-dir", "/app/.venv/lib/python3.12/site-packages/stream_sniper",
+        "--reload-dir", "/app/.venv/lib/python3.14/site-packages/stream_sniper",
       ]
     env_file:
       - .env
@@ -61,7 +61,7 @@ services:
     volumes:
       # Same hot-reload approach as the api service (see comment above): bind
       # the live source over the installed package path in the venv.
-      - ./backend/stream_sniper:/app/.venv/lib/python3.12/site-packages/stream_sniper
+      - ./backend/stream_sniper:/app/.venv/lib/python3.14/site-packages/stream_sniper
       - ./logs:/app/logs
     env_file:
       - .env

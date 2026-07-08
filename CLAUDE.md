@@ -9,7 +9,7 @@ Component-specific docs:
 
 ## Architecture
 
-- **Backend** (`backend/`, Python 3.12 + FastAPI, uv-managed with committed `uv.lock`): packages `api/`, `auth/`, `collector/`, `database/`, `tracking/`. Entry points: `stream-sniper <username>` (collection), `stream-sniper-api` (REST), `stream-sniper-tracking` (automation).
+- **Backend** (`backend/`, Python 3.14 + FastAPI, uv-managed with committed `uv.lock`): packages `api/`, `auth/`, `collector/`, `database/`, `tracking/`. Entry points: `stream-sniper <username>` (collection), `stream-sniper-api` (REST), `stream-sniper-tracking` (automation).
 - **Frontend** (`frontend/`, Next.js 16 App Router + React 19, Bootstrap/SASS): `app|components|views|contexts|lib|hooks|styles`, admin UI under `app/(app)/admin/`. See `frontend/CLAUDE.md`.
 - **Database**: PostgreSQL, normalized schema in the `stream_sniper` namespace — **external**, not in Docker Compose. Schema source of truth: `backend/stream_sniper/database/create_table.sql`. Tables: `creator`, `stream`, `chatter`, `message_text` (deduplicated content), `message`, plus `users`, `tracked_streamers`, `processing_jobs`.
 
