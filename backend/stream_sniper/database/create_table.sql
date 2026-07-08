@@ -12,6 +12,7 @@ create table stream_sniper.creator
     nick              varchar(255) not null,
     display_name      varchar(255) not null,
     profile_image_url varchar(255) not null,
+    twitch_id         bigint,
     constraint creator_nick_uindex
         unique (nick)
 );
