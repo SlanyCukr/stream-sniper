@@ -19,6 +19,16 @@ const navigation = [
         href: '/chatter-messages',
         icon: 'bi bi-person',
     },
+    {
+        title: 'Streamer regulars',
+        href: '/regulars',
+        icon: 'bi bi-people',
+    },
+    {
+        title: 'Chatter footprint',
+        href: '/chatter-footprint',
+        icon: 'bi bi-graph-up',
+    },
 ]
 
 const adminNavigation = [

@@ -15,5 +15,7 @@ export {
     useChatters,
     useCreators,
     useChatterId,
+    useCreatorTopChatters,
+    useChatterStreamActivity,
     chattersKeys,
 } from './useChattersQuery'

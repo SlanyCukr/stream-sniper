@@ -18,10 +18,12 @@ __all__ = [
     "select_creator_id_db",
     "insert_new_creator_db",
     "select_creators_db",
+    "select_creator_top_chatters_db",
     # Message gateway functions
     "select_chatter_messages_db",
     "insert_message_db",
     "select_chatter_id_db",
+    "select_chatter_stream_activity_db",
     # Message text gateway functions
     "find_or_insert_message_text_id_db",
     "insert_message_texts_db",
