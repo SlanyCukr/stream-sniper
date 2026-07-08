@@ -86,3 +86,33 @@ class TwitchAPI:
             return []
 
         return videos
+
+    # Async variants for callers that already run inside an event loop (the
+    # FastAPI endpoints and the tracking monitor). The sync get_async_result
+    # helper above uses loop.run_until_complete, which raises "This event loop
+    # is already running" when called from async code — and the Twitch client's
+    # aiohttp session is bound to the running loop, so the coroutines must be
+    # awaited on that same loop rather than bridged from a worker thread.
+    async def get_creator_twitch_id_async(self) -> Any:
+        async for user in self.twitch.get_users(logins=[self.streamer_nickname]):
+            return user.id
+        return None
+
+    async def get_creator_info_async(self) -> Tuple[str, str]:
+        async for user in self.twitch.get_users(logins=[self.streamer_nickname]):
+            return user.display_name, user.profile_image_url
+        return None
+
+    async def get_stream_info_async(self) -> Any:
+        async for stream in self.twitch.get_streams(user_login=[self.streamer_nickname]):
+            return stream
+        return None
+
+    async def get_available_video_ids_async(self) -> List[Any]:
+        twitch_user_id = await self.get_creator_twitch_id_async()
+        if twitch_user_id is None:
+            return []
+        videos = []
+        async for video in self.twitch.get_videos(user_id=twitch_user_id, video_type=VideoType.ARCHIVE):
+            videos.append(video)
+        return videos
