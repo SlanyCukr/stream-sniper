@@ -241,7 +241,7 @@ scheduler = TrackingScheduler(
 - **Concurrent Processing**: Configure based on system resources
 - **Monitoring Interval**: Balance between responsiveness and API limits
 - **Database Indexing**: Indexes on frequently queried fields
-- **Caching**: Redis caching for frequently accessed data
+- **Caching**: In-process TTL caching for frequently accessed data
 
 ## Scalability
 

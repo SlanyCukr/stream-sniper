@@ -56,8 +56,9 @@ Packages under `stream_sniper/`:
   reference-only baseline snapshot mirrored by revision `0001`.
 - **`api/`** — FastAPI app (`api/api.py:app`), auth (`auth.py`,
   `auth_endpoints.py`), tracking endpoints (`tracking_endpoints.py`), rate limiting
-  (`rate_limiter.py`, slowapi), caching (`cache.py`, Redis), health/metrics
-  (`health.py`, `monitoring.py`), config (`config.py`).
+  (`rate_limiter.py`, slowapi, in-process memory storage), caching (`cache.py`,
+  in-process TTL cache), health/metrics (`health.py`, `monitoring.py`), config
+  (`config.py`).
 - **`tracking/`** — `stream_monitor.py`, `processing_queue.py`,
   `stream_processor.py`, `scheduler.py`. See `/TRACKING_SYSTEM.md`.
 
@@ -139,10 +140,11 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES   # default 30
 
 # Twitch (collector/twitch_api.py) — REQUIRED for the collector
 TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET
-
-# Redis (cache.py / rate_limiter.py / config.py)
-REDIS_HOST, REDIS_PORT, REDIS_DB, REDIS_PASSWORD
 ```
+
+Caching and rate limiting are **in-process** (no Redis / external store): `cache.py`
+is a thread-safe TTL dict; `rate_limiter.py` uses slowapi's `memory://` storage.
+Both are per-process and reset on restart — fine for the single-process API.
 
 See `.env.example` for the full surface (cache TTLs, rate limits, CORS,
 monitoring).

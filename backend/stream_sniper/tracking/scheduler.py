@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from ..logging_config import get_logger
+from .heartbeat import HEARTBEAT_INTERVAL, delete_heartbeat, write_heartbeat
 from .processing_queue import ProcessingQueue
 from .stream_monitor import StreamMonitor
 
@@ -53,10 +54,13 @@ class TrackingScheduler:
             # Initialize stream monitor
             await self.stream_monitor.initialize()
             
-            # Start both services concurrently
+            # Start both services concurrently, plus a heartbeat that publishes
+            # this process's status to Postgres so the (separate) API process can
+            # report real monitoring health on the admin dashboard.
             self._tasks = [
                 asyncio.create_task(self.stream_monitor.start_monitoring()),
-                asyncio.create_task(self.processing_queue.start_processing())
+                asyncio.create_task(self.processing_queue.start_processing()),
+                asyncio.create_task(self._heartbeat_loop())
             ]
 
             self.logger.info("Tracking scheduler started successfully")
@@ -94,7 +98,24 @@ class TrackingScheduler:
         await asyncio.gather(*self._tasks, return_exceptions=True)
         self._tasks = []
 
+        # Clear the published heartbeat so the dashboard reflects 'down' at once
+        # instead of waiting for the key's TTL to lapse.
+        await asyncio.to_thread(delete_heartbeat)
+
         self.logger.info("Tracking scheduler stopped successfully")
+
+    async def _heartbeat_loop(self):
+        """Publish this process's status to Postgres on a fixed interval.
+
+        Runs the blocking DB write in a worker thread so a slow/timed-out
+        query can't stall the monitor or processing-queue coroutines.
+        """
+        while self._running:
+            try:
+                await asyncio.to_thread(write_heartbeat, self.get_status())
+            except Exception as e:
+                self.logger.warning(f"Heartbeat write failed: {e}")
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
     
     async def restart(self):
         """Restart the tracking scheduler."""

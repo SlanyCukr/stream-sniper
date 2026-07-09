@@ -248,7 +248,7 @@ app = FastAPI(
     
     ## Performance Features
     
-    * **Redis Caching**: Intelligent caching of expensive database queries
+    * **Caching**: Intelligent in-process caching of expensive database queries
     * **Rate Limiting**: Configurable rate limits to prevent abuse
     * **Response Compression**: Automatic compression for large responses
     * **Health Monitoring**: Real-time health checks and performance metrics
@@ -1278,7 +1278,7 @@ def get_cache_stats(request: Request):
         summary = collector.get_summary_stats()
 
         return {
-            "redis_stats": cache_stats,
+            "cache_stats": cache_stats,
             "performance_metrics": summary.get("cache", {}),
             "timestamp": datetime.now().isoformat() + "Z",
         }

@@ -14,18 +14,7 @@ load_dotenv()
 
 @dataclass
 class CacheConfig:
-    """Cache configuration settings."""
-
-    # Redis connection settings
-    host: str = os.getenv("REDIS_HOST", "localhost")
-    port: int = int(os.getenv("REDIS_PORT", 6379))
-    db: int = int(os.getenv("REDIS_DB", 0))
-    password: Optional[str] = os.getenv("REDIS_PASSWORD")
-
-    # Connection timeouts
-    connect_timeout: int = int(os.getenv("REDIS_CONNECT_TIMEOUT", 5))
-    socket_timeout: int = int(os.getenv("REDIS_SOCKET_TIMEOUT", 5))
-    health_check_interval: int = int(os.getenv("REDIS_HEALTH_CHECK_INTERVAL", 30))
+    """Cache configuration settings (in-process cache — no external store)."""
 
     # Cache behavior
     enabled: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
@@ -53,13 +42,6 @@ class RateLimitConfig:
 
     # Rate limiting enabled/disabled
     enabled: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
-
-    # Redis connection for rate limiting
-    redis_url: Optional[str] = os.getenv("REDIS_URL")
-    redis_host: str = os.getenv("REDIS_HOST", "localhost")
-    redis_port: int = int(os.getenv("REDIS_PORT", 6379))
-    redis_db: int = int(os.getenv("REDIS_DB", 0))
-    redis_password: Optional[str] = os.getenv("REDIS_PASSWORD")
 
     # Rate limiting strategy
     strategy: str = os.getenv("RATE_LIMIT_STRATEGY", "moving-window")
@@ -162,17 +144,6 @@ class APIConfig:
 
         return _convert(self)
 
-    def get_redis_url(self) -> str:
-        """Get Redis URL for connections."""
-        if self.rate_limit.redis_url:
-            return self.rate_limit.redis_url
-
-        # Build Redis URL from components
-        if self.cache.password:
-            return f"redis://:{self.cache.password}@{self.cache.host}:{self.cache.port}/{self.cache.db}"
-        else:
-            return f"redis://{self.cache.host}:{self.cache.port}/{self.cache.db}"
-
     def validate(self) -> bool:
         """
         Validate configuration settings.
@@ -185,13 +156,7 @@ class APIConfig:
             if not (1 <= self.port <= 65535):
                 raise ValueError(f"Invalid API port: {self.port}")
 
-            if not (1 <= self.cache.port <= 65535):
-                raise ValueError(f"Invalid Redis port: {self.cache.port}")
-
             # Validate timeout values
-            if self.cache.connect_timeout <= 0:
-                raise ValueError(f"Invalid cache connect timeout: {self.cache.connect_timeout}")
-
             if self.database.connect_timeout <= 0:
                 raise ValueError(f"Invalid database connect timeout: {self.database.connect_timeout}")
 
@@ -251,8 +216,7 @@ def log_config_summary():
     logger.info(f"API: {config.title} v{config.version}")
     logger.info(f"Server: {config.host}:{config.port} (debug={config.debug})")
     logger.info(
-        f"Cache: {'enabled' if config.cache.enabled else 'disabled'} "
-        f"(Redis: {config.cache.host}:{config.cache.port})"
+        f"Cache: {'enabled' if config.cache.enabled else 'disabled'} (in-process)"
     )
     logger.info(f"Rate Limiting: {'enabled' if config.rate_limit.enabled else 'disabled'}")
     logger.info(f"Compression: {'enabled' if config.compression.enabled else 'disabled'}")
@@ -276,8 +240,7 @@ def print_config_summary():
     print(f"API: {config.title} v{config.version}")
     print(f"Server: {config.host}:{config.port} (debug={config.debug})")
     print(
-        f"Cache: {'enabled' if config.cache.enabled else 'disabled'} "
-        f"(Redis: {config.cache.host}:{config.cache.port})"
+        f"Cache: {'enabled' if config.cache.enabled else 'disabled'} (in-process)"
     )
     print(f"Rate Limiting: {'enabled' if config.rate_limit.enabled else 'disabled'}")
     print(f"Compression: {'enabled' if config.compression.enabled else 'disabled'}")
@@ -319,16 +282,7 @@ DB_CONNECT_TIMEOUT=10
 DB_COMMAND_TIMEOUT=60
 DB_HEALTH_CHECK_INTERVAL=30
 
-# Redis Cache Settings
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_DB=0
-REDIS_PASSWORD=
-REDIS_CONNECT_TIMEOUT=5
-REDIS_SOCKET_TIMEOUT=5
-REDIS_HEALTH_CHECK_INTERVAL=30
-
-# Cache Behavior
+# Cache Behavior (in-process cache — no external store)
 CACHE_ENABLED=true
 CACHE_DEFAULT_TTL=3600
 CACHE_WARM_ON_STARTUP=true

@@ -1,6 +1,6 @@
 """
 Rate limiting implementation using slowapi (FastAPI-compatible version of Flask-Limiter).
-Provides configurable rate limits with Redis backend and graceful degradation.
+Provides configurable rate limits backed by in-process memory storage.
 """
 
 import logging
@@ -50,48 +50,23 @@ def create_limiter() -> Limiter:
     """
     Create and configure the rate limiter instance.
 
+    Uses in-process memory storage: the API runs as a single process, so a shared
+    store isn't needed. Counters reset on restart and are per-process (they would
+    not be shared across replicas if the app were ever scaled out).
+
     Returns:
         Configured Limiter instance
     """
-    # Get Redis configuration
-    redis_url = os.getenv("REDIS_URL")
-    if not redis_url:
-        redis_host = os.getenv("REDIS_HOST", "localhost")
-        redis_port = os.getenv("REDIS_PORT", "6379")
-        redis_db = os.getenv("REDIS_DB", "0")
-        redis_password = os.getenv("REDIS_PASSWORD", "")
+    limiter = Limiter(
+        key_func=get_identifier,
+        storage_uri="memory://",
+        default_limits=["1000 per hour"],  # Default global limit
+        strategy="moving-window",
+        headers_enabled=True,
+    )
 
-        if redis_password:
-            redis_url = f"redis://:{redis_password}@{redis_host}:{redis_port}/{redis_db}"
-        else:
-            redis_url = f"redis://{redis_host}:{redis_port}/{redis_db}"
-
-    try:
-        # Create limiter with Redis backend
-        limiter = Limiter(
-            key_func=get_identifier,
-            storage_uri=redis_url,
-            default_limits=["1000 per hour"],  # Default global limit
-            strategy="moving-window",
-            headers_enabled=True,
-        )
-
-        logger.info(f"Rate limiter initialized with Redis backend: {redis_url}")
-        return limiter
-
-    except Exception as e:
-        logger.warning(f"Failed to initialize Redis-backed rate limiter: {e}")
-
-        # Fallback to in-memory limiter
-        limiter = Limiter(
-            key_func=get_identifier,
-            default_limits=["500 per hour"],  # Lower limit for in-memory
-            strategy="moving-window",
-            headers_enabled=True,
-        )
-
-        logger.info("Rate limiter initialized with in-memory backend (fallback)")
-        return limiter
+    logger.info("Rate limiter initialized with in-memory storage")
+    return limiter
 
 
 # Create global limiter instance
@@ -138,26 +113,8 @@ def get_rate_limit_stats() -> Dict[str, Any]:
         Dictionary with rate limiting statistics
     """
     try:
-        # Get limiter storage information
-        storage_info = {}
-
-        if hasattr(limiter._storage, "storage"):
-            # Redis storage
-            redis_client = limiter._storage.storage
-            try:
-                redis_info = redis_client.info()
-                storage_info = {
-                    "type": "redis",
-                    "status": "healthy",
-                    "version": redis_info.get("redis_version"),
-                    "connected_clients": redis_info.get("connected_clients"),
-                    "used_memory_human": redis_info.get("used_memory_human"),
-                }
-            except Exception as e:
-                storage_info = {"type": "redis", "status": "unhealthy", "error": str(e)}
-        else:
-            # In-memory storage
-            storage_info = {"type": "memory", "status": "healthy"}
+        # In-process memory storage.
+        storage_info = {"type": "memory", "status": "healthy"}
 
         return {
             "enabled": True,

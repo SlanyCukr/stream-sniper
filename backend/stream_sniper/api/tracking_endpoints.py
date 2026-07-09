@@ -29,6 +29,7 @@ from ..database.tracked_streamers_table_gateway import (
     update_tracked_streamer_db,
 )
 from ..logging_config import get_logger
+from ..tracking.heartbeat import read_heartbeat
 from ..tracking.scheduler import get_scheduler
 from .auth import UserInDB, get_current_admin_user
 from .cache import CacheTTL, get_cache
@@ -38,6 +39,28 @@ logger = get_logger(__name__)
 
 # Create router
 router = APIRouter(prefix="/admin/tracking", tags=["Tracking"])
+
+
+def _live_tracking_status() -> tuple[Dict[str, Any], bool]:
+    """Resolve the tracking system's real status across processes.
+
+    The scheduler singleton is per-process; in the standard deployment monitoring
+    runs in the separate ``stream-sniper-tracking`` container, so this (API)
+    process's own singleton is never started and would always look 'down'. Prefer
+    the heartbeat the tracking process publishes to Postgres; fall back to this
+    process's scheduler, which covers running it in-process (local single-process
+    runs or ``POST /service/start``).
+
+    Returns the status dict (same shape as ``TrackingScheduler.get_status()``)
+    and whether that source is actually alive.
+    """
+    hb = read_heartbeat()
+    if hb and hb.get("alive"):
+        return hb["status"], True
+
+    status_dict = get_scheduler().get_status()
+    in_proc_alive = bool(status_dict.get("scheduler", {}).get("running"))
+    return status_dict, in_proc_alive
 
 
 class TrackedStreamerCreate(BaseModel):
@@ -799,17 +822,21 @@ def get_tracking_stats(
         # Get processing jobs stats
         jobs_stats = get_processing_stats_db()
         
-        # Get system status from scheduler
-        scheduler = get_scheduler()
-        scheduler_status = scheduler.get_status()
-        
+        # Get system status — prefer the tracking process's Postgres heartbeat, since
+        # monitoring runs in a separate container from the API (whose in-process
+        # scheduler singleton is never started and would always read as 'down').
+        tracking_status, source_alive = _live_tracking_status()
+        monitor_status = tracking_status.get('stream_monitor', {})
+        scheduler_info = tracking_status.get('scheduler', {})
+        queue_status = tracking_status.get('processing_queue', {})
+
         system_status = {
-            'monitoring_active': scheduler_status['stream_monitor']['running'],
+            'monitoring_active': source_alive and bool(monitor_status.get('running')),
             'processing_queue_size': jobs_stats.get('pending', 0),
             'failed_jobs': jobs_stats.get('failed', 0),
-            'scheduler_running': scheduler_status['scheduler']['running'],
-            'active_jobs': scheduler_status['processing_queue']['active_jobs'],
-            'uptime_seconds': scheduler_status['scheduler']['uptime_seconds']
+            'scheduler_running': source_alive and bool(scheduler_info.get('running')),
+            'active_jobs': queue_status.get('active_jobs', 0),
+            'uptime_seconds': scheduler_info.get('uptime_seconds')
         }
         
         return TrackingStatsResponse(
@@ -851,8 +878,10 @@ def get_service_status(
 ):
     """Get tracking service status (admin only)"""
     try:
-        scheduler = get_scheduler()
-        return scheduler.get_status()
+        # Reflect the real (possibly separate-container) tracking process via its
+        # Postgres heartbeat, falling back to this process's scheduler.
+        tracking_status, _ = _live_tracking_status()
+        return tracking_status
     except Exception as e:
         logger.error(f"Error getting service status: {e}")
         raise HTTPException(
