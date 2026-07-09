@@ -11,15 +11,9 @@ from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
 from slowapi.util import get_remote_address
 
-from ..database.chatter_table_gateway import select_all_chatters_on_stream_db, select_chatters_by_prefix_db
+from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
 from ..database.connection_pool import close_pool
 from ..database.creator_table_gateway import select_creator_top_chatters_db, select_creators_db
-from ..database.message_table_gateway import (
-    select_chatter_id_db,
-    select_chatter_message_count_db,
-    select_chatter_messages_db,
-    select_chatter_stream_activity_db,
-)
 from ..database.stream_table_gateway import (
     select_all_stream_count_db,
     select_all_streams_db,
@@ -33,6 +27,7 @@ from ..database.stream_table_gateway import (
 from ..logging_config import get_logger, setup_logging
 from .auth_endpoints import router as auth_router
 from .cache import CacheTTL, get_cache, warm_cache
+from .chatter_endpoints import router as chatter_router
 
 # Import our new modules
 from .config import get_config
@@ -67,26 +62,6 @@ class Creator(BaseModel):
 
     id: int = Field(..., description="Unique creator ID", json_schema_extra={"example": 1})
     display_name: str = Field(..., description="Creator's display name on Twitch", json_schema_extra={"example": "SomeStreamer"})
-
-
-class Chatter(BaseModel):
-    """Chat participant information"""
-
-    id: int = Field(..., description="Unique chatter ID", json_schema_extra={"example": 1})
-    nick: str = Field(..., description="Chatter's nickname", json_schema_extra={"example": "viewer123"})
-
-
-class ChatterID(BaseModel):
-    """Chatter ID response"""
-
-    id: int = Field(..., description="Unique chatter ID", json_schema_extra={"example": 1})
-
-
-class Message(BaseModel):
-    """Chat message information"""
-
-    text: str = Field(..., description="Message content", json_schema_extra={"example": "Hello chat!"})
-    timestamp: str = Field(..., description="Message timestamp", json_schema_extra={"example": "2024-01-15 20:30:15"})
 
 
 class StreamBasic(BaseModel):
@@ -145,15 +120,6 @@ class StreamsResponse(BaseModel):
 
     streams: List[List[Any]] = Field(..., description="List of stream data tuples")
     max_offset: int = Field(..., description="Maximum offset for pagination", json_schema_extra={"example": 1000})
-
-
-class ChatterMessagesResponse(BaseModel):
-    """Paginated cross-stream chatter message log"""
-
-    messages: List[List[Any]] = Field(
-        ..., description="List of [stream_id, stream_title, streamer_display_name, text, timestamp] tuples"
-    )
-    total: int = Field(..., description="Total messages sent by the chatter", json_schema_extra={"example": 1234})
 
 
 class ErrorResponse(BaseModel):
@@ -311,6 +277,9 @@ if config.monitoring.enabled:
 # Include authentication router
 app.include_router(auth_router)
 
+# Include chatter router
+app.include_router(chatter_router)
+
 # Include tracking router
 app.include_router(tracking_router)
 
@@ -354,204 +323,6 @@ async def metrics_middleware(request: Request, call_next):
         response.headers["X-Health-Response-Time"] = str(round(response_time_ms, 2))
 
     return response
-
-
-@app.get(
-    "/chatter/{chatter_id}/messages",
-    response_model=ChatterMessagesResponse,
-    tags=["Chatters"],
-    summary="Get messages by chatter",
-    description=f"""
-    Retrieve messages sent by a specific chatter across all streams, newest first,
-    with pagination. Each row is a
-    [stream_id, stream_title, streamer_display_name, message_text, timestamp] tuple;
-    `total` is the chatter's overall message count.
-
-    **Rate Limit**: {rate_limits.GENERAL}
-    """,
-    responses={
-        200: {
-            "description": "Paginated list of messages with stream context",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "messages": [
-                            [7, "Epic Gaming Session", "SomeStreamer", "Hello everyone!", "2024-01-15 20:30:15"],
-                            [7, "Epic Gaming Session", "SomeStreamer", "Great stream!", "2024-01-15 20:45:22"],
-                        ],
-                        "total": 1234,
-                    }
-                }
-            },
-        },
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-    },
-)
-@limiter.limit(rate_limits.GENERAL)
-def get_chatter_messages(
-    request: Request,
-    response: Response,
-    chatter_id: int = Path(..., description="Unique chatter ID", json_schema_extra={"example": 42}),
-    offset: int = Query(0, ge=0, description="Row offset for pagination", json_schema_extra={"example": 0}),
-    limit: int = Query(50, ge=1, le=200, description="Maximum messages per page"),
-):
-    """Get paginated messages sent by a specific chatter across all streams"""
-    try:
-        cache = get_cache()
-
-        messages_cache_key = cache._generate_key("chatter_messages", chatter_id, limit, offset)
-        cached_messages = cache.get(messages_cache_key)
-
-        count_cache_key = cache._generate_key("chatter_message_count", chatter_id)
-        cached_count = cache.get(count_cache_key)
-
-        messages_from_cache = cached_messages is not None
-        count_from_cache = cached_count is not None
-
-        if not messages_from_cache:
-            record_cache_operation("miss", "chatter_messages")
-            messages = select_chatter_messages_db(chatter_id, limit, offset)
-            cache.set(messages_cache_key, messages, CacheTTL.CHATTER_MESSAGES)
-            record_cache_operation("set", "chatter_messages")
-        else:
-            record_cache_operation("hit", "chatter_messages")
-            messages = cached_messages
-
-        if not count_from_cache:
-            record_cache_operation("miss", "chatter_message_count")
-            total = select_chatter_message_count_db(chatter_id)
-            cache.set(count_cache_key, total, CacheTTL.CHATTER_MESSAGES)
-            record_cache_operation("set", "chatter_message_count")
-        else:
-            record_cache_operation("hit", "chatter_message_count")
-            total = cached_count
-
-        if messages_from_cache and count_from_cache:
-            response.headers["X-Cache"] = "HIT"
-        elif messages_from_cache or count_from_cache:
-            response.headers["X-Cache"] = "PARTIAL"
-        else:
-            response.headers["X-Cache"] = "MISS"
-
-        return {"messages": messages, "total": total}
-    except Exception as e:
-        logger.error(f"Error fetching chatter messages: {e}")
-        record_cache_operation("error", "chatter_messages")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@app.get(
-    "/chatter/{nick}/chatter_id",
-    response_model=List[int],
-    tags=["Chatters"],
-    summary="Get chatter ID by nickname",
-    description=f"""
-    Look up a chatter's unique ID using their nickname.
-    Returns the chatter ID that can be used in other endpoints.
-    
-    **Rate Limit**: {rate_limits.SEARCH}
-    """,
-    responses={
-        200: {"description": "Chatter ID found", "content": {"application/json": {"example": [42]}}},
-        404: {"model": ErrorResponse, "description": "Chatter not found"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-    },
-)
-@limiter.limit(rate_limits.SEARCH)
-def get_chatter_id(
-    request: Request, response: Response, nick: str = Path(..., description="Chatter nickname", json_schema_extra={"example": "viewer123"})
-):
-    """Get chatter ID by their nickname"""
-    try:
-        # Try cache first
-        cache = get_cache()
-        cache_key = cache._generate_key("chatter_id", nick)
-        cached_result = cache.get(cache_key)
-
-        if cached_result is not None:
-            response.headers["X-Cache"] = "HIT"
-            record_cache_operation("hit", "chatter_id")
-            return cached_result
-
-        # Cache miss - fetch from database
-        record_cache_operation("miss", "chatter_id")
-        result = select_chatter_id_db(nick)
-
-        if not result:
-            raise HTTPException(status_code=404, detail="Chatter not found")
-
-        # Cache the result
-        cache.set(cache_key, result, CacheTTL.CHATTER_MESSAGES)
-        record_cache_operation("set", "chatter_id")
-        response.headers["X-Cache"] = "MISS"
-
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching chatter ID: {e}")
-        record_cache_operation("error", "chatter_id")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@app.get(
-    "/chatters/search",
-    response_model=List[List[Any]],
-    tags=["Chatters"],
-    summary="Search chatters by nickname prefix",
-    description=f"""
-    Case-insensitive prefix search over chatter nicknames, for autocomplete.
-    Returns a list of [chatter_id, nick] pairs ordered by nick.
-    Queries shorter than 2 characters return an empty list.
-
-    **Rate Limit**: {rate_limits.SEARCH}
-    """,
-    responses={
-        200: {
-            "description": "List of matching [id, nick] pairs",
-            "content": {"application/json": {"example": [[42, "ninja"], [77, "ninjastreams"]]}},
-        },
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-    },
-)
-@limiter.limit(rate_limits.SEARCH)
-def search_chatters(
-    request: Request,
-    response: Response,
-    q: str = Query(..., description="Nickname prefix to search for", json_schema_extra={"example": "nin"}),
-    limit: int = Query(10, ge=1, le=25, description="Maximum number of suggestions"),
-):
-    """Prefix-search chatter nicknames for autocomplete suggestions."""
-    prefix = q.strip()
-    # Avoid scanning the index on 1-character prefixes (too many matches).
-    if len(prefix) < 2:
-        return []
-
-    try:
-        # Try cache first
-        cache = get_cache()
-        cache_key = cache._generate_key("chatter_search", prefix.lower(), limit)
-        cached_result = cache.get(cache_key)
-
-        if cached_result is not None:
-            response.headers["X-Cache"] = "HIT"
-            record_cache_operation("hit", "chatter_search")
-            return cached_result
-
-        # Cache miss - fetch from database
-        record_cache_operation("miss", "chatter_search")
-        result = select_chatters_by_prefix_db(prefix, limit)
-
-        # Cache the result (empty results are cached too, to absorb repeat typing)
-        cache.set(cache_key, result, CacheTTL.CHATTER_SEARCH)
-        record_cache_operation("set", "chatter_search")
-        response.headers["X-Cache"] = "MISS"
-
-        return result
-    except Exception as e:
-        logger.error(f"Error searching chatters: {e}")
-        record_cache_operation("error", "chatter_search")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get(
@@ -1004,70 +775,6 @@ def get_creator_top_chatters(
     except Exception as e:
         logger.error(f"Error fetching creator top chatters: {e}")
         record_cache_operation("error", "creator_top_chatters")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@app.get(
-    "/chatter/{chatter_id}/stream-activity",
-    response_model=List[List[Any]],
-    tags=["Chatters"],
-    summary="Get a chatter's cross-stream footprint",
-    description=f"""
-    Retrieve the streams a chatter appeared in (up to their 100 most active),
-    along with their message count per stream. Returns a list of
-    [stream_id, title, start, creator_id, creator_display_name, message_count]
-    tuples ordered by message count descending.
-
-    An empty list is returned when the chatter has no recorded activity.
-
-    **Rate Limit**: {rate_limits.GENERAL}
-    """,
-    responses={
-        200: {
-            "description": "List of streams the chatter appeared in with per-stream message counts",
-            "content": {
-                "application/json": {
-                    "example": [
-                        [1, "Epic Gaming Session", "2024-01-15 20:00:00", 5, "Amazing Streamer", 125],
-                        [2, "Chill Stream", "2024-01-14 18:00:00", 5, "Amazing Streamer", 42],
-                    ]
-                }
-            },
-        },
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-    },
-)
-@limiter.limit(rate_limits.GENERAL)
-def get_chatter_stream_activity(
-    request: Request, response: Response, chatter_id: int = Path(..., description="Unique chatter ID", json_schema_extra={"example": 42})
-):
-    """Get every stream a chatter appeared in with their per-stream message count"""
-    try:
-        # Try cache first
-        cache = get_cache()
-        cache_key = cache._generate_key("chatter_stream_activity", chatter_id)
-        cached_result = cache.get(cache_key)
-
-        if cached_result is not None:
-            response.headers["X-Cache"] = "HIT"
-            record_cache_operation("hit", "chatter_stream_activity")
-            return cached_result
-
-        # Cache miss - fetch from database
-        record_cache_operation("miss", "chatter_stream_activity")
-        result = select_chatter_stream_activity_db(chatter_id)
-
-        # Cache the result (an empty list is a valid, cacheable state)
-        cache.set(cache_key, result, CacheTTL.STREAM_DETAILS)
-        record_cache_operation("set", "chatter_stream_activity")
-        response.headers["X-Cache"] = "MISS"
-
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching chatter stream activity: {e}")
-        record_cache_operation("error", "chatter_stream_activity")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

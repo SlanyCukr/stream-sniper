@@ -29,9 +29,9 @@ def _miss_cache():
 class TestChattersEndpoints:
     """Test suite for chatter-related API endpoints."""
 
-    @patch("stream_sniper.api.api.get_cache")
-    @patch("stream_sniper.api.api.select_chatter_message_count_db")
-    @patch("stream_sniper.api.api.select_chatter_messages_db")
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_message_count_db")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_messages_db")
     def test_get_chatter_messages_success(self, mock_select, mock_count, mock_get_cache):
         """Test successful retrieval of paginated chatter messages with stream context."""
         mock_get_cache.return_value = _miss_cache()
@@ -52,9 +52,9 @@ class TestChattersEndpoints:
         mock_select.assert_called_once_with(42, 50, 0)
         mock_count.assert_called_once_with(42)
 
-    @patch("stream_sniper.api.api.get_cache")
-    @patch("stream_sniper.api.api.select_chatter_message_count_db")
-    @patch("stream_sniper.api.api.select_chatter_messages_db")
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_message_count_db")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_messages_db")
     def test_get_chatter_messages_pagination_params(self, mock_select, mock_count, mock_get_cache):
         """Test that limit and offset query params are passed to the gateway."""
         mock_get_cache.return_value = _miss_cache()
@@ -67,9 +67,9 @@ class TestChattersEndpoints:
         assert response.status_code == 200
         mock_select.assert_called_once_with(42, 25, 100)
 
-    @patch("stream_sniper.api.api.get_cache")
-    @patch("stream_sniper.api.api.select_chatter_message_count_db")
-    @patch("stream_sniper.api.api.select_chatter_messages_db")
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_message_count_db")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_messages_db")
     def test_get_chatter_messages_empty_returns_200(self, mock_select, mock_count, mock_get_cache):
         """Test that a chatter with no messages returns an empty page, not a 404."""
         mock_get_cache.return_value = _miss_cache()
@@ -82,9 +82,9 @@ class TestChattersEndpoints:
         assert response.status_code == 200
         assert response.json() == {"messages": [], "total": 0}
 
-    @patch("stream_sniper.api.api.get_cache")
-    @patch("stream_sniper.api.api.select_chatter_message_count_db")
-    @patch("stream_sniper.api.api.select_chatter_messages_db")
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_message_count_db")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_messages_db")
     def test_get_chatter_messages_server_error(self, mock_select, mock_count, mock_get_cache):
         """Test chatter messages endpoint with database error."""
         mock_get_cache.return_value = _miss_cache()
@@ -96,7 +96,7 @@ class TestChattersEndpoints:
         assert response.status_code == 500
         assert response.json()["detail"] == "Internal server error"
 
-    @patch("stream_sniper.api.api.select_chatter_id_db")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_id_db")
     def test_get_chatter_id_success(self, mock_select):
         """Test successful retrieval of chatter ID."""
         mock_select.return_value = [42]
@@ -108,7 +108,7 @@ class TestChattersEndpoints:
         assert response.json() == [42]
         mock_select.assert_called_once_with("viewer123")
 
-    @patch("stream_sniper.api.api.select_chatter_id_db")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_id_db")
     def test_get_chatter_id_not_found(self, mock_select):
         """Test chatter ID endpoint when chatter not found."""
         mock_select.return_value = None
@@ -360,9 +360,11 @@ class TestCreatorTopChattersEndpoint:
 class TestChatterStreamActivityEndpoint:
     """Test suite for the chatter cross-stream footprint endpoint."""
 
-    @patch("stream_sniper.api.api.select_chatter_stream_activity_db")
-    def test_get_chatter_stream_activity_success(self, mock_select):
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_stream_activity_db")
+    def test_get_chatter_stream_activity_success(self, mock_select, mock_get_cache):
         """Test successful retrieval of a chatter's cross-stream footprint."""
+        mock_get_cache.return_value = _miss_cache()
         mock_select.return_value = [
             [1, "Epic Gaming Session", "2024-01-15 20:00:00", 5, "Amazing Streamer", 125],
             [2, "Chill Stream", "2024-01-14 18:00:00", 5, "Amazing Streamer", 42],
@@ -377,9 +379,11 @@ class TestChatterStreamActivityEndpoint:
         assert data[0] == [1, "Epic Gaming Session", "2024-01-15 20:00:00", 5, "Amazing Streamer", 125]
         mock_select.assert_called_once_with(42)
 
-    @patch("stream_sniper.api.api.select_chatter_stream_activity_db")
-    def test_get_chatter_stream_activity_empty_returns_200(self, mock_select):
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_stream_activity_db")
+    def test_get_chatter_stream_activity_empty_returns_200(self, mock_select, mock_get_cache):
         """Test that an empty result is a valid 200 with an empty list."""
+        mock_get_cache.return_value = _miss_cache()
         mock_select.return_value = []
 
         with TestClient(app) as client:
@@ -388,9 +392,11 @@ class TestChatterStreamActivityEndpoint:
         assert response.status_code == 200
         assert response.json() == []
 
-    @patch("stream_sniper.api.api.select_chatter_stream_activity_db")
-    def test_get_chatter_stream_activity_server_error(self, mock_select):
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatter_stream_activity_db")
+    def test_get_chatter_stream_activity_server_error(self, mock_select, mock_get_cache):
         """Test chatter stream-activity endpoint with database error."""
+        mock_get_cache.return_value = _miss_cache()
         mock_select.side_effect = Exception("Database connection failed")
 
         with TestClient(app) as client:
@@ -402,6 +408,7 @@ class TestChatterStreamActivityEndpoint:
 
 class TestHealthEndpoint:
     """Test suite for health check endpoint."""
+
     @patch("stream_sniper.api.health.get_pool")
     def test_health_check_success(self, mock_get_pool):
         """Test successful health check."""
@@ -421,6 +428,7 @@ class TestHealthEndpoint:
         assert data["database"]["healthy"] is True
         assert "timestamp" in data
         assert data["version"] == "1.0.0"
+
     @patch("stream_sniper.api.health.get_pool")
     def test_health_check_unhealthy(self, mock_get_pool):
         """Test health check when database is unhealthy."""
@@ -436,6 +444,7 @@ class TestHealthEndpoint:
         data = response.json()
         assert data["status"] == "unhealthy"
         assert data["database"]["healthy"] is False
+
     @patch("stream_sniper.api.health.get_pool")
     def test_health_check_critical_error(self, mock_get_pool):
         """Test health check with critical error."""
@@ -545,8 +554,8 @@ class TestAPIDocumentation:
 class TestChatterSearchEndpoint:
     """Test suite for the /chatters/search autocomplete endpoint."""
 
-    @patch("stream_sniper.api.api.get_cache")
-    @patch("stream_sniper.api.api.select_chatters_by_prefix_db")
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatters_by_prefix_db")
     def test_search_chatters_success(self, mock_search, mock_get_cache):
         """Prefix search returns [id, nick] pairs and calls the gateway."""
         mock_get_cache.return_value = _miss_cache()
@@ -559,8 +568,8 @@ class TestChatterSearchEndpoint:
         assert response.json() == [[42, "ninja"], [77, "ninjastreams"]]
         mock_search.assert_called_once_with("nin", 10)
 
-    @patch("stream_sniper.api.api.get_cache")
-    @patch("stream_sniper.api.api.select_chatters_by_prefix_db")
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatters_by_prefix_db")
     def test_search_chatters_trims_and_honors_limit(self, mock_search, mock_get_cache):
         """Whitespace is trimmed and the limit query param is passed through."""
         mock_get_cache.return_value = _miss_cache()
@@ -573,8 +582,8 @@ class TestChatterSearchEndpoint:
         assert response.json() == []
         mock_search.assert_called_once_with("nin", 5)
 
-    @patch("stream_sniper.api.api.get_cache")
-    @patch("stream_sniper.api.api.select_chatters_by_prefix_db")
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatters_by_prefix_db")
     def test_search_chatters_short_query_skips_db(self, mock_search, mock_get_cache):
         """Queries shorter than 2 chars return [] without touching the database."""
         mock_get_cache.return_value = _miss_cache()
@@ -586,8 +595,8 @@ class TestChatterSearchEndpoint:
         assert response.json() == []
         mock_search.assert_not_called()
 
-    @patch("stream_sniper.api.api.get_cache")
-    @patch("stream_sniper.api.api.select_chatters_by_prefix_db")
+    @patch("stream_sniper.api.chatter_endpoints.get_cache")
+    @patch("stream_sniper.api.chatter_endpoints.select_chatters_by_prefix_db")
     def test_search_chatters_server_error(self, mock_search, mock_get_cache):
         """A database error surfaces as a 500."""
         mock_get_cache.return_value = _miss_cache()
