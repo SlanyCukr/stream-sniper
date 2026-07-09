@@ -20,7 +20,7 @@ from .monitoring import record_request_metrics, setup_monitoring
 from .operations_endpoints import router as operations_router
 from .rate_limiter import setup_rate_limiting
 from .stream_endpoints import router as stream_router
-from .tracking_endpoints import router as tracking_router
+from .tracking_router import router as tracking_router
 
 load_dotenv()
 
@@ -165,7 +165,7 @@ app.include_router(stream_router)
 # Include creator router
 app.include_router(creator_router)
 
-# Include tracking router
+# Include tracking router (streamers, jobs, service control)
 app.include_router(tracking_router)
 
 # Include operations router

@@ -687,8 +687,8 @@ class TestTwitchSearchEndpoint:
     def _clear_admin():
         app.dependency_overrides.pop(get_current_admin_user, None)
 
-    @patch("stream_sniper.api.tracking_endpoints.get_cache")
-    @patch("stream_sniper.api.tracking_endpoints.TwitchAPI")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.get_cache")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.TwitchAPI")
     def test_search_twitch_channels_success(self, mock_twitch_cls, mock_get_cache):
         """Channel results are mapped to {login, display_name, profile_image_url, is_live}."""
         mock_get_cache.return_value = _miss_cache()
@@ -720,8 +720,8 @@ class TestTwitchSearchEndpoint:
         ]
         instance.search_channels_async.assert_awaited_once_with("nin", 8)
 
-    @patch("stream_sniper.api.tracking_endpoints.get_cache")
-    @patch("stream_sniper.api.tracking_endpoints.TwitchAPI")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.get_cache")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.TwitchAPI")
     def test_search_twitch_channels_short_query_skips_twitch(self, mock_twitch_cls, mock_get_cache):
         """Short queries return [] without hitting the Twitch API."""
         mock_get_cache.return_value = _miss_cache()

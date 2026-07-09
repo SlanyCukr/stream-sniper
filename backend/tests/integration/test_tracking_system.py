@@ -126,10 +126,14 @@ class TestTrackingSystem:
 
     def test_api_endpoint_structure(self):
         """Test that API endpoints are properly structured."""
-        from stream_sniper.api.tracking_endpoints import router
-        
-        # Get all routes
-        routes = [route for route in router.routes if hasattr(route, 'methods')]
+        from stream_sniper.api.api import app
+
+        # Check the composed application surface via the OpenAPI schema:
+        # router inclusion is lazy in FastAPI (routes flatten on demand), so
+        # app.routes holds unresolved includes rather than APIRoute objects.
+        actual_paths = [
+            path for path in app.openapi()['paths'] if path.startswith('/admin/tracking')
+        ]
         
         # Check that we have the expected endpoints
         expected_paths = [
@@ -144,9 +148,7 @@ class TestTrackingSystem:
             '/jobs/{job_id}/cancel',
             '/jobs/{job_id}/retry'
         ]
-        
-        actual_paths = [route.path for route in routes]
-        
+
         for expected_path in expected_paths:
             assert any(expected_path in path for path in actual_paths), f"Missing endpoint: {expected_path}"
 

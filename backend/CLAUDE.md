@@ -55,7 +55,9 @@ Packages under `stream_sniper/`:
   autogenerate; there are no ORM models). `database/create_table.sql` is a
   reference-only baseline snapshot mirrored by revision `0001`.
 - **`api/`** — FastAPI app (`api/api.py:app`), auth (`auth.py`,
-  `auth_endpoints.py`), tracking endpoints (`tracking_endpoints.py`), rate limiting
+  `auth_endpoints.py`), tracking endpoints (`tracking_router.py` mounts
+  `tracking_streamer_endpoints.py`, `tracking_job_endpoints.py`,
+  `tracking_service_endpoints.py`; contracts in `tracking_models.py`), rate limiting
   (`rate_limiter.py`, slowapi, in-process memory storage), caching (`cache.py`,
   in-process TTL cache), health/metrics (`health.py`, `monitoring.py`), config
   (`config.py`).
