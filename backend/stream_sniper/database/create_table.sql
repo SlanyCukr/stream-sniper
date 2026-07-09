@@ -1,3 +1,13 @@
+-- REFERENCE ONLY — do not apply by hand.
+-- Human-readable snapshot of the BASELINE table/constraint set, mirrored by Alembic
+-- revision 0001 (stream_sniper/database/migrations/versions/0001_...). NOTE: revision
+-- 0001 additionally issues CREATE SCHEMA IF NOT EXISTS stream_sniper (online schema
+-- creation lives in env.py); this file assumes the schema already exists, as it always did.
+-- Schema is now versioned with Alembic; build/upgrade a DB with:
+--   cd backend && uv run alembic upgrade head        (fresh DB)
+-- Anything added after baseline (e.g. chatter_nick_lower_prefix_idx) lives ONLY
+-- in a migration, NOT here. See backend/CLAUDE.md "Database migrations".
+
 create table stream_sniper.chatter
 (
     id   serial       primary key,

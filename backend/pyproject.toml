@@ -48,6 +48,7 @@ dependencies = [
     # Monitoring and utilities
     "prometheus-client>=0.20.0",
     "psutil>=6.0.0",
+    "alembic>=1.18.5",
 ]
 
 [dependency-groups]
@@ -64,6 +65,7 @@ dev = [
 stream-sniper = "stream_sniper.cli:main"
 stream-sniper-api = "stream_sniper.api.server:run"
 stream-sniper-tracking = "stream_sniper.tracking_service:run_tracking_service"
+stream-sniper-migrate = "stream_sniper.database.migrate:main"
 
 [project.urls]
 Homepage = "https://github.com/slanycukr/stream-sniper"
