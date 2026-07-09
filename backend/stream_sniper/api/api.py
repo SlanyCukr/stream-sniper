@@ -1196,7 +1196,7 @@ stream_sniper_component_health{component="cache"} 1.0
     },
 )
 @limiter.limit(rate_limits.GENERAL)
-def prometheus_metrics(request: Request):
+def prometheus_metrics(request: Request, response: Response):
     """Get Prometheus-compatible metrics"""
     try:
         health_checker = get_health_checker()
@@ -1240,7 +1240,7 @@ stream_sniper_metrics_error 1 {error_time}
     },
 )
 @limiter.limit(rate_limits.GENERAL)
-def get_metrics(request: Request):
+def get_metrics(request: Request, response: Response):
     """Get comprehensive API performance metrics"""
     try:
         metrics_data = get_monitoring_data()
@@ -1267,7 +1267,7 @@ def get_metrics(request: Request):
     },
 )
 @limiter.limit(rate_limits.GENERAL)
-def get_cache_stats(request: Request):
+def get_cache_stats(request: Request, response: Response):
     """Get detailed cache performance statistics"""
     try:
         cache = get_cache()
@@ -1305,7 +1305,7 @@ def get_cache_stats(request: Request):
     },
 )
 @limiter.limit(rate_limits.HEAVY)
-def flush_cache(request: Request):
+def flush_cache(request: Request, response: Response):
     """Flush all cached data"""
     try:
         cache = get_cache()
