@@ -122,14 +122,32 @@ class UsersResponse(BaseModel):
 
 
 def convert_user_to_response(user_tuple) -> UserResponse:
-    """Convert database user tuple to UserResponse"""
+    """Convert either public or credential-bearing database rows to a response.
+
+    List queries omit ``password_hash`` while lookups by user ID include it for
+    authentication helpers. API responses must never expose that column, and
+    must read the remaining fields at their respective positions.
+    """
+    if len(user_tuple) == 7:
+        (
+            user_id,
+            username,
+            email,
+            _password_hash,
+            role,
+            is_active,
+            created_at,
+        ) = user_tuple
+    else:
+        user_id, username, email, role, is_active, created_at = user_tuple
+
     return UserResponse(
-        id=user_tuple[0],
-        username=user_tuple[1],
-        email=user_tuple[2],
-        role=user_tuple[3] if len(user_tuple) > 3 else "user",
-        is_active=user_tuple[4] if len(user_tuple) > 4 else True,
-        created_at=user_tuple[5].isoformat() if len(user_tuple) > 5 and user_tuple[5] else None
+        id=user_id,
+        username=username,
+        email=email,
+        role=role,
+        is_active=is_active,
+        created_at=created_at.isoformat() if created_at else None,
     )
 
 

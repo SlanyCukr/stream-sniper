@@ -8,6 +8,7 @@ Tests all API endpoints with mocked database responses to ensure:
 - Request validation
 """
 
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -15,6 +16,7 @@ from fastapi.testclient import TestClient
 
 from stream_sniper.api.api import app
 from stream_sniper.api.auth import get_current_admin_user
+from stream_sniper.api.auth_endpoints import convert_user_to_response
 
 
 def _miss_cache():
@@ -24,6 +26,45 @@ def _miss_cache():
     cache.get = Mock(return_value=None)
     cache.set = Mock(return_value=True)
     return cache
+
+
+class TestUserResponseConversion:
+    """User rows from credential lookups must remain safe API responses."""
+
+    def test_credential_bearing_user_row_converts_to_response(self):
+        created_at = datetime(2026, 7, 9, 21, 0, 0)
+
+        response = convert_user_to_response((
+            7,
+            "admin_user",
+            "admin@example.com",
+            "$2b$12$password-hash",
+            "admin",
+            True,
+            created_at,
+        ))
+
+        assert response.id == 7
+        assert response.role == "admin"
+        assert response.is_active is True
+        assert response.created_at == created_at.isoformat()
+
+    def test_public_user_row_converts_to_response(self):
+        created_at = datetime(2026, 7, 9, 21, 0, 0)
+
+        response = convert_user_to_response((
+            8,
+            "standard_user",
+            "standard@example.com",
+            "user",
+            False,
+            created_at,
+        ))
+
+        assert response.id == 8
+        assert response.role == "user"
+        assert response.is_active is False
+        assert response.created_at == created_at.isoformat()
 
 
 class TestChattersEndpoints:
