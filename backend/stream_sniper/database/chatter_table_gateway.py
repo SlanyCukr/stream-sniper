@@ -51,12 +51,11 @@ def insert_new_chatter_db(nick, cursor, connection):
 
 
 @with_cursor_connection
-def insert_new_chatters_db(nicks: List[str], cursor, connection) -> List[int]:
+def insert_new_chatters_db(nicks: List[str], cursor, connection) -> None:
     """
-    Tries to insert new chatters. If it can, then it returns their IDs.
-    If this function cannot insert, it returns existing chatters IDs.
+    Insert new chatters, skipping any that already exist (ON CONFLICT DO NOTHING).
+    Callers fetch the resulting IDs separately via select_all_chatters_db().
     :param nicks: Nicks of the chatters
-    :return: Created chatters IDs or Existing chatters IDs
     """
     sql = """
     INSERT INTO 
