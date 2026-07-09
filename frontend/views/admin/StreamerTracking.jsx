@@ -5,7 +5,8 @@ import {
 import {
     Card, Table, Button, Alert, Spinner, Modal, Form, Pagination,
 } from 'react-bootstrap'
-import { api } from '@/lib/api'
+import { api, retrieveTwitchChannelSearch } from '@/lib/api'
+import AsyncSearchSelect from '@/components/AsyncSearchSelect'
 
 const StreamerTracking = () => {
     const [
@@ -128,6 +129,30 @@ const StreamerTracking = () => {
             setFormSubmitting(false)
         }
     }
+
+    /**
+     * Search live Twitch channels for the add-streamer typeahead.
+     * @param {string} query
+     * @returns {Promise<Array<{value: string, label: string}>>}
+     */
+    const loadChannelOptions = useCallback(async query => {
+        const trimmed = query.trim()
+        if (trimmed.length < 2) {
+            return []
+        }
+        try {
+            const { data } = await retrieveTwitchChannelSearch(trimmed)
+            return (data || []).map(channel => ({
+                value: channel.login,
+                label: channel.display_name
+                    ? `${channel.display_name} (${channel.login})`
+                    : channel.login,
+            }))
+        } catch {
+            return []
+        }
+    }, [
+    ])
 
     const handleToggleActive = async (streamerId, currentStatus) => {
         try {
@@ -417,16 +442,25 @@ const StreamerTracking = () => {
                 <Form onSubmit={handleAddStreamer}>
                     <Modal.Body>
                         <Form.Group className="mb-3">
-                            <Form.Label>Twitch Username *</Form.Label>
-                            <Form.Control
-                                type="text"
-                                value={newStreamer.twitch_username}
-                                onChange={e => setNewStreamer(prev => ({
+                            <Form.Label htmlFor="add-streamer-username">Twitch Username *</Form.Label>
+                            <AsyncSearchSelect
+                                creatable
+                                instanceId="add-streamer-username-select"
+                                inputId="add-streamer-username"
+                                loadOptions={loadChannelOptions}
+                                value={newStreamer.twitch_username
+                                    ? {
+                                        value: newStreamer.twitch_username,
+                                        label: newStreamer.twitch_username,
+                                    }
+                                    : null}
+                                onChange={option => setNewStreamer(prev => ({
                                     ...prev,
-                                    twitch_username: e.target.value,
+                                    twitch_username: option?.value ?? '',
                                 }))}
-                                required
-                                placeholder="Enter Twitch username"
+                                placeholder="Search Twitch or type a username"
+                                formatCreateLabel={value => `Track "${value}"`}
+                                isClearable
                             />
                         </Form.Group>
                         <Form.Group className="mb-3">
@@ -474,7 +508,7 @@ const StreamerTracking = () => {
                         <Button
                             variant="primary"
                             type="submit"
-                            disabled={formSubmitting}>
+                            disabled={formSubmitting || !newStreamer.twitch_username.trim()}>
                             {formSubmitting ? (
                                 <>
                                     <Spinner

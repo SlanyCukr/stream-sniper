@@ -5,6 +5,7 @@ import {
 import {
     Card, Table, Alert, Spinner, Form, Pagination,
 } from 'react-bootstrap'
+import Select from 'react-select'
 import { api } from '@/lib/api'
 
 /**
@@ -43,59 +44,67 @@ const StatisticsCards = ({ stats }) => (
  * Filters Toolbar Component
  */
 const JobFilters = ({
-    filters, setFilters, total,
-}) => (
-    <div className="toolbar">
-        <span
-            className="toolbar-label"
-            aria-hidden="true">
-            Filter
-        </span>
-        <div className="toolbar-field">
-            <label
-                htmlFor="jobs-status-filter"
-                className="visually-hidden"
-            >
-                Filter by status
-            </label>
-            <Form.Select
-                id="jobs-status-filter"
-                value={filters.status}
-                onChange={e => setFilters(prev => ({
-                    ...prev,
-                    status: e.target.value,
-                }))}
-            >
-                <option value="">All statuses</option>
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-            </Form.Select>
+    filters, setFilters, total, streamerOptions,
+}) => {
+    const selectedStreamer = streamerOptions.find(
+        option => String(option.value) === String(filters.tracked_streamer_id)
+    ) || null
+
+    return (
+        <div className="toolbar">
+            <span
+                className="toolbar-label"
+                aria-hidden="true">
+                Filter
+            </span>
+            <div className="toolbar-field">
+                <label
+                    htmlFor="jobs-status-filter"
+                    className="visually-hidden"
+                >
+                    Filter by status
+                </label>
+                <Form.Select
+                    id="jobs-status-filter"
+                    value={filters.status}
+                    onChange={e => setFilters(prev => ({
+                        ...prev,
+                        status: e.target.value,
+                    }))}
+                >
+                    <option value="">All statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                </Form.Select>
+            </div>
+            <div className="toolbar-field">
+                <label
+                    htmlFor="jobs-streamer-filter"
+                    className="visually-hidden"
+                >
+                    Filter by streamer
+                </label>
+                <Select
+                    instanceId="jobs-streamer-filter-select"
+                    inputId="jobs-streamer-filter"
+                    options={streamerOptions}
+                    value={selectedStreamer}
+                    onChange={option => setFilters(prev => ({
+                        ...prev,
+                        tracked_streamer_id: option?.value ?? '',
+                    }))}
+                    placeholder="Filter by streamer"
+                    isClearable
+                />
+            </div>
+            <span className="toolbar-readout">
+                {total} jobs
+            </span>
         </div>
-        <div className="toolbar-field">
-            <label
-                htmlFor="jobs-streamer-filter"
-                className="visually-hidden"
-            >
-                Filter by streamer ID
-            </label>
-            <Form.Control
-                id="jobs-streamer-filter"
-                type="number"
-                value={filters.tracked_streamer_id}
-                onChange={e => setFilters(prev => ({
-                    ...prev,
-                    tracked_streamer_id: e.target.value,
-                }))}
-                placeholder="Filter by streamer ID"
-            />
-        </div>
-        <span className="toolbar-readout">
-            {total} jobs
-        </span>
-    </div>
-)
+    )
+}
 
 const ProcessingJobs = () => {
     const [
@@ -131,6 +140,11 @@ const ProcessingJobs = () => {
         stats,
         setStats,
     ] = useState({})
+    const [
+        streamerOptions,
+        setStreamerOptions,
+    ] = useState([
+    ])
 
     const fetchJobs = useCallback(async () => {
         try {
@@ -178,12 +192,31 @@ const ProcessingJobs = () => {
     }, [
     ])
 
+    const fetchStreamerOptions = useCallback(async () => {
+        try {
+            const { data } = await api.get('/admin/tracking/streamers?limit=1000')
+            setStreamerOptions((data.streamers || []).map(streamer => ({
+                value: streamer.id,
+                label: streamer.twitch_username,
+            })))
+        } catch (optionsError) {
+            console.error('Error fetching streamer options:', optionsError)
+        }
+    }, [
+    ])
+
     useEffect(() => {
         fetchJobs()
         fetchStats()
     }, [
         fetchJobs,
         fetchStats,
+    ])
+
+    useEffect(() => {
+        fetchStreamerOptions()
+    }, [
+        fetchStreamerOptions,
     ])
 
     const handlePageChange = page => {
@@ -251,7 +284,8 @@ const ProcessingJobs = () => {
             <JobFilters
                 filters={filters}
                 setFilters={setFilters}
-                total={pagination.total} />
+                total={pagination.total}
+                streamerOptions={streamerOptions} />
 
             <Card>
                 <Card.Body className={!loading && jobs.length === 0 ? 'p-0' : ''}>

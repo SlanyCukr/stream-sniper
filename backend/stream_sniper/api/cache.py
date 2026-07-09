@@ -344,6 +344,10 @@ class CacheTTL:
     STREAM_DETAILS = 1800  # 30 minutes
     CHATTER_MESSAGES = 1800  # 30 minutes
 
+    # Search / autocomplete (short-lived, high churn)
+    CHATTER_SEARCH = 300  # 5 minutes
+    TWITCH_SEARCH = 60  # 1 minute
+
     # Volatile data
     HEALTH_CHECK = 300  # 5 minutes
     LIVE_STATS = 60  # 1 minute

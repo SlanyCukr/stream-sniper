@@ -32,6 +32,30 @@ class TwitchAPI:
             )
         self.twitch = await Twitch(client_id, client_secret)
 
+    async def ensure_initialized(self):
+        """
+        Initialize the Twitch client once and reuse it (idempotent).
+        Long-lived callers such as the API process (channel-search autocomplete,
+        add-streamer) should use this to avoid re-running the OAuth handshake on
+        every request. The reused aiohttp session stays bound to the API's single
+        event loop, which is where these coroutines are awaited.
+        """
+        if getattr(self, "twitch", None) is None:
+            await self.twitch_api_init()
+
+    async def search_channels_async(self, query: str, limit: int = 8) -> List[Any]:
+        """
+        Search Twitch channels by name for autocomplete. Returns SearchChannelResult
+        objects (broadcaster_login, display_name, id, is_live, thumbnail_url, ...).
+        Only channels that streamed within the past 6 months are returned by Twitch.
+        """
+        results: List[Any] = []
+        async for channel in self.twitch.search_channels(query, first=limit):
+            results.append(channel)
+            if len(results) >= limit:
+                break
+        return results
+
     @staticmethod
     def get_async_result(async_generator, return_all_values: bool = False) -> Union[List, Any]:
         """

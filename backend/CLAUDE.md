@@ -36,6 +36,7 @@ uv run mypy stream_sniper/    # type check (advisory)
 - `stream-sniper <username>` → `stream_sniper.cli:main` — data collection CLI
 - `stream-sniper-api` → `stream_sniper.api.server:run` — REST API on :5002
 - `stream-sniper-tracking` → `stream_sniper.tracking_service:run_tracking_service` — automated tracking
+- `stream-sniper-migrate` → `stream_sniper.database.migrate:main` — packaged Alembic wrapper (the prod/container way to run migrations; needs no `alembic.ini` or cwd)
 
 ## Architecture
 
@@ -49,8 +50,10 @@ Packages under `stream_sniper/`:
   (`creator_table_gateway.py`, `stream_table_gateway.py`, `user_table_gateway.py`,
   `tracked_streamers_table_gateway.py`, `processing_jobs_table_gateway.py`, …).
   `connection_pool.py` holds a `psycopg2` `ThreadedConnectionPool`; `decorators.py`
-  provides `@with_connection`. Schema source of truth:
-  `database/create_table.sql` (containers do **not** manage schema — apply by hand).
+  provides `@with_connection`. Schema is versioned with **Alembic** in
+  `database/migrations/` — hand-written raw SQL (`op.execute` / `op.create_*`, **not**
+  autogenerate; there are no ORM models). `database/create_table.sql` is a
+  reference-only baseline snapshot mirrored by revision `0001`.
 - **`api/`** — FastAPI app (`api/api.py:app`), auth (`auth.py`,
   `auth_endpoints.py`), tracking endpoints (`tracking_endpoints.py`), rate limiting
   (`rate_limiter.py`, slowapi), caching (`cache.py`, Redis), health/metrics
@@ -73,6 +76,32 @@ creator_id = CreatorTableGateway().get_creator_id_by_nick("streamer")
 
 Use `DatabaseBuffer` (`collector/database_buffer.py`) for bulk message inserts;
 always parameterize queries.
+
+### Database migrations (Alembic)
+
+```bash
+cd backend
+uv run alembic revision -m "add X" --rev-id NNNN   # then edit upgrade()/downgrade() with raw SQL
+uv run alembic upgrade head                        # local dev
+uv run alembic current | history | heads           # inspect
+```
+
+Rules:
+- **Hand-written raw SQL only** — no autogenerate, no models. Schema-qualify every
+  object (`stream_sniper.<name>`) so offline (`--sql`) mode works.
+- **`CREATE INDEX CONCURRENTLY` / any non-transactional DDL must use
+  `with op.get_context().autocommit_block():`** and be the sole DDL in its revision
+  (Alembic wraps migrations in a transaction by default). Such revisions must refuse
+  offline mode (check `op.get_context().as_sql`). See `0002_chatter_nick_lower_prefix_idx.py`.
+- **Schema creation lives in `env.py`** (a separate committed transaction, before the
+  version table), because `version_table_schema="stream_sniper"` makes Alembic create
+  `alembic_version` before any migration runs. `env.py` reuses `connection_pool.py`'s
+  env precedence (`POSTGRES_*` → legacy) — no new DB env is introduced.
+- **Prod is manual:** `docker exec stream-sniper-api stream-sniper-migrate upgrade head`
+  (see root `CLAUDE.md` runbook). Migrations are intentionally **not** in `deploy.yml`.
+  `uv run alembic` is **dev-only** (no `uv`/source in the prod image; use
+  `stream-sniper-migrate` there — the migrations dir is packaged into the wheel, so it
+  works inside `stream-sniper-api` / `stream-sniper-tracking`).
 
 ## Authentication
 
