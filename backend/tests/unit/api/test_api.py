@@ -123,8 +123,8 @@ class TestChattersEndpoints:
 class TestStreamsEndpoints:
     """Test suite for stream-related API endpoints."""
 
-    @patch("stream_sniper.api.api.select_all_stream_count_db")
-    @patch("stream_sniper.api.api.select_all_streams_db")
+    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
+    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
     def test_get_streams_success(self, mock_streams, mock_count):
         """Test successful retrieval of streams."""
         mock_streams.return_value = [
@@ -146,8 +146,8 @@ class TestStreamsEndpoints:
         mock_streams.assert_called_once_with(5, 0)
         mock_count.assert_called_once_with(5)
 
-    @patch("stream_sniper.api.api.select_all_stream_count_db")
-    @patch("stream_sniper.api.api.select_all_streams_db")
+    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
+    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
     def test_get_streams_all_creators(self, mock_streams, mock_count):
         """Test retrieving streams for all creators."""
         mock_streams.return_value = []
@@ -160,7 +160,7 @@ class TestStreamsEndpoints:
         mock_streams.assert_called_once_with(-1, 0)
         mock_count.assert_called_once_with(-1)
 
-    @patch("stream_sniper.api.api.select_all_chatters_on_stream_db")
+    @patch("stream_sniper.api.stream_endpoints.select_all_chatters_on_stream_db")
     def test_get_stream_chatters_success(self, mock_select):
         """Test successful retrieval of stream chatters."""
         mock_select.return_value = [[42, "viewer123"], [15, "chatty_user"], [87, "stream_regular"]]
@@ -174,7 +174,7 @@ class TestStreamsEndpoints:
         assert data[0] == [42, "viewer123"]
         mock_select.assert_called_once_with(1)
 
-    @patch("stream_sniper.api.api.select_all_chatters_on_stream_db")
+    @patch("stream_sniper.api.stream_endpoints.select_all_chatters_on_stream_db")
     def test_get_stream_chatters_not_found(self, mock_select):
         """Test stream chatters endpoint when stream not found."""
         mock_select.return_value = None
@@ -184,11 +184,11 @@ class TestStreamsEndpoints:
 
         assert response.status_code == 404
 
-    @patch("stream_sniper.api.api.select_chatters_in_stream_db")
-    @patch("stream_sniper.api.api.select_creators_that_wrote_in_stream_db")
-    @patch("stream_sniper.api.api.select_most_tagged_chatters_db")
-    @patch("stream_sniper.api.api.select_most_active_chatters_db")
-    @patch("stream_sniper.api.api.select_stream_comprehensive_db")
+    @patch("stream_sniper.api.stream_endpoints.select_chatters_in_stream_db")
+    @patch("stream_sniper.api.stream_endpoints.select_creators_that_wrote_in_stream_db")
+    @patch("stream_sniper.api.stream_endpoints.select_most_tagged_chatters_db")
+    @patch("stream_sniper.api.stream_endpoints.select_most_active_chatters_db")
+    @patch("stream_sniper.api.stream_endpoints.select_stream_comprehensive_db")
     def test_get_stream_comprehensive_success(
         self, mock_comprehensive, mock_active, mock_tagged, mock_creators, mock_chatters
     ):
@@ -234,7 +234,7 @@ class TestStreamsEndpoints:
         mock_creators.assert_called_once_with(1, 5)  # stream_id, creator_id
         mock_chatters.assert_called_once_with(1)
 
-    @patch("stream_sniper.api.api.select_stream_comprehensive_db")
+    @patch("stream_sniper.api.stream_endpoints.select_stream_comprehensive_db")
     def test_get_stream_comprehensive_not_found(self, mock_comprehensive):
         """Test comprehensive stream endpoint when stream not found."""
         mock_comprehensive.return_value = None
@@ -245,7 +245,7 @@ class TestStreamsEndpoints:
         assert response.status_code == 404
         assert response.json()["detail"] == "Stream not found"
 
-    @patch("stream_sniper.api.api.select_chatter_messages_on_stream_db")
+    @patch("stream_sniper.api.stream_endpoints.select_chatter_messages_on_stream_db")
     def test_get_chatter_messages_on_stream_success(self, mock_select):
         """Test retrieving chatter messages in specific stream."""
         mock_select.return_value = [["Hello everyone!"], ["Great play!"], ["Thanks for the stream!"]]
@@ -260,7 +260,7 @@ class TestStreamsEndpoints:
         assert data[1] == "Great play!"
         mock_select.assert_called_once_with(1, 42)
 
-    @patch("stream_sniper.api.api.select_chatter_messages_on_stream_db")
+    @patch("stream_sniper.api.stream_endpoints.select_chatter_messages_on_stream_db")
     def test_get_chatter_messages_on_stream_not_found(self, mock_select):
         """Test chatter messages on stream when not found."""
         mock_select.return_value = None

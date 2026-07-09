@@ -11,19 +11,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
 from slowapi.util import get_remote_address
 
-from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
 from ..database.connection_pool import close_pool
 from ..database.creator_table_gateway import select_creator_top_chatters_db, select_creators_db
-from ..database.stream_table_gateway import (
-    select_all_stream_count_db,
-    select_all_streams_db,
-    select_chatter_messages_on_stream_db,
-    select_chatters_in_stream_db,
-    select_creators_that_wrote_in_stream_db,
-    select_most_active_chatters_db,
-    select_most_tagged_chatters_db,
-    select_stream_comprehensive_db,
-)
 from ..logging_config import get_logger, setup_logging
 from .auth_endpoints import router as auth_router
 from .cache import CacheTTL, get_cache, warm_cache
@@ -34,6 +23,7 @@ from .config import get_config
 from .health import HealthStatus as HealthStatusEnum
 from .health import get_health_checker
 from .middleware import setup_middleware
+from .models import ErrorResponse
 from .monitoring import (
     get_metrics_collector,
     get_monitoring_data,
@@ -42,6 +32,7 @@ from .monitoring import (
     setup_monitoring,
 )
 from .rate_limiter import limiter, rate_limits, setup_rate_limiting
+from .stream_endpoints import router as stream_router
 from .tracking_endpoints import router as tracking_router
 
 load_dotenv()
@@ -57,75 +48,6 @@ if not config.validate():
 
 
 # Pydantic Models for API Documentation
-class Creator(BaseModel):
-    """Twitch creator/streamer information"""
-
-    id: int = Field(..., description="Unique creator ID", json_schema_extra={"example": 1})
-    display_name: str = Field(..., description="Creator's display name on Twitch", json_schema_extra={"example": "SomeStreamer"})
-
-
-class StreamBasic(BaseModel):
-    """Basic stream information"""
-
-    id: int = Field(..., description="Unique stream ID", json_schema_extra={"example": 1})
-    display_name: str = Field(..., description="Stream title/display name", json_schema_extra={"example": "Epic Gaming Session"})
-    start: str = Field(..., description="Stream start time", json_schema_extra={"example": "2024-01-15 20:00:00"})
-    end: str = Field(..., description="Stream end time", json_schema_extra={"example": "2024-01-15 23:30:00"})
-    thumbnail_url: Optional[str] = Field(None, description="Thumbnail image URL")
-    message_count: int = Field(..., description="Total number of chat messages", json_schema_extra={"example": 1250})
-
-
-class ActiveChatter(BaseModel):
-    """Most active chatter statistics"""
-
-    chatter_id: int = Field(..., description="Chatter ID", json_schema_extra={"example": 42})
-    nick: str = Field(..., description="Chatter nickname", json_schema_extra={"example": "chatty_user"})
-    message_count: int = Field(..., description="Number of messages sent", json_schema_extra={"example": 125})
-
-
-class TaggedChatter(BaseModel):
-    """Most tagged chatter statistics"""
-
-    tagged_chatter_id: int = Field(..., description="Tagged chatter ID", json_schema_extra={"example": 15})
-    nick: str = Field(..., description="Tagged chatter nickname", json_schema_extra={"example": "popular_user"})
-    tag_count: int = Field(..., description="Number of times tagged", json_schema_extra={"example": 45})
-
-
-class StreamComprehensive(BaseModel):
-    """Comprehensive stream information with analytics"""
-
-    title: str = Field(..., description="Stream title", json_schema_extra={"example": "Epic Gaming Session"})
-    start: str = Field(..., description="Stream start time", json_schema_extra={"example": "2024-01-15 20:00:00"})
-    end: str = Field(..., description="Stream end time", json_schema_extra={"example": "2024-01-15 23:30:00"})
-    thumbnail_url: Optional[str] = Field(None, description="Thumbnail image URL")
-    message_count: int = Field(..., description="Total chat messages", json_schema_extra={"example": 1250})
-    creator_nick: str = Field(..., description="Creator nickname", json_schema_extra={"example": "streamer123"})
-    creator_display_name: str = Field(..., description="Creator display name", json_schema_extra={"example": "Amazing Streamer"})
-    profile_image_url: Optional[str] = Field(None, description="Creator profile image URL")
-    creator_id: int = Field(..., description="Creator ID", json_schema_extra={"example": 5})
-
-
-class StreamDetails(BaseModel):
-    """Detailed stream analytics response"""
-
-    csi: List[Any] = Field(..., description="Comprehensive stream info tuple")
-    mac: List[List[Any]] = Field(..., description="Most active chatters")
-    mtc: List[List[Any]] = Field(..., description="Most tagged chatters")
-    octw: List[List[Any]] = Field(..., description="Other creators that wrote in stream")
-    cis: List[List[Any]] = Field(..., description="Chatters in stream")
-
-
-class StreamsResponse(BaseModel):
-    """Paginated streams response"""
-
-    streams: List[List[Any]] = Field(..., description="List of stream data tuples")
-    max_offset: int = Field(..., description="Maximum offset for pagination", json_schema_extra={"example": 1000})
-
-
-class ErrorResponse(BaseModel):
-    """Error response model"""
-
-    detail: str = Field(..., description="Error message", json_schema_extra={"example": "Stream not found"})
 
 
 class HealthStatus(BaseModel):
@@ -280,6 +202,9 @@ app.include_router(auth_router)
 # Include chatter router
 app.include_router(chatter_router)
 
+# Include stream router
+app.include_router(stream_router)
+
 # Include tracking router
 app.include_router(tracking_router)
 
@@ -325,341 +250,6 @@ async def metrics_middleware(request: Request, call_next):
     return response
 
 
-@app.get(
-    "/streams",
-    response_model=StreamsResponse,
-    tags=["Streams"],
-    summary="Get streams with pagination",
-    description=f"""
-    Retrieve streams for a specific creator with pagination support.
-    Use creator_id = -1 to get streams from all creators.
-    
-    Each stream in the response contains:
-    - Stream ID
-    - Display name/title
-    - Start time
-    - End time
-    - Thumbnail URL
-    - Message count
-    
-    **Rate Limit**: {rate_limits.BULK}
-    """,
-    responses={
-        200: {
-            "description": "Paginated list of streams",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "streams": [
-                            [
-                                1,
-                                "Epic Gaming Session",
-                                "2024-01-15 20:00:00",
-                                "2024-01-15 23:30:00",
-                                "https://example.com/thumb.jpg",
-                                1250,
-                            ],
-                            [
-                                2,
-                                "Chill Stream",
-                                "2024-01-14 18:00:00",
-                                "2024-01-14 22:00:00",
-                                "https://example.com/thumb2.jpg",
-                                856,
-                            ],
-                        ],
-                        "max_offset": 1000,
-                    }
-                }
-            },
-        },
-        400: {"model": ErrorResponse, "description": "Invalid parameters"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-    },
-)
-@limiter.limit(rate_limits.BULK)
-def get_streams(
-    request: Request,
-    response: Response,
-    creator_id: int = Query(..., description="Creator ID (use -1 for all creators)", json_schema_extra={"example": 5}),
-    offset: int = Query(0, description="Pagination offset", json_schema_extra={"example": 0}, ge=0),
-):
-    """Get paginated list of streams for a creator"""
-    try:
-        cache = get_cache()
-
-        # Cache streams data
-        streams_cache_key = cache._generate_key("streams", creator_id, offset)
-        cached_streams = cache.get(streams_cache_key)
-
-        # Cache max offset data
-        count_cache_key = cache._generate_key("stream_count", creator_id)
-        cached_count = cache.get(count_cache_key)
-
-        streams_from_cache = cached_streams is not None
-        count_from_cache = cached_count is not None
-
-        # Fetch missing data
-        if not streams_from_cache:
-            record_cache_operation("miss", "streams")
-            streams = select_all_streams_db(creator_id, offset)
-            cache.set(streams_cache_key, streams, CacheTTL.STREAM_DETAILS)
-            record_cache_operation("set", "streams")
-        else:
-            record_cache_operation("hit", "streams")
-            streams = cached_streams
-
-        if not count_from_cache:
-            record_cache_operation("miss", "stream_count")
-            max_offset = select_all_stream_count_db(creator_id)
-            cache.set(count_cache_key, max_offset, CacheTTL.STREAM_COUNT)
-            record_cache_operation("set", "stream_count")
-        else:
-            record_cache_operation("hit", "stream_count")
-            max_offset = cached_count
-
-        # Set cache header
-        if streams_from_cache and count_from_cache:
-            response.headers["X-Cache"] = "HIT"
-        elif streams_from_cache or count_from_cache:
-            response.headers["X-Cache"] = "PARTIAL"
-        else:
-            response.headers["X-Cache"] = "MISS"
-
-        return {"streams": streams, "max_offset": max_offset}
-    except Exception as e:
-        logger.error(f"Error fetching streams: {e}")
-        record_cache_operation("error", "streams")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@app.get(
-    "/stream/{stream_id}/chatters",
-    response_model=List[List[Any]],
-    tags=["Streams"],
-    summary="Get all chatters in a stream",
-    description=f"""
-    Retrieve all unique chatters who participated in a specific stream.
-    Returns chatter information including their IDs and nicknames.
-    
-    **Rate Limit**: {rate_limits.GENERAL}
-    """,
-    responses={
-        200: {
-            "description": "List of chatters in the stream",
-            "content": {
-                "application/json": {"example": [[42, "viewer123"], [15, "chatty_user"], [87, "stream_regular"]]}
-            },
-        },
-        404: {"model": ErrorResponse, "description": "Stream not found"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-    },
-)
-@limiter.limit(rate_limits.GENERAL)
-def get_stream_chatters(
-    request: Request, response: Response, stream_id: int = Path(..., description="Unique stream ID", json_schema_extra={"example": 1})
-):
-    """Get all chatters who participated in a stream"""
-    try:
-        # Try cache first
-        cache = get_cache()
-        cache_key = cache._generate_key("stream_chatters", stream_id)
-        cached_result = cache.get(cache_key)
-
-        if cached_result is not None:
-            response.headers["X-Cache"] = "HIT"
-            record_cache_operation("hit", "stream_chatters")
-            return cached_result
-
-        # Cache miss - fetch from database
-        record_cache_operation("miss", "stream_chatters")
-        result = select_all_chatters_on_stream_db(stream_id)
-
-        if not result:
-            raise HTTPException(status_code=404, detail="Stream not found or has no chatters")
-
-        # Cache the result
-        cache.set(cache_key, result, CacheTTL.STREAM_DETAILS)
-        record_cache_operation("set", "stream_chatters")
-        response.headers["X-Cache"] = "MISS"
-
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching stream chatters: {e}")
-        record_cache_operation("error", "stream_chatters")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@app.get(
-    "/stream/{stream_id}",
-    response_model=StreamDetails,
-    tags=["Streams"],
-    summary="Get comprehensive stream analytics",
-    description=f"""
-    Get detailed analytics and information for a specific stream.
-    
-    Returns comprehensive data including:
-    - **csi**: Comprehensive stream info (title, times, creator details)
-    - **mac**: Most active chatters (top 3 by message count)
-    - **mtc**: Most tagged chatters (top 3 by tag mentions)
-    - **octw**: Other creators who wrote in this stream
-    - **cis**: Count of unique chatters in stream
-    
-    This endpoint provides a complete analytics overview of stream chat activity.
-    
-    **Rate Limit**: {rate_limits.ANALYTICS}
-    """,
-    responses={
-        200: {
-            "description": "Comprehensive stream analytics",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "csi": [
-                            "Epic Gaming Session",
-                            "2024-01-15 20:00:00",
-                            "2024-01-15 23:30:00",
-                            "https://thumb.jpg",
-                            1250,
-                            "streamer123",
-                            "Amazing Streamer",
-                            "https://profile.jpg",
-                            5,
-                        ],
-                        "mac": [[42, "chatty_user", 125], [15, "regular_viewer", 89], [7, "stream_fan", 76]],
-                        "mtc": [[15, "popular_user", 45], [23, "famous_chatter", 32], [11, "mentioned_user", 28]],
-                        "octw": [[99, "other_streamer"], [101, "guest_creator"]],
-                        "cis": [[287]],
-                    }
-                }
-            },
-        },
-        404: {"model": ErrorResponse, "description": "Stream not found"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-    },
-)
-@limiter.limit(rate_limits.ANALYTICS)
-def get_stream(
-    request: Request, response: Response, stream_id: int = Path(..., description="Unique stream ID", json_schema_extra={"example": 1})
-):
-    """Get comprehensive analytics for a specific stream"""
-    try:
-        cache = get_cache()
-
-        # Check if complete analytics are cached
-        analytics_cache_key = cache._generate_key("stream_analytics", stream_id)
-        cached_analytics = cache.get(analytics_cache_key)
-
-        if cached_analytics is not None:
-            response.headers["X-Cache"] = "HIT"
-            record_cache_operation("hit", "stream_analytics")
-            return cached_analytics
-
-        # Cache miss - fetch all data
-        record_cache_operation("miss", "stream_analytics")
-
-        comprehensive_stream_info = select_stream_comprehensive_db(stream_id)
-        if not comprehensive_stream_info:
-            raise HTTPException(status_code=404, detail="Stream not found")
-
-        # Fetch related analytics data
-        most_active_chatters = select_most_active_chatters_db(stream_id)
-        most_tagged_chatters = select_most_tagged_chatters_db(stream_id)
-        other_creators_that_wrote = select_creators_that_wrote_in_stream_db(stream_id, comprehensive_stream_info[8])
-        chatters_in_stream = select_chatters_in_stream_db(stream_id)
-
-        analytics_data = {
-            "csi": comprehensive_stream_info,
-            "mac": most_active_chatters,
-            "mtc": most_tagged_chatters,
-            "octw": other_creators_that_wrote,
-            "cis": chatters_in_stream,
-        }
-
-        # Cache the complete analytics
-        cache.set(analytics_cache_key, analytics_data, CacheTTL.STREAM_ANALYTICS)
-        record_cache_operation("set", "stream_analytics")
-        response.headers["X-Cache"] = "MISS"
-
-        return analytics_data
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching stream analytics: {e}")
-        record_cache_operation("error", "stream_analytics")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@app.get(
-    "/stream/{stream_id}/chatter/{chatter_id}/messages",
-    response_model=List[str],
-    tags=["Streams"],
-    summary="Get chatter messages in specific stream",
-    description=f"""
-    Retrieve all messages sent by a specific chatter during a particular stream.
-    This is useful for analyzing individual user participation in specific streams.
-    
-    **Rate Limit**: {rate_limits.GENERAL}
-    """,
-    responses={
-        200: {
-            "description": "List of messages from the chatter in this stream",
-            "content": {
-                "application/json": {
-                    "example": [
-                        "Hello everyone!",
-                        "Great play!",
-                        "@streamer that was amazing!",
-                        "Thanks for the stream!",
-                    ]
-                }
-            },
-        },
-        404: {"model": ErrorResponse, "description": "Stream or chatter not found"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-    },
-)
-@limiter.limit(rate_limits.GENERAL)
-def get_chatter_messages_on_stream(
-    request: Request,
-    response: Response,
-    stream_id: int = Path(..., description="Unique stream ID", json_schema_extra={"example": 1}),
-    chatter_id: int = Path(..., description="Unique chatter ID", json_schema_extra={"example": 42}),
-):
-    """Get messages from a specific chatter in a specific stream"""
-    try:
-        # Try cache first
-        cache = get_cache()
-        cache_key = cache._generate_key("chatter_stream_messages", stream_id, chatter_id)
-        cached_result = cache.get(cache_key)
-
-        if cached_result is not None:
-            response.headers["X-Cache"] = "HIT"
-            record_cache_operation("hit", "chatter_stream_messages")
-            return cached_result
-
-        # Cache miss - fetch from database
-        record_cache_operation("miss", "chatter_stream_messages")
-        result = select_chatter_messages_on_stream_db(stream_id, chatter_id)
-
-        if not result:
-            raise HTTPException(status_code=404, detail="No messages found for this chatter in this stream")
-
-        # Extract message text and cache
-        messages = [message[0] for message in result]
-        cache.set(cache_key, messages, CacheTTL.CHATTER_MESSAGES)
-        record_cache_operation("set", "chatter_stream_messages")
-        response.headers["X-Cache"] = "MISS"
-
-        return messages
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching chatter messages on stream: {e}")
-        record_cache_operation("error", "chatter_stream_messages")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get(

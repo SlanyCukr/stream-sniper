@@ -1,9 +1,8 @@
 """Read-only endpoints for Twitch chat participants and their messages."""
 
-from typing import Any, List, cast
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
-from pydantic import BaseModel, Field
 
 from ..database.chatter_table_gateway import select_chatters_by_prefix_db
 from ..database.message_table_gateway import (
@@ -14,27 +13,13 @@ from ..database.message_table_gateway import (
 )
 from ..logging_config import get_logger
 from .cache import CacheTTL, get_cache
+from .models import ChatterMessagesResponse, ErrorResponse
 from .monitoring import record_cache_operation
 from .rate_limiter import limiter, rate_limits
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["Chatters"])
-
-
-class ChatterMessagesResponse(BaseModel):
-    """Paginated cross-stream chatter message log."""
-
-    messages: List[List[Any]] = Field(
-        ..., description="List of [stream_id, stream_title, streamer_display_name, text, timestamp] tuples"
-    )
-    total: int = Field(..., description="Total messages sent by the chatter", json_schema_extra={"example": 1234})
-
-
-class ErrorResponse(BaseModel):
-    """Standard API error response."""
-
-    detail: str = Field(..., description="Error message", json_schema_extra={"example": "Stream not found"})
 
 
 @router.get(
@@ -100,7 +85,7 @@ def get_chatter_messages(
 
 @router.get(
     "/chatter/{nick}/chatter_id",
-    response_model=List[int],
+    response_model=list[int],
     summary="Get chatter ID by nickname",
     description="Look up a chatter's unique ID using their nickname.",
     responses={
@@ -144,7 +129,7 @@ def get_chatter_id(
 
 @router.get(
     "/chatters/search",
-    response_model=List[List[Any]],
+    response_model=list[list[Any]],
     summary="Search chatters by nickname prefix",
     description="Case-insensitive prefix search over chatter nicknames for autocomplete.",
     responses={429: {"model": ErrorResponse, "description": "Rate limit exceeded"}},
@@ -185,7 +170,7 @@ def search_chatters(
 
 @router.get(
     "/chatter/{chatter_id}/stream-activity",
-    response_model=List[List[Any]],
+    response_model=list[list[Any]],
     summary="Get a chatter's stream activity",
     description="Return the streams in which a chatter participated and their message counts.",
     responses={429: {"model": ErrorResponse, "description": "Rate limit exceeded"}},
