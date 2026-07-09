@@ -83,11 +83,13 @@ jobs:
         pip install bandit[toml] semgrep
 
     - name: Run Bandit
+      working-directory: backend
       run: |
         bandit -r stream_sniper/ -f json -o bandit-report.json || true
         bandit -r stream_sniper/ || true
 
     - name: Run Semgrep
+      working-directory: backend
       run: |
         python -m semgrep --config=auto stream_sniper/ --json --output=semgrep-report.json || true
         python -m semgrep --config=auto stream_sniper/ || true
@@ -97,7 +99,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: bandit-report
-        path: bandit-report.json
+        path: backend/bandit-report.json
         retention-days: 30
 
     - name: Upload Semgrep report
@@ -105,7 +107,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: semgrep-report
-        path: semgrep-report.json
+        path: backend/semgrep-report.json
         retention-days: 30
 
   codeql:
@@ -155,13 +157,30 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Run TruffleHog OSS
+    # base/head must differ per event: hardcoding base=main head=HEAD makes
+    # them identical on pushes to main and TruffleHog hard-fails.
+    - name: Run TruffleHog OSS (push — scan pushed commits)
+      if: github.event_name == 'push'
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
-        base: main
-        head: HEAD
-        extra_args: --debug --only-verified
+        base: ${{ github.event.before }}
+        head: ${{ github.sha }}
+        extra_args: --only-verified
+
+    - name: Run TruffleHog OSS (PR — scan branch diff)
+      if: github.event_name == 'pull_request'
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        extra_args: --only-verified
+
+    - name: Run TruffleHog OSS (scheduled — full history scan)
+      if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        extra_args: --only-verified
 
   docker-security:
     name: Docker Security Scan

@@ -1,4 +1,5 @@
 import asyncio
+from itertools import batched
 from typing import Optional
 
 from ..database.chatter_table_gateway import insert_new_chatters_db, select_all_chatters_db
@@ -17,6 +18,13 @@ from .twitch_api import TwitchAPI
 
 class CreatorCreationError(Exception):
     """Raised when a creator cannot be created in the database."""
+
+
+# Messages processed per batch. A full VOD from a large streamer can be
+# millions of messages; materializing them all OOMs the RPI, so the chat
+# iterator is consumed in chunks (~1-2 KB per parsed message → tens of MB
+# peak per batch).
+CHAT_BATCH_SIZE = 20_000
 
 
 class TwitchCollectorFacade:
@@ -56,7 +64,7 @@ class TwitchCollectorFacade:
                     self.chat_downloader.download_chat()
                 )
 
-                if not chat:
+                if chat is None:
                     self.logger.debug("No more videos to process. Exiting...")
                     break
 
@@ -67,23 +75,34 @@ class TwitchCollectorFacade:
                     twitch_stream_id, started_at, self.creator_id, title, duration, thumbnail_url
                 )
 
-                # process nicks
-                nicks = self.chat_processor.get_nicks(chat)
-                insert_new_chatters_db(nicks)
-                known_chatters = select_all_chatters_db()
-                self.message_handler.set_known_chatters(known_chatters)
-                self.logger.debug(f"Processed {len(nicks)} unique nicknames")
+                # Consume the chat iterator in batches instead of materializing
+                # the whole VOD (OOM risk on the RPI for multi-hour streams).
+                num_of_messages = 0
+                for batch in batched(chat, CHAT_BATCH_SIZE, strict=False):
+                    chat_batch = list(batch)
 
-                # process messages
-                messages = self.chat_processor.get_messages(chat)
-                insert_message_texts_db(messages)
-                known_messages = select_all_message_texts_db()
-                self.message_handler.set_known_messages(known_messages)
-                self.logger.debug(f"Processed {len(messages)} unique messages")
+                    # process nicks
+                    nicks = self.chat_processor.get_nicks(chat_batch)
+                    insert_new_chatters_db(nicks)
+                    known_chatters = select_all_chatters_db()
+                    self.message_handler.set_known_chatters(known_chatters)
+                    self.logger.debug(f"Processed {len(nicks)} unique nicknames")
 
-                # process the messages in fetched chat
-                self.chat_processor.process_chat(chat, stream_id)
-                num_of_messages = len(chat)
+                    # process messages
+                    messages = self.chat_processor.get_messages(chat_batch)
+                    insert_message_texts_db(messages)
+                    known_messages = select_all_message_texts_db()
+                    self.message_handler.set_known_messages(known_messages)
+                    self.logger.debug(f"Processed {len(messages)} unique messages")
+
+                    # process the messages in fetched chat
+                    self.chat_processor.process_chat(chat_batch, stream_id)
+                    num_of_messages += len(chat_batch)
+                    self.logger.info(
+                        f"Processed batch of {len(chat_batch)} messages for stream {twitch_stream_id} "
+                        f"({num_of_messages} total so far)"
+                    )
+
                 self.logger.info(f"Processed {num_of_messages} chat messages for stream {twitch_stream_id}")
 
                 # add number of messages to stream

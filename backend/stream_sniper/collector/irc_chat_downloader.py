@@ -1,4 +1,4 @@
-from typing import Any, List, Tuple, Union
+from typing import Any, Iterator, Optional, Tuple
 
 from chat_downloader import ChatDownloader
 
@@ -25,7 +25,14 @@ class IrcChatDownloader:
 
     def download_chat(
         self,
-    ) -> Union[Tuple[None, None, None, None, None, None], Tuple[List[dict], str, str, str, str, str]]:
+    ) -> Tuple[Optional[Iterator[dict]], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """Return a lazy chat iterator + VOD metadata for the next unprocessed video.
+
+        The chat is NOT materialized here — a full VOD from a large streamer can
+        be millions of messages, which OOMs the RPI. The caller iterates (and
+        batches) the messages instead. Returns an all-None tuple when no
+        unprocessed videos remain.
+        """
         while True:
             # no available videos
             if len(self.available_video_ids) == 0:
@@ -42,10 +49,14 @@ class IrcChatDownloader:
             self.logger.info(f"Downloading chat for video with ID {video_id}")
 
             try:
+                # Note: message_receive_timeout is deliberately NOT set — it
+                # only applies to live IRC sockets, never the VOD GQL path
+                # this collector uses (an earlier 0.01 value here was a red
+                # herring while chasing truncated captures; the real fix is
+                # the null-comments retry in twitch_gql_patch).
                 chat = self.downloader.get_chat(
                     f"https://www.twitch.tv/videos/{video_id}",
                     format="json",
-                    message_receive_timeout=0.01,
                     buffer_size=16384,
                     # The collector runs in a worker thread inside a container:
                     # chat_downloader's default interactive retry prompt uses
@@ -53,15 +64,12 @@ class IrcChatDownloader:
                     # the main thread. Fall back to plain back-off retries.
                     interruptible_retry=False,
                 )
-                chat_iterated = [x for x in chat]
-
-                self.logger.info(f"Chat downloaded successfully. Found {len(chat_iterated)} messages")
             except Exception as e:
-                self.logger.error(f"Failed to download chat for video {video_id}: {e}", exc_info=True)
+                self.logger.error(f"Failed to start chat download for video {video_id}: {e}", exc_info=True)
                 continue
 
             returned_tuple = (
-                chat_iterated,
+                iter(chat),
                 currently_processed_video.id,
                 currently_processed_video.created_at,
                 currently_processed_video.title,

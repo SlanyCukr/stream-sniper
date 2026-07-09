@@ -169,3 +169,5 @@ pyvenv.cfg
 pip-selfcheck.json
 
 testing.py
+# Backend runtime logs (logger fallback during local runs)
+backend/logs/

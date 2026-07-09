@@ -24,6 +24,10 @@ class ProcessingQueue:
     """
     
     def __init__(self, max_concurrent_jobs: int = 3, max_retries: int = 3):
+        if max_concurrent_jobs < 1:
+            raise ValueError("max_concurrent_jobs must be at least 1")
+        if max_retries < 0:
+            raise ValueError("max_retries must not be negative")
         self.max_concurrent_jobs = max_concurrent_jobs
         self.max_retries = max_retries
         self.logger = get_logger(__name__)

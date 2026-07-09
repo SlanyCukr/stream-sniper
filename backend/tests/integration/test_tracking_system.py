@@ -2,7 +2,7 @@
 Integration tests for the tracking system.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -20,7 +20,15 @@ class TestTrackingSystem:
         with patch('stream_sniper.tracking.stream_monitor.TwitchAPI') as mock_api:
             mock_instance = Mock()
             mock_api.return_value = mock_instance
-            mock_instance.twitch_api_init = Mock()
+            # Async TwitchAPI methods must be AsyncMocks so `await` works
+            mock_instance.twitch_api_init = AsyncMock()
+            mock_instance.get_stream_info_async = AsyncMock(return_value=None)
+            mock_instance.get_available_video_ids_async = AsyncMock(return_value=[])
+            mock_instance.get_creator_info_async = AsyncMock(
+                return_value=("TestStreamer", "http://example.com/avatar.jpg")
+            )
+            mock_instance.get_creator_twitch_id_async = AsyncMock(return_value="123456789")
+            # Sync wrappers
             mock_instance.set_streamer_nickname = Mock()
             mock_instance.get_stream_info = Mock()
             mock_instance.get_available_video_ids = Mock()
@@ -31,9 +39,9 @@ class TestTrackingSystem:
     @pytest.fixture
     def mock_database(self):
         """Mock database operations for testing."""
-        with patch('stream_sniper.database.tracked_streamers_table_gateway.get_pool'), \
-             patch('stream_sniper.database.processing_jobs_table_gateway.get_pool'), \
-             patch('stream_sniper.database.creator_table_gateway.get_pool'):
+        # All table gateways acquire connections via the decorators module's
+        # get_pool (the gateway modules themselves don't import get_pool).
+        with patch('stream_sniper.database.decorators.get_pool'):
             yield
 
     def test_tracked_streamers_database_operations(self, mock_database):
@@ -65,8 +73,8 @@ class TestTrackingSystem:
         monitor = StreamMonitor(check_interval=60)
         await monitor.initialize()
         
-        # Mock stream info response
-        mock_twitch_api.get_stream_info.return_value = None  # Stream offline
+        # Mock stream info response (monitor awaits the async variant)
+        mock_twitch_api.get_stream_info_async.return_value = None  # Stream offline
         
         # Test status check
         status = await monitor.check_streamer_now("teststreamer")

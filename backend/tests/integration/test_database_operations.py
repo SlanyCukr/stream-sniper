@@ -10,6 +10,7 @@ Tests the complete database workflow including:
 
 from datetime import datetime
 
+import psycopg2.errors
 import pytest
 
 from tests.conftest import create_test_chatter, create_test_creator, create_test_message_text, create_test_stream
@@ -59,7 +60,7 @@ class TestDatabaseIntegration:
         for i, (chatter_id, text_id) in enumerate(zip(chatter_ids, message_text_ids)):
             db_cursor.execute(
                 """
-                INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+                INSERT INTO message (chatter_id, stream_id, message_text_id, time)
                 VALUES (%s, %s, %s, %s)
                 RETURNING id
             """,
@@ -126,7 +127,7 @@ class TestDatabaseIntegration:
         with pytest.raises(Exception):  # Should raise foreign key constraint error
             db_cursor.execute(
                 """
-                INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+                INSERT INTO message (chatter_id, stream_id, message_text_id, time)
                 VALUES (%s, %s, %s, %s)
             """,
                 (999, 1, 1, datetime.now()),
@@ -137,7 +138,7 @@ class TestDatabaseIntegration:
         with pytest.raises(Exception):  # Should raise foreign key constraint error
             db_cursor.execute(
                 """
-                INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+                INSERT INTO message (chatter_id, stream_id, message_text_id, time)
                 VALUES (%s, %s, %s, %s)
             """,
                 (chatter_id, 999, 1, datetime.now()),
@@ -189,7 +190,7 @@ class TestDatabaseIntegration:
         # Create message
         db_cursor.execute(
             """
-            INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+            INSERT INTO message (chatter_id, stream_id, message_text_id, time)
             VALUES (%s, %s, %s, %s)
             RETURNING id
         """,
@@ -201,13 +202,14 @@ class TestDatabaseIntegration:
         db_cursor.execute("SELECT COUNT(*) FROM message WHERE id = %s", (message_id,))
         assert db_cursor.fetchone()[0] == 1
 
-        # Delete chatter - should affect message
-        db_cursor.execute("DELETE FROM chatter WHERE id = %s", (chatter_id,))
+        # Delete chatter — the schema declares plain FKs (no ON DELETE
+        # CASCADE), so deleting a chatter still referenced by messages must
+        # be rejected and the message must survive.
+        with pytest.raises(psycopg2.errors.ForeignKeyViolation):
+            db_cursor.execute("DELETE FROM chatter WHERE id = %s", (chatter_id,))
 
-        # Check if message still exists (depends on cascade settings)
         db_cursor.execute("SELECT COUNT(*) FROM message WHERE id = %s", (message_id,))
-        message_count = db_cursor.fetchone()[0]
-        # This test verifies the current cascade behavior
+        assert db_cursor.fetchone()[0] == 1
 
     def test_data_consistency_across_tables(self, db_cursor):
         """Test data consistency across related tables."""
@@ -223,7 +225,7 @@ class TestDatabaseIntegration:
 
             db_cursor.execute(
                 """
-                INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+                INSERT INTO message (chatter_id, stream_id, message_text_id, time)
                 VALUES (%s, %s, %s, %s)
             """,
                 (chatter_id, stream_id, text_id, datetime.now()),
@@ -256,11 +258,11 @@ class TestDatabaseIntegration:
             # Create some data
             cursor.execute(
                 """
-                INSERT INTO creator (nick, display_name, twitch_id)
-                VALUES (%s, %s, %s)
+                INSERT INTO creator (nick, display_name, profile_image_url, twitch_id)
+                VALUES (%s, %s, %s, %s)
                 RETURNING id
             """,
-                ("rollback_test", "Rollback Test", "123"),
+                ("rollback_test", "Rollback Test", "https://example.com/profile.jpg", "123"),
             )
             creator_id = cursor.fetchone()[0]
 
@@ -276,6 +278,10 @@ class TestDatabaseIntegration:
             assert cursor.fetchone()[0] == 0
 
         finally:
+            # Clear any (possibly aborted) transaction before restoring autocommit;
+            # toggling autocommit inside an open transaction raises ProgrammingError
+            # and would leave the shared session connection wedged for later tests.
+            test_db_connection.rollback()
             test_db_connection.autocommit = True
             cursor.close()
 
@@ -325,7 +331,7 @@ class TestDatabaseIntegration:
                 text_id = create_test_message_text(db_cursor, f"Message from {chatter_id} in {stream_id}")
                 db_cursor.execute(
                     """
-                    INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+                    INSERT INTO message (chatter_id, stream_id, message_text_id, time)
                     VALUES (%s, %s, %s, %s)
                 """,
                     (chatter_id, stream_id, text_id, datetime.now()),
@@ -391,7 +397,7 @@ class TestDatabaseIntegration:
 
             db_cursor.execute(
                 """
-                INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+                INSERT INTO message (chatter_id, stream_id, message_text_id, time)
                 VALUES (%s, %s, %s, %s)
             """,
                 (chatter_id, stream_id, text_id, datetime.now()),
