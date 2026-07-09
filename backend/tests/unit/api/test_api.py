@@ -275,7 +275,7 @@ class TestStreamsEndpoints:
 class TestCreatorsEndpoints:
     """Test suite for creator-related API endpoints."""
 
-    @patch("stream_sniper.api.api.select_creators_db")
+    @patch("stream_sniper.api.creator_endpoints.select_creators_db")
     def test_get_creators_success(self, mock_select):
         """Test successful retrieval of all creators."""
         mock_select.return_value = [[1, "Amazing Streamer"], [2, "Pro Gamer"], [3, "Chat Master"]]
@@ -289,7 +289,7 @@ class TestCreatorsEndpoints:
         assert data[0] == [1, "Amazing Streamer"]
         mock_select.assert_called_once()
 
-    @patch("stream_sniper.api.api.select_creators_db")
+    @patch("stream_sniper.api.creator_endpoints.select_creators_db")
     def test_get_creators_server_error(self, mock_select):
         """Test creators endpoint with database error."""
         mock_select.side_effect = Exception("Database error")
@@ -304,7 +304,7 @@ class TestCreatorsEndpoints:
 class TestCreatorTopChattersEndpoint:
     """Test suite for the creator cross-stream top-chatters endpoint."""
 
-    @patch("stream_sniper.api.api.select_creator_top_chatters_db")
+    @patch("stream_sniper.api.creator_endpoints.select_creator_top_chatters_db")
     def test_get_creator_top_chatters_success(self, mock_select):
         """Test successful retrieval of a creator's most active chatters."""
         mock_select.return_value = [
@@ -323,7 +323,7 @@ class TestCreatorTopChattersEndpoint:
         # Default limit of 25 is applied when ?limit is omitted
         mock_select.assert_called_once_with(5, 25)
 
-    @patch("stream_sniper.api.api.select_creator_top_chatters_db")
+    @patch("stream_sniper.api.creator_endpoints.select_creator_top_chatters_db")
     def test_get_creator_top_chatters_custom_limit(self, mock_select):
         """Test that a custom limit is passed through to the gateway."""
         mock_select.return_value = [[42, "chatty_user", 1250]]
@@ -334,7 +334,7 @@ class TestCreatorTopChattersEndpoint:
         assert response.status_code == 200
         mock_select.assert_called_once_with(5, 10)
 
-    @patch("stream_sniper.api.api.select_creator_top_chatters_db")
+    @patch("stream_sniper.api.creator_endpoints.select_creator_top_chatters_db")
     def test_get_creator_top_chatters_empty_returns_200(self, mock_select):
         """Test that an empty result is a valid 200 with an empty list."""
         mock_select.return_value = []
@@ -345,7 +345,7 @@ class TestCreatorTopChattersEndpoint:
         assert response.status_code == 200
         assert response.json() == []
 
-    @patch("stream_sniper.api.api.select_creator_top_chatters_db")
+    @patch("stream_sniper.api.creator_endpoints.select_creator_top_chatters_db")
     def test_get_creator_top_chatters_server_error(self, mock_select):
         """Test creator top-chatters endpoint with database error."""
         mock_select.side_effect = Exception("Database connection failed")
@@ -456,6 +456,23 @@ class TestHealthEndpoint:
         assert response.status_code == 503
         data = response.json()
         assert data["status"] in ("critical", "unhealthy")
+
+
+class TestOperationalEndpoints:
+    """Operational routes keep a Response dependency for SlowAPI headers."""
+
+    def test_rate_limited_operational_endpoints_return_successfully(self):
+        """SlowAPI can inject rate-limit headers into each operational response."""
+        with TestClient(app) as client:
+            prometheus_response = client.get("/metrics/prometheus")
+            metrics_response = client.get("/metrics")
+            cache_stats_response = client.get("/cache/stats")
+            cache_flush_response = client.post("/cache/flush")
+
+        assert prometheus_response.status_code == 200
+        assert metrics_response.status_code == 200
+        assert cache_stats_response.status_code == 200
+        assert cache_flush_response.status_code == 200
 
 
 class TestRootEndpoint:
