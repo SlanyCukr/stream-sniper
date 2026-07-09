@@ -141,10 +141,21 @@ async def add_tracked_streamer(
             try:
                 twitch_api = TwitchAPI.instance()
                 await twitch_api.ensure_initialized()
-                twitch_api.set_streamer_nickname(streamer_data.twitch_username)
 
-                display_name, profile_image_url = await twitch_api.get_creator_info_async()
-                twitch_creator_id = await twitch_api.get_creator_twitch_id_async()
+                # Pass the login per call: the singleton is shared across
+                # concurrent requests, so its nickname state must not be mutated.
+                creator_info = await twitch_api.get_creator_info_async(
+                    streamer_data.twitch_username
+                )
+                if creator_info is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Streamer not found on Twitch"
+                    )
+                display_name, profile_image_url = creator_info
+                twitch_creator_id = await twitch_api.get_creator_twitch_id_async(
+                    streamer_data.twitch_username
+                )
 
                 creator_id = insert_new_creator_db(
                     streamer_data.twitch_username,
@@ -161,6 +172,8 @@ async def add_tracked_streamer(
 
                 display_name_for_tracking = display_name
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error creating creator for {streamer_data.twitch_username}: {e}")
                 raise HTTPException(

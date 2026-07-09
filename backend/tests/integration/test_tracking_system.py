@@ -22,6 +22,7 @@ class TestTrackingSystem:
             mock_api.return_value = mock_instance
             # Async TwitchAPI methods must be AsyncMocks so `await` works
             mock_instance.twitch_api_init = AsyncMock()
+            mock_instance.ensure_initialized = AsyncMock()
             mock_instance.get_stream_info_async = AsyncMock(return_value=None)
             mock_instance.get_available_video_ids_async = AsyncMock(return_value=[])
             mock_instance.get_creator_info_async = AsyncMock(
@@ -64,8 +65,8 @@ class TestTrackingSystem:
         # Test initialization
         await monitor.initialize()
         
-        # Verify Twitch API was initialized
-        mock_twitch_api.twitch_api_init.assert_called_once()
+        # Verify Twitch API was initialized (idempotently)
+        mock_twitch_api.ensure_initialized.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_stream_monitor_status_check(self, mock_twitch_api):

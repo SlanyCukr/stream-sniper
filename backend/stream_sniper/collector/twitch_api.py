@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import Any, List, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 from twitchAPI.object.api import Stream, TwitchUser
 from twitchAPI.twitch import Twitch
@@ -11,17 +11,36 @@ class TwitchAPI:
     _instance = None
 
     def __init__(self):
-        if TwitchAPI._instance is None:
-            TwitchAPI._instance = self
+        self._init_lock = asyncio.Lock()
+        self.streamer_nickname: Optional[str] = None
 
     @classmethod
     def instance(cls):
+        """Process-wide shared client for long-lived concurrent callers (the API).
+
+        Only this constructor path assigns the singleton: privately constructed
+        instances (collector facade, stream monitor) must never become the shared
+        client, since their sessions may be bound to short-lived worker loops and
+        their nickname state is mutated freely.
+        """
         if cls._instance is None:
             cls._instance = TwitchAPI()
         return cls._instance
 
     def set_streamer_nickname(self, streamer_nickname: str):
         self.streamer_nickname = streamer_nickname
+
+    def _resolve_login(self, login: Optional[str]) -> str:
+        """Resolve the per-call login, falling back to the instance nickname.
+
+        Raises instead of silently querying whichever streamer the nickname
+        state last pointed at (or none at all) — shared-instance callers must
+        pass the login explicitly.
+        """
+        resolved = login if login is not None else self.streamer_nickname
+        if not resolved:
+            raise ValueError("No Twitch login provided and no streamer nickname set")
+        return resolved
 
     async def twitch_api_init(self):
         client_id = os.environ.get("TWITCH_CLIENT_ID")
@@ -41,7 +60,11 @@ class TwitchAPI:
         event loop, which is where these coroutines are awaited.
         """
         if getattr(self, "twitch", None) is None:
-            await self.twitch_api_init()
+            # Guard against concurrent first requests each running the OAuth
+            # handshake and leaking all but one client session.
+            async with self._init_lock:
+                if getattr(self, "twitch", None) is None:
+                    await self.twitch_api_init()
 
     async def search_channels_async(self, query: str, limit: int = 8) -> List[Any]:
         """
@@ -117,23 +140,29 @@ class TwitchAPI:
     # is already running" when called from async code — and the Twitch client's
     # aiohttp session is bound to the running loop, so the coroutines must be
     # awaited on that same loop rather than bridged from a worker thread.
-    async def get_creator_twitch_id_async(self) -> Any:
-        async for user in self.twitch.get_users(logins=[self.streamer_nickname]):
+    #
+    # Each takes an optional per-call ``login``: callers sharing the singleton
+    # (the concurrent FastAPI handlers) must pass it instead of mutating the
+    # shared ``set_streamer_nickname`` state, which interleaved requests could
+    # overwrite between the set and the awaited lookup.
+    async def get_creator_twitch_id_async(self, login: Optional[str] = None) -> Any:
+        async for user in self.twitch.get_users(logins=[self._resolve_login(login)]):
             return user.id
         return None
 
-    async def get_creator_info_async(self) -> Tuple[str, str]:
-        async for user in self.twitch.get_users(logins=[self.streamer_nickname]):
+    async def get_creator_info_async(self, login: Optional[str] = None) -> Optional[Tuple[str, str]]:
+        """Return (display_name, profile_image_url), or None if the login doesn't exist."""
+        async for user in self.twitch.get_users(logins=[self._resolve_login(login)]):
             return user.display_name, user.profile_image_url
         return None
 
-    async def get_stream_info_async(self) -> Any:
-        async for stream in self.twitch.get_streams(user_login=[self.streamer_nickname]):
+    async def get_stream_info_async(self, login: Optional[str] = None) -> Any:
+        async for stream in self.twitch.get_streams(user_login=[self._resolve_login(login)]):
             return stream
         return None
 
-    async def get_available_video_ids_async(self) -> List[Any]:
-        twitch_user_id = await self.get_creator_twitch_id_async()
+    async def get_available_video_ids_async(self, login: Optional[str] = None) -> List[Any]:
+        twitch_user_id = await self.get_creator_twitch_id_async(login)
         if twitch_user_id is None:
             return []
         videos = []

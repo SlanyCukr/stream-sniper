@@ -746,3 +746,165 @@ class TestTwitchSearchEndpoint:
             response = client.get("/admin/tracking/twitch-search?q=nin")
 
         assert response.status_code in (401, 403)
+
+
+class TestTriggerProcessingEndpoint:
+    """Test suite for POST /admin/tracking/streamers/{id}/process.
+
+    The handler must reuse the process-wide TwitchAPI singleton with a
+    per-call login instead of constructing a client (per-request OAuth) or
+    mutating the singleton's shared nickname state.
+    """
+
+    @staticmethod
+    def _override_admin():
+        app.dependency_overrides[get_current_admin_user] = lambda: SimpleNamespace(
+            id=1, username="admin", role="admin"
+        )
+
+    @staticmethod
+    def _clear_admin():
+        app.dependency_overrides.pop(get_current_admin_user, None)
+
+    @patch("stream_sniper.api.tracking_job_endpoints.insert_processing_job_db")
+    @patch("stream_sniper.api.tracking_job_endpoints.job_exists_db")
+    @patch("stream_sniper.api.tracking_job_endpoints.select_stream_by_twitch_id_db")
+    @patch("stream_sniper.api.tracking_job_endpoints.select_tracked_streamer_by_id_db")
+    @patch("stream_sniper.api.tracking_job_endpoints.TwitchAPI")
+    def test_trigger_processing_queues_newest_uncollected_vod(
+        self, mock_twitch_cls, mock_select_streamer, mock_select_stream, mock_job_exists, mock_insert_job
+    ):
+        """The newest not-yet-collected VOD is queued via the shared client."""
+        mock_select_streamer.return_value = (7, 1, "teststreamer", "TestStreamer")
+        instance = mock_twitch_cls.instance.return_value
+        instance.ensure_initialized = AsyncMock()
+        instance.get_available_video_ids_async = AsyncMock(
+            return_value=[SimpleNamespace(id="111", title="newest vod")]
+        )
+        mock_select_stream.return_value = None  # not collected yet
+        mock_job_exists.return_value = False
+        mock_insert_job.return_value = 42
+
+        self._override_admin()
+        try:
+            with TestClient(app) as client:
+                response = client.post("/admin/tracking/streamers/7/process")
+        finally:
+            self._clear_admin()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["queued"] is True
+        assert body["job_id"] == 42
+        assert body["twitch_stream_id"] == 111
+        # Shared client reused, initialized idempotently, login passed per call.
+        mock_twitch_cls.instance.assert_called_once()
+        mock_twitch_cls.assert_not_called()
+        instance.ensure_initialized.assert_awaited_once()
+        instance.get_available_video_ids_async.assert_awaited_once_with("teststreamer")
+        instance.set_streamer_nickname.assert_not_called()
+        mock_insert_job.assert_called_once_with(7, 111)
+
+    @patch("stream_sniper.api.tracking_job_endpoints.select_tracked_streamer_by_id_db")
+    @patch("stream_sniper.api.tracking_job_endpoints.TwitchAPI")
+    def test_trigger_processing_unknown_streamer_404(self, mock_twitch_cls, mock_select_streamer):
+        """A missing streamer 404s before any Twitch call."""
+        mock_select_streamer.return_value = None
+
+        self._override_admin()
+        try:
+            with TestClient(app) as client:
+                response = client.post("/admin/tracking/streamers/999/process")
+        finally:
+            self._clear_admin()
+
+        assert response.status_code == 404
+        mock_twitch_cls.instance.assert_not_called()
+
+
+class TestAddTrackedStreamerEndpoint:
+    """Creator bootstrap in POST /admin/tracking/streamers must not mutate the
+    shared TwitchAPI singleton's nickname state."""
+
+    @staticmethod
+    def _override_admin():
+        app.dependency_overrides[get_current_admin_user] = lambda: SimpleNamespace(
+            id=1, username="admin", role="admin"
+        )
+
+    @staticmethod
+    def _clear_admin():
+        app.dependency_overrides.pop(get_current_admin_user, None)
+
+    @patch("stream_sniper.api.tracking_streamer_endpoints.select_tracked_streamer_by_id_db")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.insert_tracked_streamer_db")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.insert_new_creator_db")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.select_creator_id_db")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.streamer_exists_db")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.TwitchAPI")
+    def test_add_streamer_bootstraps_creator_with_per_call_login(
+        self,
+        mock_twitch_cls,
+        mock_exists,
+        mock_select_creator,
+        mock_insert_creator,
+        mock_insert_streamer,
+        mock_select_streamer,
+    ):
+        """A new creator is fetched from Twitch with an explicit login argument."""
+        from datetime import datetime
+
+        mock_exists.return_value = False
+        mock_select_creator.return_value = None
+        instance = mock_twitch_cls.instance.return_value
+        instance.ensure_initialized = AsyncMock()
+        instance.get_creator_info_async = AsyncMock(return_value=("NewStreamer", "http://img/p.png"))
+        instance.get_creator_twitch_id_async = AsyncMock(return_value="555")
+        mock_insert_creator.return_value = 3
+        mock_insert_streamer.return_value = 9
+        now = datetime(2026, 7, 9, 12, 0, 0)
+        mock_select_streamer.return_value = (
+            9, 3, "newstreamer", "NewStreamer", True, None, None, True,
+            now, now, 1, None, "NewStreamer", "http://img/p.png", "admin",
+        )
+
+        self._override_admin()
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/admin/tracking/streamers",
+                    json={"twitch_username": "newstreamer"},
+                )
+        finally:
+            self._clear_admin()
+
+        assert response.status_code == 201
+        assert response.json()["twitch_username"] == "newstreamer"
+        instance.get_creator_info_async.assert_awaited_once_with("newstreamer")
+        instance.get_creator_twitch_id_async.assert_awaited_once_with("newstreamer")
+        instance.set_streamer_nickname.assert_not_called()
+        mock_insert_creator.assert_called_once_with("newstreamer", "NewStreamer", "http://img/p.png", "555")
+
+    @patch("stream_sniper.api.tracking_streamer_endpoints.select_creator_id_db")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.streamer_exists_db")
+    @patch("stream_sniper.api.tracking_streamer_endpoints.TwitchAPI")
+    def test_add_streamer_unknown_twitch_login_400(self, mock_twitch_cls, mock_exists, mock_select_creator):
+        """A login Twitch doesn't know yields a specific 400, not a TypeError-driven one."""
+        mock_exists.return_value = False
+        mock_select_creator.return_value = None
+        instance = mock_twitch_cls.instance.return_value
+        instance.ensure_initialized = AsyncMock()
+        instance.get_creator_info_async = AsyncMock(return_value=None)
+
+        self._override_admin()
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/admin/tracking/streamers",
+                    json={"twitch_username": "nosuchlogin"},
+                )
+        finally:
+            self._clear_admin()
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Streamer not found on Twitch"

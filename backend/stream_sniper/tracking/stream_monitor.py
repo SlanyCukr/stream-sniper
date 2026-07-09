@@ -43,9 +43,9 @@ class StreamMonitor:
         self._last_stream_states: Dict[str, bool] = {}
         
     async def initialize(self):
-        """Initialize the Twitch API connection."""
+        """Initialize the Twitch API connection (idempotent across restarts)."""
         try:
-            await self.twitch_api.twitch_api_init()
+            await self.twitch_api.ensure_initialized()
             self.logger.info("Stream monitor initialized successfully")
         except Exception as e:
             self.logger.error(f"Failed to initialize stream monitor: {e}")

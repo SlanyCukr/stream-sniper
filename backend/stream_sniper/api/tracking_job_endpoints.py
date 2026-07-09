@@ -134,12 +134,14 @@ async def trigger_processing(
 
         twitch_username = streamer_tuple[2]
 
-        # List archived VODs from Twitch (newest first).
+        # List archived VODs from Twitch (newest first). Reuse the process-wide
+        # client (no per-request OAuth handshake) and pass the login per call —
+        # the singleton is shared across concurrent requests, so its nickname
+        # state must not be mutated.
         try:
-            twitch_api = TwitchAPI()
-            await twitch_api.twitch_api_init()
-            twitch_api.set_streamer_nickname(twitch_username)
-            videos = await twitch_api.get_available_video_ids_async()
+            twitch_api = TwitchAPI.instance()
+            await twitch_api.ensure_initialized()
+            videos = await twitch_api.get_available_video_ids_async(twitch_username)
         except Exception as e:
             logger.error(f"Failed to list VODs for {twitch_username}: {e}")
             raise HTTPException(
