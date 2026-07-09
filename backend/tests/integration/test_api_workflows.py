@@ -162,7 +162,11 @@ class TestAPIWorkflowIntegration:
         response = api_client_with_db.get(f"/chatter/{test_chatter_id}/messages/")
         assert response.status_code == 200
         chatter_messages = response.json()
-        assert len(chatter_messages) >= 1
+        assert chatter_messages["total"] >= 1
+        assert len(chatter_messages["messages"]) >= 1
+        # Each row is [stream_id, stream_title, streamer_display_name, text, timestamp]
+        assert chatter_messages["messages"][0][0] == stream_id
+        assert chatter_messages["messages"][0][3] in messages
 
         # Test GET /stream/{stream_id}/chatter/{chatter_id}/messages
         response = api_client_with_db.get(f"/stream/{stream_id}/chatter/{test_chatter_id}/messages")
