@@ -1,63 +1,41 @@
 """
-Redis caching layer with intelligent key management and TTL settings.
+In-process caching layer with intelligent key management and TTL settings.
 Provides caching for expensive database operations and analytics queries.
+
+This is a process-local cache (a thread-safe dict with per-entry expiry) — the app
+runs as a single API process, so a shared store (Redis) is unnecessary. Values are
+JSON round-tripped on set/get so callers get an isolated copy, matching the prior
+Redis-backed semantics. Cache is cold after a restart and re-warms in seconds.
 """
 
+import fnmatch
 import hashlib
 import json
 import logging
-import os
+import threading
+import time
 from functools import wraps
-from typing import Any, Dict, Optional
-
-import redis
-from dotenv import load_dotenv
+from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
-load_dotenv()
+
+# Purge expired entries lazily on write once the store grows past this many keys,
+# so short-TTL/high-churn keys (e.g. search autocomplete) can't accumulate.
+_PRUNE_THRESHOLD = 1000
 
 
-class RedisCache:
+class InProcessCache:
     """
-    Redis-based caching layer with intelligent key management and TTL settings.
-    Provides graceful degradation when Redis is unavailable.
+    Process-local caching layer with intelligent key management and TTL settings.
+    Thread-safe (sync endpoints run in Starlette's threadpool).
     """
 
     def __init__(self):
-        """Initialize Redis connection with configuration from environment."""
-        self.redis_client = None
+        """Initialize the in-memory store."""
         self.enabled = True
-        self._connect()
-
-    def _connect(self):
-        """Establish Redis connection with configuration from environment."""
-        try:
-            redis_config = {
-                "host": os.getenv("REDIS_HOST", "localhost"),
-                "port": int(os.getenv("REDIS_PORT", 6379)),
-                "db": int(os.getenv("REDIS_DB", 0)),
-                "decode_responses": True,
-                "socket_connect_timeout": int(os.getenv("REDIS_CONNECT_TIMEOUT", 5)),
-                "socket_timeout": int(os.getenv("REDIS_SOCKET_TIMEOUT", 5)),
-                "retry_on_timeout": True,
-                "health_check_interval": int(os.getenv("REDIS_HEALTH_CHECK_INTERVAL", 30)),
-            }
-
-            # Add password if provided
-            redis_password = os.getenv("REDIS_PASSWORD")
-            if redis_password:
-                redis_config["password"] = redis_password
-
-            self.redis_client = redis.Redis(**redis_config)
-
-            # Test connection
-            self.redis_client.ping()
-            logger.info(f"Connected to Redis at {redis_config['host']}:{redis_config['port']}")
-
-        except Exception as e:
-            logger.warning(f"Failed to connect to Redis: {e}. Caching will be disabled.")
-            self.redis_client = None
-            self.enabled = False
+        # key -> (expires_at_epoch, json_serialized_value)
+        self._store: Dict[str, Tuple[float, str]] = {}
+        self._lock = threading.RLock()
 
     def _generate_key(self, prefix: str, *args, **kwargs) -> str:
         """
@@ -80,6 +58,12 @@ class RedisCache:
 
         return f"stream_sniper:{prefix}:{key_hash}"
 
+    def _prune_expired(self, now: float) -> None:
+        """Drop expired entries. Caller must hold the lock."""
+        expired = [k for k, (expires_at, _) in self._store.items() if expires_at <= now]
+        for k in expired:
+            self._store.pop(k, None)
+
     def get(self, key: str) -> Optional[Any]:
         """
         Get value from cache.
@@ -88,18 +72,22 @@ class RedisCache:
             key: Cache key
 
         Returns:
-            Cached value or None if not found/Redis unavailable
+            Cached value or None if not found/expired
         """
-        if not self.enabled or not self.redis_client:
-            return None
+        now = time.time()
+        with self._lock:
+            entry = self._store.get(key)
+            if entry is None:
+                return None
+            expires_at, serialized = entry
+            if expires_at <= now:
+                self._store.pop(key, None)
+                return None
 
         try:
-            cached_data = self.redis_client.get(key)
-            if cached_data:
-                return json.loads(cached_data)
-            return None
-        except Exception as e:
-            logger.warning(f"Cache get failed for key {key}: {e}")
+            return json.loads(serialized)
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(f"Cache get failed to decode key {key}: {e}")
             return None
 
     def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
@@ -114,19 +102,18 @@ class RedisCache:
         Returns:
             True if successful, False otherwise
         """
-        if not self.enabled or not self.redis_client:
-            return False
-
         try:
-            # Serialize the value
-            serialized_value = json.dumps(value, default=str)
-
-            # Set with TTL
-            result = self.redis_client.setex(key, ttl, serialized_value)
-            return bool(result)
-        except Exception as e:
-            logger.warning(f"Cache set failed for key {key}: {e}")
+            serialized = json.dumps(value, default=str)
+        except (TypeError, ValueError) as e:
+            logger.warning(f"Cache set failed to serialize key {key}: {e}")
             return False
+
+        now = time.time()
+        with self._lock:
+            if len(self._store) >= _PRUNE_THRESHOLD:
+                self._prune_expired(now)
+            self._store[key] = (now + ttl, serialized)
+        return True
 
     def delete(self, key: str) -> bool:
         """
@@ -136,21 +123,14 @@ class RedisCache:
             key: Cache key to delete
 
         Returns:
-            True if successful, False otherwise
+            True if a key was removed, False otherwise
         """
-        if not self.enabled or not self.redis_client:
-            return False
-
-        try:
-            result = self.redis_client.delete(key)
-            return bool(result)
-        except Exception as e:
-            logger.warning(f"Cache delete failed for key {key}: {e}")
-            return False
+        with self._lock:
+            return self._store.pop(key, None) is not None
 
     def delete_pattern(self, pattern: str) -> int:
         """
-        Delete all keys matching a pattern.
+        Delete all keys matching a glob pattern.
 
         Args:
             pattern: Pattern to match (e.g., 'stream_sniper:stream:*')
@@ -158,36 +138,22 @@ class RedisCache:
         Returns:
             Number of keys deleted
         """
-        if not self.enabled or not self.redis_client:
-            return 0
-
-        try:
-            keys = self.redis_client.keys(pattern)
-            if keys:
-                return self.redis_client.delete(*keys)
-            return 0
-        except Exception as e:
-            logger.warning(f"Cache pattern delete failed for pattern {pattern}: {e}")
-            return 0
+        with self._lock:
+            keys = [k for k in self._store if fnmatch.fnmatchcase(k, pattern)]
+            for k in keys:
+                self._store.pop(k, None)
+        return len(keys)
 
     def flush_all(self) -> bool:
         """
-        Flush all cache entries.
+        Flush all cache entries in our namespace.
 
         Returns:
             True if successful, False otherwise
         """
-        if not self.enabled or not self.redis_client:
-            return False
-
-        try:
-            # Only flush our namespace
-            deleted = self.delete_pattern("stream_sniper:*")
-            logger.info(f"Flushed {deleted} cache entries")
-            return True
-        except Exception as e:
-            logger.warning(f"Cache flush failed: {e}")
-            return False
+        deleted = self.delete_pattern("stream_sniper:*")
+        logger.info(f"Flushed {deleted} cache entries")
+        return True
 
     def get_stats(self) -> Dict[str, Any]:
         """
@@ -196,43 +162,33 @@ class RedisCache:
         Returns:
             Dictionary with cache statistics
         """
-        if not self.enabled or not self.redis_client:
-            return {"enabled": False, "status": "disabled", "error": "Redis connection not available"}
+        now = time.time()
+        with self._lock:
+            self._prune_expired(now)
+            active_keys = len(self._store)
 
-        try:
-            info = self.redis_client.info()
-            our_keys = len(self.redis_client.keys("stream_sniper:*"))
-
-            return {
-                "enabled": True,
-                "status": "healthy",
-                "redis_version": info.get("redis_version"),
-                "connected_clients": info.get("connected_clients"),
-                "used_memory_human": info.get("used_memory_human"),
-                "keyspace_hits": info.get("keyspace_hits", 0),
-                "keyspace_misses": info.get("keyspace_misses", 0),
-                "stream_sniper_keys": our_keys,
-                "uptime_in_seconds": info.get("uptime_in_seconds"),
-            }
-        except Exception as e:
-            logger.warning(f"Failed to get cache stats: {e}")
-            return {"enabled": True, "status": "unhealthy", "error": str(e)}
+        return {
+            "enabled": True,
+            "status": "healthy",
+            "backend": "in-process",
+            "stream_sniper_keys": active_keys,
+        }
 
 
 # Global cache instance
-_cache_instance: Optional[RedisCache] = None
+_cache_instance: Optional[InProcessCache] = None
 
 
-def get_cache() -> RedisCache:
+def get_cache() -> InProcessCache:
     """
-    Get the global Redis cache instance.
+    Get the global in-process cache instance.
 
     Returns:
-        RedisCache instance
+        InProcessCache instance
     """
     global _cache_instance
     if _cache_instance is None:
-        _cache_instance = RedisCache()
+        _cache_instance = InProcessCache()
     return _cache_instance
 
 

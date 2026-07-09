@@ -47,9 +47,6 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
-      - REDIS_HOST=redis
-    depends_on:
-      - redis
     restart: unless-stopped
     networks:
       - stream-sniper
@@ -72,31 +69,6 @@ services:
     networks:
       - stream-sniper
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-    command: >
-      sh -c "
-        if [ -n \"$$REDIS_PASSWORD\" ]; then
-          redis-server --requirepass $$REDIS_PASSWORD
-        else
-          redis-server
-        fi
-      "
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    networks:
-      - stream-sniper
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # Optional: PostgreSQL container (comment out if using external database)
   # postgres:
   #   image: postgres:16-alpine
@@ -115,6 +87,5 @@ networks:
   stream-sniper:
     driver: bridge
 
-volumes:
-  redis_data:
-  # postgres_data:
+# volumes:
+#   postgres_data:

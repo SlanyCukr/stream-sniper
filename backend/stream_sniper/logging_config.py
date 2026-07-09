@@ -346,7 +346,6 @@ class LoggingConfig:
             "requests.packages.urllib3.connectionpool": logging.WARNING,
             "botocore": logging.WARNING,
             "psycopg2": logging.WARNING,
-            "redis": logging.WARNING,
             "asyncio": logging.WARNING,
             "httpx": logging.WARNING,
             "uvicorn.access": logging.WARNING,

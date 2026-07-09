@@ -117,7 +117,7 @@ def _reset_global_state():
         which nulls the module-level instance but leaves the class-level
         ``DatabaseConnectionPool`` singleton half-closed (``_pool is None``). A later
         test calling ``get_pool()`` would then hit "Connection pool not initialized".
-      * The Redis cache -- cached endpoint responses would otherwise leak between
+      * The in-process cache -- cached endpoint responses would otherwise leak between
         tests (e.g. a success test populating a key that a later error test reads,
         so the mocked gateway is never called).
 

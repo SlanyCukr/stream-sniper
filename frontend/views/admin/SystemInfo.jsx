@@ -12,7 +12,7 @@ import SystemHealthOverview from '@/components/admin/SystemHealthOverview'
 import ComponentsHealth from '@/components/admin/ComponentsHealth'
 import RequestStatistics from '@/components/admin/RequestStatistics'
 import RateLimitingMetrics from '@/components/admin/RateLimitingMetrics'
-import RedisCacheDetails from '@/components/admin/RedisCacheDetails'
+import CacheDetails from '@/components/admin/CacheDetails'
 import { api } from '@/lib/api'
 
 
@@ -213,11 +213,8 @@ const SystemInfo = () => {
             )}
 
             {/* Cache Stats Details */}
-            {cacheStats?.redis_stats && (
-                <RedisCacheDetails
-                    cacheStats={cacheStats}
-                    formatUptime={formatUptime}
-                />
+            {cacheStats?.cache_stats && (
+                <CacheDetails cacheStats={cacheStats} />
             )}
         </Container>
     )

@@ -141,7 +141,7 @@ class HealthChecker:
 
     def check_cache_health(self) -> ComponentHealth:
         """
-        Check Redis cache connectivity and performance.
+        Check in-process cache health.
 
         Returns:
             ComponentHealth object with cache status

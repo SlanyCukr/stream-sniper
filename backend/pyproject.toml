@@ -38,8 +38,7 @@ dependencies = [
     "chat-downloader~=0.2.8",
     "requests>=2.32.0",
     "urllib3>=2.2.0",
-    # Performance and caching dependencies
-    "redis>=5.0.0",
+    # Rate limiting (in-process memory storage)
     "slowapi>=0.1.9",
     # Authentication dependencies
     "PyJWT>=2.8.0",

@@ -18,7 +18,7 @@ from stream_sniper.api.auth import get_current_admin_user
 
 
 def _miss_cache():
-    """A mock cache that always misses, so endpoint tests don't depend on Redis state."""
+    """A mock cache that always misses, so endpoint tests don't depend on cache state."""
     cache = Mock()
     cache._generate_key = Mock(return_value="test-cache-key")
     cache.get = Mock(return_value=None)
