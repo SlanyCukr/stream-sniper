@@ -1,7 +1,5 @@
 'use client'
-import {
-    useState, useEffect, useCallback,
-} from 'react'
+import { useState } from 'react'
 import {
     Container,
     Alert,
@@ -13,70 +11,43 @@ import ComponentsHealth from '@/components/admin/ComponentsHealth'
 import RequestStatistics from '@/components/admin/RequestStatistics'
 import RateLimitingMetrics from '@/components/admin/RateLimitingMetrics'
 import CacheDetails from '@/components/admin/CacheDetails'
-import { api } from '@/lib/api'
+import { getApiErrorMessage } from '@/lib/api'
+import {
+    useCacheStats,
+    useDetailedHealth,
+    useFlushCache,
+    useSystemMetrics,
+} from '@/hooks/useSystemQueries'
 
 
 const SystemInfo = () => {
-    const [
-        healthData,
-        setHealthData,
-    ] = useState(null)
-    const [
-        metricsData,
-        setMetricsData,
-    ] = useState(null)
-    const [
-        cacheStats,
-        setCacheStats,
-    ] = useState(null)
-    const [
-        loading,
-        setLoading,
-    ] = useState(true)
-    const [
-        error,
-        setError,
-    ] = useState(null)
+    const [actionError, setActionError] = useState(null)
     const [
         success,
         setSuccess,
     ] = useState(null)
+    const healthQuery = useDetailedHealth()
+    const metricsQuery = useSystemMetrics()
+    const cacheStatsQuery = useCacheStats()
+    const flushCacheMutation = useFlushCache()
+    const healthData = healthQuery.data
+    const metricsData = metricsQuery.data
+    const cacheStats = cacheStatsQuery.data
+    const loading = healthQuery.isPending || metricsQuery.isPending || cacheStatsQuery.isPending
+    const refreshing = healthQuery.isFetching || metricsQuery.isFetching || cacheStatsQuery.isFetching
+    const telemetryError = !healthData && !metricsData && !cacheStats && (
+        healthQuery.error || metricsQuery.error || cacheStatsQuery.error
+    )
+    const error = actionError || telemetryError
 
-    const fetchSystemInfo = useCallback(async () => {
-        setLoading(true)
-        setError(null)
-
-        // Fetch each endpoint independently so one failure does not blank the others
-        try {
-            const { data } = await api.get('/health/detailed')
-            setHealthData(data)
-        } catch (healthError) {
-            console.error('Error fetching health data:', healthError)
-        }
-
-        try {
-            const { data } = await api.get('/metrics')
-            setMetricsData(data)
-        } catch (metricsError) {
-            console.error('Error fetching metrics:', metricsError)
-        }
-
-        try {
-            const { data } = await api.get('/cache/stats')
-            setCacheStats(data)
-        } catch (cacheError) {
-            console.error('Error fetching cache stats:', cacheError)
-        }
-
-        setLoading(false)
-    }, [
-    ])
-
-    useEffect(() => {
-        fetchSystemInfo()
-    }, [
-        fetchSystemInfo,
-    ])
+    const fetchSystemInfo = async () => {
+        setActionError(null)
+        await Promise.all([
+            healthQuery.refetch(),
+            metricsQuery.refetch(),
+            cacheStatsQuery.refetch(),
+        ])
+    }
 
     const formatUptime = seconds => {
         const days = Math.floor(seconds / 86400)
@@ -108,15 +79,14 @@ const SystemInfo = () => {
     }
 
     const flushCache = async () => {
-        setError(null)
+        setActionError(null)
         setSuccess(null)
         try {
-            await api.post('/cache/flush')
+            await flushCacheMutation.mutateAsync()
             setSuccess('Cache flushed successfully')
-            fetchSystemInfo()
         } catch (flushError) {
             console.error('Error flushing cache:', flushError)
-            setError(flushError.response?.data?.detail || flushError.message || 'Error flushing cache')
+            setActionError(getApiErrorMessage(flushError, 'Error flushing cache'))
         }
     }
 
@@ -142,7 +112,8 @@ const SystemInfo = () => {
                 <div className="page-actions">
                     <Button
                         variant="outline-primary"
-                        onClick={fetchSystemInfo}>
+                        onClick={fetchSystemInfo}
+                        disabled={refreshing}>
                         <i className="bi bi-arrow-clockwise me-2"></i>
                         Refresh
                     </Button>
@@ -153,9 +124,9 @@ const SystemInfo = () => {
                 <Alert
                     variant="danger"
                     className="mb-4"
-                    dismissible
-                    onClose={() => setError(null)}>
-                    {error}
+                    dismissible={Boolean(actionError)}
+                    onClose={() => setActionError(null)}>
+                    {getApiErrorMessage(error, 'Unable to fetch system telemetry')}
                 </Alert>
             )}
 

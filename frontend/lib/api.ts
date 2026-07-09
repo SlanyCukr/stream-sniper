@@ -83,3 +83,9 @@ export const updateUser = (userId: string | number, changes: Record<string, unkn
 export const updateUserRole = (userId: string | number, role: string) => api.put(`/auth/users/${userId}/role?new_role=${encodeURIComponent(role)}`)
 export const setUserActive = (userId: string | number, isActive: boolean) => api.put(`/auth/users/${userId}/${isActive ? 'activate' : 'deactivate'}`)
 export const deleteUser = (userId: string | number) => api.delete(`/auth/users/${userId}`)
+
+// System telemetry endpoints
+export const retrieveDetailedHealth = () => api.get('/health/detailed')
+export const retrieveMetrics = () => api.get('/metrics')
+export const retrieveCacheStats = () => api.get('/cache/stats')
+export const flushCache = () => api.post('/cache/flush')

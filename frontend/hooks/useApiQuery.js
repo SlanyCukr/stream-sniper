@@ -41,3 +41,11 @@ export {
     useUpdateAdminUser,
     useUpdateAdminUserRole,
 } from './useUserAdminQueries'
+
+export {
+    systemKeys,
+    useCacheStats,
+    useDetailedHealth,
+    useFlushCache,
+    useSystemMetrics,
+} from './useSystemQueries'
