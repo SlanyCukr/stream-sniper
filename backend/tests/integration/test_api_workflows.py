@@ -77,7 +77,7 @@ class TestAPIWorkflowIntegration:
 
             db_cursor.execute(
                 """
-                INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp, tagged_chatter_id)
+                INSERT INTO message (chatter_id, stream_id, message_text_id, time, tagged_chatter_id)
                 VALUES (%s, %s, %s, %s, %s)
             """,
                 (chatter_id, stream_id, text_id, datetime.now(), tagged_chatter_id),
@@ -103,15 +103,16 @@ class TestAPIWorkflowIntegration:
         assert "max_offset" in data
         assert len(data["streams"]) >= 1
 
-        # Find our test stream
+        # Find our test stream — rows are
+        # (id, display_name, start, end, thumbnail_url, message_count)
         test_stream = None
         for stream in data["streams"]:
-            if stream[1] == stream_data["title"]:  # title field
+            if stream[0] == stream_id:
                 test_stream = stream
                 break
 
         assert test_stream is not None
-        assert test_stream[0] == stream_id  # stream ID
+        assert test_stream[1] == creator_data["display_name"]
 
         # 3. Test GET /stream/{stream_id}/ comprehensive analytics
         response = api_client_with_db.get(f"/stream/{stream_id}/")
@@ -131,9 +132,10 @@ class TestAPIWorkflowIntegration:
         assert csi[5] == creator_data["nick"]  # creator nick
         assert csi[6] == creator_data["display_name"]  # creator display name
 
-        # Verify chatters count
+        # Verify chatters in stream — cis is a list of (chatter_id, nick) rows
         cis = analytics["cis"]
-        assert cis[0][0] == len(chatters)  # number of unique chatters
+        assert len(cis) == len(chatters)
+        assert sorted(row[1] for row in cis) == sorted(chatters)
 
         # 4. Test GET /stream/{stream_id}/chatters
         response = api_client_with_db.get(f"/stream/{stream_id}/chatters")
@@ -283,7 +285,7 @@ class TestAPIWorkflowIntegration:
         # Create message
         db_cursor.execute(
             """
-            INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+            INSERT INTO message (chatter_id, stream_id, message_text_id, time)
             VALUES (%s, %s, %s, %s)
         """,
             (chatter_id, stream_id, text_id, datetime.now()),
@@ -408,7 +410,7 @@ class TestAPIWorkflowIntegration:
         # Create message
         db_cursor.execute(
             """
-            INSERT INTO message (chatter_id, stream_id, message_text_id, timestamp)
+            INSERT INTO message (chatter_id, stream_id, message_text_id, time)
             VALUES (%s, %s, %s, %s)
         """,
             (chatter_id, stream_id, text_id, datetime.now()),

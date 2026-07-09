@@ -10,14 +10,17 @@ queries:
     uses: security-extended
 
 paths-ignore:
-  - "venv/**"
+  - "**/venv/**"
   - "**/__pycache__/**"
-  - "logs/**"
+  - "**/logs/**"
   - "*.log"
-  - "tests/fixtures/**"
+  - "backend/tests/fixtures/**"
 
+# The Python package lives under backend/, not the repo root — a bare
+# "stream_sniper/**" filter matches nothing and CodeQL fails with
+# "could not process any of it".
 paths:
-  - "stream_sniper/**"
+  - "backend/stream_sniper/**"
 
 packs:
   python:

@@ -3,7 +3,17 @@ from .decorators import with_cursor
 
 @with_cursor
 def select_chatter_messages_db(chatter_id, cursor):
-    cursor.execute("SELECT message, time FROM message WHERE chatter_id = %s", (chatter_id,))
+    # NOTE: the message table has no "message" column — selecting one used to
+    # silently resolve to the whole-row composite. Join message_text for the
+    # actual text and format time as a string for the JSON response model.
+    cursor.execute(
+        """
+        SELECT (SELECT text FROM message_text WHERE id = message.message_text_id),
+               TO_CHAR(time, 'YYYY-MM-DD HH24:MI:SS')
+        FROM message WHERE chatter_id = %s ORDER BY time
+        """,
+        (chatter_id,),
+    )
     return cursor.fetchall()
 
 
