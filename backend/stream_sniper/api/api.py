@@ -10,7 +10,7 @@ from slowapi.util import get_remote_address
 
 from ..database.connection_pool import close_pool
 from ..logging_config import get_logger, setup_logging
-from .auth_endpoints import router as auth_router
+from .auth_router import router as auth_router
 from .cache import warm_cache
 from .chatter_endpoints import router as chatter_router
 from .config import get_config

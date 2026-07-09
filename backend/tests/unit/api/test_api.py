@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 
 from stream_sniper.api.api import app
 from stream_sniper.api.auth import get_current_admin_user
-from stream_sniper.api.auth_endpoints import convert_user_to_response
+from stream_sniper.api.user_models import convert_user_to_response
 
 
 def _miss_cache():
