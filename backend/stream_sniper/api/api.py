@@ -11,7 +11,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
 from slowapi.util import get_remote_address
 
-from ..database.chatter_table_gateway import select_all_chatters_on_stream_db
+from ..database.chatter_table_gateway import select_all_chatters_on_stream_db, select_chatters_by_prefix_db
 from ..database.connection_pool import close_pool
 from ..database.creator_table_gateway import select_creator_top_chatters_db, select_creators_db
 from ..database.message_table_gateway import (
@@ -462,6 +462,66 @@ def get_chatter_id(
     except Exception as e:
         logger.error(f"Error fetching chatter ID: {e}")
         record_cache_operation("error", "chatter_id")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get(
+    "/chatters/search",
+    response_model=List[List[Any]],
+    tags=["Chatters"],
+    summary="Search chatters by nickname prefix",
+    description=f"""
+    Case-insensitive prefix search over chatter nicknames, for autocomplete.
+    Returns a list of [chatter_id, nick] pairs ordered by nick.
+    Queries shorter than 2 characters return an empty list.
+
+    **Rate Limit**: {rate_limits.SEARCH}
+    """,
+    responses={
+        200: {
+            "description": "List of matching [id, nick] pairs",
+            "content": {"application/json": {"example": [[42, "ninja"], [77, "ninjastreams"]]}},
+        },
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit(rate_limits.SEARCH)
+def search_chatters(
+    request: Request,
+    response: Response,
+    q: str = Query(..., description="Nickname prefix to search for", json_schema_extra={"example": "nin"}),
+    limit: int = Query(10, ge=1, le=25, description="Maximum number of suggestions"),
+):
+    """Prefix-search chatter nicknames for autocomplete suggestions."""
+    prefix = q.strip()
+    # Avoid scanning the index on 1-character prefixes (too many matches).
+    if len(prefix) < 2:
+        return []
+
+    try:
+        # Try cache first
+        cache = get_cache()
+        cache_key = cache._generate_key("chatter_search", prefix.lower(), limit)
+        cached_result = cache.get(cache_key)
+
+        if cached_result is not None:
+            response.headers["X-Cache"] = "HIT"
+            record_cache_operation("hit", "chatter_search")
+            return cached_result
+
+        # Cache miss - fetch from database
+        record_cache_operation("miss", "chatter_search")
+        result = select_chatters_by_prefix_db(prefix, limit)
+
+        # Cache the result (empty results are cached too, to absorb repeat typing)
+        cache.set(cache_key, result, CacheTTL.CHATTER_SEARCH)
+        record_cache_operation("set", "chatter_search")
+        response.headers["X-Cache"] = "MISS"
+
+        return result
+    except Exception as e:
+        logger.error(f"Error searching chatters: {e}")
+        record_cache_operation("error", "chatter_search")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

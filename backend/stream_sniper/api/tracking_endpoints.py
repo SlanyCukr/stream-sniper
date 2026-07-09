@@ -31,7 +31,8 @@ from ..database.tracked_streamers_table_gateway import (
 from ..logging_config import get_logger
 from ..tracking.scheduler import get_scheduler
 from .auth import UserInDB, get_current_admin_user
-from .rate_limiter import limiter
+from .cache import CacheTTL, get_cache
+from .rate_limiter import limiter, rate_limits
 
 logger = get_logger(__name__)
 
@@ -264,8 +265,8 @@ async def add_tracked_streamer(
         if not creator_id:
             # Create new creator using Twitch API
             try:
-                twitch_api = TwitchAPI()
-                await twitch_api.twitch_api_init()
+                twitch_api = TwitchAPI.instance()
+                await twitch_api.ensure_initialized()
                 twitch_api.set_streamer_nickname(streamer_data.twitch_username)
                 
                 display_name, profile_image_url = await twitch_api.get_creator_info_async()
@@ -332,6 +333,79 @@ async def add_tracked_streamer(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
+
+
+class TwitchChannelResult(BaseModel):
+    """A single Twitch channel search suggestion."""
+    login: str = Field(..., description="Twitch login (username)")
+    display_name: str = Field(..., description="Channel display name")
+    profile_image_url: str = Field("", description="Profile thumbnail URL")
+    is_live: bool = Field(False, description="Whether the channel is currently live")
+
+
+@router.get(
+    "/twitch-search",
+    response_model=List[TwitchChannelResult],
+    summary="Search Twitch channels",
+    description=f"""
+    Search live Twitch channels by name, for the add-streamer autocomplete.
+    Backed by the Twitch Helix search API (channels active in the last 6 months).
+
+    Requires admin role.
+
+    **Rate Limit**: {rate_limits.SEARCH}
+    """,
+    responses={
+        200: {"description": "List of matching Twitch channels"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin role required"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit(rate_limits.SEARCH)
+async def search_twitch_channels(
+    request: Request,
+    response: Response,
+    q: str = Query(..., description="Channel name to search for"),
+    limit: int = Query(8, ge=1, le=20, description="Maximum number of suggestions"),
+    current_user: UserInDB = Depends(get_current_admin_user),
+):
+    """Search Twitch channels by name for the add-streamer typeahead (admin only)."""
+    query = q.strip()
+    if len(query) < 2:
+        return []
+
+    cache = get_cache()
+    cache_key = cache._generate_key("twitch_search", query.lower(), limit)
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        response.headers["X-Cache"] = "HIT"
+        return cached_result
+
+    try:
+        twitch_api = TwitchAPI.instance()
+        await twitch_api.ensure_initialized()
+        channels = await twitch_api.search_channels_async(query, limit)
+    except Exception as e:
+        logger.error(f"Error searching Twitch channels for '{query}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to search Twitch channels",
+        )
+
+    result = [
+        {
+            "login": channel.broadcaster_login,
+            "display_name": channel.display_name,
+            "profile_image_url": channel.thumbnail_url or "",
+            "is_live": bool(channel.is_live),
+        }
+        for channel in channels
+    ]
+
+    cache.set(cache_key, result, CacheTTL.TWITCH_SEARCH)
+    response.headers["X-Cache"] = "MISS"
+    return result
 
 
 @router.get(

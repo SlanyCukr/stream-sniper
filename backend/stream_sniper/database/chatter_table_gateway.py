@@ -71,6 +71,30 @@ def insert_new_chatters_db(nicks: List[str], cursor, connection) -> List[int]:
 
 
 @with_cursor
+def select_chatters_by_prefix_db(prefix: str, limit: int, cursor):
+    """
+    Case-insensitive prefix search over chatter nicks for autocomplete.
+    Relies on the functional index chatter_nick_lower_prefix_idx
+    (lower(nick) text_pattern_ops) so the LIKE prefix scan stays fast.
+    :param prefix: The nick prefix the user has typed
+    :param limit: Maximum number of suggestions to return
+    :return: List of (id, nick) tuples ordered by nick
+    """
+    sql = """
+    SELECT
+        id,
+        nick
+    FROM
+        chatter
+    WHERE lower(nick) LIKE lower(%s) || '%%'
+    ORDER BY lower(nick)
+    LIMIT %s
+    """
+    cursor.execute(sql, (prefix, limit))
+    return cursor.fetchall()
+
+
+@with_cursor
 def select_all_chatters_db(cursor) -> dict:
     sql = """
     SELECT

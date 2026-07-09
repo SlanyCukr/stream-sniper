@@ -8,11 +8,22 @@ Tests all API endpoints with mocked database responses to ensure:
 - Request validation
 """
 
-from unittest.mock import Mock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
 
 from fastapi.testclient import TestClient
 
 from stream_sniper.api.api import app
+from stream_sniper.api.auth import get_current_admin_user
+
+
+def _miss_cache():
+    """A mock cache that always misses, so endpoint tests don't depend on Redis state."""
+    cache = Mock()
+    cache._generate_key = Mock(return_value="test-cache-key")
+    cache.get = Mock(return_value=None)
+    cache.set = Mock(return_value=True)
+    return cache
 
 
 class TestChattersEndpoints:
@@ -501,3 +512,142 @@ class TestAPIDocumentation:
 
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
+
+
+class TestChatterSearchEndpoint:
+    """Test suite for the /chatters/search autocomplete endpoint."""
+
+    @patch("stream_sniper.api.api.get_cache")
+    @patch("stream_sniper.api.api.select_chatters_by_prefix_db")
+    def test_search_chatters_success(self, mock_search, mock_get_cache):
+        """Prefix search returns [id, nick] pairs and calls the gateway."""
+        mock_get_cache.return_value = _miss_cache()
+        mock_search.return_value = [[42, "ninja"], [77, "ninjastreams"]]
+
+        with TestClient(app) as client:
+            response = client.get("/chatters/search?q=nin")
+
+        assert response.status_code == 200
+        assert response.json() == [[42, "ninja"], [77, "ninjastreams"]]
+        mock_search.assert_called_once_with("nin", 10)
+
+    @patch("stream_sniper.api.api.get_cache")
+    @patch("stream_sniper.api.api.select_chatters_by_prefix_db")
+    def test_search_chatters_trims_and_honors_limit(self, mock_search, mock_get_cache):
+        """Whitespace is trimmed and the limit query param is passed through."""
+        mock_get_cache.return_value = _miss_cache()
+        mock_search.return_value = []
+
+        with TestClient(app) as client:
+            response = client.get("/chatters/search?q=%20nin%20&limit=5")
+
+        assert response.status_code == 200
+        assert response.json() == []
+        mock_search.assert_called_once_with("nin", 5)
+
+    @patch("stream_sniper.api.api.get_cache")
+    @patch("stream_sniper.api.api.select_chatters_by_prefix_db")
+    def test_search_chatters_short_query_skips_db(self, mock_search, mock_get_cache):
+        """Queries shorter than 2 chars return [] without touching the database."""
+        mock_get_cache.return_value = _miss_cache()
+
+        with TestClient(app) as client:
+            response = client.get("/chatters/search?q=n")
+
+        assert response.status_code == 200
+        assert response.json() == []
+        mock_search.assert_not_called()
+
+    @patch("stream_sniper.api.api.get_cache")
+    @patch("stream_sniper.api.api.select_chatters_by_prefix_db")
+    def test_search_chatters_server_error(self, mock_search, mock_get_cache):
+        """A database error surfaces as a 500."""
+        mock_get_cache.return_value = _miss_cache()
+        mock_search.side_effect = Exception("Database connection failed")
+
+        with TestClient(app) as client:
+            response = client.get("/chatters/search?q=nin")
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "Internal server error"
+
+    def test_search_chatters_missing_query(self):
+        """The q param is required."""
+        with TestClient(app) as client:
+            response = client.get("/chatters/search")
+
+        assert response.status_code == 422
+
+
+class TestTwitchSearchEndpoint:
+    """Test suite for the admin /admin/tracking/twitch-search endpoint."""
+
+    @staticmethod
+    def _override_admin():
+        app.dependency_overrides[get_current_admin_user] = lambda: SimpleNamespace(
+            id=1, username="admin", role="admin"
+        )
+
+    @staticmethod
+    def _clear_admin():
+        app.dependency_overrides.pop(get_current_admin_user, None)
+
+    @patch("stream_sniper.api.tracking_endpoints.get_cache")
+    @patch("stream_sniper.api.tracking_endpoints.TwitchAPI")
+    def test_search_twitch_channels_success(self, mock_twitch_cls, mock_get_cache):
+        """Channel results are mapped to {login, display_name, profile_image_url, is_live}."""
+        mock_get_cache.return_value = _miss_cache()
+        channel = SimpleNamespace(
+            broadcaster_login="ninja",
+            display_name="Ninja",
+            thumbnail_url="http://img/ninja.png",
+            is_live=True,
+        )
+        instance = mock_twitch_cls.instance.return_value
+        instance.ensure_initialized = AsyncMock()
+        instance.search_channels_async = AsyncMock(return_value=[channel])
+
+        self._override_admin()
+        try:
+            with TestClient(app) as client:
+                response = client.get("/admin/tracking/twitch-search?q=nin")
+        finally:
+            self._clear_admin()
+
+        assert response.status_code == 200
+        assert response.json() == [
+            {
+                "login": "ninja",
+                "display_name": "Ninja",
+                "profile_image_url": "http://img/ninja.png",
+                "is_live": True,
+            }
+        ]
+        instance.search_channels_async.assert_awaited_once_with("nin", 8)
+
+    @patch("stream_sniper.api.tracking_endpoints.get_cache")
+    @patch("stream_sniper.api.tracking_endpoints.TwitchAPI")
+    def test_search_twitch_channels_short_query_skips_twitch(self, mock_twitch_cls, mock_get_cache):
+        """Short queries return [] without hitting the Twitch API."""
+        mock_get_cache.return_value = _miss_cache()
+        instance = mock_twitch_cls.instance.return_value
+        instance.ensure_initialized = AsyncMock()
+        instance.search_channels_async = AsyncMock(return_value=[])
+
+        self._override_admin()
+        try:
+            with TestClient(app) as client:
+                response = client.get("/admin/tracking/twitch-search?q=n")
+        finally:
+            self._clear_admin()
+
+        assert response.status_code == 200
+        assert response.json() == []
+        instance.search_channels_async.assert_not_awaited()
+
+    def test_search_twitch_channels_requires_auth(self):
+        """Without an admin token the endpoint rejects the request."""
+        with TestClient(app) as client:
+            response = client.get("/admin/tracking/twitch-search?q=nin")
+
+        assert response.status_code in (401, 403)

@@ -32,6 +32,8 @@ api.interceptors.response.use(
 // Data endpoints (baseURL '/api' already applied; paths are backend-relative after /api strip)
 export const retrieveMessages = (chatterId: string | number) => api.get(`/chatter/${chatterId}/messages`)
 export const retrieveChatterId = (nick: string) => api.get(`/chatter/${nick}/chatter_id`)
+export const retrieveChatterSearch = (q: string, limit = 10) => api.get(`/chatters/search?q=${encodeURIComponent(q)}&limit=${limit}`)
+export const retrieveTwitchChannelSearch = (q: string, limit = 8) => api.get(`/admin/tracking/twitch-search?q=${encodeURIComponent(q)}&limit=${limit}`)
 export const retrieveChattersOnStream = (streamId: string | number) => api.get(`/stream/${streamId}/chatters`)
 export const retrieveStreams = (creatorId: string | number, offset: number) => api.get(`/streams?creator_id=${creatorId}&offset=${offset}`)
 export const retrieveStreamComprehensive = (streamId: string | number) => api.get(`/stream/${streamId}`)

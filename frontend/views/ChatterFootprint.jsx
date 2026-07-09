@@ -3,40 +3,25 @@ import {
     useState, useCallback, useMemo,
 } from 'react'
 import {
-    Card, Form, Button, Table,
+    Card, Table,
 } from 'react-bootstrap'
 import Link from 'next/link'
 import {
-    useChatterId, useChatterStreamActivity,
+    useChatterStreamActivity,
 } from '@/hooks/useApiQuery'
+import { retrieveChatterSearch } from '@/lib/api'
+import AsyncSearchSelect from '@/components/AsyncSearchSelect'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import ErrorAlert from '@/components/ErrorAlert'
 import { formatStreamTimestamp } from '@/utils/dateUtils'
 
 const ChatterFootprint = () => {
     const [
-        nickInput,
-        setNickInput,
-    ] = useState('')
-    const [
-        submittedNick,
-        setSubmittedNick,
-    ] = useState('')
+        selectedChatter,
+        setSelectedChatter,
+    ] = useState(null)
 
-    const {
-        data: chatterIdData,
-        isLoading: chatterIdLoading,
-        error: chatterIdError,
-        refetch: refetchChatterId,
-    } = useChatterId(submittedNick, Boolean(submittedNick))
-
-    // The chatter_id endpoint returns a list of ints, e.g. [42]
-    const chatterId = useMemo(() => {
-        if (Array.isArray(chatterIdData)) return chatterIdData[0] || null
-        return chatterIdData || null
-    }, [
-        chatterIdData,
-    ])
+    const chatterId = selectedChatter?.value || null
 
     const {
         data: activityData,
@@ -56,18 +41,39 @@ const ChatterFootprint = () => {
     ])
 
     /**
-     * Handles the nick lookup form submission
-     * @param {object} event
+     * Prefix-search chatter nicks for the autocomplete dropdown.
+     * The backend returns [[id, nick], ...]; map to react-select options.
+     * @param {string} query
+     * @returns {Promise<Array<{value: number, label: string}>>}
      */
-    const handleSubmit = useCallback(event => {
-        event.preventDefault()
-        setSubmittedNick(nickInput.trim())
+    const loadChatterOptions = useCallback(async query => {
+        const trimmed = query.trim()
+        if (trimmed.length < 2) {
+            return []
+        }
+        try {
+            const { data } = await retrieveChatterSearch(trimmed)
+            return (data || []).map(([
+                id,
+                nick,
+            ]) => ({
+                value: id,
+                label: nick,
+            }))
+        } catch {
+            return []
+        }
     }, [
-        nickInput,
     ])
 
-    const isNotFound = chatterIdError?.response?.status === 404
-    const isLoading = chatterIdLoading || activityLoading
+    const noOptionsMessage = useCallback(({ inputValue }) => (
+        inputValue && inputValue.trim().length >= 2
+            ? `No chatters matching "${inputValue}"`
+            : 'Type at least 2 characters to search'
+    ), [
+    ])
+
+    const isLoading = Boolean(chatterId) && activityLoading
 
     return (
         <>
@@ -78,8 +84,7 @@ const ChatterFootprint = () => {
                 </div>
             </div>
 
-            <Form
-                onSubmit={handleSubmit}
+            <div
                 className="toolbar"
                 role="search"
             >
@@ -95,42 +100,35 @@ const ChatterFootprint = () => {
                     >
                         Chatter nickname
                     </label>
-                    <Form.Control
-                        id="footprint-nick-input"
-                        type="text"
-                        value={nickInput}
-                        onChange={event => setNickInput(event.target.value)}
-                        placeholder="Enter chatter nickname..."
+                    <AsyncSearchSelect
+                        instanceId="footprint-nick-select"
+                        inputId="footprint-nick-input"
+                        loadOptions={loadChatterOptions}
+                        value={selectedChatter}
+                        onChange={setSelectedChatter}
+                        noOptionsMessage={noOptionsMessage}
+                        placeholder="Search for a chatter..."
+                        isClearable
                         aria-label="Chatter nickname"
                     />
                 </div>
-                <Button
-                    type="submit"
-                    variant="primary"
-                    disabled={!nickInput.trim()}
-                >
-                    <i
-                        className="bi bi-crosshair me-2"
-                        aria-hidden="true"></i>
-                    Trace
-                </Button>
-                {submittedNick && activity.length > 0 && !isLoading && (
+                {selectedChatter && activity.length > 0 && !isLoading && (
                     <span className="toolbar-readout">
-                        <strong>{activity.length}</strong> streams · target <strong>{submittedNick}</strong>
+                        <strong>{activity.length}</strong> streams · target <strong>{selectedChatter.label}</strong>
                     </span>
                 )}
-            </Form>
+            </div>
 
             <Card>
-                <Card.Body className={!submittedNick || isNotFound || (chatterId && activity.length === 0 && !isLoading) ? 'p-0' : ''}>
-                    {!submittedNick && (
+                <Card.Body className={!selectedChatter || (chatterId && activity.length === 0 && !isLoading) ? 'p-0' : ''}>
+                    {!selectedChatter && (
                         <div className="empty-state">
                             <div
                                 className="empty-scope"
                                 aria-hidden="true" />
                             <p className="empty-title">Awaiting target</p>
                             <p className="empty-hint">
-                                Enter a chatter nickname to see every captured stream they appear in.
+                                Search for a chatter nickname to see every captured stream they appear in.
                             </p>
                         </div>
                     )}
@@ -139,27 +137,6 @@ const ChatterFootprint = () => {
                         <LoadingSpinner
                             size="lg"
                             text="Tracing chatter footprint..."
-                        />
-                    )}
-
-                    {isNotFound && !isLoading && (
-                        <div className="empty-state">
-                            <div
-                                className="empty-scope"
-                                aria-hidden="true" />
-                            <p className="empty-title">No signal</p>
-                            <p className="empty-hint">
-                                No chatter found with the nickname <strong>{submittedNick}</strong>.
-                            </p>
-                        </div>
-                    )}
-
-                    {chatterIdError && !isNotFound && !isLoading && (
-                        <ErrorAlert
-                            error={chatterIdError}
-                            title="Failed to look up chatter"
-                            onRetry={refetchChatterId}
-                            showDetails={process.env.NODE_ENV === 'development'}
                         />
                     )}
 
