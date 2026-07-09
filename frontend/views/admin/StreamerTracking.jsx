@@ -5,10 +5,11 @@ import {
 import {
     Card, Table, Button, Alert, Spinner, Modal, Form, Pagination,
 } from 'react-bootstrap'
-import { retrieveTwitchChannelSearch } from '@/lib/api'
+import {
+    getApiErrorMessage, retrieveTwitchChannelSearch,
+} from '@/lib/api'
 import AsyncSearchSelect from '@/components/AsyncSearchSelect'
 import {
-    getApiErrorMessage,
     useCreateTrackedStreamer,
     useDeleteTrackedStreamer,
     useTrackedStreamers,

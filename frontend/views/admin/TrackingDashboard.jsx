@@ -7,8 +7,9 @@ import TrackedStreamersCard from '@/components/admin/TrackedStreamersCard'
 import ProcessingOverviewCard from '@/components/admin/ProcessingOverviewCard'
 import ProcessingJobsStatistics from '@/components/admin/ProcessingJobsStatistics'
 import TrackingDashboardActions from '@/components/admin/TrackingDashboardActions'
+import { getApiErrorMessage } from '@/lib/api'
 import {
-    getApiErrorMessage, useTrackingStats,
+    useTrackingStats,
 } from '@/hooks/useTrackingQueries'
 
 const TrackingDashboard = () => {

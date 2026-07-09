@@ -21,7 +21,6 @@ export {
 } from './useChattersQuery'
 
 export {
-    getApiErrorMessage,
     trackingKeys,
     useCreateTrackedStreamer,
     useDeleteTrackedStreamer,
@@ -31,3 +30,14 @@ export {
     useTrackingStats,
     useUpdateTrackedStreamer,
 } from './useTrackingQueries'
+
+export {
+    userAdminKeys,
+    useAdminSystemStats,
+    useAdminUsers,
+    useCreateAdminUser,
+    useDeleteAdminUser,
+    useSetAdminUserActive,
+    useUpdateAdminUser,
+    useUpdateAdminUserRole,
+} from './useUserAdminQueries'

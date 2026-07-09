@@ -1,50 +1,19 @@
 'use client'
 import {
-    useState, useEffect, useCallback,
-} from 'react'
-import {
     Row, Col, Card, Alert, Spinner,
 } from 'react-bootstrap'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
-import { api } from '@/lib/api'
+import { getApiErrorMessage } from '@/lib/api'
+import { useAdminSystemStats } from '@/hooks/useUserAdminQueries'
 
 const AdminDashboard = () => {
     const { user } = useAuth()
-    const [
-        stats,
-        setStats,
-    ] = useState(null)
-    const [
-        loading,
-        setLoading,
-    ] = useState(true)
-    const [
+    const {
+        data: stats,
         error,
-        setError,
-    ] = useState(null)
-
-    const fetchSystemStats = useCallback(async () => {
-        try {
-            setLoading(true)
-            setError(null)
-
-            const { data } = await api.get('/auth/admin/stats')
-            setStats(data)
-        } catch (fetchError) {
-            console.error('Error fetching system stats:', fetchError)
-            setError(fetchError.response?.data?.detail || fetchError.message || 'Failed to fetch system stats')
-        } finally {
-            setLoading(false)
-        }
-    }, [
-    ])
-
-    useEffect(() => {
-        fetchSystemStats()
-    }, [
-        fetchSystemStats,
-    ])
+        isPending: loading,
+    } = useAdminSystemStats()
 
     if (loading) {
         return (
@@ -71,7 +40,7 @@ const AdminDashboard = () => {
                 <Alert
                     variant="danger"
                     className="mb-4">
-                    {error}
+                    {getApiErrorMessage(error, 'Failed to fetch system stats')}
                 </Alert>
             )}
 

@@ -4,7 +4,8 @@ import {
     Container, Row, Col, Card, Form, Button, Alert, Spinner,
 } from 'react-bootstrap'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { getApiErrorMessage } from '@/lib/api'
+import { useCreateAdminUser } from '@/hooks/useUserAdminQueries'
 
 const CreateUser = () => {
     const router = useRouter()
@@ -20,10 +21,6 @@ const CreateUser = () => {
         is_active: true,
     })
     const [
-        loading,
-        setLoading,
-    ] = useState(false)
-    const [
         error,
         setError,
     ] = useState(null)
@@ -31,6 +28,8 @@ const CreateUser = () => {
         success,
         setSuccess,
     ] = useState(null)
+    const createUser = useCreateAdminUser()
+    const loading = createUser.isPending
 
     const handleInputChange = e => {
         const {
@@ -89,12 +88,11 @@ const CreateUser = () => {
             return
         }
 
-        setLoading(true)
         setError(null)
         setSuccess(null)
 
         try {
-            const { data: userData } = await api.post('/auth/admin/users', {
+            const { data: userData } = await createUser.mutateAsync({
                 username: formData.username,
                 email: formData.email,
                 password: formData.password,
@@ -118,9 +116,7 @@ const CreateUser = () => {
             }, 2000)
         } catch (createError) {
             console.error('Error creating user:', createError)
-            setError(createError.response?.data?.detail || createError.message || 'Failed to create user')
-        } finally {
-            setLoading(false)
+            setError(getApiErrorMessage(createError, 'Failed to create user'))
         }
     }
 

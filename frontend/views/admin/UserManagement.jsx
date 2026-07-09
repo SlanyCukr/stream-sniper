@@ -1,7 +1,5 @@
 'use client'
-import {
-    useState, useEffect, useCallback,
-} from 'react'
+import { useState } from 'react'
 import {
     Container,
     Card,
@@ -13,23 +11,18 @@ import { useAuth } from '@/contexts/AuthContext'
 import UserManagementTable from '@/components/admin/UserManagementTable'
 import UserManagementModals from '@/components/admin/UserManagementModals'
 import { renderPagination } from '@/utils/paginationUtils'
-import { api } from '@/lib/api'
+import { getApiErrorMessage } from '@/lib/api'
+import {
+    useAdminUsers,
+    useDeleteAdminUser,
+    useSetAdminUserActive,
+    useUpdateAdminUser,
+    useUpdateAdminUserRole,
+} from '@/hooks/useUserAdminQueries'
 
 const UserManagement = () => {
     const { user: authenticatedUser } = useAuth()
-    const [
-        users,
-        setUsers,
-    ] = useState([
-    ])
-    const [
-        loading,
-        setLoading,
-    ] = useState(true)
-    const [
-        error,
-        setError,
-    ] = useState(null)
+    const [actionError, setActionError] = useState(null)
     const [
         success,
         setSuccess,
@@ -51,38 +44,25 @@ const UserManagement = () => {
         setCurrentPage,
     ] = useState(1)
     const [
-        totalUsers,
-        setTotalUsers,
-    ] = useState(0)
-    const [
         usersPerPage,
     ] = useState(20)
 
-    const fetchUsers = useCallback(async () => {
-        try {
-            setLoading(true)
-            setError(null)
-
-            const offset = (currentPage - 1) * usersPerPage
-            const { data } = await api.get(`/auth/users?offset=${offset}&limit=${usersPerPage}`)
-            setUsers(data.users)
-            setTotalUsers(data.total)
-        } catch (fetchError) {
-            console.error('Error fetching users:', fetchError)
-            setError(fetchError.response?.data?.detail || fetchError.message || 'Failed to fetch users')
-        } finally {
-            setLoading(false)
-        }
-    }, [
-        currentPage,
-        usersPerPage,
-    ])
-
-    useEffect(() => {
-        fetchUsers()
-    }, [
-        fetchUsers,
-    ])
+    const {
+        data: usersData,
+        error: usersError,
+        isPending: loading,
+        refetch: fetchUsers,
+    } = useAdminUsers({
+        offset: (currentPage - 1) * usersPerPage,
+        limit: usersPerPage,
+    })
+    const users = usersData?.users || []
+    const totalUsers = usersData?.total || 0
+    const error = actionError || (usersError && getApiErrorMessage(usersError, 'Failed to fetch users'))
+    const updateUser = useUpdateAdminUser()
+    const deleteUser = useDeleteAdminUser()
+    const setUserActive = useSetAdminUserActive()
+    const updateUserRole = useUpdateAdminUserRole()
 
     const handleEditUser = userToEdit => {
         setSelectedUser(userToEdit)
@@ -96,52 +76,60 @@ const UserManagement = () => {
 
     const handleUserUpdate = async updatedUser => {
         try {
-            await api.put(`/auth/users/${updatedUser.id}`, {
-                email: updatedUser.email,
-                role: updatedUser.role,
-                is_active: updatedUser.is_active,
+            setActionError(null)
+            await updateUser.mutateAsync({
+                userId: updatedUser.id,
+                changes: {
+                    email: updatedUser.email,
+                    role: updatedUser.role,
+                    is_active: updatedUser.is_active,
+                },
             })
             setSuccess('User updated successfully')
             setShowEditModal(false)
-            fetchUsers()
         } catch (updateError) {
             console.error('Error updating user:', updateError)
-            setError(updateError.response?.data?.detail || updateError.message || 'Failed to update user')
+            setActionError(getApiErrorMessage(updateError, 'Failed to update user'))
         }
     }
 
     const handleUserDelete = async () => {
         try {
-            await api.delete(`/auth/users/${selectedUser.id}`)
+            setActionError(null)
+            await deleteUser.mutateAsync(selectedUser.id)
             setSuccess('User deleted successfully')
             setShowDeleteModal(false)
-            fetchUsers()
         } catch (deleteError) {
             console.error('Error deleting user:', deleteError)
-            setError(deleteError.response?.data?.detail || deleteError.message || 'Failed to delete user')
+            setActionError(getApiErrorMessage(deleteError, 'Failed to delete user'))
         }
     }
 
     const handleUserAction = async (userId, action) => {
         try {
-            const endpoint = action === 'activate' ? 'activate' : 'deactivate'
-            await api.put(`/auth/users/${userId}/${endpoint}`)
+            setActionError(null)
+            await setUserActive.mutateAsync({
+                userId,
+                isActive: action === 'activate',
+            })
             setSuccess(`User ${action}d successfully`)
-            fetchUsers()
         } catch (actionError) {
             console.error(`Error ${action} user:`, actionError)
-            setError(actionError.response?.data?.detail || actionError.message || `Failed to ${action} user`)
+            setActionError(getApiErrorMessage(actionError, `Failed to ${action} user`))
         }
     }
 
     const handleRoleChange = async (userId, newRole) => {
         try {
-            await api.put(`/auth/users/${userId}/role`, { role: newRole })
+            setActionError(null)
+            await updateUserRole.mutateAsync({
+                userId,
+                role: newRole,
+            })
             setSuccess('User role updated successfully')
-            fetchUsers()
         } catch (roleError) {
             console.error('Error updating user role:', roleError)
-            setError(roleError.response?.data?.detail || roleError.message || 'Failed to update user role')
+            setActionError(getApiErrorMessage(roleError, 'Failed to update user role'))
         }
     }
 
@@ -182,8 +170,8 @@ const UserManagement = () => {
             {error && (
                 <Alert
                     variant="danger"
-                    dismissible
-                    onClose={() => setError(null)}>
+                    dismissible={Boolean(actionError)}
+                    onClose={() => setActionError(null)}>
                     {error}
                 </Alert>
             )}

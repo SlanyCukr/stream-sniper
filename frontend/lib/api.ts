@@ -42,6 +42,19 @@ export const retrieveAllCreators = () => api.get('/creators')
 export const retrieveCreatorTopChatters = (creatorId: string | number, limit: number) => api.get(`/creator/${creatorId}/top-chatters?limit=${limit}`)
 export const retrieveChatterStreamActivity = (chatterId: string | number) => api.get(`/chatter/${chatterId}/stream-activity`)
 
+type ApiErrorResponse = {
+  detail?: unknown
+}
+
+/** Convert Axios and native errors to a safe UI message. */
+export const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError<ApiErrorResponse>(error)) {
+    const detail = error.response?.data?.detail
+    return typeof detail === 'string' ? detail : error.message || fallback
+  }
+  return error instanceof Error ? error.message || fallback : fallback
+}
+
 // Tracking administration endpoints
 type TrackingListParams = Record<string, string | number | boolean | null | undefined>
 
@@ -61,3 +74,12 @@ export const createTrackedStreamer = (streamer: Record<string, unknown>) => api.
 export const updateTrackedStreamer = (streamerId: string | number, changes: Record<string, unknown>) => api.put(`/admin/tracking/streamers/${streamerId}`, changes)
 export const deleteTrackedStreamer = (streamerId: string | number) => api.delete(`/admin/tracking/streamers/${streamerId}`)
 export const retrieveProcessingJobs = (params: TrackingListParams = {}) => api.get(`/admin/tracking/jobs?${trackingParams(params)}`)
+
+// User administration endpoints
+export const retrieveAdminSystemStats = () => api.get('/auth/admin/stats')
+export const retrieveUsers = (params: TrackingListParams = {}) => api.get(`/auth/users?${trackingParams(params)}`)
+export const createAdminUser = (user: Record<string, unknown>) => api.post('/auth/admin/users', user)
+export const updateUser = (userId: string | number, changes: Record<string, unknown>) => api.put(`/auth/users/${userId}`, changes)
+export const updateUserRole = (userId: string | number, role: string) => api.put(`/auth/users/${userId}/role?new_role=${encodeURIComponent(role)}`)
+export const setUserActive = (userId: string | number, isActive: boolean) => api.put(`/auth/users/${userId}/${isActive ? 'activate' : 'deactivate'}`)
+export const deleteUser = (userId: string | number) => api.delete(`/auth/users/${userId}`)

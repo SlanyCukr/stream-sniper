@@ -167,6 +167,3 @@ export const useDeleteTrackedStreamer = (options = {}) => useTrackingMutation(
     streamerId => deleteTrackedStreamer(streamerId),
     options,
 )
-
-/** Convert Axios and native errors to a safe UI message. */
-export const getApiErrorMessage = (error, fallback) => error?.response?.data?.detail || error?.message || fallback
