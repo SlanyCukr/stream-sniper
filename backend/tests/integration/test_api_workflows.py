@@ -162,7 +162,11 @@ class TestAPIWorkflowIntegration:
         response = api_client_with_db.get(f"/chatter/{test_chatter_id}/messages/")
         assert response.status_code == 200
         chatter_messages = response.json()
-        assert len(chatter_messages) >= 1
+        assert chatter_messages["total"] >= 1
+        assert len(chatter_messages["messages"]) >= 1
+        # Each row is [stream_id, stream_title, streamer_display_name, text, timestamp]
+        assert chatter_messages["messages"][0][0] == stream_id
+        assert chatter_messages["messages"][0][3] in messages
 
         # Test GET /stream/{stream_id}/chatter/{chatter_id}/messages
         response = api_client_with_db.get(f"/stream/{stream_id}/chatter/{test_chatter_id}/messages")
@@ -230,9 +234,10 @@ class TestAPIWorkflowIntegration:
         assert response.status_code == 404
         assert "detail" in response.json()
 
-        # Non-existent chatter
+        # Non-existent chatter — messages endpoint returns an empty page, not a 404
         response = api_client_with_db.get("/chatter/99999/messages/")
-        assert response.status_code == 404
+        assert response.status_code == 200
+        assert response.json() == {"messages": [], "total": 0}
 
         # Non-existent chatter nick
         response = api_client_with_db.get("/chatter/nonexistent_chatter/chatter_id")
@@ -325,8 +330,9 @@ class TestAPIWorkflowIntegration:
         assert chatter_found
 
         # Chatter should have messages
-        assert len(chatter_messages) >= 1
-        assert chatter_messages[0][0] == "Consistency test message"
+        assert chatter_messages["total"] >= 1
+        # Each row is [stream_id, stream_title, streamer_display_name, text, timestamp]
+        assert chatter_messages["messages"][0][3] == "Consistency test message"
 
     def test_api_health_check_workflow(self, api_client_with_db):
         """Test health check endpoint with real database."""
@@ -434,5 +440,6 @@ class TestAPIWorkflowIntegration:
         messages = response.json()
 
         # Verify unicode message content
-        assert len(messages) >= 1
-        assert "Hello! 😀🎮 你好世界 ★☆♦" in messages[0][0]
+        assert messages["total"] >= 1
+        # Each row is [stream_id, stream_title, streamer_display_name, text, timestamp]
+        assert "Hello! 😀🎮 你好世界 ★☆♦" in messages["messages"][0][3]

@@ -16,6 +16,7 @@ from ..database.connection_pool import close_pool
 from ..database.creator_table_gateway import select_creator_top_chatters_db, select_creators_db
 from ..database.message_table_gateway import (
     select_chatter_id_db,
+    select_chatter_message_count_db,
     select_chatter_messages_db,
     select_chatter_stream_activity_db,
 )
@@ -144,6 +145,15 @@ class StreamsResponse(BaseModel):
 
     streams: List[List[Any]] = Field(..., description="List of stream data tuples")
     max_offset: int = Field(..., description="Maximum offset for pagination", json_schema_extra={"example": 1000})
+
+
+class ChatterMessagesResponse(BaseModel):
+    """Paginated cross-stream chatter message log"""
+
+    messages: List[List[Any]] = Field(
+        ..., description="List of [stream_id, stream_title, streamer_display_name, text, timestamp] tuples"
+    )
+    total: int = Field(..., description="Total messages sent by the chatter", json_schema_extra={"example": 1234})
 
 
 class ErrorResponse(BaseModel):
@@ -348,63 +358,82 @@ async def metrics_middleware(request: Request, call_next):
 
 @app.get(
     "/chatter/{chatter_id}/messages",
-    response_model=List[List[str]],
+    response_model=ChatterMessagesResponse,
     tags=["Chatters"],
     summary="Get messages by chatter",
     description=f"""
-    Retrieve all messages sent by a specific chatter across all streams.
-    Returns a list of [message_text, timestamp] tuples.
-    
+    Retrieve messages sent by a specific chatter across all streams, newest first,
+    with pagination. Each row is a
+    [stream_id, stream_title, streamer_display_name, message_text, timestamp] tuple;
+    `total` is the chatter's overall message count.
+
     **Rate Limit**: {rate_limits.GENERAL}
     """,
     responses={
         200: {
-            "description": "List of messages with timestamps",
+            "description": "Paginated list of messages with stream context",
             "content": {
                 "application/json": {
-                    "example": [
-                        ["Hello everyone!", "2024-01-15 20:30:15"],
-                        ["Great stream!", "2024-01-15 20:45:22"],
-                        ["@streamer keep it up!", "2024-01-15 21:10:03"],
-                    ]
+                    "example": {
+                        "messages": [
+                            [7, "Epic Gaming Session", "SomeStreamer", "Hello everyone!", "2024-01-15 20:30:15"],
+                            [7, "Epic Gaming Session", "SomeStreamer", "Great stream!", "2024-01-15 20:45:22"],
+                        ],
+                        "total": 1234,
+                    }
                 }
             },
         },
-        404: {"model": ErrorResponse, "description": "Chatter not found"},
         429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
     },
 )
 @limiter.limit(rate_limits.GENERAL)
 def get_chatter_messages(
-    request: Request, response: Response, chatter_id: int = Path(..., description="Unique chatter ID", json_schema_extra={"example": 42})
+    request: Request,
+    response: Response,
+    chatter_id: int = Path(..., description="Unique chatter ID", json_schema_extra={"example": 42}),
+    offset: int = Query(0, ge=0, description="Row offset for pagination", json_schema_extra={"example": 0}),
+    limit: int = Query(50, ge=1, le=200, description="Maximum messages per page"),
 ):
-    """Get all messages sent by a specific chatter"""
+    """Get paginated messages sent by a specific chatter across all streams"""
     try:
-        # Try cache first
         cache = get_cache()
-        cache_key = cache._generate_key("chatter_messages", chatter_id)
-        cached_result = cache.get(cache_key)
 
-        if cached_result is not None:
-            response.headers["X-Cache"] = "HIT"
+        messages_cache_key = cache._generate_key("chatter_messages", chatter_id, limit, offset)
+        cached_messages = cache.get(messages_cache_key)
+
+        count_cache_key = cache._generate_key("chatter_message_count", chatter_id)
+        cached_count = cache.get(count_cache_key)
+
+        messages_from_cache = cached_messages is not None
+        count_from_cache = cached_count is not None
+
+        if not messages_from_cache:
+            record_cache_operation("miss", "chatter_messages")
+            messages = select_chatter_messages_db(chatter_id, limit, offset)
+            cache.set(messages_cache_key, messages, CacheTTL.CHATTER_MESSAGES)
+            record_cache_operation("set", "chatter_messages")
+        else:
             record_cache_operation("hit", "chatter_messages")
-            return cached_result
+            messages = cached_messages
 
-        # Cache miss - fetch from database
-        record_cache_operation("miss", "chatter_messages")
-        result = select_chatter_messages_db(chatter_id)
+        if not count_from_cache:
+            record_cache_operation("miss", "chatter_message_count")
+            total = select_chatter_message_count_db(chatter_id)
+            cache.set(count_cache_key, total, CacheTTL.CHATTER_MESSAGES)
+            record_cache_operation("set", "chatter_message_count")
+        else:
+            record_cache_operation("hit", "chatter_message_count")
+            total = cached_count
 
-        if not result:
-            raise HTTPException(status_code=404, detail="Chatter not found or has no messages")
+        if messages_from_cache and count_from_cache:
+            response.headers["X-Cache"] = "HIT"
+        elif messages_from_cache or count_from_cache:
+            response.headers["X-Cache"] = "PARTIAL"
+        else:
+            response.headers["X-Cache"] = "MISS"
 
-        # Cache the result
-        cache.set(cache_key, result, CacheTTL.CHATTER_MESSAGES)
-        record_cache_operation("set", "chatter_messages")
-        response.headers["X-Cache"] = "MISS"
-
-        return result
-    except HTTPException:
-        raise
+        return {"messages": messages, "total": total}
     except Exception as e:
         logger.error(f"Error fetching chatter messages: {e}")
         record_cache_operation("error", "chatter_messages")

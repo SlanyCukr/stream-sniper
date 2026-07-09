@@ -21,6 +21,7 @@ __all__ = [
     "select_creator_top_chatters_db",
     # Message gateway functions
     "select_chatter_messages_db",
+    "select_chatter_message_count_db",
     "insert_message_db",
     "select_chatter_id_db",
     "select_chatter_stream_activity_db",
