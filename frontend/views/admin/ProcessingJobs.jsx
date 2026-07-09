@@ -1,12 +1,15 @@
 'use client'
-import {
-    useState, useEffect, useCallback,
-} from 'react'
+import { useState } from 'react'
 import {
     Card, Table, Alert, Spinner, Form, Pagination,
 } from 'react-bootstrap'
 import Select from 'react-select'
-import { api } from '@/lib/api'
+import {
+    getApiErrorMessage,
+    useProcessingJobs,
+    useTrackedStreamerOptions,
+    useTrackingStats,
+} from '@/hooks/useTrackingQueries'
 
 /**
  * Statistics Tiles Component
@@ -108,26 +111,11 @@ const JobFilters = ({
 
 const ProcessingJobs = () => {
     const [
-        jobs,
-        setJobs,
-    ] = useState([
-    ])
-    const [
-        loading,
-        setLoading,
-    ] = useState(true)
-    const [
-        error,
-        setError,
-    ] = useState(null)
-    const [
         pagination,
         setPagination,
     ] = useState({
         offset: 0,
         limit: 50,
-        total: 0,
-        currentPage: 1,
     })
     const [
         filters,
@@ -136,94 +124,26 @@ const ProcessingJobs = () => {
         status: '',
         tracked_streamer_id: '',
     })
-    const [
-        stats,
-        setStats,
-    ] = useState({})
-    const [
-        streamerOptions,
-        setStreamerOptions,
-    ] = useState([
-    ])
-
-    const fetchJobs = useCallback(async () => {
-        try {
-            setLoading(true)
-            setError(null)
-
-            const params = new URLSearchParams({
-                offset: pagination.offset.toString(),
-                limit: pagination.limit.toString(),
-            })
-
-            if (filters.status) {
-                params.append('status', filters.status)
-            }
-            if (filters.tracked_streamer_id) {
-                params.append('tracked_streamer_id', filters.tracked_streamer_id)
-            }
-
-            const { data } = await api.get(`/admin/tracking/jobs?${params}`)
-            setJobs(data.jobs)
-            setPagination(prev => ({
-                ...prev,
-                total: data.total,
-                currentPage: Math.floor(data.offset / data.limit) + 1,
-            }))
-        } catch (fetchError) {
-            console.error('Error fetching jobs:', fetchError)
-            setError(fetchError.response?.data?.detail || fetchError.message || 'Failed to fetch jobs')
-        } finally {
-            setLoading(false)
-        }
-    }, [
-        pagination.offset,
-        pagination.limit,
-        filters,
-    ])
-
-    const fetchStats = useCallback(async () => {
-        try {
-            const { data } = await api.get('/admin/tracking/stats')
-            setStats(data.processing_jobs)
-        } catch (statsError) {
-            console.error('Error fetching stats:', statsError)
-        }
-    }, [
-    ])
-
-    const fetchStreamerOptions = useCallback(async () => {
-        try {
-            const { data } = await api.get('/admin/tracking/streamers?limit=1000')
-            setStreamerOptions((data.streamers || []).map(streamer => ({
-                value: streamer.id,
-                label: streamer.twitch_username,
-            })))
-        } catch (optionsError) {
-            console.error('Error fetching streamer options:', optionsError)
-        }
-    }, [
-    ])
-
-    useEffect(() => {
-        fetchJobs()
-        fetchStats()
-    }, [
-        fetchJobs,
-        fetchStats,
-    ])
-
-    useEffect(() => {
-        fetchStreamerOptions()
-    }, [
-        fetchStreamerOptions,
-    ])
+    const {
+        data: jobsData,
+        error: jobsError,
+        isPending: loading,
+    } = useProcessingJobs({
+        ...pagination,
+        ...filters,
+    })
+    const { data: trackingStats } = useTrackingStats()
+    const { data: streamerOptions = [] } = useTrackedStreamerOptions()
+    const jobs = jobsData?.jobs || []
+    const total = jobsData?.total || 0
+    const currentPage = Math.floor(pagination.offset / pagination.limit) + 1
+    const error = jobsError && getApiErrorMessage(jobsError, 'Failed to fetch processing jobs')
+    const stats = trackingStats?.processing_jobs || {}
 
     const handlePageChange = page => {
         setPagination(prev => ({
             ...prev,
             offset: (page - 1) * prev.limit,
-            currentPage: page,
         }))
     }
 
@@ -258,7 +178,7 @@ const ProcessingJobs = () => {
         )
     }
 
-    const totalPages = Math.ceil(pagination.total / pagination.limit)
+    const totalPages = Math.ceil(total / pagination.limit)
 
     return (
         <>
@@ -272,9 +192,7 @@ const ProcessingJobs = () => {
             {error && (
                 <Alert
                     variant="danger"
-                    className="mb-4"
-                    dismissible
-                    onClose={() => setError(null)}>
+                    className="mb-4">
                     {error}
                 </Alert>
             )}
@@ -284,7 +202,7 @@ const ProcessingJobs = () => {
             <JobFilters
                 filters={filters}
                 setFilters={setFilters}
-                total={pagination.total}
+                total={total}
                 streamerOptions={streamerOptions} />
 
             <Card>
@@ -353,27 +271,27 @@ const ProcessingJobs = () => {
 
                             <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
                                 <span className="mono small text-muted">
-                                    Showing {jobs.length} of {pagination.total}
+                                    Showing {jobs.length} of {total}
                                 </span>
                                 {totalPages > 1 && (
                                     <Pagination className="mb-0">
                                         <Pagination.First
                                             onClick={() => handlePageChange(1)}
-                                            disabled={pagination.currentPage === 1}
+                                            disabled={currentPage === 1}
                                         />
                                         <Pagination.Prev
-                                            onClick={() => handlePageChange(pagination.currentPage - 1)}
-                                            disabled={pagination.currentPage === 1}
+                                            onClick={() => handlePageChange(currentPage - 1)}
+                                            disabled={currentPage === 1}
                                         />
                                         {[
                                             ...Array(Math.min(5, totalPages)),
                                         ].map((_, i) => {
-                                            const page = Math.max(1, pagination.currentPage - 2) + i
+                                            const page = Math.max(1, currentPage - 2) + i
                                             if (page <= totalPages) {
                                                 return (
                                                     <Pagination.Item
                                                         key={page}
-                                                        active={page === pagination.currentPage}
+                                                        active={page === currentPage}
                                                         onClick={() => handlePageChange(page)}
                                                     >
                                                         {page}
@@ -383,12 +301,12 @@ const ProcessingJobs = () => {
                                             return null
                                         })}
                                         <Pagination.Next
-                                            onClick={() => handlePageChange(pagination.currentPage + 1)}
-                                            disabled={pagination.currentPage === totalPages}
+                                            onClick={() => handlePageChange(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
                                         />
                                         <Pagination.Last
                                             onClick={() => handlePageChange(totalPages)}
-                                            disabled={pagination.currentPage === totalPages}
+                                            disabled={currentPage === totalPages}
                                         />
                                     </Pagination>
                                 )}

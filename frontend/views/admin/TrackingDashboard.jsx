@@ -1,8 +1,5 @@
 'use client'
 import {
-    useState, useEffect, useCallback,
-} from 'react'
-import {
     Container, Row, Col, Alert, Spinner,
 } from 'react-bootstrap'
 import SystemStatusCard from '@/components/admin/SystemStatusCard'
@@ -10,45 +7,19 @@ import TrackedStreamersCard from '@/components/admin/TrackedStreamersCard'
 import ProcessingOverviewCard from '@/components/admin/ProcessingOverviewCard'
 import ProcessingJobsStatistics from '@/components/admin/ProcessingJobsStatistics'
 import TrackingDashboardActions from '@/components/admin/TrackingDashboardActions'
-import { api } from '@/lib/api'
+import {
+    getApiErrorMessage, useTrackingStats,
+} from '@/hooks/useTrackingQueries'
 
 const TrackingDashboard = () => {
-    const [
-        stats,
-        setStats,
-    ] = useState(null)
-    const [
-        loading,
-        setLoading,
-    ] = useState(true)
-    const [
+    const {
+        data: stats,
         error,
-        setError,
-    ] = useState(null)
-
-    const fetchStats = useCallback(async () => {
-        try {
-            setLoading(true)
-            setError(null)
-
-            const { data } = await api.get('/admin/tracking/stats')
-            setStats(data)
-        } catch (fetchError) {
-            console.error('Error fetching stats:', fetchError)
-            setError(fetchError.response?.data?.detail || fetchError.message || 'Failed to fetch stats')
-        } finally {
-            setLoading(false)
-        }
-    }, [
-    ])
-
-    useEffect(() => {
-        fetchStats()
-        const interval = setInterval(fetchStats, 30000) // Update every 30 seconds
-        return () => clearInterval(interval)
-    }, [
-        fetchStats,
-    ])
+        isPending: loading,
+        refetch: fetchStats,
+    } = useTrackingStats({
+        refetchInterval: 30000,
+    })
 
     const getHealthBadge = isHealthy => isHealthy ?
         <span className="status-chip is-ok">Healthy</span> :
@@ -94,10 +65,8 @@ const TrackingDashboard = () => {
             {error && (
                 <Alert
                     variant="danger"
-                    className="mb-4"
-                    dismissible
-                    onClose={() => setError(null)}>
-                    {error}
+                    className="mb-4">
+                    {getApiErrorMessage(error, 'Failed to fetch tracking statistics')}
                 </Alert>
             )}
 

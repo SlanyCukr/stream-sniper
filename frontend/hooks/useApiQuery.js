@@ -19,3 +19,15 @@ export {
     useChatterStreamActivity,
     chattersKeys,
 } from './useChattersQuery'
+
+export {
+    getApiErrorMessage,
+    trackingKeys,
+    useCreateTrackedStreamer,
+    useDeleteTrackedStreamer,
+    useProcessingJobs,
+    useTrackedStreamerOptions,
+    useTrackedStreamers,
+    useTrackingStats,
+    useUpdateTrackedStreamer,
+} from './useTrackingQueries'

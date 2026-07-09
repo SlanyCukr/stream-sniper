@@ -1,27 +1,22 @@
 'use client'
 import {
-    useState, useEffect, useCallback,
+    useState, useCallback,
 } from 'react'
 import {
     Card, Table, Button, Alert, Spinner, Modal, Form, Pagination,
 } from 'react-bootstrap'
-import { api, retrieveTwitchChannelSearch } from '@/lib/api'
+import { retrieveTwitchChannelSearch } from '@/lib/api'
 import AsyncSearchSelect from '@/components/AsyncSearchSelect'
+import {
+    getApiErrorMessage,
+    useCreateTrackedStreamer,
+    useDeleteTrackedStreamer,
+    useTrackedStreamers,
+    useUpdateTrackedStreamer,
+} from '@/hooks/useTrackingQueries'
 
 const StreamerTracking = () => {
-    const [
-        streamers,
-        setStreamers,
-    ] = useState([
-    ])
-    const [
-        loading,
-        setLoading,
-    ] = useState(true)
-    const [
-        error,
-        setError,
-    ] = useState(null)
+    const [actionError, setActionError] = useState(null)
     const [
         success,
         setSuccess,
@@ -40,8 +35,6 @@ const StreamerTracking = () => {
     ] = useState({
         offset: 0,
         limit: 20,
-        total: 0,
-        currentPage: 1,
     })
     const [
         filters,
@@ -64,55 +57,29 @@ const StreamerTracking = () => {
         setFormSubmitting,
     ] = useState(false)
 
-    const fetchStreamers = useCallback(async () => {
-        try {
-            setLoading(true)
-            setError(null)
-
-            const params = new URLSearchParams({
-                offset: pagination.offset.toString(),
-                limit: pagination.limit.toString(),
-            })
-
-            if (filters.is_active !== null) {
-                params.append('is_active', filters.is_active.toString())
-            }
-            if (filters.processing_enabled !== null) {
-                params.append('processing_enabled', filters.processing_enabled.toString())
-            }
-
-            const { data } = await api.get(`/admin/tracking/streamers?${params}`)
-            setStreamers(data.streamers)
-            setPagination(prev => ({
-                ...prev,
-                total: data.total,
-                currentPage: Math.floor(data.offset / data.limit) + 1,
-            }))
-        } catch (fetchError) {
-            console.error('Error fetching streamers:', fetchError)
-            setError(fetchError.response?.data?.detail || fetchError.message || 'Failed to fetch streamers')
-        } finally {
-            setLoading(false)
-        }
-    }, [
-        pagination.offset,
-        pagination.limit,
-        filters,
-    ])
-
-    useEffect(() => {
-        fetchStreamers()
-    }, [
-        fetchStreamers,
-    ])
+    const {
+        data: streamersData,
+        error: streamersError,
+        isPending: loading,
+    } = useTrackedStreamers({
+        ...pagination,
+        ...filters,
+    })
+    const streamers = streamersData?.streamers || []
+    const total = streamersData?.total || 0
+    const currentPage = Math.floor(pagination.offset / pagination.limit) + 1
+    const error = actionError || (streamersError && getApiErrorMessage(streamersError, 'Failed to fetch streamers'))
+    const createStreamer = useCreateTrackedStreamer()
+    const updateStreamer = useUpdateTrackedStreamer()
+    const deleteStreamer = useDeleteTrackedStreamer()
 
     const handleAddStreamer = async e => {
         e.preventDefault()
         try {
             setFormSubmitting(true)
-            setError(null)
+            setActionError(null)
 
-            await api.post('/admin/tracking/streamers', newStreamer)
+            await createStreamer.mutateAsync(newStreamer)
             setSuccess('Streamer added successfully')
             setShowAddModal(false)
             setNewStreamer({
@@ -121,10 +88,9 @@ const StreamerTracking = () => {
                 is_active: true,
                 processing_enabled: true,
             })
-            fetchStreamers()
         } catch (addError) {
             console.error('Error adding streamer:', addError)
-            setError(addError.response?.data?.detail || addError.message || 'Failed to add streamer')
+            setActionError(getApiErrorMessage(addError, 'Failed to add streamer'))
         } finally {
             setFormSubmitting(false)
         }
@@ -156,38 +122,44 @@ const StreamerTracking = () => {
 
     const handleToggleActive = async (streamerId, currentStatus) => {
         try {
-            await api.put(`/admin/tracking/streamers/${streamerId}`, {
-                is_active: !currentStatus,
+            setActionError(null)
+            await updateStreamer.mutateAsync({
+                streamerId,
+                changes: {
+                    is_active: !currentStatus,
+                },
             })
             setSuccess('Streamer updated successfully')
-            fetchStreamers()
         } catch (activeError) {
             console.error('Error updating streamer:', activeError)
-            setError(activeError.response?.data?.detail || activeError.message || 'Failed to update streamer')
+            setActionError(getApiErrorMessage(activeError, 'Failed to update streamer'))
         }
     }
 
     const handleToggleProcessing = async (streamerId, currentStatus) => {
         try {
-            await api.put(`/admin/tracking/streamers/${streamerId}`, {
-                processing_enabled: !currentStatus,
+            setActionError(null)
+            await updateStreamer.mutateAsync({
+                streamerId,
+                changes: {
+                    processing_enabled: !currentStatus,
+                },
             })
             setSuccess('Streamer updated successfully')
-            fetchStreamers()
         } catch (toggleError) {
             console.error('Error updating streamer:', toggleError)
-            setError(toggleError.response?.data?.detail || toggleError.message || 'Failed to update streamer')
+            setActionError(getApiErrorMessage(toggleError, 'Failed to update streamer'))
         }
     }
 
     const handleRemoveStreamer = async streamerId => {
         try {
-            await api.delete(`/admin/tracking/streamers/${streamerId}`)
+            setActionError(null)
+            await deleteStreamer.mutateAsync(streamerId)
             setSuccess('Streamer removed successfully')
-            fetchStreamers()
         } catch (removeError) {
             console.error('Error removing streamer:', removeError)
-            setError(removeError.response?.data?.detail || removeError.message || 'Failed to remove streamer')
+            setActionError(getApiErrorMessage(removeError, 'Failed to remove streamer'))
         } finally {
             setRemoveTarget(null)
         }
@@ -197,7 +169,6 @@ const StreamerTracking = () => {
         setPagination(prev => ({
             ...prev,
             offset: (page - 1) * prev.limit,
-            currentPage: page,
         }))
     }
 
@@ -216,7 +187,7 @@ const StreamerTracking = () => {
         <span className="status-chip is-ok">Enabled</span> :
         <span className="status-chip is-warn">Disabled</span>
 
-    const totalPages = Math.ceil(pagination.total / pagination.limit)
+    const totalPages = Math.ceil(total / pagination.limit)
 
     return (
         <>
@@ -243,8 +214,8 @@ const StreamerTracking = () => {
                 <Alert
                     variant="danger"
                     className="mb-4"
-                    dismissible
-                    onClose={() => setError(null)}>
+                    dismissible={Boolean(actionError)}
+                    onClose={() => setActionError(null)}>
                     {error}
                 </Alert>
             )}
@@ -306,7 +277,7 @@ const StreamerTracking = () => {
                     </Form.Select>
                 </div>
                 <span className="toolbar-readout">
-                    {pagination.total} tracked
+                    {total} tracked
                 </span>
             </div>
 
@@ -361,6 +332,7 @@ const StreamerTracking = () => {
                                                     size="sm"
                                                     className="me-2"
                                                     onClick={() => handleToggleActive(streamer.id, streamer.is_active)}
+                                                    disabled={updateStreamer.isPending}
                                                 >
                                                     {streamer.is_active ? 'Deactivate' : 'Activate'}
                                                 </Button>
@@ -369,6 +341,7 @@ const StreamerTracking = () => {
                                                     size="sm"
                                                     className="me-2"
                                                     onClick={() => handleToggleProcessing(streamer.id, streamer.processing_enabled)}
+                                                    disabled={updateStreamer.isPending}
                                                 >
                                                     {streamer.processing_enabled ? 'Disable' : 'Enable'}
                                                 </Button>
@@ -376,6 +349,7 @@ const StreamerTracking = () => {
                                                     variant="outline-danger"
                                                     size="sm"
                                                     onClick={() => setRemoveTarget(streamer)}
+                                                    disabled={deleteStreamer.isPending}
                                                 >
                                                     Remove
                                                 </Button>
@@ -387,27 +361,27 @@ const StreamerTracking = () => {
 
                             <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
                                 <span className="mono small text-muted">
-                                    Showing {streamers.length} of {pagination.total}
+                                    Showing {streamers.length} of {total}
                                 </span>
                                 {totalPages > 1 && (
                                     <Pagination className="mb-0">
                                         <Pagination.First
                                             onClick={() => handlePageChange(1)}
-                                            disabled={pagination.currentPage === 1}
+                                            disabled={currentPage === 1}
                                         />
                                         <Pagination.Prev
-                                            onClick={() => handlePageChange(pagination.currentPage - 1)}
-                                            disabled={pagination.currentPage === 1}
+                                            onClick={() => handlePageChange(currentPage - 1)}
+                                            disabled={currentPage === 1}
                                         />
                                         {[
                                             ...Array(Math.min(5, totalPages)),
                                         ].map((_, i) => {
-                                            const page = Math.max(1, pagination.currentPage - 2) + i
+                                            const page = Math.max(1, currentPage - 2) + i
                                             if (page <= totalPages) {
                                                 return (
                                                     <Pagination.Item
                                                         key={page}
-                                                        active={page === pagination.currentPage}
+                                                        active={page === currentPage}
                                                         onClick={() => handlePageChange(page)}
                                                     >
                                                         {page}
@@ -417,12 +391,12 @@ const StreamerTracking = () => {
                                             return null
                                         })}
                                         <Pagination.Next
-                                            onClick={() => handlePageChange(pagination.currentPage + 1)}
-                                            disabled={pagination.currentPage === totalPages}
+                                            onClick={() => handlePageChange(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
                                         />
                                         <Pagination.Last
                                             onClick={() => handlePageChange(totalPages)}
-                                            disabled={pagination.currentPage === totalPages}
+                                            disabled={currentPage === totalPages}
                                         />
                                     </Pagination>
                                 )}

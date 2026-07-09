@@ -41,3 +41,23 @@ export const retrieveChatterOnStreamMessages = (streamId: string | number, chatt
 export const retrieveAllCreators = () => api.get('/creators')
 export const retrieveCreatorTopChatters = (creatorId: string | number, limit: number) => api.get(`/creator/${creatorId}/top-chatters?limit=${limit}`)
 export const retrieveChatterStreamActivity = (chatterId: string | number) => api.get(`/chatter/${chatterId}/stream-activity`)
+
+// Tracking administration endpoints
+type TrackingListParams = Record<string, string | number | boolean | null | undefined>
+
+const trackingParams = (params: TrackingListParams) => {
+  const searchParams = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      searchParams.set(key, String(value))
+    }
+  })
+  return searchParams
+}
+
+export const retrieveTrackingStats = () => api.get('/admin/tracking/stats')
+export const retrieveTrackedStreamers = (params: TrackingListParams = {}) => api.get(`/admin/tracking/streamers?${trackingParams(params)}`)
+export const createTrackedStreamer = (streamer: Record<string, unknown>) => api.post('/admin/tracking/streamers', streamer)
+export const updateTrackedStreamer = (streamerId: string | number, changes: Record<string, unknown>) => api.put(`/admin/tracking/streamers/${streamerId}`, changes)
+export const deleteTrackedStreamer = (streamerId: string | number) => api.delete(`/admin/tracking/streamers/${streamerId}`)
+export const retrieveProcessingJobs = (params: TrackingListParams = {}) => api.get(`/admin/tracking/jobs?${trackingParams(params)}`)
