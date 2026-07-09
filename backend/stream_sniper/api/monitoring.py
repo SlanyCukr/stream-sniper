@@ -295,7 +295,7 @@ class MetricsCollector:
                         "error_rate": round((stats["error_count"] / max(stats["count"], 1)) * 100, 2),
                         "cache_hit_rate": round((stats["cache_hits"] / max(stats["count"], 1)) * 100, 2),
                     }
-                    for endpoint, stats in dict(top_endpoints)
+                    for endpoint, stats in top_endpoints
                 },
             }
 
