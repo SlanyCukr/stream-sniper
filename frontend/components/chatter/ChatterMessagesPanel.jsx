@@ -7,25 +7,29 @@ import {
 } from 'react-bootstrap'
 import Link from 'next/link'
 import { useMessages } from '@/hooks/useApiQuery'
-import { retrieveChatterSearch } from '@/lib/api'
-import AsyncSearchSelect from '@/components/AsyncSearchSelect'
 import PaginationComponent from '@/components/streams/PaginationComponent'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import ErrorAlert from '@/components/ErrorAlert'
 import { formatStreamTimestamp } from '@/utils/dateUtils'
 import { PAGINATION } from '@/constants'
 
-const UserMessages = () => {
-    const [
-        selectedChatter,
-        setSelectedChatter,
-    ] = useState(null)
+/**
+ * Messages tab of the chatter explorer: every individual message a chatter wrote
+ * across captured streams, paginated. Owns its own pagination + query.
+ *
+ * Pagination resets naturally because the explorer remounts this panel (via a
+ * `key` on the chatter id) whenever the selected chatter changes.
+ *
+ * @param {object} props
+ * @param {{value: number, label: string}|null} props.chatter selected chatter option
+ */
+const ChatterMessagesPanel = ({ chatter }) => {
     const [
         offset,
         setOffset,
     ] = useState(PAGINATION.DEFAULT_OFFSET)
 
-    const chatterId = selectedChatter?.value || null
+    const chatterId = chatter?.value || null
 
     const {
         data: messagesData,
@@ -43,16 +47,6 @@ const UserMessages = () => {
     const pagesCount = Math.ceil(total / PAGINATION.MESSAGES_PER_PAGE)
 
     /**
-     * Selects a chatter and resets pagination back to the first page.
-     * @param {{value: number, label: string}|null} option
-     */
-    const handleChatterChange = useCallback(option => {
-        setSelectedChatter(option)
-        setOffset(PAGINATION.DEFAULT_OFFSET)
-    }, [
-    ])
-
-    /**
      * Updates offset
      * @param {Number} offsetParam
      */
@@ -61,88 +55,21 @@ const UserMessages = () => {
     }, [
     ])
 
-    /**
-     * Prefix-search chatter nicks for the autocomplete dropdown.
-     * The backend returns [[id, nick], ...]; map to react-select options.
-     * @param {string} query
-     * @returns {Promise<Array<{value: number, label: string}>>}
-     */
-    const loadChatterOptions = useCallback(async query => {
-        const trimmed = query.trim()
-        if (trimmed.length < 2) {
-            return []
-        }
-        try {
-            const { data } = await retrieveChatterSearch(trimmed)
-            return (data || []).map(([
-                id,
-                nick,
-            ]) => ({
-                value: id,
-                label: nick,
-            }))
-        } catch {
-            return []
-        }
-    }, [
-    ])
-
-    const noOptionsMessage = useCallback(({ inputValue }) => (
-        inputValue && inputValue.trim().length >= 2
-            ? `No chatters matching "${inputValue}"`
-            : 'Type at least 2 characters to search'
-    ), [
-    ])
-
     const isLoading = Boolean(chatterId) && messagesLoading
 
     return (
         <>
-            <div className="page-head">
-                <div>
-                    <h1 id="chatter-messages-heading" className="page-title">Chatter messages</h1>
-                    <p className="page-sub">Cross-stream message analysis</p>
-                </div>
-            </div>
-
-            <div
-                className="toolbar"
-                role="search"
-            >
-                <span
-                    className="toolbar-label"
-                    aria-hidden="true">
-                    Target
-                </span>
-                <div className="toolbar-field">
-                    <label
-                        htmlFor="chatter-messages-nick-input"
-                        className="visually-hidden"
-                    >
-                        Chatter nickname
-                    </label>
-                    <AsyncSearchSelect
-                        instanceId="chatter-messages-nick-select"
-                        inputId="chatter-messages-nick-input"
-                        loadOptions={loadChatterOptions}
-                        value={selectedChatter}
-                        onChange={handleChatterChange}
-                        noOptionsMessage={noOptionsMessage}
-                        placeholder="Search for a chatter..."
-                        isClearable
-                        aria-label="Chatter nickname"
-                    />
-                </div>
-                {selectedChatter && total > 0 && !isLoading && (
+            {chatter && total > 0 && !isLoading && (
+                <div className="d-flex justify-content-end mb-2">
                     <span className="toolbar-readout">
-                        <strong>{total.toLocaleString()}</strong> messages · target <strong>{selectedChatter.label}</strong>
+                        <strong>{total.toLocaleString()}</strong> messages · target <strong>{chatter.label}</strong>
                     </span>
-                )}
-            </div>
+                </div>
+            )}
 
             <Card>
-                <Card.Body className={!selectedChatter || (chatterId && messages.length === 0 && !isLoading) ? 'p-0' : ''}>
-                    {!selectedChatter && (
+                <Card.Body className={!chatter || (chatterId && messages.length === 0 && !isLoading) ? 'p-0' : ''}>
+                    {!chatter && (
                         <div className="empty-state">
                             <div
                                 className="empty-scope"
@@ -173,7 +100,7 @@ const UserMessages = () => {
                     {chatterId && !isLoading && !messagesError && (
                         <div
                             role="region"
-                            aria-labelledby="chatter-messages-heading"
+                            aria-label="Chatter messages results"
                             aria-live="polite"
                         >
                             {messages.length === 0
@@ -236,4 +163,4 @@ const UserMessages = () => {
     )
 }
 
-export default UserMessages
+export default ChatterMessagesPanel

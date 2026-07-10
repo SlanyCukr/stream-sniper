@@ -76,6 +76,7 @@ const ChatSearchCard = ({
                         Select a chatter to view their messages
                     </label>
                     <Select
+                        classNamePrefix="rs"
                         instanceId="chatter-select"
                         inputId="chatter-select"
                         options={visibleOptions}

@@ -15,19 +15,14 @@ const navigation = [
         icon: 'bi bi-collection-play',
     },
     {
-        title: 'Chatter messages',
-        href: '/chatter-messages',
-        icon: 'bi bi-chat-left-text',
+        title: 'Chatter explorer',
+        href: '/chatter',
+        icon: 'bi bi-fingerprint',
     },
     {
         title: 'Streamer regulars',
         href: '/regulars',
         icon: 'bi bi-people',
-    },
-    {
-        title: 'Chatter footprint',
-        href: '/chatter-footprint',
-        icon: 'bi bi-fingerprint',
     },
 ]
 

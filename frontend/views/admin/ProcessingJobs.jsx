@@ -90,6 +90,7 @@ const JobFilters = ({
                     Filter by streamer
                 </label>
                 <Select
+                    classNamePrefix="rs"
                     instanceId="jobs-streamer-filter-select"
                     inputId="jobs-streamer-filter"
                     options={streamerOptions}

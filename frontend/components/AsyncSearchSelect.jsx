@@ -43,6 +43,7 @@ const AsyncSearchSelect = ({
 
     return (
         <SelectComponent
+            classNamePrefix="rs"
             loadOptions={debouncedLoadOptions}
             {...selectProps}
         />

@@ -843,6 +843,44 @@ h1, h2, h3, h4, h5, h6,
     }
 }
 
+/* ---------- Chatter explorer tabs ---------- */
+.chatter-tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid $hairline;
+
+    .chatter-tab {
+        appearance: none;
+        background: transparent;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        padding: 0.5rem 0.9rem;
+        font-family: $font-family-monospace;
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: $gray-400;
+        cursor: pointer;
+        transition: color 0.12s ease, border-color 0.12s ease;
+
+        &:hover {
+            color: $gray-100;
+        }
+
+        &.active {
+            color: $phosphor;
+            border-bottom-color: $phosphor;
+        }
+
+        &:focus-visible {
+            outline: 2px solid rgba($phosphor, 0.5);
+            outline-offset: 2px;
+        }
+    }
+}
+
 /* ---------- Ranked lists (chatter leaderboards) ---------- */
 .rank-list {
     list-style: none;
@@ -958,6 +996,25 @@ h1, h2, h3, h4, h5, h6,
     &:hover {
         background-color: rgba($phosphor, 0.1) !important;
     }
+}
+
+/*
+ * react-select keeps exactly one option "focused" the whole time the menu is
+ * open (for keyboard nav), and paints it with its built-in light default
+ * background. On this dark skin that reads as a near-white box swallowing the
+ * light option text. The `:hover` rule above only masked it while the cursor
+ * was over that option. Override the focused/selected states explicitly so the
+ * highlight is dark and the text stays readable regardless of the mouse.
+ * Requires `classNamePrefix="rs"` on every <Select>.
+ */
+.rs__option--is-focused {
+    background-color: rgba($phosphor, 0.12) !important;
+    color: $body-color !important;
+}
+
+.rs__option--is-selected {
+    background-color: rgba($phosphor, 0.22) !important;
+    color: $body-color !important;
 }
 
 [class*="-singleValue"], [class*="-input"] {

@@ -98,6 +98,7 @@ const StreamerRegulars = () => {
                         Select a creator
                     </label>
                     <Select
+                        classNamePrefix="rs"
                         instanceId="regulars-creator-select"
                         inputId="regulars-creator-select"
                         options={creators}

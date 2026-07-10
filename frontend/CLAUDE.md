@@ -69,7 +69,7 @@ app/                       # App Router: file-based routes
     layout.tsx             # renders <FullLayout>
     page.tsx               # HOME = AllStreams
     stream/[id]/page.tsx   # params is a Promise -> use(params)
-    chatter-messages/page.tsx
+    chatter/page.tsx       # unified Chatter explorer (Footprint/Messages tabs); ?view= picks tab. Old /chatter-messages + /chatter-footprint 307-redirect here (next.config.ts redirects())
     profile/page.tsx
     admin/                 # admin/layout.tsx wraps children in <AdminGuard>
       page.tsx, dashboard/, users/(+create/), system/, tracking/(streamers/, jobs/)

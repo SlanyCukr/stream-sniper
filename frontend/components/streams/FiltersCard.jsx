@@ -41,6 +41,7 @@ const FiltersCard = React.memo(({
                 Filter by creator
             </label>
             <Select
+                classNamePrefix="rs"
                 instanceId="creator-select"
                 inputId="creator-select"
                 options={creators}
@@ -66,6 +67,7 @@ const FiltersCard = React.memo(({
                 Sort streams by
             </label>
             <Select
+                classNamePrefix="rs"
                 instanceId="ordering-select"
                 inputId="ordering-select"
                 options={AVAILABLE_ORDERING}

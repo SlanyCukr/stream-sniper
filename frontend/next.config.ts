@@ -20,6 +20,23 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      // The old chatter pages merged into the unified /chatter explorer.
+      // Real HTTP redirects (kept non-permanent so browsers don't hard-cache
+      // the move while the app is still evolving) preserve old bookmarks/links.
+      {
+        source: '/chatter-footprint',
+        destination: '/chatter?view=footprint',
+        permanent: false,
+      },
+      {
+        source: '/chatter-messages',
+        destination: '/chatter?view=messages',
+        permanent: false,
+      },
+    ]
+  },
 }
 
 export default nextConfig
