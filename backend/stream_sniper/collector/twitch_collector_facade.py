@@ -2,6 +2,7 @@ import asyncio
 from itertools import batched
 from typing import Optional
 
+from ..analytics.rollup_engine import compute_stream_rollup
 from ..database.chatter_table_gateway import insert_new_chatters_db, select_all_chatters_db
 from ..database.creator_table_gateway import insert_new_creator_db, select_creator_id_db
 from ..database.message_table_gateway import insert_message_db
@@ -110,6 +111,15 @@ class TwitchCollectorFacade:
 
                 # send all hanging items in buffer to database
                 self.db_buffer_insert_message.call_db_function()
+
+                # roll up derived analytics for this stream. NOTE: the CLI/first-history
+                # path processes VODs newest-first, so new/returning counts computed here
+                # are provisional — run `stream-sniper-rollup --all --force` after a bulk
+                # import to recompute them chronologically.
+                try:
+                    compute_stream_rollup(stream_id)
+                except Exception as e:
+                    self.logger.error(f"Rollup failed for stream {stream_id}: {e}", exc_info=True)
 
                 processed_streams += 1
                 self.logger.info(

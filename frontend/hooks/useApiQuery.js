@@ -7,15 +7,33 @@ export {
 
 export {
     useMessages,
-    useChatterStreamMessages,
     messagesKeys,
 } from './useMessagesQuery'
+
+export {
+    useStreamMessages,
+    streamMessagesKeys,
+} from './useStreamMessagesQuery'
+
+export {
+    useStreamTimeline,
+    streamTimelineKeys,
+} from './useStreamTimelineQuery'
+
+export {
+    useCreatorTrends,
+    creatorTrendsKeys,
+} from './useCreatorTrendsQuery'
+
+export {
+    useCreatorRegulars,
+    creatorRegularsKeys,
+} from './useCreatorRegularsQuery'
 
 export {
     useChatters,
     useCreators,
     useChatterId,
-    useCreatorTopChatters,
     useChatterStreamActivity,
     chattersKeys,
 } from './useChattersQuery'

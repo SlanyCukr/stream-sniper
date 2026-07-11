@@ -1,5 +1,46 @@
 from .decorators import with_cursor, with_cursor_connection
 
+# Hardcoded whitelists — user-supplied sort/dir values map through these fixed
+# fragments so no request string is ever interpolated into SQL. FastAPI validates
+# the values with Query(pattern=...) before they reach the gateway; the .get()
+# fallbacks keep any direct caller safe as well.
+_SORT_COLUMNS = {
+    "start": "stream.start",
+    "message_count": "stream.message_count",
+    "duration": 'EXTRACT(EPOCH FROM (stream."end" - stream.start))',
+}
+_DIR = {"asc": "ASC", "desc": "DESC"}
+
+
+def _build_stream_filter(creator_id, title, date_from, date_to, min_messages):
+    """Build the shared WHERE clause + params for stream listing and its COUNT(*).
+
+    Both select_all_streams_db and select_all_stream_count_db route through this so the
+    filtered rows and the filtered count (which feeds max_offset) can never diverge.
+    Returns (where_sql, params) where where_sql is "" or "WHERE ...".
+    """
+    conditions = []
+    params = []
+
+    if creator_id != -1:
+        conditions.append("stream.creator_id = %s")
+        params.append(creator_id)
+    if title:
+        conditions.append("stream.title ILIKE %s")
+        params.append(f"%{title}%")
+    if date_from is not None:
+        conditions.append("stream.start >= %s")
+        params.append(date_from)
+    if date_to is not None:
+        conditions.append("stream.start < %s + INTERVAL '1 day'")
+        params.append(date_to)
+    if min_messages is not None:
+        conditions.append("stream.message_count >= %s")
+        params.append(min_messages)
+
+    where_sql = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    return where_sql, params
+
 
 @with_cursor
 def select_last_twitch_stream_id_db(creator_nick, cursor):
@@ -38,41 +79,46 @@ def select_stream_by_twitch_id_db(twitch_id, cursor):
 
 
 @with_cursor
-def select_all_streams_db(creator_id, offset, cursor):
-    # Base SQL query with TO_CHAR to return datetime as string
-    base_query = """
-    SELECT 
+def select_all_streams_db(
+    creator_id,
+    offset,
+    cursor,
+    *,
+    sort="start",
+    dir="desc",
+    title=None,
+    date_from=None,
+    date_to=None,
+    min_messages=None,
+):
+    where_sql, params = _build_stream_filter(creator_id, title, date_from, date_to, min_messages)
+    sort_col = _SORT_COLUMNS.get(sort, _SORT_COLUMNS["start"])
+    direction = _DIR.get(dir, "DESC")
+
+    # sort_col/direction come from the hardcoded whitelists above, never from raw input.
+    query = f"""
+    SELECT
         stream.id,
-        display_name, 
+        display_name,
         TO_CHAR(start, 'YYYY-MM-DD HH24:MI:SS') AS start,
-        TO_CHAR("end", 'YYYY-MM-DD HH24:MI:SS') AS "end", 
+        TO_CHAR("end", 'YYYY-MM-DD HH24:MI:SS') AS "end",
         thumbnail_url,
         message_count
     FROM stream
     JOIN creator ON stream.creator_id = creator.id
+    {where_sql}
+    ORDER BY {sort_col} {direction} NULLS LAST, stream.id DESC
+    LIMIT 20 OFFSET %s
     """
-
-    # Modify query based on whether creator_id is provided or not
-    if creator_id == -1:
-        query = base_query + " ORDER BY start DESC LIMIT 20 OFFSET %s"
-        params = (offset,)
-    else:
-        query = base_query + " WHERE stream.creator_id = %s ORDER BY start DESC LIMIT 20 OFFSET %s"
-        params = (creator_id, offset)
-
-    # Execute the query with parameters
-    cursor.execute(query, params)
-
-    # Return the result
+    cursor.execute(query, (*params, offset))
     return cursor.fetchall()
 
 
 @with_cursor
-def select_all_stream_count_db(creator_id, cursor):
-    if creator_id == -1:
-        cursor.execute("SELECT COUNT(*) FROM stream")
-    else:
-        cursor.execute("SELECT COUNT(*) FROM stream WHERE creator_id = %s", (creator_id,))
+def select_all_stream_count_db(creator_id, cursor, *, title=None, date_from=None, date_to=None, min_messages=None):
+    where_sql, params = _build_stream_filter(creator_id, title, date_from, date_to, min_messages)
+    query = f"SELECT COUNT(*) FROM stream {where_sql}"
+    cursor.execute(query, tuple(params))
     return cursor.fetchone()[0]
 
 
@@ -189,7 +235,8 @@ def select_chatters_in_stream_db(stream_id, cursor):
 def select_chatter_messages_on_stream_db(stream_id, chatter_id, cursor):
     cursor.execute(
         """
-    SELECT (SELECT text FROM message_text WHERE id = message.message_text_id) FROM message WHERE stream_id = %s AND chatter_id = %s
+    SELECT mt.text FROM message m JOIN message_text mt ON mt.id = m.message_text_id
+    WHERE m.stream_id = %s AND m.chatter_id = %s ORDER BY m.time ASC, m.id ASC
     """,
         (stream_id, chatter_id),
     )

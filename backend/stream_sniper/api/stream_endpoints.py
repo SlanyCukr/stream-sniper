@@ -1,6 +1,7 @@
 """Read-only endpoints for Twitch stream listings and stream analytics."""
 
-from typing import Any, List, cast
+from datetime import date
+from typing import Any, List, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 
@@ -42,13 +43,31 @@ def get_streams(
     response: Response,
     creator_id: int = Query(..., description="Creator ID (use -1 for all creators)", json_schema_extra={"example": 5}),
     offset: int = Query(0, description="Pagination offset", json_schema_extra={"example": 0}, ge=0),
+    sort: str = Query(
+        "start",
+        description="Sort column",
+        pattern="^(start|message_count|duration)$",
+        json_schema_extra={"example": "start"},
+    ),
+    dir: str = Query(
+        "desc",
+        description="Sort direction",
+        pattern="^(asc|desc)$",
+        json_schema_extra={"example": "desc"},
+    ),
+    title: Optional[str] = Query(None, description="Filter by title substring (case-insensitive)", max_length=255),
+    date_from: Optional[date] = Query(None, description="Only streams starting on/after this date"),
+    date_to: Optional[date] = Query(None, description="Only streams starting before this date (exclusive, +1 day)"),
+    min_messages: Optional[int] = Query(None, description="Minimum message count", ge=0),
 ) -> dict[str, Any]:
-    """Get a paginated list of streams for a creator."""
+    """Get a paginated list of streams for a creator with optional sort/filter."""
     try:
         cache = get_cache()
-        streams_cache_key = cache._generate_key("streams", creator_id, offset)
+        streams_cache_key = cache._generate_key(
+            "streams", creator_id, offset, sort, dir, title, date_from, date_to, min_messages
+        )
         cached_streams = cache.get(streams_cache_key)
-        count_cache_key = cache._generate_key("stream_count", creator_id)
+        count_cache_key = cache._generate_key("stream_count", creator_id, title, date_from, date_to, min_messages)
         cached_count = cache.get(count_cache_key)
         streams_from_cache = cached_streams is not None
         count_from_cache = cached_count is not None
@@ -58,7 +77,16 @@ def get_streams(
             streams = cached_streams
         else:
             record_cache_operation("miss", "streams")
-            streams = select_all_streams_db(creator_id, offset)
+            streams = select_all_streams_db(
+                creator_id,
+                offset,
+                sort=sort,
+                dir=dir,
+                title=title,
+                date_from=date_from,
+                date_to=date_to,
+                min_messages=min_messages,
+            )
             cache.set(streams_cache_key, streams, CacheTTL.STREAM_DETAILS)
             record_cache_operation("set", "streams")
 
@@ -67,7 +95,13 @@ def get_streams(
             max_offset = cached_count
         else:
             record_cache_operation("miss", "stream_count")
-            max_offset = select_all_stream_count_db(creator_id)
+            max_offset = select_all_stream_count_db(
+                creator_id,
+                title=title,
+                date_from=date_from,
+                date_to=date_to,
+                min_messages=min_messages,
+            )
             cache.set(count_cache_key, max_offset, CacheTTL.STREAM_COUNT)
             record_cache_operation("set", "stream_count")
 

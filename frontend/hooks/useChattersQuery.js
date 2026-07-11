@@ -3,7 +3,6 @@ import {
     retrieveChattersOnStream,
     retrieveAllCreators,
     retrieveChatterId,
-    retrieveCreatorTopChatters,
     retrieveChatterStreamActivity,
 } from '@/lib/api'
 
@@ -40,17 +39,6 @@ export const chattersKeys = {
     chatterId: nick => [
         ...chattersKeys.chatterIds(),
         nick,
-    ],
-    topChatters: () => [
-        ...chattersKeys.all,
-        'top-chatters',
-    ],
-    creatorTopChatters: (creatorId, limit) => [
-        ...chattersKeys.topChatters(),
-        {
-            creatorId,
-            limit,
-        },
     ],
     streamActivities: () => [
         ...chattersKeys.all,
@@ -110,24 +98,6 @@ export const useChatterId = (nick, enabled = false, options = {}) => useQuery({
         return response.data
     },
     enabled: Boolean(nick) && enabled, // Only enabled when nick is provided and enabled is true
-    ...options,
-})
-
-/**
- * Custom hook for fetching a creator's most active chatters across all their streams
- * @param {string|number} creatorId - The creator ID
- * @param {number} limit - Maximum number of chatters to return (default: 25)
- * @param {object} options - Additional query options
- * @returns {object} useQuery result with data, isLoading, error, etc.
- */
-export const useCreatorTopChatters = (creatorId, limit = 25, options = {}) => useQuery({
-    queryKey: chattersKeys.creatorTopChatters(creatorId, limit),
-    queryFn: async () => {
-        const response = await retrieveCreatorTopChatters(creatorId, limit)
-        return response.data || [
-        ]
-    },
-    enabled: Boolean(creatorId), // Only enabled when creatorId is provided
     ...options,
 })
 

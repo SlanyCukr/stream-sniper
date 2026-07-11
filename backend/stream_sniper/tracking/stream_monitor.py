@@ -4,11 +4,12 @@ Stream monitoring service for tracking Twitch streamers.
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Dict, List, Optional
 
 from ..collector.twitch_api import TwitchAPI
 from ..database.processing_jobs_table_gateway import insert_processing_job_db, job_exists_db
+from ..database.stream_viewer_sample_table_gateway import insert_stream_viewer_sample_db
 from ..database.tracked_streamers_table_gateway import (
     select_active_tracked_streamers_db,
     update_stream_check_time_db,
@@ -106,10 +107,14 @@ class StreamMonitor:
             
             # Get current stream status
             stream_status = await self._get_stream_status(twitch_username)
-            
+
             # Update last check time
             update_stream_check_time_db(ts_id, datetime.now())
-            
+
+            # Record a viewer-count snapshot while the stream is live
+            if stream_status.is_live:
+                self._record_viewer_snapshot(ts_id, stream_status)
+
             # Check if stream state changed
             previous_state = self._last_stream_states.get(twitch_username, False)
             current_state = stream_status.is_live
@@ -167,6 +172,20 @@ class StreamMonitor:
                 is_live=False,
                 last_checked=datetime.now()
             )
+
+    def _record_viewer_snapshot(self, tracked_streamer_id: int, status: StreamStatus) -> None:
+        """Persist a viewer-count snapshot for a live stream. Never raises."""
+        try:
+            insert_stream_viewer_sample_db(
+                tracked_streamer_id=tracked_streamer_id,
+                twitch_stream_session_id=status.stream_id,
+                sampled_at=datetime.now(UTC),
+                viewer_count=status.viewer_count,
+                title=status.title,
+                session_started_at=status.started_at,
+            )
+        except Exception as e:
+            self.logger.error(f"Error recording viewer snapshot for ts_id={tracked_streamer_id}: {e}")
 
     async def _queue_stream_for_processing(self, tracked_streamer_id: int, twitch_username: str):
         """Queue a stream for processing when it ends."""

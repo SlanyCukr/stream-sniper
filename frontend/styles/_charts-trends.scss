@@ -1,0 +1,196 @@
+// Styles for the creator trends + regulars UI (W4 UI, T13).
+// Owned and filled in by T13. Reuses night-ops tokens; charts are inline SVG,
+// single-series, ink-token text, keyboard accessible, prefers-reduced-motion respected.
+
+/* ---------- Trends: small-multiple sparkline cards ---------- */
+.trend-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.trend-card {
+    background: $bg-surface;
+    border: 1px solid $hairline;
+    border-radius: $border-radius;
+    padding: 0.9rem 1rem 0.75rem;
+    transition: border-color 0.18s ease;
+
+    &:hover {
+        border-color: rgba($phosphor, 0.35);
+    }
+}
+
+.trend-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.55rem;
+}
+
+.trend-card-title {
+    font-family: $font-family-monospace;
+    font-size: 0.64rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: $gray-400;
+    white-space: nowrap;
+}
+
+.trend-card-latest {
+    font-family: $font-family-monospace;
+    font-size: 0.72rem;
+    color: $phosphor;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.trend-spark {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+
+    .spark-area-fill {
+        fill: rgba($phosphor, 0.14);
+    }
+
+    .spark-area-line {
+        fill: none;
+        stroke: $phosphor;
+        stroke-width: 1.5;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+    }
+
+    .spark-bar {
+        fill: $phosphor-dim;
+        transition: fill 0.12s ease;
+    }
+
+    .spark-bar--returning {
+        fill: #9fef00; // phosphor: returning chatters
+    }
+
+    .spark-bar--new {
+        fill: #f5b759; // amber: new chatters
+    }
+
+    /* transparent per-stream hit column — the interactive/keyboard target */
+    .spark-hit {
+        fill: transparent;
+        cursor: pointer;
+        outline: none;
+
+        &:hover + .spark-hit-marker,
+        &:focus-visible + .spark-hit-marker {
+            opacity: 1;
+        }
+
+        &:focus-visible {
+            outline: 2px solid rgba($phosphor, 0.6);
+            outline-offset: -1px;
+        }
+    }
+
+    .spark-hit-marker {
+        opacity: 0;
+        pointer-events: none;
+        stroke: $phosphor;
+        stroke-width: 1;
+        transition: opacity 0.12s ease;
+    }
+}
+
+/* 2-chip legend for the stacked New-vs-Returning card */
+.stack-legend {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.legend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: $font-family-monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $gray-400;
+
+    &::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+    }
+
+    &.legend-chip--returning::before { background: #9fef00; }
+    &.legend-chip--new::before { background: #f5b759; }
+}
+
+/* ---------- Regulars v2: controls + sortable headers ---------- */
+.regulars-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+
+    label {
+        font-family: $font-family-monospace;
+        font-size: 0.66rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: $gray-400;
+        white-space: nowrap;
+    }
+
+    .regulars-min-input {
+        width: 5.5rem;
+    }
+}
+
+.th-sort {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+
+    &:hover {
+        color: $gray-100;
+    }
+
+    &.active {
+        color: $phosphor;
+    }
+
+    &:focus-visible {
+        outline: 2px solid rgba($phosphor, 0.5);
+        outline-offset: 2px;
+    }
+
+    .th-sort-caret {
+        font-size: 0.7em;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .trend-card,
+    .trend-spark .spark-bar,
+    .trend-spark .spark-hit-marker,
+    .th-sort {
+        transition: none;
+    }
+}

@@ -6,6 +6,28 @@ from tqdm import tqdm
 from ..logging_config import get_logger
 
 
+def extract_message_metadata(line: dict) -> tuple[bool | None, str | None, int | None]:
+    """(is_subscriber, badges, emote_count). All-None on malformed input; never raises."""
+    try:
+        author = line.get("author") or {}
+        raw_badges = author.get("badges") or []
+        pairs = sorted(
+            f"{b['name']}/{b.get('version', 0)}" for b in raw_badges if isinstance(b, dict) and b.get("name")
+        )
+        badges = ",".join(pairs) or None
+        names = {p.split("/", 1)[0] for p in pairs}
+        is_subscriber = author.get("is_subscriber")
+        if is_subscriber is None:
+            is_subscriber = bool(names & {"subscriber", "founder"})
+        raw_emotes = line.get("emotes") or []
+        n = sum(1 for e in raw_emotes if isinstance(e, dict) and e.get("name"))
+        emote_count = n or None
+        return is_subscriber, badges, emote_count
+    except Exception:
+        get_logger(__name__).debug("metadata extraction failed for line", exc_info=True)
+        return None, None, None
+
+
 class ChatProcessor:
     def __init__(self, creator_id: int, message_handling_fun: Callable):
         self.creator_id = creator_id
@@ -52,5 +74,6 @@ class ChatProcessor:
 
             chatter_nick = line["author"].get("name", "Unknown")
             message = line["message"]
+            metadata = extract_message_metadata(line)
 
-            self.message_handling_fun(message_time, chatter_nick, message, stream_id)
+            self.message_handling_fun(message_time, chatter_nick, message, stream_id, metadata)

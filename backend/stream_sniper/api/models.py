@@ -21,7 +21,14 @@ class ChatterMessagesResponse(BaseModel):
 
 
 class StreamsResponse(BaseModel):
-    """Paginated list of streams."""
+    """Paginated list of streams.
+
+    Each row in ``streams`` is
+    ``[id, display_name, start_str, end_str, thumbnail_url, message_count]``.
+    ``max_offset`` is the filtered ``COUNT(*)`` (the count query applies the SAME
+    title/date/min_messages WHERE clause as the row query, and ignores sort/dir/offset),
+    so pagination bounds always match the filtered result set.
+    """
 
     streams: List[List[Any]] = Field(..., description="List of stream data tuples")
     max_offset: int = Field(..., description="Maximum offset for pagination", json_schema_extra={"example": 1000})

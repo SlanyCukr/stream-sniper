@@ -5,12 +5,23 @@ import {
 import {
     useStreams, useCreators,
 } from '@/hooks/useApiQuery'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { PAGINATION, DEFAULT_ORDERING } from '@/constants'
 import StreamThumbnail from '@/components/StreamThumbnail'
 import StreamGridSkeleton from '@/components/streams/StreamGridSkeleton'
 import ErrorDisplay from '@/components/streams/ErrorDisplay'
 import FiltersCard from '@/components/streams/FiltersCard'
 import PaginationComponent from '@/components/streams/PaginationComponent'
 
+const DEFAULT_FILTERS = {
+    creator: null,
+    order: DEFAULT_ORDERING,
+    dir: 'desc',
+    title: '',
+    dateFrom: '',
+    dateTo: '',
+    minMessages: '',
+}
 
 const AllStreams = () => {
     const [
@@ -18,13 +29,85 @@ const AllStreams = () => {
         setOffset,
     ] = useState(0)
     const [
-        selectedCreator,
-        setSelectedCreator,
-    ] = useState(null)
-    const [
-        selectedOrdering,
-        setSelectedOrdering,
-    ] = useState(null)
+        filters,
+        setFilters,
+    ] = useState(DEFAULT_FILTERS)
+
+    // Debounce free-text title search before it reaches the query; every other
+    // filter (creator, sort, direction, dates, min-messages) applies immediately.
+    const debouncedTitle = useDebouncedValue(filters.title, 300)
+
+    /**
+     * Updates a single filter field and resets pagination to the first page.
+     * @param {string} key
+     * @param {*} value
+     */
+    const updateFilter = useCallback((key, value) => {
+        setFilters(prev => ({
+            ...prev,
+            [key]: value,
+        }))
+        setOffset(0)
+    }, [
+    ])
+
+    const handleCreatorChange = useCallback(option => updateFilter('creator', option), [
+        updateFilter,
+    ])
+
+    const handleOrderChange = useCallback(option => updateFilter('order', option), [
+        updateFilter,
+    ])
+
+    const handleDirToggle = useCallback(() => {
+        updateFilter('dir', filters.dir === 'asc' ? 'desc' : 'asc')
+    }, [
+        updateFilter,
+        filters.dir,
+    ])
+
+    const handleTitleChange = useCallback(value => updateFilter('title', value), [
+        updateFilter,
+    ])
+
+    const handleDateFromChange = useCallback(value => updateFilter('dateFrom', value), [
+        updateFilter,
+    ])
+
+    const handleDateToChange = useCallback(value => updateFilter('dateTo', value), [
+        updateFilter,
+    ])
+
+    const handleMinMessagesCommit = useCallback(value => updateFilter('minMessages', value), [
+        updateFilter,
+    ])
+
+    const handleReset = useCallback(() => {
+        setFilters(DEFAULT_FILTERS)
+        setOffset(0)
+    }, [
+    ])
+
+    // "From" must not be after "To" — if inverted, warn and drop the date range
+    // from the outgoing query instead of sending a range that matches nothing.
+    const dateRangeInvalid = useMemo(() => (
+        Boolean(filters.dateFrom) && Boolean(filters.dateTo) && filters.dateFrom > filters.dateTo
+    ), [
+        filters.dateFrom,
+        filters.dateTo,
+    ])
+
+    const isFiltersDefault = useMemo(() => (
+        !filters.creator &&
+        (filters.order?.value ?? DEFAULT_ORDERING.value) === DEFAULT_ORDERING.value &&
+        filters.dir === 'desc' &&
+        filters.title === '' &&
+        filters.dateFrom === '' &&
+        filters.dateTo === '' &&
+        filters.minMessages === ''
+    ), [
+        filters,
+    ])
 
     // Use TanStack Query hooks for API calls
     const {
@@ -32,7 +115,16 @@ const AllStreams = () => {
         isLoading: streamsLoading,
         error: streamsError,
         refetch: refetchStreams,
-    } = useStreams(selectedCreator?.value || -1, offset)
+    } = useStreams({
+        creatorId: filters.creator?.value ?? -1,
+        sort: filters.order?.value ?? DEFAULT_ORDERING.value,
+        dir: filters.dir,
+        title: debouncedTitle || undefined,
+        dateFrom: dateRangeInvalid ? undefined : (filters.dateFrom || undefined),
+        dateTo: dateRangeInvalid ? undefined : (filters.dateTo || undefined),
+        minMessages: filters.minMessages !== '' ? Number(filters.minMessages) : undefined,
+        offset,
+    })
 
     const {
         data: creatorsData,
@@ -75,27 +167,8 @@ const AllStreams = () => {
     }, [
     ])
 
-    /**
-     * Handles creator selection change
-     * @param {object} selectedOption
-     */
-    const handleCreatorChange = useCallback(selectedOption => {
-        setSelectedCreator(selectedOption)
-        setOffset(0) // Reset to first page when filtering
-    }, [
-    ])
-
-    /**
-     * Handles ordering selection change
-     * @param {object} selectedOption
-     */
-    const handleOrderingChange = useCallback(selectedOption => {
-        setSelectedOrdering(selectedOption)
-    }, [
-    ])
-
     // Calculate pages count with memoization
-    const pagesCount = useMemo(() => Math.floor(maxOffset / 20), [
+    const pagesCount = useMemo(() => Math.floor(maxOffset / PAGINATION.ITEMS_PER_PAGE), [
         maxOffset,
     ])
 
@@ -117,10 +190,23 @@ const AllStreams = () => {
 
             <FiltersCard
                 creators={creators}
-                selectedCreator={selectedCreator}
+                selectedCreator={filters.creator}
                 onCreatorChange={handleCreatorChange}
-                selectedOrdering={selectedOrdering}
-                onOrderingChange={handleOrderingChange}
+                selectedOrdering={filters.order}
+                onOrderChange={handleOrderChange}
+                dir={filters.dir}
+                onDirToggle={handleDirToggle}
+                title={filters.title}
+                onTitleChange={handleTitleChange}
+                dateFrom={filters.dateFrom}
+                dateTo={filters.dateTo}
+                onDateFromChange={handleDateFromChange}
+                onDateToChange={handleDateToChange}
+                dateRangeInvalid={dateRangeInvalid}
+                minMessages={filters.minMessages}
+                onMinMessagesCommit={handleMinMessagesCommit}
+                onReset={handleReset}
+                showReset={!isFiltersDefault}
                 page={offset + 1}
                 pagesCount={pagesCount}
             />

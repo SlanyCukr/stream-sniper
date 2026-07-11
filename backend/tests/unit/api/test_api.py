@@ -184,8 +184,12 @@ class TestStreamsEndpoints:
         assert len(data["streams"]) == 2
         assert data["max_offset"] == 1000
 
-        mock_streams.assert_called_once_with(5, 0)
-        mock_count.assert_called_once_with(5)
+        mock_streams.assert_called_once_with(
+            5, 0, sort="start", dir="desc", title=None, date_from=None, date_to=None, min_messages=None
+        )
+        mock_count.assert_called_once_with(
+            5, title=None, date_from=None, date_to=None, min_messages=None
+        )
 
     @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
     @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
@@ -198,8 +202,12 @@ class TestStreamsEndpoints:
             response = client.get("/streams?creator_id=-1&offset=0")
 
         assert response.status_code == 200
-        mock_streams.assert_called_once_with(-1, 0)
-        mock_count.assert_called_once_with(-1)
+        mock_streams.assert_called_once_with(
+            -1, 0, sort="start", dir="desc", title=None, date_from=None, date_to=None, min_messages=None
+        )
+        mock_count.assert_called_once_with(
+            -1, title=None, date_from=None, date_to=None, min_messages=None
+        )
 
     @patch("stream_sniper.api.stream_endpoints.select_all_chatters_on_stream_db")
     def test_get_stream_chatters_success(self, mock_select):

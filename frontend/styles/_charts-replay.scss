@@ -1,0 +1,73 @@
+// Styles for the full stream chat-replay UI (W2 UI, T11).
+// Owned and filled in by T11. Consumes theme tokens from _variables.scss, which
+// style.scss @imports before this partial.
+
+/* ---------- Replay filter controls ---------- */
+.replay-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.75rem 1rem;
+
+    @include media-breakpoint-down(sm) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.replay-filter {
+    min-width: 0;
+}
+
+/* ---------- Virtualized replay body ---------- */
+// The replay uses react-virtuoso with a fixed-height scroller, so the shared
+// .chat-panel-body padding + max-height + inner scrollbar are removed here.
+.chat-panel-body--replay {
+    padding: 0;
+    max-height: none;
+    overflow: hidden;
+}
+
+.chat-line {
+    .chat-timestamp {
+        font-family: $font-family-monospace;
+        font-size: 0.72rem;
+        color: $gray-400;
+        margin-right: 0.55rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .chat-text {
+        color: $gray-100;
+    }
+
+    // Brief highlight when a timeline jump lands on this row.
+    &.chat-line--flash {
+        animation: chat-line-flash 1.6s ease-out;
+    }
+}
+
+@keyframes chat-line-flash {
+    0% {
+        background: rgba($phosphor, 0.28);
+    }
+
+    100% {
+        background: transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .chat-line.chat-line--flash {
+        animation: none;
+        background: rgba($phosphor, 0.14);
+    }
+}
+
+.chat-replay-footer {
+    padding: 0.5rem 0.9rem;
+    font-family: $font-family-monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: $gray-400;
+    border-top: 1px solid $hairline;
+}
