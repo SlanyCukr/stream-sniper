@@ -47,3 +47,28 @@ class TestSelectStreamMessagesDb:
         assert "mt.text ILIKE %s" in query
         assert 42 in params
         assert "%lol%" in params
+
+    def test_projection_includes_subscriber_and_badges(self, mock_connection_pool):
+        _mock_pool, _mock_connection, mock_cursor = mock_connection_pool
+
+        select_stream_messages_db(7, 100)
+
+        query = self._captured_query(mock_cursor)
+        assert "m.is_subscriber" in query
+        assert "m.badges" in query
+
+    def test_sub_only_appends_subscriber_predicate(self, mock_connection_pool):
+        _mock_pool, _mock_connection, mock_cursor = mock_connection_pool
+
+        select_stream_messages_db(7, 100, sub_only=True)
+
+        query = self._captured_query(mock_cursor)
+        assert "m.is_subscriber IS TRUE" in query
+
+    def test_sub_only_default_omits_subscriber_predicate(self, mock_connection_pool):
+        _mock_pool, _mock_connection, mock_cursor = mock_connection_pool
+
+        select_stream_messages_db(7, 100)
+
+        query = self._captured_query(mock_cursor)
+        assert "m.is_subscriber IS TRUE" not in query

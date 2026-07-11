@@ -1,8 +1,12 @@
 """Unit tests for GET /stream/{stream_id}/timeline (§3.3).
 
-The timeline router is not mounted on the shared ``app`` until the integration task (T9),
-so these tests mount it on a minimal FastAPI app wired with the real rate limiter, then
-patch the gateways by their import path in ``timeline_endpoints`` and use an always-miss cache.
+The timeline router is not mounted on the shared ``app`` until the integration task, so these
+tests mount it on a minimal FastAPI app wired with the real rate limiter, then patch the
+gateways by their import path in ``timeline_endpoints`` and use an always-miss cache.
+
+Gateway arities after migration 0008: buckets are 5-tuples
+``(iso, message_count, unique_chatters, sub_messages, emote_messages)`` and metrics are
+10-tuples with ``sub_messages``/``emote_messages`` appended at indices 8/9.
 """
 
 from datetime import datetime, timedelta
@@ -38,19 +42,23 @@ def _miss_cache():
 
 class TestTimelineEndpoint:
     @patch("stream_sniper.api.timeline_endpoints.get_cache")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_viewer_samples_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_moments_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_header_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_metrics_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_buckets_db")
     def test_success_with_buckets_metrics_and_moments(
-        self, mock_buckets, mock_metrics, mock_header, mock_get_cache
+        self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
         mock_get_cache.return_value = _miss_cache()
         # Flat 5-msg baseline for minutes 0-9, then a clear spike at minute 10.
-        buckets = [(_iso(i), 5, 3) for i in range(10)]
-        buckets.append((_iso(10), 100, 40))
+        buckets = [(_iso(i), 5, 3, 2, 1) for i in range(10)]
+        buckets.append((_iso(10), 100, 40, 30, 25))
         mock_buckets.return_value = buckets
-        mock_metrics.return_value = (105, 41, 3600, 1.75, 100, _iso(10), 30, 11)
+        mock_metrics.return_value = (105, 41, 3600, 1.75, 100, _iso(10), 30, 11, 60, 45)
         mock_header.return_value = (_iso(0), "vod12345")
+        mock_moments.return_value = []  # no persisted moments -> live fallback detection
+        mock_samples.return_value = []
 
         response = _client().get("/stream/7/timeline")
 
@@ -65,31 +73,46 @@ class TestTimelineEndpoint:
             "bucket_minute": _iso(10),
             "message_count": 100,
             "unique_chatters": 40,
+            "sub_messages": 30,
+            "emote_messages": 25,
         }
         assert data["metrics"] is not None
         assert data["metrics"]["total_messages"] == 105
         assert data["metrics"]["messages_per_minute"] == 1.75
         assert data["metrics"]["peak_bucket_minute"] == _iso(10)
-        # One spike moment detected at minute 10.
+        assert data["metrics"]["sub_messages"] == 60
+        assert data["metrics"]["emote_messages"] == 45
+        # One spike moment detected at minute 10 via the live fallback (no enrichment fields).
         assert len(data["moments"]) == 1
         assert data["moments"][0]["bucket_minute"] == _iso(10)
         assert data["moments"][0]["message_count"] == 100
         assert data["moments"][0]["ratio"] == 20.0
+        assert data["moments"][0]["status"] is None
+        assert data["moments"][0]["sub_share"] is None
+        assert data["moments"][0]["top_phrases"] is None
+        assert data["viewer_samples"] == []
+        assert data["peak_viewers"] is None
         mock_buckets.assert_called_once_with(7)
         mock_metrics.assert_called_once_with(7)
         mock_header.assert_called_once_with(7)
+        mock_moments.assert_called_once_with(7)
+        mock_samples.assert_called_once_with(7)
 
     @patch("stream_sniper.api.timeline_endpoints.get_cache")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_viewer_samples_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_moments_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_header_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_metrics_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_buckets_db")
     def test_empty_rollup_returns_200_with_null_metrics(
-        self, mock_buckets, mock_metrics, mock_header, mock_get_cache
+        self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
         mock_get_cache.return_value = _miss_cache()
         mock_buckets.return_value = []
         mock_metrics.return_value = None
         mock_header.return_value = None
+        mock_moments.return_value = []
+        mock_samples.return_value = []
 
         response = _client().get("/stream/99/timeline")
 
@@ -102,18 +125,24 @@ class TestTimelineEndpoint:
         assert data["buckets"] == []
         assert data["moments"] == []
         assert data["metrics"] is None
+        assert data["viewer_samples"] == []
+        assert data["peak_viewers"] is None
 
     @patch("stream_sniper.api.timeline_endpoints.get_cache")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_viewer_samples_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_moments_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_header_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_metrics_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_buckets_db")
     def test_header_present_but_metrics_absent(
-        self, mock_buckets, mock_metrics, mock_header, mock_get_cache
+        self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
         mock_get_cache.return_value = _miss_cache()
-        mock_buckets.return_value = [(_iso(0), 4, 2), (_iso(1), 6, 3)]
+        mock_buckets.return_value = [(_iso(0), 4, 2, 1, 0), (_iso(1), 6, 3, 2, 1)]
         mock_metrics.return_value = None
         mock_header.return_value = (_iso(0), "vod999")
+        mock_moments.return_value = []
+        mock_samples.return_value = []
 
         response = _client().get("/stream/5/timeline")
 
@@ -125,11 +154,13 @@ class TestTimelineEndpoint:
         assert len(data["buckets"]) == 2
 
     @patch("stream_sniper.api.timeline_endpoints.get_cache")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_viewer_samples_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_moments_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_header_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_metrics_db")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_buckets_db")
     def test_gateway_raise_returns_500(
-        self, mock_buckets, mock_metrics, mock_header, mock_get_cache
+        self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
         mock_get_cache.return_value = _miss_cache()
         mock_buckets.side_effect = Exception("db down")
@@ -138,3 +169,142 @@ class TestTimelineEndpoint:
 
         assert response.status_code == 500
         assert response.json()["detail"] == "Internal server error"
+
+    @patch("stream_sniper.api.timeline_endpoints.get_cache")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_viewer_samples_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_moments_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_header_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_metrics_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_buckets_db")
+    def test_zero_fill_synthesizes_missing_minutes(
+        self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
+    ):
+        mock_get_cache.return_value = _miss_cache()
+        # Observed only at minute 0 and minute 3 -> minutes 1 and 2 must be synthesized.
+        mock_buckets.return_value = [(_iso(0), 4, 2, 1, 0), (_iso(3), 7, 5, 3, 2)]
+        mock_metrics.return_value = None
+        mock_header.return_value = (_iso(0), "vod1")
+        mock_moments.return_value = []
+        mock_samples.return_value = []
+
+        response = _client().get("/stream/1/timeline")
+
+        assert response.status_code == 200
+        buckets = response.json()["buckets"]
+        assert len(buckets) == 4
+        assert [b["bucket_minute"] for b in buckets] == [_iso(i) for i in range(4)]
+        # Observed minute 0 keeps its real (possibly-zero) metadata.
+        assert buckets[0]["emote_messages"] == 0
+        # Synthesized minutes are zero for counts but None (unknown) for sub/emote metadata.
+        assert buckets[1] == {
+            "bucket_minute": _iso(1),
+            "message_count": 0,
+            "unique_chatters": 0,
+            "sub_messages": None,
+            "emote_messages": None,
+        }
+        assert buckets[2]["message_count"] == 0
+        assert buckets[2]["sub_messages"] is None
+        assert buckets[3]["message_count"] == 7
+
+    @patch("stream_sniper.api.timeline_endpoints.get_cache")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_viewer_samples_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_moments_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_header_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_metrics_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_buckets_db")
+    def test_persisted_moments_used_when_present(
+        self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
+    ):
+        mock_get_cache.return_value = _miss_cache()
+        # Flat buckets: live detection would find NO spike, so any moment proves the
+        # persisted path was taken.
+        mock_buckets.return_value = [(_iso(i), 5, 3, 1, 1) for i in range(5)]
+        mock_metrics.return_value = None
+        mock_header.return_value = (_iso(0), "vod1")
+        mock_moments.return_value = [
+            (
+                _iso(2),
+                120,
+                420,
+                80.0,
+                5.25,
+                40,
+                0.3125,
+                0.5,
+                [{"phrase": "pog", "count": 12, "lift": 4.2}],
+                [{"text": "POG", "count": 8}],
+                "bookmarked",
+            )
+        ]
+        mock_samples.return_value = []
+
+        response = _client().get("/stream/1/timeline")
+
+        assert response.status_code == 200
+        moments = response.json()["moments"]
+        assert len(moments) == 1
+        m = moments[0]
+        assert m["bucket_minute"] == _iso(2)
+        assert m["offset_seconds"] == 120
+        assert m["message_count"] == 420
+        assert m["ratio"] == 5.25
+        assert m["sub_share"] == 0.3125
+        assert m["emote_share"] == 0.5
+        assert m["top_phrases"] == [{"phrase": "pog", "count": 12, "lift": 4.2}]
+        assert m["sample_messages"] == [{"text": "POG", "count": 8}]
+        assert m["status"] == "bookmarked"
+
+    @patch("stream_sniper.api.timeline_endpoints.get_cache")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_viewer_samples_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_moments_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_header_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_metrics_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_buckets_db")
+    def test_viewer_samples_and_peak(
+        self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
+    ):
+        mock_get_cache.return_value = _miss_cache()
+        mock_buckets.return_value = [(_iso(0), 4, 2, 1, 0)]
+        mock_metrics.return_value = None
+        mock_header.return_value = (_iso(0), "vod1")
+        mock_moments.return_value = []
+        mock_samples.return_value = [(_iso(0), 1200), (_iso(5), 3400), (_iso(10), 2100)]
+
+        response = _client().get("/stream/1/timeline")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["viewer_samples"] == [
+            {"t": _iso(0), "viewer_count": 1200},
+            {"t": _iso(5), "viewer_count": 3400},
+            {"t": _iso(10), "viewer_count": 2100},
+        ]
+        assert data["peak_viewers"] == 3400
+
+    @patch("stream_sniper.api.timeline_endpoints.get_cache")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_viewer_samples_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_moments_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_header_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_metrics_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_buckets_db")
+    def test_metrics_sub_emote_null_passthrough(
+        self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
+    ):
+        mock_get_cache.return_value = _miss_cache()
+        mock_buckets.return_value = [(_iso(0), 4, 2, None, None)]
+        # Not yet re-rolled under 0008: sub/emote metadata is NULL, not 0.
+        mock_metrics.return_value = (10, 5, 600, 1.0, 4, _iso(0), 5, 0, None, None)
+        mock_header.return_value = (_iso(0), "vod1")
+        mock_moments.return_value = []
+        mock_samples.return_value = []
+
+        response = _client().get("/stream/1/timeline")
+
+        assert response.status_code == 200
+        data = response.json()
+        # Unknown metadata stays None (never coerced to 0).
+        assert data["metrics"]["sub_messages"] is None
+        assert data["metrics"]["emote_messages"] is None
+        assert data["buckets"][0]["sub_messages"] is None
+        assert data["buckets"][0]["emote_messages"] is None

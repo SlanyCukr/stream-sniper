@@ -5,7 +5,8 @@ from .decorators import with_cursor
 def select_stream_buckets_db(stream_id, cursor):
     cursor.execute(
         """
-        SELECT TO_CHAR(bucket_minute, 'YYYY-MM-DD"T"HH24:MI:SS'), message_count, unique_chatters
+        SELECT TO_CHAR(bucket_minute, 'YYYY-MM-DD"T"HH24:MI:SS'), message_count, unique_chatters,
+               sub_messages, emote_messages
         FROM stream_time_bucket
         WHERE stream_id = %s
         ORDER BY bucket_minute ASC

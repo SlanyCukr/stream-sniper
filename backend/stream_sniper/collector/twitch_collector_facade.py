@@ -5,6 +5,7 @@ from typing import Optional
 from ..analytics.rollup_engine import compute_stream_rollup
 from ..database.chatter_table_gateway import insert_new_chatters_db, select_all_chatters_db
 from ..database.creator_table_gateway import insert_new_creator_db, select_creator_id_db
+from ..database.emote_dictionary_table_gateway import upsert_twitch_emotes_db
 from ..database.message_table_gateway import insert_message_db
 from ..database.message_text_table_gateway import insert_message_texts_db, select_all_message_texts_db
 from ..database.stream_table_gateway import update_stream_message_count_db
@@ -48,6 +49,9 @@ class TwitchCollectorFacade:
         self.message_handler = MessageHandler(nickname, self.db_buffer_insert_message.add_item)
         self.chat_processor = ChatProcessor(self.creator_id, self.message_handler.handle_message)
         self.chat_downloader = IrcChatDownloader(nickname, self.twitch_api)
+
+        # Emote names already upserted this run, so unchanged batches skip the DB round-trip.
+        self.seen_emote_names: set[str] = set()
 
         self.logger.info(f"Twitch collector initialized successfully for: {nickname}")
 
@@ -98,6 +102,17 @@ class TwitchCollectorFacade:
 
                     # process the messages in fetched chat
                     self.chat_processor.process_chat(chat_batch, stream_id)
+
+                    # learn any newly-seen Twitch emote names from this batch
+                    new_emotes = [
+                        (name, provider_id)
+                        for name, provider_id in self.chat_processor.batch_emotes.items()
+                        if name not in self.seen_emote_names
+                    ]
+                    if new_emotes:
+                        upsert_twitch_emotes_db(new_emotes)
+                        self.seen_emote_names.update(name for name, _ in new_emotes)
+
                     num_of_messages += len(chat_batch)
                     self.logger.info(
                         f"Processed batch of {len(chat_batch)} messages for stream {twitch_stream_id} "

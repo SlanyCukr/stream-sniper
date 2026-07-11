@@ -38,10 +38,12 @@ def select_rollup_stream_ids_db(cursor, *, creator_nick=None, force=False):
 def recompute_stream_rollup_db(stream_id, creator_id, cursor, connection):
     """Recompute all rollups for one stream in a single transaction (idempotent).
 
-    Runs statements (a)-(d) from MASTER_PLAN §4.2 in order, then commits:
-      (a) stream_time_bucket, (b) stream_chatter_stats, (c) stream_metrics,
-      (d) creator_chatter_stats. Every statement is a DELETE+INSERT / UPSERT recompute,
-      so re-running with unchanged message data yields identical results.
+    Runs statements (a)-(e) from MASTER_PLAN §4.2 in order, then commits:
+      (a) stream_time_bucket (incl. sub_messages / emote_messages),
+      (b) stream_chatter_stats, (c) stream_metrics (incl. sub_messages / emote_messages
+      summed from the buckets), (d) creator_chatter_stats, (e) stream_emote_stats.
+      Every statement is a DELETE+INSERT / UPSERT recompute, so re-running with unchanged
+      message data yields identical results.
     """
     params = {"sid": stream_id, "cid": creator_id}
 
@@ -49,8 +51,11 @@ def recompute_stream_rollup_db(stream_id, creator_id, cursor, connection):
     cursor.execute("DELETE FROM stream_time_bucket WHERE stream_id = %(sid)s", params)
     cursor.execute(
         """
-        INSERT INTO stream_time_bucket (stream_id, bucket_minute, message_count, unique_chatters)
-        SELECT %(sid)s, date_trunc('minute', time), count(*), count(DISTINCT chatter_id)
+        INSERT INTO stream_time_bucket
+            (stream_id, bucket_minute, message_count, unique_chatters, sub_messages, emote_messages)
+        SELECT %(sid)s, date_trunc('minute', time), count(*), count(DISTINCT chatter_id),
+               count(*) FILTER (WHERE is_subscriber IS TRUE),
+               count(*) FILTER (WHERE emote_count IS NOT NULL)
         FROM message
         WHERE stream_id = %(sid)s AND time IS NOT NULL
         GROUP BY date_trunc('minute', time)
@@ -79,7 +84,7 @@ def recompute_stream_rollup_db(stream_id, creator_id, cursor, connection):
         INSERT INTO stream_metrics (
             stream_id, total_messages, unique_chatters, duration_seconds,
             messages_per_minute, peak_messages, peak_bucket_minute,
-            new_chatters, returning_chatters, computed_at)
+            new_chatters, returning_chatters, sub_messages, emote_messages, computed_at)
         SELECT
             %(sid)s,
             agg.total_messages,
@@ -96,6 +101,8 @@ def recompute_stream_rollup_db(stream_id, creator_id, cursor, connection):
              ORDER BY message_count DESC, bucket_minute ASC LIMIT 1),
             nc.new_chatters,
             agg.unique_chatters - nc.new_chatters,
+            meta.sub_messages,
+            meta.emote_messages,
             now()
         FROM
             (SELECT COALESCE(sum(message_count), 0)::int AS total_messages,
@@ -119,6 +126,10 @@ def recompute_stream_rollup_db(stream_id, creator_id, cursor, connection):
                      AND (ps.start, ps.id) < (
                          (SELECT start FROM stream WHERE id = %(sid)s), %(sid)s)
                )) nc
+        CROSS JOIN
+            (SELECT COALESCE(sum(sub_messages), 0)::int AS sub_messages,
+                    COALESCE(sum(emote_messages), 0)::int AS emote_messages
+             FROM stream_time_bucket WHERE stream_id = %(sid)s) meta
         """,
         params,
     )
@@ -167,6 +178,30 @@ def recompute_stream_rollup_db(stream_id, creator_id, cursor, connection):
             last_seen_stream_id = EXCLUDED.last_seen_stream_id,
             last_seen_at = EXCLUDED.last_seen_at,
             updated_at = EXCLUDED.updated_at
+        """,
+        params,
+    )
+
+    # (e) per-stream emote usage: exact case-sensitive token match against a NAME-DEDUPED
+    # dictionary (twitch beats bttv, names shorter than 3 chars are noise-prone and skipped),
+    # so a name present in both sources counts once. Approximate by design: historical rows
+    # carry no emote metadata, dictionary text-match is the only retroactive source.
+    cursor.execute("DELETE FROM stream_emote_stats WHERE stream_id = %(sid)s", params)
+    cursor.execute(
+        r"""
+        INSERT INTO stream_emote_stats (stream_id, emote_id, usage_count, chatter_count)
+        SELECT %(sid)s, d.id, count(*), count(DISTINCT m.chatter_id)
+        FROM message m
+        JOIN message_text mt ON mt.id = m.message_text_id
+        CROSS JOIN LATERAL regexp_split_to_table(mt.text, '\s+') AS w(word)
+        JOIN (
+            SELECT DISTINCT ON (name) id, name
+            FROM emote_dictionary
+            WHERE length(name) >= 3
+            ORDER BY name, CASE source WHEN 'twitch' THEN 0 ELSE 1 END
+        ) d ON d.name = w.word
+        WHERE m.stream_id = %(sid)s
+        GROUP BY d.id
         """,
         params,
     )

@@ -2,7 +2,9 @@ from .decorators import with_cursor
 
 
 @with_cursor
-def select_stream_messages_db(stream_id, limit, cursor, *, after_ts=None, after_id=None, chatter_id=None, q=None):
+def select_stream_messages_db(
+    stream_id, limit, cursor, *, after_ts=None, after_id=None, chatter_id=None, q=None, sub_only=False
+):
     conditions = ["m.stream_id = %s"]
     params = [stream_id]
 
@@ -19,8 +21,12 @@ def select_stream_messages_db(stream_id, limit, cursor, *, after_ts=None, after_
         conditions.append("mt.text ILIKE %s")
         params.append(f"%{q}%")
 
+    if sub_only:
+        conditions.append("m.is_subscriber IS TRUE")
+
     query = (
-        'SELECT m.id, TO_CHAR(m.time, \'YYYY-MM-DD"T"HH24:MI:SS.US\'), m.chatter_id, c.nick, mt.text\n'
+        'SELECT m.id, TO_CHAR(m.time, \'YYYY-MM-DD"T"HH24:MI:SS.US\'), m.chatter_id, c.nick, mt.text, '
+        "m.is_subscriber, m.badges\n"
         "FROM message m\n"
         "JOIN chatter c ON c.id = m.chatter_id\n"
         "JOIN message_text mt ON mt.id = m.message_text_id\n"

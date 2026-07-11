@@ -232,6 +232,48 @@ def select_chatters_in_stream_db(stream_id, cursor):
 
 
 @with_cursor
+def select_stream_mentions_db(stream_id, limit, cursor):
+    # Two independent GROUP BYs over one stream's messages: the most-mentioned chatters
+    # (top `limit`), and the top directed mention pairs (capped at 20). tagged_chatter_id
+    # has no FK, so nicks resolve via correlated subqueries to avoid dropping rows whose
+    # target chatter row is absent. Same access pattern as select_most_tagged_chatters_db.
+    cursor.execute(
+        """
+        SELECT tagged_chatter_id,
+               (SELECT nick FROM chatter WHERE chatter.id = tagged_chatter_id),
+               COUNT(*) AS mention_count
+        FROM message
+        WHERE stream_id = %s
+        GROUP BY tagged_chatter_id
+        HAVING tagged_chatter_id IS NOT NULL
+        ORDER BY mention_count DESC
+        LIMIT %s
+        """,
+        (stream_id, limit),
+    )
+    mentioned = cursor.fetchall()
+
+    cursor.execute(
+        """
+        SELECT chatter_id,
+               (SELECT nick FROM chatter WHERE chatter.id = chatter_id),
+               tagged_chatter_id,
+               (SELECT nick FROM chatter WHERE chatter.id = tagged_chatter_id),
+               COUNT(*) AS pair_count
+        FROM message
+        WHERE stream_id = %s AND tagged_chatter_id IS NOT NULL
+        GROUP BY chatter_id, tagged_chatter_id
+        ORDER BY pair_count DESC
+        LIMIT 20
+        """,
+        (stream_id,),
+    )
+    pairs = cursor.fetchall()
+
+    return mentioned, pairs
+
+
+@with_cursor
 def select_chatter_messages_on_stream_db(stream_id, chatter_id, cursor):
     cursor.execute(
         """

@@ -3,12 +3,13 @@ Unit tests for W5 collector chat metadata capture.
 
 Covers:
 - `extract_message_metadata` (chat_processor.py): pure extractor, parametrized over
-  chat-downloader-shaped `line` dicts, including malformed input (never raises).
+  chat-downloader-shaped `line` dicts, including malformed input (never raises). Now also
+  returns emote (name, twitch_id) pairs as the 4th element.
 - `MessageHandler.handle_message`: metadata threaded into the 8-element insert tuple,
   default-arg path yields (None, None, None).
 - `insert_message_db` (message_table_gateway.py): 8-column INSERT shape.
-- `ChatProcessor.process_chat`: wires metadata as the 5th positional handler arg; a
-  line missing `timestamp` still raises normally (metadata extraction never masks it).
+- `ChatProcessor.process_chat`: forwards the 3-tuple metadata to the handler and buffers
+  emote (name -> id) pairs for the facade to drain.
 """
 
 from datetime import datetime
@@ -23,7 +24,7 @@ from stream_sniper.database.message_table_gateway import insert_message_db
 
 
 class TestExtractMessageMetadata:
-    """Parametrized coverage of extract_message_metadata."""
+    """Parametrized coverage of extract_message_metadata (4-tuple with emote pairs)."""
 
     @pytest.mark.parametrize(
         "line, expected",
@@ -36,54 +37,62 @@ class TestExtractMessageMetadata:
                             {"name": "subscriber", "version": "12"},
                         ],
                     },
-                    "emotes": [{"name": "Kappa"}, {"name": "PogChamp"}],
+                    "emotes": [
+                        {"id": "25", "name": "Kappa"},
+                        {"id": "305954156", "name": "PogChamp"},
+                    ],
                 },
-                (True, "moderator/1,subscriber/12", 2),
+                (True, "moderator/1,subscriber/12", 2, [("Kappa", "25"), ("PogChamp", "305954156")]),
                 id="subscriber_with_emotes",
             ),
             pytest.param(
                 {"author": {}, "emotes": []},
-                (False, None, None),
+                (False, None, None, []),
                 id="plain_viewer",
             ),
             pytest.param(
                 {"author": {"badges": [{"name": "founder"}]}},
-                (True, "founder/0", None),
+                (True, "founder/0", None, []),
                 id="founder_badge_default_version",
             ),
             pytest.param(
                 {"author": {}},
-                (False, None, None),
+                (False, None, None, []),
                 id="empty_author",
             ),
             pytest.param(
                 {},
-                (False, None, None),
+                (False, None, None, []),
                 id="missing_author_key",
             ),
             pytest.param(
                 {"author": {"badges": ["just", "strings"]}},
-                (False, None, None),
+                (False, None, None, []),
                 id="malformed_badges_not_dicts_never_raises",
             ),
             pytest.param(
                 {"author": {}, "emotes": ["a", "b"]},
-                (False, None, None),
+                (False, None, None, []),
                 id="malformed_emotes_not_dicts_never_raises",
             ),
             pytest.param(
                 {"author": {"badges": [{"version": "1"}, {"name": None}]}},
-                (False, None, None),
+                (False, None, None, []),
                 id="malformed_badges_missing_name_never_raises",
             ),
             pytest.param(
+                {"author": {}, "emotes": [{"name": "catJAM"}, {"id": "99"}]},
+                (False, None, 1, [("catJAM", None)]),
+                id="emote_without_id_keeps_name_id_none",
+            ),
+            pytest.param(
                 "not-a-dict-line",
-                (None, None, None),
+                (None, None, None, []),
                 id="non_dict_line_hits_except_never_raises",
             ),
             pytest.param(
                 None,
-                (None, None, None),
+                (None, None, None, []),
                 id="none_line_hits_except_never_raises",
             ),
         ],
@@ -95,14 +104,14 @@ class TestExtractMessageMetadata:
         # If the source ever carries an explicit is_subscriber flag with no subscriber
         # badge, that explicit value wins over the badge-derived fallback.
         line = {"author": {"is_subscriber": True, "badges": [{"name": "moderator", "version": "1"}]}}
-        assert extract_message_metadata(line) == (True, "moderator/1", None)
+        assert extract_message_metadata(line) == (True, "moderator/1", None, [])
 
     def test_never_raises_on_deeply_malformed_input(self):
-        # Defensive smoke test: whatever garbage comes in, we get a 3-tuple back.
+        # Defensive smoke test: whatever garbage comes in, we get a 4-tuple back.
         for garbage in (123, [], {"author": 5}, {"author": {"badges": None}, "emotes": None}):
             result = extract_message_metadata(garbage)
             assert isinstance(result, tuple)
-            assert len(result) == 3
+            assert len(result) == 4
 
 
 class TestHandleMessageMetadata:
@@ -172,7 +181,7 @@ class TestInsertMessageDb8Columns:
 
 
 class TestProcessChatMetadataWiring:
-    """ChatProcessor.process_chat passes metadata as the 5th positional handler arg."""
+    """ChatProcessor.process_chat forwards a 3-tuple metadata + buffers emote pairs."""
 
     def test_process_chat_passes_metadata_positionally(self):
         mock_handler = Mock()
@@ -194,6 +203,40 @@ class TestProcessChatMetadataWiring:
         assert message == "hi"
         assert stream_id == 5
         assert metadata == (True, "subscriber/6", None)
+
+    def test_process_chat_buffers_emote_name_id_pairs(self):
+        mock_handler = Mock()
+        processor = ChatProcessor(creator_id=1, message_handling_fun=mock_handler)
+        chat = [
+            {
+                "author": {"name": "a"},
+                "message": "Kappa Kappa",
+                "timestamp": 1,
+                "emotes": [{"id": "25", "name": "Kappa"}],
+            },
+            {
+                "author": {"name": "b"},
+                "message": "catJAM PogChamp",
+                "timestamp": 2,
+                "emotes": [{"name": "catJAM"}, {"id": "88", "name": "PogChamp"}],
+            },
+        ]
+
+        processor.process_chat(chat, 5)
+
+        assert processor.batch_emotes == {"Kappa": "25", "catJAM": None, "PogChamp": "88"}
+
+    def test_process_chat_resets_batch_emotes_between_batches(self):
+        processor = ChatProcessor(creator_id=1, message_handling_fun=Mock())
+        processor.process_chat(
+            [{"author": {"name": "a"}, "message": "x", "timestamp": 1, "emotes": [{"id": "1", "name": "Old"}]}],
+            5,
+        )
+        processor.process_chat(
+            [{"author": {"name": "b"}, "message": "y", "timestamp": 2, "emotes": [{"id": "2", "name": "New"}]}],
+            5,
+        )
+        assert processor.batch_emotes == {"New": "2"}
 
     def test_process_chat_missing_timestamp_still_raises(self):
         mock_handler = Mock()
