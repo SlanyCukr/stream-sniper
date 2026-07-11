@@ -28,19 +28,22 @@ export const streamMessagesKeys = {
  * @param {object} filters - Optional filters
  * @param {number} [filters.chatterId] - Restrict to a single chatter
  * @param {string} [filters.q] - Case-insensitive substring filter on message text
+ * @param {boolean} [filters.subOnly] - Restrict to subscriber messages only
  * @param {object} options - Additional query options
  * @returns {object} useInfiniteQuery result; each page is
- *   {messages: [{id, ts, chatterId, nick, text}], next_cursor, has_more}
+ *   {messages: [{id, ts, chatterId, nick, text, isSubscriber, badges}], next_cursor, has_more}
  */
-export const useStreamMessages = (streamId, { chatterId, q } = {}, options = {}) => useInfiniteQuery({
+export const useStreamMessages = (streamId, { chatterId, q, subOnly } = {}, options = {}) => useInfiniteQuery({
     queryKey: streamMessagesKeys.list(streamId, {
         chatterId,
         q,
+        subOnly,
     }),
     queryFn: async ({ pageParam }) => {
         const response = await retrieveStreamMessages(streamId, {
             chatterId,
             q,
+            subOnly,
             afterTs: pageParam?.afterTs,
             afterId: pageParam?.afterId,
             limit: REPLAY_PAGE_SIZE,
@@ -59,6 +62,8 @@ export const useStreamMessages = (streamId, { chatterId, q } = {}, options = {})
                 chatterId: m.chatter_id,
                 nick: m.nick,
                 text: m.text,
+                isSubscriber: m.is_subscriber,
+                badges: m.badges,
             })),
         }
     },

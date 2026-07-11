@@ -9,6 +9,7 @@ import { Virtuoso } from 'react-virtuoso'
 import {
     applyBetterTvEmotes,
     nickColor,
+    parseBadges,
 } from '@/utils/chatRender'
 
 /**
@@ -89,26 +90,55 @@ const StreamChatReplay = ({
         onLoadMore,
     ])
 
-    const renderRow = useCallback((index, message) => (
-        <div
-            className={`chat-line${message.id === flashId ? ' chat-line--flash' : ''}`}
-            role="listitem">
-            <span
-                className="chat-timestamp"
-                aria-hidden="true">
-                {clockFromTs(message.ts)}
-            </span>
-            <span
-                className="chat-nick"
-                style={{ color: nickColor(message.nick || '') }}>
-                {message.nick}
-            </span>
-            <span aria-hidden="true">: </span>
-            <span className="chat-text">
-                {applyBetterTvEmotes(message.text)}
-            </span>
-        </div>
-    ), [
+    const renderRow = useCallback((index, message) => {
+        const badges = parseBadges(message.badges)
+        return (
+            <div
+                className={`chat-line${message.id === flashId ? ' chat-line--flash' : ''}`}
+                role="listitem">
+                <span
+                    className="chat-timestamp"
+                    aria-hidden="true">
+                    {clockFromTs(message.ts)}
+                </span>
+                {badges.length > 0 && (
+                    <span
+                        className="chat-badges"
+                        aria-hidden="true">
+                        {badges.map(badge => (badge.icon
+                            ? (
+                                <i
+                                    key={badge.raw}
+                                    className={`bi ${badge.icon} chat-badge ${badge.className}`}
+                                    title={badge.raw}
+                                />
+                            )
+                            : (
+                                <span
+                                    key={badge.raw}
+                                    className={`chat-badge ${badge.className}`}
+                                    title={badge.raw}
+                                />
+                            )))}
+                    </span>
+                )}
+                <span
+                    className="chat-nick"
+                    style={{ color: nickColor(message.nick || '') }}>
+                    {badges.length > 0 && (
+                        <span className="visually-hidden">
+                            {`${badges.map(badge => badge.label).join(', ')} `}
+                        </span>
+                    )}
+                    {message.nick}
+                </span>
+                <span aria-hidden="true">: </span>
+                <span className="chat-text">
+                    {applyBetterTvEmotes(message.text)}
+                </span>
+            </div>
+        )
+    }, [
         flashId,
     ])
 

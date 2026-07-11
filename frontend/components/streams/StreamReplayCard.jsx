@@ -31,6 +31,7 @@ const MAX_RENDERED_OPTIONS = 100
  * @param {Array} props.chatterOptions        [{label, value}] from streamInfo.cis
  * @param {Function} props.onChatterChange     Receives the selected chatter id | undefined
  * @param {Function} props.onQueryChange       Receives the debounced text query
+ * @param {Function} props.onSubOnlyChange     Receives the subscribers-only toggle bool
  * @param {Array} props.messages               Flattened replay rows
  * @param {boolean} props.hasMore              Another page can be fetched
  * @param {boolean} props.isFetchingMore       A page fetch is in flight
@@ -43,6 +44,7 @@ const StreamReplayCard = ({
     chatterOptions,
     onChatterChange,
     onQueryChange,
+    onSubOnlyChange,
     messages,
     hasMore,
     isFetchingMore,
@@ -63,6 +65,10 @@ const StreamReplayCard = ({
         searchText,
         setSearchText,
     ] = useState('')
+    const [
+        subOnly,
+        setSubOnly,
+    ] = useState(false)
 
     const debouncedSearch = useDebouncedValue(searchText, 300)
 
@@ -78,6 +84,13 @@ const StreamReplayCard = ({
         onChatterChange(option?.value)
     }, [
         onChatterChange,
+    ])
+
+    const handleSubOnlyChange = useCallback(checked => {
+        setSubOnly(checked)
+        onSubOnlyChange(checked)
+    }, [
+        onSubOnlyChange,
     ])
 
     const handleOptionInput = useCallback(value => {
@@ -167,6 +180,30 @@ const StreamReplayCard = ({
                             id="replay-text-help"
                             className="form-text">
                             Case-insensitive; matches anywhere in a message
+                        </div>
+                    </div>
+
+                    <div className="replay-filter replay-filter--toggle">
+                        <div className="form-check form-switch replay-sub-toggle">
+                            <input
+                                id="replay-sub-only"
+                                type="checkbox"
+                                role="switch"
+                                className="form-check-input"
+                                checked={subOnly}
+                                onChange={event => handleSubOnlyChange(event.target.checked)}
+                                aria-describedby="replay-sub-help"
+                            />
+                            <label
+                                htmlFor="replay-sub-only"
+                                className="form-check-label">
+                                Subscribers only
+                            </label>
+                        </div>
+                        <div
+                            id="replay-sub-help"
+                            className="form-text">
+                            Show only messages from subscribers
                         </div>
                     </div>
                 </div>

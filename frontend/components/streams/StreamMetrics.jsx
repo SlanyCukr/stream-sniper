@@ -17,6 +17,17 @@ const clock = ts => (typeof ts === 'string' && ts.length >= 16 ? ts.slice(11, 16
 /** Render a number with thousands separators, or a dash for null/undefined. */
 const num = value => (value == null ? '--' : Number(value).toLocaleString())
 
+/** Format a 0..1 share as "XX.X%", or null when it cannot be computed. */
+const sharePct = (part, total) => {
+    if (part == null || !total) {
+        return null
+    }
+    return `${((part / total) * 100).toLocaleString(undefined, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+    })}%`
+}
+
 /**
  * Stream rollup metrics as a grid of stat tiles. When `metrics` is null (the
  * rollup has not run for this stream yet) a single muted hint is shown instead,
@@ -74,6 +85,32 @@ const StreamMetrics = ({ metrics }) => {
             value: formatDuration(metrics.durationSec),
         },
     ]
+
+    // Nullable-column contract: unknown (null) != 0 — hide the tile entirely rather
+    // than render a misleading 0 before the 0008 rollup / viewer backfill has run.
+    if (metrics.peakViewers != null) {
+        tiles.push({
+            label: 'Peak viewers',
+            value: num(metrics.peakViewers),
+            phosphor: true,
+        })
+    }
+    const subShare = sharePct(metrics.subMessages, metrics.totalMessages)
+    if (subShare != null) {
+        tiles.push({
+            label: 'Sub share',
+            value: subShare,
+            hint: `${num(metrics.subMessages)} sub msgs`,
+        })
+    }
+    const emoteShare = sharePct(metrics.emoteMessages, metrics.totalMessages)
+    if (emoteShare != null) {
+        tiles.push({
+            label: 'Emote share',
+            value: emoteShare,
+            hint: `${num(metrics.emoteMessages)} emote msgs`,
+        })
+    }
 
     return (
         <Card className="stream-metrics">

@@ -5,8 +5,13 @@
 /* ---------- Replay filter controls ---------- */
 .replay-filters {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: start;
     gap: 0.75rem 1rem;
+
+    @include media-breakpoint-down(md) {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
 
     @include media-breakpoint-down(sm) {
         grid-template-columns: 1fr;
@@ -15,6 +20,42 @@
 
 .replay-filter {
     min-width: 0;
+}
+
+// The subscribers-only toggle has no react-select control, so nudge it down to
+// baseline-align its switch with the two pickers' inputs.
+.replay-filter--toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-top: 0.35rem;
+    white-space: nowrap;
+}
+
+.replay-sub-toggle {
+    padding-left: 2.5rem;
+
+    .form-check-input {
+        cursor: pointer;
+        background-color: $bg-raised;
+        border-color: $hairline;
+
+        &:checked {
+            background-color: $phosphor;
+            border-color: $phosphor;
+        }
+
+        &:focus {
+            border-color: rgba($phosphor, 0.6);
+            box-shadow: 0 0 0 0.2rem rgba($phosphor, 0.25);
+        }
+    }
+
+    .form-check-label {
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: $gray-200;
+    }
 }
 
 /* ---------- Virtualized replay body ---------- */
@@ -43,6 +84,45 @@
     &.chat-line--flash {
         animation: chat-line-flash 1.6s ease-out;
     }
+}
+
+/* ---------- Chatter role badges (before the nick) ---------- */
+.chat-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    margin-right: 0.35rem;
+    vertical-align: baseline;
+}
+
+.chat-badge {
+    font-size: 0.7rem;
+    line-height: 1;
+
+    &.chat-badge--broadcaster {
+        color: $signal-red;
+    }
+
+    &.chat-badge--moderator {
+        color: $teal;
+    }
+
+    &.chat-badge--vip {
+        color: #ff7ce5;
+    }
+
+    &.chat-badge--subscriber {
+        color: $phosphor;
+    }
+}
+
+// Unknown badge names render as a small neutral dot rather than a mystery icon.
+.chat-badge--other {
+    display: inline-block;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 50%;
+    background: $gray-500;
 }
 
 @keyframes chat-line-flash {
