@@ -150,8 +150,6 @@ create table stream_sniper.stream_viewer_sample
     constraint stream_viewer_sample_uq
         unique (tracked_streamer_id, twitch_stream_session_id, sampled_at)
 );
-create index stream_viewer_sample_session_idx
-    on stream_sniper.stream_viewer_sample (tracked_streamer_id, twitch_stream_session_id, sampled_at);
 
 create table stream_sniper.stream_time_bucket
 (

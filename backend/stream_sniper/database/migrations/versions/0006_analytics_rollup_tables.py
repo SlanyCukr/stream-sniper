@@ -40,8 +40,6 @@ def upgrade() -> None:
             CONSTRAINT stream_viewer_sample_uq
                 UNIQUE (tracked_streamer_id, twitch_stream_session_id, sampled_at)
         );
-        CREATE INDEX IF NOT EXISTS stream_viewer_sample_session_idx
-            ON stream_sniper.stream_viewer_sample (tracked_streamer_id, twitch_stream_session_id, sampled_at);
 
         CREATE TABLE IF NOT EXISTS stream_sniper.stream_time_bucket (
             stream_id       int       NOT NULL,

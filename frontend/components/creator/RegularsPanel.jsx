@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react'
 import { Card, Table } from 'react-bootstrap'
 import { useCreatorRegulars } from '@/hooks/useApiQuery'
 import { formatTimeAgo } from '@/utils/dateUtils'
-import { DEFAULT_MIN_STREAMS } from '@/constants'
+import { DEFAULT_MIN_STREAMS, MIN_STREAMS_MIN, MIN_STREAMS_MAX } from '@/constants'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import ErrorAlert from '@/components/ErrorAlert'
 
@@ -111,7 +111,13 @@ const RegularsPanel = ({ creatorId }) => {
 
     const handleMinStreamsChange = useCallback(event => {
         const value = Number.parseInt(event.target.value, 10)
-        setMinStreams(Number.isNaN(value) || value < 1 ? 1 : value)
+        if (Number.isNaN(value)) {
+            setMinStreams(MIN_STREAMS_MIN)
+            return
+        }
+        // Clamp to the backend's accepted range (ge=1, le=1000) so an
+        // out-of-range value never triggers a 422 on /creator/{id}/regulars.
+        setMinStreams(Math.min(MIN_STREAMS_MAX, Math.max(MIN_STREAMS_MIN, value)))
     }, [
     ])
 
@@ -140,7 +146,8 @@ const RegularsPanel = ({ creatorId }) => {
                 <input
                     id="regulars-min-streams"
                     type="number"
-                    min={1}
+                    min={MIN_STREAMS_MIN}
+                    max={MIN_STREAMS_MAX}
                     className="form-control form-control-sm regulars-min-input"
                     value={minStreams}
                     onChange={handleMinStreamsChange}

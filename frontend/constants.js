@@ -60,6 +60,11 @@ export const REPLAY_PAGE_SIZE = 100
 // Default minimum streams attended for the creator "regulars" view
 export const DEFAULT_MIN_STREAMS = 2
 
+// Bounds for the "min streams attended" filter; mirror the backend's
+// /creator/{id}/regulars validation (min_streams: ge=1, le=1000).
+export const MIN_STREAMS_MIN = 1
+export const MIN_STREAMS_MAX = 1000
+
 // Color Generation
 export const COLOR_CONFIG = {
     // Avoid yellow and green ranges for better readability

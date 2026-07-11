@@ -20,7 +20,7 @@ def select_stream_messages_db(stream_id, limit, cursor, *, after_ts=None, after_
         params.append(f"%{q}%")
 
     query = (
-        'SELECT m.id, TO_CHAR(m.time, \'YYYY-MM-DD"T"HH24:MI:SS\'), m.chatter_id, c.nick, mt.text\n'
+        'SELECT m.id, TO_CHAR(m.time, \'YYYY-MM-DD"T"HH24:MI:SS.US\'), m.chatter_id, c.nick, mt.text\n'
         "FROM message m\n"
         "JOIN chatter c ON c.id = m.chatter_id\n"
         "JOIN message_text mt ON mt.id = m.message_text_id\n"
