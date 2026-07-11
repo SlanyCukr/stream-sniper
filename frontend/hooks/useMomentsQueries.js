@@ -18,7 +18,7 @@ const mapMoment = m => ({
     streamTitle: m.title,
     streamStart: m.start,
     twitchId: m.twitch_id,
-    creatorName: m.display_name,
+    creatorName: m.creator_display_name,
     t: m.bucket_minute,
     offsetSeconds: m.offset_seconds,
     count: m.message_count,
@@ -68,9 +68,12 @@ export const useMomentReview = (options = {}) => {
                 : await deleteMomentReview(streamId, bucketMinute)
             return response.data
         },
-        onSuccess: (data, variables) => {
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: momentsQueueKeys.all })
-            queryClient.invalidateQueries({ queryKey: streamTimelineKeys.detail(variables.streamId) })
+            // Invalidate the whole timeline family: the page keys its query with the
+            // route-param streamId (string) while mutations carry the API's numeric id,
+            // so a detail-level invalidation would miss on the type mismatch.
+            queryClient.invalidateQueries({ queryKey: streamTimelineKeys.all })
         },
         ...options,
     })
