@@ -61,8 +61,10 @@ export const retrieveStreams = (p: {
 // W2 — chronological keyset chat replay for a stream
 export const retrieveStreamMessages = (streamId: number, p: {
   chatterId?: number, q?: string, afterTs?: string, afterId?: number, limit?: number,
+  subOnly?: boolean,
 }) => api.get(`/stream/${streamId}/messages?${qs({
   chatter_id: p.chatterId, q: p.q, after_ts: p.afterTs, after_id: p.afterId, limit: p.limit,
+  sub_only: p.subOnly || null,
 })}`)
 
 // W3 — stream timeline (buckets + moments + metrics)
@@ -75,6 +77,29 @@ export const retrieveCreatorRegulars = (creatorId: number, p: {
 }) => api.get(`/creator/${creatorId}/regulars?${qs({
   min_streams: p.minStreams, sort: p.sort, dir: p.dir, limit: p.limit,
 })}`)
+
+// W5 — per-stream insights (mentions, emotes, phrases) + creator emotes
+export const retrieveStreamMentions = (streamId: number, limit = 20) => api.get(`/stream/${streamId}/mentions?${qs({ limit })}`)
+export const retrieveStreamEmotes = (streamId: number, limit = 25) => api.get(`/stream/${streamId}/emotes?${qs({ limit })}`)
+export const retrieveStreamPhrases = (streamId: number, limit = 25) => api.get(`/stream/${streamId}/phrases?${qs({ limit })}`)
+export const retrieveCreatorEmotes = (creatorId: number, limit = 25) => api.get(`/creator/${creatorId}/emotes?${qs({ limit })}`)
+
+// W6 — community overlap
+export const retrieveCommunityOverlap = (limit = 40) => api.get(`/community/overlap?${qs({ limit })}`)
+export const retrieveCreatorNeighbors = (creatorId: number, p: {
+  metric?: 'regulars' | 'chatters', limit?: number,
+} = {}) => api.get(`/community/creator/${creatorId}/neighbors?${qs({ metric: p.metric, limit: p.limit })}`)
+
+// W7 — highlight queue + moment review (review endpoints are admin-only)
+export const retrieveMomentsQueue = (p: {
+  status?: 'pending' | 'bookmarked' | 'rejected', creatorId?: number, limit?: number, offset?: number,
+} = {}) => api.get(`/moments?${qs({
+  status: p.status, creator_id: p.creatorId, limit: p.limit, offset: p.offset,
+})}`)
+export const putMomentReview = (streamId: number, bucketMinute: string, status: 'bookmarked' | 'rejected') =>
+  api.put(`/stream/${streamId}/moments/${encodeURIComponent(bucketMinute)}/review`, { status })
+export const deleteMomentReview = (streamId: number, bucketMinute: string) =>
+  api.delete(`/stream/${streamId}/moments/${encodeURIComponent(bucketMinute)}/review`)
 
 export const retrieveStreamComprehensive = (streamId: string | number) => api.get(`/stream/${streamId}`)
 export const retrieveAllCreators = () => api.get('/creators')
