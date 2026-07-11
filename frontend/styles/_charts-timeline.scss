@@ -421,6 +421,15 @@
     }
 }
 
+/* review mutation failure (e.g. a stale/non-persisted moment 404s) */
+.timeline-review-error {
+    margin: 0;
+    font-family: $font-family-monospace;
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+    color: $signal-red;
+}
+
 .timeline-vod-link {
     font-family: $font-family-monospace;
     font-size: 0.68rem;

@@ -18,6 +18,7 @@ from stream_sniper.database.stream_table_gateway import (
     select_most_active_chatters_db,
     select_most_tagged_chatters_db,
     select_stream_comprehensive_db,
+    select_stream_mentions_db,
     update_stream_message_count_db,
 )
 from tests.conftest import create_test_chatter, create_test_creator, create_test_message_text, create_test_stream
@@ -299,6 +300,54 @@ class TestStreamTableGateway:
         result = db_cursor.fetchone()
 
         assert result[0] == 1500
+
+
+class TestSelectStreamMentions:
+    """select_stream_mentions_db: mentioned list (top `limit`) + directed pairs (hardcoded 20)."""
+
+    def _seed(self, db_cursor):
+        creator_id = create_test_creator(db_cursor)
+        stream_id = create_test_stream(db_cursor, creator_id=creator_id)
+        a = create_test_chatter(db_cursor, "chatterA")
+        b = create_test_chatter(db_cursor, "chatterB")
+        c = create_test_chatter(db_cursor, "chatterC")
+        text_id = create_test_message_text(db_cursor, "@someone hi")
+
+        def msg(sender_id, tagged_id, n=1):
+            for _ in range(n):
+                db_cursor.execute(
+                    "INSERT INTO message (chatter_id, stream_id, message_text_id, time, tagged_chatter_id) "
+                    "VALUES (%s, %s, %s, %s, %s)",
+                    (sender_id, stream_id, text_id, datetime.now(), tagged_id),
+                )
+
+        msg(a, b, 3)  # A -> B x3
+        msg(a, c, 1)  # A -> C x1
+        msg(None, b, 5)  # NULL sender -> B x5 (counts as mentions of B, but NOT a directed pair)
+        return stream_id, {"a": a, "b": b, "c": c}
+
+    def test_mentioned_list_respects_limit_and_resolves_nicks(self, db_cursor):
+        stream_id, ids = self._seed(db_cursor)
+
+        mentioned, _pairs = select_stream_mentions_db(stream_id, 1)
+        assert len(mentioned) == 1  # `limit` caps the mentioned list only
+        assert mentioned[0] == (ids["b"], "chatterB", 8)  # B mentioned 3 + 5 = 8
+
+        mentioned, _pairs = select_stream_mentions_db(stream_id, 10)
+        assert [(row[0], row[2]) for row in mentioned] == [(ids["b"], 8), (ids["c"], 1)]
+
+    def test_pairs_exclude_null_sender_and_cap_independent_of_limit(self, db_cursor):
+        stream_id, ids = self._seed(db_cursor)
+
+        _mentioned, pairs = select_stream_mentions_db(stream_id, 1)
+
+        # NULL-sender rows never appear as a directed pair (they'd 500 the required-int contract).
+        assert all(p[0] is not None for p in pairs)
+        by_pair = {(p[0], p[2]): (p[1], p[3], p[4]) for p in pairs}
+        assert set(by_pair) == {(ids["a"], ids["b"]), (ids["a"], ids["c"])}
+        # nick resolution on both ends of the pair.
+        assert by_pair[(ids["a"], ids["b"])] == ("chatterA", "chatterB", 3)
+        assert by_pair[(ids["a"], ids["c"])] == ("chatterA", "chatterC", 1)
 
 
 class TestStreamTableGatewayWithMocks:

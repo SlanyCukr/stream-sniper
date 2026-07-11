@@ -84,6 +84,7 @@ def _persisted_moments(moment_rows) -> List[TimelineMoment]:
             top_phrases=row[8],
             sample_messages=row[9],
             status=row[10],
+            persisted=True,
         )
         for row in moment_rows
     ]

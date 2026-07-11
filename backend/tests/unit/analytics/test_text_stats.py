@@ -1,5 +1,7 @@
 """Unit tests for the pure Czech-aware text statistics (no DB)."""
 
+from unittest.mock import patch
+
 from stream_sniper.analytics import text_stats
 
 
@@ -50,6 +52,30 @@ class TestTopPhrases:
         ]
         result = {p: (usage, chatters) for p, usage, chatters in text_stats.top_phrases(rows, set(), min_count=3)}
         assert result["poggers"] == (6, 2)
+
+
+class TestPhraseStatsBounds:
+    def test_chatter_set_saturates_at_cap(self):
+        # One phrase used by more distinct chatters than the cap: usage keeps counting every
+        # occurrence, but the distinct-chatter set (and thus chatter_count) saturates at the cap.
+        n = text_stats._MAX_CHATTERS_PER_PHRASE + 76
+        rows = [("poggers", cid, 1) for cid in range(n)]
+        usage, chatters = text_stats.phrase_stats(rows, set())
+        assert usage["poggers"] == n
+        assert len(chatters["poggers"]) == text_stats._MAX_CHATTERS_PER_PHRASE
+
+    def test_singleton_phrases_pruned_past_threshold(self):
+        # Recurring phrase survives; the long tail of one-off singletons is pruned once the usage
+        # map grows past the (patched-small) threshold, keeping memory bounded.
+        with patch.object(text_stats, "_PHRASE_PRUNE_THRESHOLD", 4):
+            rows = [("keep", 1, 1), ("keep", 2, 1)]
+            rows += [(f"junk{i}", 100 + i, 1) for i in range(40)]
+            usage, chatters = text_stats.phrase_stats(rows, set())
+        assert usage["keep"] == 2  # recurring phrase preserved with full count
+        assert len(chatters["keep"]) == 2
+        # Pruning demonstrably shrank the map far below the 42 distinct phrases inserted.
+        assert len(usage) < 42
+        assert "keep" in usage
 
 
 class TestDistinctivePhrases:

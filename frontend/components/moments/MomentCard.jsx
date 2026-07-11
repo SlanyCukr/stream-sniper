@@ -179,7 +179,7 @@ const MomentCard = ({
                                 aria-hidden="true" />
                             Reject
                         </button>
-                        {status ? (
+                        {status === 'bookmarked' || status === 'rejected' ? (
                             <button
                                 type="button"
                                 className="moment-review-btn"

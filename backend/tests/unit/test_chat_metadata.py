@@ -47,37 +47,37 @@ class TestExtractMessageMetadata:
             ),
             pytest.param(
                 {"author": {}, "emotes": []},
-                (False, None, None, []),
+                (False, None, 0, []),  # known-zero emotes now (a real 0, not unknown-None)
                 id="plain_viewer",
             ),
             pytest.param(
                 {"author": {"badges": [{"name": "founder"}]}},
-                (True, "founder/0", None, []),
+                (True, "founder/0", 0, []),
                 id="founder_badge_default_version",
             ),
             pytest.param(
                 {"author": {}},
-                (False, None, None, []),
+                (False, None, 0, []),
                 id="empty_author",
             ),
             pytest.param(
                 {},
-                (False, None, None, []),
+                (False, None, 0, []),
                 id="missing_author_key",
             ),
             pytest.param(
                 {"author": {"badges": ["just", "strings"]}},
-                (False, None, None, []),
+                (False, None, 0, []),
                 id="malformed_badges_not_dicts_never_raises",
             ),
             pytest.param(
                 {"author": {}, "emotes": ["a", "b"]},
-                (False, None, None, []),
+                (False, None, 0, []),  # malformed emote entries yield no pairs -> known-zero
                 id="malformed_emotes_not_dicts_never_raises",
             ),
             pytest.param(
                 {"author": {"badges": [{"version": "1"}, {"name": None}]}},
-                (False, None, None, []),
+                (False, None, 0, []),
                 id="malformed_badges_missing_name_never_raises",
             ),
             pytest.param(
@@ -104,7 +104,7 @@ class TestExtractMessageMetadata:
         # If the source ever carries an explicit is_subscriber flag with no subscriber
         # badge, that explicit value wins over the badge-derived fallback.
         line = {"author": {"is_subscriber": True, "badges": [{"name": "moderator", "version": "1"}]}}
-        assert extract_message_metadata(line) == (True, "moderator/1", None, [])
+        assert extract_message_metadata(line) == (True, "moderator/1", 0, [])
 
     def test_never_raises_on_deeply_malformed_input(self):
         # Defensive smoke test: whatever garbage comes in, we get a 4-tuple back.
@@ -202,7 +202,7 @@ class TestProcessChatMetadataWiring:
         assert chatter_nick == "viewer"
         assert message == "hi"
         assert stream_id == 5
-        assert metadata == (True, "subscriber/6", None)
+        assert metadata == (True, "subscriber/6", 0)
 
     def test_process_chat_buffers_emote_name_id_pairs(self):
         mock_handler = Mock()

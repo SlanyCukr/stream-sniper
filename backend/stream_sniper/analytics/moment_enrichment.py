@@ -71,12 +71,17 @@ def enrich_moments(
 
     moment_rows: List[Tuple] = []
     for moment, window_messages in zip(moments, buckets_by_window, strict=True):
-        total = len(window_messages)
-        if total > 0:
+        # Denominator is known-metadata messages only (non-null is_subscriber). is_subscriber is NULL
+        # exactly for pre-0007 rows, which is the same era that lacks emote metadata — so both shares
+        # divide by the same "known" count. A window of only unknown-era messages yields None (unknown),
+        # never a misleading 0. emote positivity is `emote_count > 0`: the new known-zero (0) and the
+        # pre-0007 unknown-NULL both fail it, only real emote usage counts.
+        known = sum(1 for _t, _c, is_sub, _e in window_messages if is_sub is not None)
+        if known > 0:
             subs = sum(1 for _t, _c, is_sub, _e in window_messages if is_sub is True)
-            emotes = sum(1 for _t, _c, _s, emote_count in window_messages if emote_count is not None)
-            sub_share = round(subs / total, 4)
-            emote_share = round(emotes / total, 4)
+            emotes = sum(1 for _t, _c, _s, emote_count in window_messages if emote_count and emote_count > 0)
+            sub_share = round(subs / known, 4)
+            emote_share = round(emotes / known, 4)
         else:
             sub_share = None
             emote_share = None

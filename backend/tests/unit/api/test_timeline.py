@@ -88,6 +88,7 @@ class TestTimelineEndpoint:
         assert data["moments"][0]["message_count"] == 100
         assert data["moments"][0]["ratio"] == 20.0
         assert data["moments"][0]["status"] is None
+        assert data["moments"][0]["persisted"] is False  # live detect_moments fallback
         assert data["moments"][0]["sub_share"] is None
         assert data["moments"][0]["top_phrases"] is None
         assert data["viewer_samples"] == []
@@ -254,6 +255,7 @@ class TestTimelineEndpoint:
         assert m["top_phrases"] == [{"phrase": "pog", "count": 12, "lift": 4.2}]
         assert m["sample_messages"] == [{"text": "POG", "count": 8}]
         assert m["status"] == "bookmarked"
+        assert m["persisted"] is True  # read from persisted stream_moment
 
     @patch("stream_sniper.api.timeline_endpoints.get_cache")
     @patch("stream_sniper.api.timeline_endpoints.select_stream_viewer_samples_db")

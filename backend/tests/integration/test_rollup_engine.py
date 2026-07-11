@@ -451,9 +451,18 @@ class TestAnalyticsExpansionRollup:
         assert len(moments) == 1
         message_count, sub_share, emote_share, top_phrases, sample_messages = moments[0]
         assert message_count == 20
-        assert float(sub_share) == 0.0 and float(emote_share) == 0.0
+        # These messages carry no metadata (is_subscriber/emote_count NULL == pre-0007 unknown era),
+        # so shares are NULL (unknown), never a misleading 0.
+        assert sub_share is None and emote_share is None
         assert any(p["phrase"] == "insane play" for p in top_phrases)
         assert sample_messages[0] == {"text": self._T_SPIKE, "count": 20}
+
+        # metrics: unknown-era stream -> sub/emote message counts are NULL, not 0.
+        cur.execute(
+            "SELECT sub_messages, emote_messages FROM stream_metrics WHERE stream_id = %s",
+            (stream_id,),
+        )
+        assert cur.fetchone() == (None, None)
 
     def test_three_creator_overlap_correctness(self, test_db_connection):
         from stream_sniper.analytics.community import recompute_creator_overlap

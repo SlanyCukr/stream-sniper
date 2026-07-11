@@ -12,8 +12,10 @@ def extract_message_metadata(
     """(is_subscriber, badges, emote_count, emote_pairs). Safe defaults on malformed input; never raises.
 
     emote_pairs is the list of (name, twitch_emote_id) seen in the line; the message-insert path uses
-    only the first three fields (emote_count == len(emote_pairs) or None), while the collector facade
-    consumes emote_pairs to grow the emote dictionary.
+    only the first three fields (emote_count == len(emote_pairs), a real 0 for "no emotes" so a
+    re-rollup can tell known-zero from pre-0007 unknown-NULL), while the collector facade consumes
+    emote_pairs to grow the emote dictionary. Only the malformed-input except path yields None
+    (genuinely unknown metadata).
     """
     try:
         author = line.get("author") or {}
@@ -28,7 +30,7 @@ def extract_message_metadata(
             is_subscriber = bool(names & {"subscriber", "founder"})
         raw_emotes = line.get("emotes") or []
         emote_pairs = [(e["name"], e.get("id")) for e in raw_emotes if isinstance(e, dict) and e.get("name")]
-        emote_count = len(emote_pairs) or None
+        emote_count = len(emote_pairs)
         return is_subscriber, badges, emote_count, emote_pairs
     except Exception:
         get_logger(__name__).debug("metadata extraction failed for line", exc_info=True)

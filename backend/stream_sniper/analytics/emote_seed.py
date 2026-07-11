@@ -6,6 +6,7 @@ before the per-stream emote rollup so the dictionary exists on a fresh database.
 """
 
 import json
+import re
 from functools import lru_cache
 from importlib import resources
 from typing import Dict, List, Optional, Tuple
@@ -17,6 +18,16 @@ from ..database.emote_dictionary_table_gateway import (
 from ..logging_config import get_logger
 
 logger = get_logger(__name__)
+
+# A BTTV emote id is a 24-hex-char Mongo ObjectId; accept a tolerant hex range. provider_id doubles
+# as a CDN URL path segment, so anything that fails validation is seeded name-only (provider_id None).
+_BTTV_ID_RE = re.compile(r"^[a-f0-9]{12,32}$")
+
+
+def _valid_bttv_id(provider_id: Optional[str]) -> Optional[str]:
+    if provider_id is not None and _BTTV_ID_RE.match(provider_id):
+        return provider_id
+    return None
 
 
 @lru_cache(maxsize=1)
@@ -38,7 +49,7 @@ def ensure_emote_dictionary_seeded() -> None:
         return
 
     rows: List[Tuple[str, str, Optional[str]]] = [
-        (name, "bttv", provider_id) for name, provider_id in _load_bttv_map().items()
+        (name, "bttv", _valid_bttv_id(provider_id)) for name, provider_id in _load_bttv_map().items()
     ]
     if not rows:
         return

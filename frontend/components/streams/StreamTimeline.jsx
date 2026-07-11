@@ -1,11 +1,13 @@
 'use client'
 import {
+    memo,
     useState,
     useMemo,
     useCallback,
 } from 'react'
 import { Card } from 'react-bootstrap'
 import { vodDeepLink } from '@/utils/chatRender'
+import { getApiErrorMessage } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useMomentReview } from '@/hooks/useApiQuery'
 
@@ -25,6 +27,48 @@ const pct = value => `${(value * 100).toLocaleString(undefined, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
 })}%`
+
+/**
+ * Static message-lane bars. Memoized so the full 720–1440-rect array does NOT
+ * re-render on every mousemove — hover is drawn by a single overlay rect + the
+ * crosshair/tooltip overlays, none of which are this component's props.
+ */
+const TimelineBars = memo(({
+    buckets, maxCount, barSlot, barWidth,
+}) => buckets.map((bucket, index) => {
+    const height = ((bucket.count || 0) / maxCount) * VH
+    const x = index * barSlot + (barSlot - barWidth) / 2
+    return (
+        <rect
+            key={bucket.t}
+            className="timeline-bar"
+            x={x}
+            y={VH - height}
+            width={barWidth}
+            height={Math.max(0, height)}
+        />
+    )
+}))
+TimelineBars.displayName = 'TimelineBars'
+
+/**
+ * Static viewer-lane geometry (area + line). Memoized on the derived path strings
+ * so it is skipped on hover re-renders like the bars above.
+ */
+const TimelineViewerPaths = memo(({ area, line }) => (
+    <>
+        {area ? (
+            <path
+                className="timeline-viewers-area"
+                d={area} />
+        ) : null}
+        <polyline
+            className="timeline-viewers-line"
+            points={line}
+            vectorEffect="non-scaling-stroke" />
+    </>
+))
+TimelineViewerPaths.displayName = 'TimelineViewerPaths'
 
 /**
  * Stream chat-activity timeline. Two aligned small multiples sharing one x-grid:
@@ -183,7 +227,9 @@ const StreamTimeline = ({ timeline, onJump }) => {
 
     const streamId = timeline?.streamId
     const handleReview = useCallback(status => {
-        if (!streamId || selectedTs == null) {
+        // Live-fallback moments have no DB row — a review PUT/DELETE would 404, so
+        // guard here (their admin controls are hidden, but keep the mutation safe).
+        if (!streamId || selectedTs == null || !activeMoment?.isPersisted) {
             return
         }
         reviewMutation.mutate({
@@ -195,6 +241,7 @@ const StreamTimeline = ({ timeline, onJump }) => {
         reviewMutation,
         streamId,
         selectedTs,
+        activeMoment,
     ])
 
     // Graceful degradation: no buckets -> no chart card at all.
@@ -205,6 +252,7 @@ const StreamTimeline = ({ timeline, onJump }) => {
     const barSlot = VW / n
     const barWidth = Math.max(1, barSlot * 0.72)
     const hovered = hoverIndex == null ? null : buckets[hoverIndex]
+    const hoveredHeight = hovered ? ((hovered.count || 0) / maxCount) * VH : 0
 
     // Nearest viewer sample to the hovered bucket, for the combined tooltip.
     let hoveredViewers = null
@@ -264,22 +312,21 @@ const StreamTimeline = ({ timeline, onJump }) => {
                             aria-labelledby="timeline-heading"
                             onMouseMove={handleMove}
                             onMouseLeave={clearHover}>
-                            {buckets.map((bucket, index) => {
-                                const height = ((bucket.count || 0) / maxCount) * VH
-                                const x = index * barSlot + (barSlot - barWidth) / 2
-                                return (
-                                    <rect
-                                        key={bucket.t}
-                                        className={`timeline-bar${
-                                            index === hoverIndex ? ' timeline-bar--hover' : ''
-                                        }`}
-                                        x={x}
-                                        y={VH - height}
-                                        width={barWidth}
-                                        height={Math.max(0, height)}
-                                    />
-                                )
-                            })}
+                            <TimelineBars
+                                buckets={buckets}
+                                maxCount={maxCount}
+                                barSlot={barSlot}
+                                barWidth={barWidth}
+                            />
+                            {hovered ? (
+                                <rect
+                                    className="timeline-bar timeline-bar--hover"
+                                    x={hoverIndex * barSlot + (barSlot - barWidth) / 2}
+                                    y={VH - hoveredHeight}
+                                    width={barWidth}
+                                    height={Math.max(0, hoveredHeight)}
+                                />
+                            ) : null}
                         </svg>
 
                         <div className="timeline-markers">
@@ -320,15 +367,10 @@ const StreamTimeline = ({ timeline, onJump }) => {
                                 aria-label="Viewer count over time"
                                 onMouseMove={handleMove}
                                 onMouseLeave={clearHover}>
-                                {viewerLane.area ? (
-                                    <path
-                                        className="timeline-viewers-area"
-                                        d={viewerLane.area} />
-                                ) : null}
-                                <polyline
-                                    className="timeline-viewers-line"
-                                    points={viewerLane.line}
-                                    vectorEffect="non-scaling-stroke" />
+                                <TimelineViewerPaths
+                                    area={viewerLane.area}
+                                    line={viewerLane.line}
+                                />
                             </svg>
                         </div>
                     ) : null}
@@ -462,40 +504,49 @@ const StreamTimeline = ({ timeline, onJump }) => {
                             </ul>
                         ) : null}
 
-                        {isAdmin ? (
-                            <div className="timeline-review-actions">
-                                <button
-                                    type="button"
-                                    className={`timeline-review-btn${
-                                        activeMoment.status === 'bookmarked' ? ' is-active' : ''
-                                    }`}
-                                    disabled={reviewPending}
-                                    onClick={() => handleReview('bookmarked')}>
-                                    <i
-                                        className="bi bi-bookmark-star"
-                                        aria-hidden="true" /> Bookmark
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`timeline-review-btn timeline-review-btn--reject${
-                                        activeMoment.status === 'rejected' ? ' is-active' : ''
-                                    }`}
-                                    disabled={reviewPending}
-                                    onClick={() => handleReview('rejected')}>
-                                    <i
-                                        className="bi bi-x-octagon"
-                                        aria-hidden="true" /> Reject
-                                </button>
-                                {activeMoment.status ? (
+                        {isAdmin && activeMoment.isPersisted ? (
+                            <>
+                                <div className="timeline-review-actions">
                                     <button
                                         type="button"
-                                        className="timeline-review-btn timeline-review-btn--clear"
+                                        className={`timeline-review-btn${
+                                            activeMoment.status === 'bookmarked' ? ' is-active' : ''
+                                        }`}
                                         disabled={reviewPending}
-                                        onClick={() => handleReview(null)}>
-                                        Clear
+                                        onClick={() => handleReview('bookmarked')}>
+                                        <i
+                                            className="bi bi-bookmark-star"
+                                            aria-hidden="true" /> Bookmark
                                     </button>
+                                    <button
+                                        type="button"
+                                        className={`timeline-review-btn timeline-review-btn--reject${
+                                            activeMoment.status === 'rejected' ? ' is-active' : ''
+                                        }`}
+                                        disabled={reviewPending}
+                                        onClick={() => handleReview('rejected')}>
+                                        <i
+                                            className="bi bi-x-octagon"
+                                            aria-hidden="true" /> Reject
+                                    </button>
+                                    {activeMoment.status ? (
+                                        <button
+                                            type="button"
+                                            className="timeline-review-btn timeline-review-btn--clear"
+                                            disabled={reviewPending}
+                                            onClick={() => handleReview(null)}>
+                                            Clear
+                                        </button>
+                                    ) : null}
+                                </div>
+                                {reviewMutation.isError ? (
+                                    <p
+                                        className="timeline-review-error"
+                                        role="alert">
+                                        {getApiErrorMessage(reviewMutation.error, 'Review failed')}
+                                    </p>
                                 ) : null}
-                            </div>
+                            </>
                         ) : null}
                     </div>
                 ) : null}

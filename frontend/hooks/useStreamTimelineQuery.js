@@ -59,6 +59,9 @@ export const useStreamTimeline = (streamId, options = {}) => useQuery({
                 count: m.message_count,
                 score: m.ratio,
                 kind: 'spike',
+                // Persisted moments have a DB row; live-fallback moments do not, so their
+                // review PUT/DELETE would 404 — admin controls must be gated on this.
+                isPersisted: Boolean(m.persisted),
                 // Enrichment present only on persisted moments; null on the live fallback path.
                 status: m.status ?? null,
                 subShare: m.sub_share ?? null,

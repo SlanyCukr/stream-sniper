@@ -22,6 +22,9 @@ class TimelineMoment(BaseModel):
     baseline: float
     ratio: Optional[float]
     unique_chatters: int
+    # True for moments read from the persisted stream_moment table, False for the live
+    # detect_moments fallback. The frontend reads this as `m.persisted` to badge enriched moments.
+    persisted: bool = False
     # Enrichment fields present only on persisted (stream_moment) moments; None on the live
     # detect_moments fallback path. `status` comes from moment_review (None = unreviewed).
     status: Optional[str] = None

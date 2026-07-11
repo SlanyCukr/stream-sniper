@@ -411,3 +411,42 @@ class TestRecomputeRollupExtensions:
         assert emotes[0][1] == "twitch"  # twitch wins the name dedup
         assert emotes[0][3] == 3  # usage 1 + 2
         assert emotes[0][4] == 2  # chatter_count alice + bob
+
+    def test_null_metadata_stream_reports_null_sub_emote(self, analytics_db):
+        # A stream whose messages predate rev 0007 carry NULL is_subscriber/emote_count. The
+        # re-rollup must report NULL (unknown), never 0, for sub/emote messages at both the bucket
+        # and metrics level — so the frontend can distinguish "unknown" from "known, none observed".
+        creator_id = create_test_creator(analytics_db)
+        stream_id = create_test_stream(
+            analytics_db,
+            {
+                "twitch_id": "snull",
+                "title": "snull",
+                "start": datetime(2026, 1, 1, 20, 0, 0),
+                "end": datetime(2026, 1, 1, 21, 0, 0),
+            },
+            creator_id,
+        )
+        alice = create_test_chatter(analytics_db, "alice")
+        text_id = create_test_message_text(analytics_db, "just chatting")
+        base = datetime(2026, 1, 1, 20, 0, 0)
+        for offset in (5, 15, 25):
+            analytics_db.execute(
+                "INSERT INTO message (chatter_id, stream_id, message_text_id, time, is_subscriber, emote_count) "
+                "VALUES (%s,%s,%s,%s,NULL,NULL)",
+                (alice, stream_id, text_id, base + timedelta(seconds=offset)),
+            )
+        analytics_db.connection.commit()
+
+        recompute_stream_rollup_db(stream_id, creator_id)
+
+        buckets = select_stream_buckets_db(stream_id)
+        assert len(buckets) == 1
+        assert buckets[0][1] == 3  # message_count still counted
+        assert buckets[0][3] is None  # sub_messages unknown (not 0)
+        assert buckets[0][4] is None  # emote_messages unknown (not 0)
+
+        metrics = select_stream_metrics_db(stream_id)
+        assert metrics[0] == 3  # total_messages
+        assert metrics[8] is None  # sub_messages NULL
+        assert metrics[9] is None  # emote_messages NULL

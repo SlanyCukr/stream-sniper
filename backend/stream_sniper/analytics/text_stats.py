@@ -54,6 +54,17 @@ _SPLIT_RE = re.compile(r"[^\w]+", re.UNICODE)
 # large lift rather than dividing by zero.
 _LIFT_EPSILON = 0.01
 
+# Memory bounds for phrase_stats over very large streams (a 1M-message stream would otherwise grow
+# the phrase->count and phrase->chatter-set maps without limit and exhaust RPI memory).
+# _MAX_CHATTERS_PER_PHRASE caps each phrase's distinct-chatter set; chatter_count SATURATES at this
+# value (an extremely popular phrase reports at most this many distinct chatters).
+_MAX_CHATTERS_PER_PHRASE = 1024
+# _PHRASE_PRUNE_THRESHOLD bounds the number of tracked phrases: once the usage map grows past it,
+# singleton phrases (usage_count == 1, overwhelmingly one-off noise) are dropped, lossy-counting
+# style — a dropped phrase that later recurs loses its earlier occurrence, so surviving counts are a
+# lower bound (approximate). Recurring phrases, the ones that matter for the rollup, are unaffected.
+_PHRASE_PRUNE_THRESHOLD = 150_000
+
 
 def tokenize(text: str) -> List[str]:
     """Lowercase, drop punctuation, split on whitespace/symbols. Empty tokens removed."""
@@ -90,13 +101,24 @@ def phrase_stats(
 
     Returned once and reused for both the stored top-phrase rollup and the per-minute stream
     frequency baseline used by ``distinctive_phrases``.
+
+    Bounded memory (see ``_MAX_CHATTERS_PER_PHRASE`` / ``_PHRASE_PRUNE_THRESHOLD``): each phrase's
+    chatter set is capped (chatter_count saturates), and once the usage map exceeds the prune
+    threshold its singleton phrases are dropped (lossy-counting-style approximation). Both bounds
+    only affect long-tail noise on huge streams; recurring phrases are preserved.
     """
     usage: Dict[str, int] = defaultdict(int)
     chatters: Dict[str, Set[int]] = defaultdict(set)
     for text, chatter_id, occurrence_count in rows:
         for phrase, in_text in Counter(_phrases(text, emote_names)).items():
             usage[phrase] += in_text * occurrence_count
-            chatters[phrase].add(chatter_id)
+            bucket = chatters[phrase]
+            if len(bucket) < _MAX_CHATTERS_PER_PHRASE:
+                bucket.add(chatter_id)
+        if len(usage) > _PHRASE_PRUNE_THRESHOLD:
+            for phrase in [p for p, count in usage.items() if count == 1]:
+                del usage[phrase]
+                chatters.pop(phrase, None)
     return usage, chatters
 
 

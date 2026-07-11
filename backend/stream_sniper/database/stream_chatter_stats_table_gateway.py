@@ -54,8 +54,14 @@ def recompute_stream_rollup_db(stream_id, creator_id, cursor, connection):
         INSERT INTO stream_time_bucket
             (stream_id, bucket_minute, message_count, unique_chatters, sub_messages, emote_messages)
         SELECT %(sid)s, date_trunc('minute', time), count(*), count(DISTINCT chatter_id),
-               count(*) FILTER (WHERE is_subscriber IS TRUE),
-               count(*) FILTER (WHERE emote_count IS NOT NULL)
+               -- Era detection keys off count(is_subscriber): pre-0007 rows carry NULL metadata,
+               -- so a bucket where NO message has a known is_subscriber is "unknown era" (NULL,
+               -- not 0). emote_count shares the same collection era; `> 0` treats both the pre-0007
+               -- NULL and the new known-zero (0) as "no emote", counting only real positives.
+               CASE WHEN count(is_subscriber) = 0 THEN NULL
+                    ELSE count(*) FILTER (WHERE is_subscriber IS TRUE) END,
+               CASE WHEN count(is_subscriber) = 0 THEN NULL
+                    ELSE count(*) FILTER (WHERE emote_count > 0) END
         FROM message
         WHERE stream_id = %(sid)s AND time IS NOT NULL
         GROUP BY date_trunc('minute', time)
@@ -127,8 +133,12 @@ def recompute_stream_rollup_db(stream_id, creator_id, cursor, connection):
                          (SELECT start FROM stream WHERE id = %(sid)s), %(sid)s)
                )) nc
         CROSS JOIN
-            (SELECT COALESCE(sum(sub_messages), 0)::int AS sub_messages,
-                    COALESCE(sum(emote_messages), 0)::int AS emote_messages
+            -- NULL (unknown) when EVERY bucket's value is NULL (all pre-0007), else the sum of the
+            -- known buckets (SUM ignores NULLs). count(col)=0 means no bucket had a known value.
+            (SELECT CASE WHEN count(sub_messages) = 0 THEN NULL
+                         ELSE sum(sub_messages)::int END AS sub_messages,
+                    CASE WHEN count(emote_messages) = 0 THEN NULL
+                         ELSE sum(emote_messages)::int END AS emote_messages
              FROM stream_time_bucket WHERE stream_id = %(sid)s) meta
         """,
         params,
@@ -200,7 +210,9 @@ def recompute_stream_rollup_db(stream_id, creator_id, cursor, connection):
             WHERE length(name) >= 3
             ORDER BY name, CASE source WHEN 'twitch' THEN 0 ELSE 1 END
         ) d ON d.name = w.word
-        WHERE m.stream_id = %(sid)s
+        -- Guard for very large streams: no dictionary name is < 3 or > 64 chars, so filtering the
+        -- split words by length shrinks the intermediate before the join without changing results.
+        WHERE m.stream_id = %(sid)s AND length(w.word) BETWEEN 3 AND 64
         GROUP BY d.id
         """,
         params,
