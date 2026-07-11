@@ -16,12 +16,9 @@ export const streamsKeys = {
         ...streamsKeys.all,
         'list',
     ],
-    list: (creatorId, offset) => [
+    list: params => [
         ...streamsKeys.lists(),
-        {
-            creatorId,
-            offset,
-        },
+        params,
     ],
     details: () => [
         ...streamsKeys.all,
@@ -34,25 +31,62 @@ export const streamsKeys = {
 }
 
 /**
- * Custom hook for fetching paginated streams data using TanStack Query
- * @param {number|null} creatorId - The creator ID to filter by (-1 for all)
- * @param {number} offset - The pagination offset
+ * Custom hook for fetching filtered/sorted paginated streams data using TanStack Query
+ * @param {object} params - Filter/sort/pagination params
+ * @param {number} [params.creatorId=-1] - Creator ID to filter by (-1 for all)
+ * @param {string} [params.sort='start'] - Sort column (start|message_count|duration)
+ * @param {('asc'|'desc')} [params.dir='desc'] - Sort direction
+ * @param {string} [params.title] - Title substring filter
+ * @param {string} [params.dateFrom] - Inclusive start-date filter (YYYY-MM-DD)
+ * @param {string} [params.dateTo] - Exclusive end-date filter (YYYY-MM-DD + 1 day)
+ * @param {number} [params.minMessages] - Minimum message count
+ * @param {number} [params.offset=0] - Page index (multiplied by page size for the row offset)
  * @param {object} options - Additional query options
- * @returns {object} useQuery result with data, isLoading, error, etc.
+ * @returns {object} useQuery result with data ({streams, max_offset}), isLoading, error, etc.
  */
-export const useStreams = (creatorId = -1, offset = 0, options = {}) => useQuery({
-    queryKey: streamsKeys.list(creatorId, offset),
-    queryFn: async () => {
-        const response = await retrieveStreams(creatorId, offset * PAGINATION.ITEMS_PER_PAGE)
-        return response.data || {
-            streams: [
-            ],
-            max_offset: 0,
-        }
-    },
-    enabled: true, // Always enabled
-    ...options,
-})
+export const useStreams = (params = {}, options = {}) => {
+    const {
+        creatorId = -1,
+        sort = 'start',
+        dir = 'desc',
+        title,
+        dateFrom,
+        dateTo,
+        minMessages,
+        offset = 0,
+    } = params
+    return useQuery({
+        queryKey: streamsKeys.list({
+            creatorId,
+            sort,
+            dir,
+            title,
+            dateFrom,
+            dateTo,
+            minMessages,
+            offset,
+        }),
+        queryFn: async () => {
+            const response = await retrieveStreams({
+                creatorId,
+                sort,
+                dir,
+                title,
+                dateFrom,
+                dateTo,
+                minMessages,
+                offset: offset * PAGINATION.ITEMS_PER_PAGE,
+            })
+            return response.data || {
+                streams: [
+                ],
+                max_offset: 0,
+            }
+        },
+        enabled: true, // Always enabled
+        ...options,
+    })
+}
 
 /**
  * Custom hook for fetching comprehensive stream data using TanStack Query

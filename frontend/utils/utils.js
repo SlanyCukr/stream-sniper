@@ -12,4 +12,5 @@ export function chunks(arr, n) {
  * @param {String} originalSrc
  * @returns
  */
-export const findThumbnailSrc = (originalSrc, width, height) => originalSrc.replace('%{width}', width).replace('%{height}', height)
+export const findThumbnailSrc = (originalSrc, width, height) =>
+    originalSrc ? originalSrc.replace('%{width}', width).replace('%{height}', height) : null

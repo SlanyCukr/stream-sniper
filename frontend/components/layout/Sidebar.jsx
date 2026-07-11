@@ -20,7 +20,7 @@ const navigation = [
         icon: 'bi bi-fingerprint',
     },
     {
-        title: 'Streamer regulars',
+        title: 'Creators',
         href: '/regulars',
         icon: 'bi bi-people',
     },

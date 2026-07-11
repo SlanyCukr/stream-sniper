@@ -10,16 +10,19 @@ from slowapi.util import get_remote_address
 
 from ..database.connection_pool import close_pool
 from ..logging_config import get_logger, setup_logging
+from .analytics_endpoints import router as analytics_router
 from .auth_router import router as auth_router
 from .cache import warm_cache
 from .chatter_endpoints import router as chatter_router
 from .config import get_config
 from .creator_endpoints import router as creator_router
+from .message_endpoints import router as message_router
 from .middleware import setup_middleware
 from .monitoring import record_request_metrics, setup_monitoring
 from .operations_endpoints import router as operations_router
 from .rate_limiter import setup_rate_limiting
 from .stream_endpoints import router as stream_router
+from .timeline_endpoints import router as timeline_router
 from .tracking_router import router as tracking_router
 
 load_dotenv()
@@ -170,6 +173,15 @@ app.include_router(tracking_router)
 
 # Include operations router
 app.include_router(operations_router)
+
+# Include message replay router
+app.include_router(message_router)
+
+# Include timeline analytics router
+app.include_router(timeline_router)
+
+# Include creator analytics router (trends, regulars)
+app.include_router(analytics_router)
 
 
 # Middleware for request metrics

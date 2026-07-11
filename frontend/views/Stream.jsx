@@ -1,29 +1,44 @@
 'use client'
 import {
     useState,
+    useRef,
     useCallback,
     useMemo,
 } from 'react'
 import {
     useStreamData,
-    useChatterStreamMessages,
+    useStreamMessages,
+    useStreamTimeline,
 } from '@/hooks/useApiQuery'
-import LazyTwitchChatLookalike from '@/components/LazyTwitchChatLookalike'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import ErrorAlert from '@/components/ErrorAlert'
 import StreamInfoCard from '@/components/streams/StreamInfoCard'
+import StreamTimeline from '@/components/streams/StreamTimeline'
+import StreamMetrics from '@/components/streams/StreamMetrics'
 import StreamStatsCard from '@/components/streams/StreamStatsCard'
-import ChatSearchCard from '@/components/streams/ChatSearchCard'
+import StreamReplayCard from '@/components/streams/StreamReplayCard'
 import {
     formatStreamTimestamp, formatTimeAgo, formatDurationBetween,
 } from '@/utils/dateUtils'
 
 
 const Stream = ({ streamId }) => {
+    // Replay filters (server-side); the child StreamReplayCard drives these.
     const [
-        selectedChatterOption,
-        setSelectedChatterOption,
-    ] = useState({})
+        chatterId,
+        setChatterId,
+    ] = useState(undefined)
+    const [
+        textQuery,
+        setTextQuery,
+    ] = useState(undefined)
+
+    // Lifted jump target. A timeline moment (T12) will set this via handleJump;
+    // StreamChatReplay reacts to the object identity change (nonce) to scroll+flash.
+    const [
+        jumpToTs,
+        setJumpToTs,
+    ] = useState(null)
 
     // Use TanStack Query hooks for data fetching
     const {
@@ -33,31 +48,87 @@ const Stream = ({ streamId }) => {
         refetch: refetchStreamData,
     } = useStreamData(streamId)
 
+    // The full chronological replay lives HERE (not in StreamReplayCard) so the
+    // timeline jump handler below can drive fetchNextPage until the target row
+    // is loaded, then scroll to it.
     const {
-        data: selectedChatterMessages = [
-        ],
-        isLoading: isMessagesLoading,
+        data: messagesData,
         error: messagesError,
-    } = useChatterStreamMessages(
-        streamId,
-        selectedChatterOption.value,
-        {
-            enabled: Boolean(selectedChatterOption.value), // Only fetch when chatter is selected
-        },
+        isLoading: isMessagesLoading,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useStreamMessages(streamId, {
+        chatterId,
+        q: textQuery,
+    })
+
+    // Timeline (buckets + moments + metrics) powers the activity chart and the
+    // metric tiles. Absent rollups -> empty buckets + null metrics (handled by
+    // the child components, so raw replay still works).
+    const { data: timeline } = useStreamTimeline(streamId)
+
+    const replayMessages = useMemo(
+        () => messagesData?.pages.flatMap(page => page.messages) ?? [],
+        [
+            messagesData,
+        ],
     )
 
-    /**
-     * Handles chatter selection and sets up message fetching.
-     * @param {Object} selectedOption   // option selected in Select component
-     */
-    const handleChatterSelection = useCallback(selectedOption => {
-        setSelectedChatterOption(selectedOption)
+    const handleLoadMore = useCallback(() => {
+        if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage()
+        }
     }, [
+        hasNextPage,
+        isFetchingNextPage,
+        fetchNextPage,
+    ])
+
+    // Guards against overlapping jump loops (double-clicked moment markers).
+    const jumpingRef = useRef(false)
+
+    /**
+     * Jump the replay to a timestamp: page forward until a row at/after the
+     * target is loaded (or there are no more pages), then flag the scroll.
+     * Wired to T12's StreamTimeline moment markers.
+     * @param {string} targetTs - ISO timestamp of the moment to jump to
+     */
+    const handleJump = useCallback(async targetTs => {
+        if (!targetTs || jumpingRef.current) {
+            return
+        }
+        const reached = pages => pages.some(
+            page => page.messages.some(message => message.ts >= targetTs),
+        )
+        jumpingRef.current = true
+        try {
+            let current = messagesData
+            let canFetch = hasNextPage
+            let guard = 0
+            while (current && !reached(current.pages) && canFetch && guard < 1000) {
+                const result = await fetchNextPage()
+                current = result.data
+                canFetch = result.hasNextPage
+                guard += 1
+            }
+            setJumpToTs({
+                ts: targetTs,
+                nonce: Date.now(),
+            })
+        } finally {
+            jumpingRef.current = false
+        }
+    }, [
+        messagesData,
+        hasNextPage,
+        fetchNextPage,
     ])
 
     // Extract stream info with memoization to prevent re-extraction on every render
+    const csi = streamInfo?.csi
     const streamInfoData = useMemo(() => {
-        if (!streamInfo?.csi) {
+        if (!csi) {
             return {}
         }
 
@@ -71,7 +142,7 @@ const Stream = ({ streamId }) => {
             displayName,
             profileImageUrl,
             creatorId,
-        ] = streamInfo.csi
+        ] = csi
 
         return {
             title,
@@ -85,7 +156,7 @@ const Stream = ({ streamId }) => {
             creatorId,
         }
     }, [
-        streamInfo?.csi,
+        csi,
     ])
 
     const {
@@ -172,26 +243,6 @@ const Stream = ({ streamId }) => {
         otherCreatorsThatWrote,
     ])
 
-    /**
-     * Renders Twitch chat lookalike component with memoization.
-     * @returns {JSX.Element}
-    */
-    const renderTwitchChat = useMemo(() => {
-        if(!selectedChatterOption.label){
-            return null
-        }
-
-        return(
-            <LazyTwitchChatLookalike
-                nick={selectedChatterOption.label}
-                messages={selectedChatterMessages}
-            />
-        )
-    }, [
-        selectedChatterOption.label,
-        selectedChatterMessages,
-    ])
-
     if(isStreamLoading || !streamInfo){
         return (
             <LoadingSpinner
@@ -224,19 +275,30 @@ const Stream = ({ streamId }) => {
                 duration={duration}
             />
 
+            <StreamTimeline
+                timeline={timeline}
+                onJump={handleJump}
+            />
+
+            <StreamMetrics metrics={timeline?.metrics} />
+
             <StreamStatsCard
                 mostActiveChatters={mostActiveChatters}
                 mostTaggedChatters={mostTaggedChatters}
                 renderOtherCreators={renderOtherCreators}
             />
 
-            <ChatSearchCard
-                chattersInStream={chattersInStream}
-                selectedChatterOption={selectedChatterOption}
-                handleChatterSelection={handleChatterSelection}
-                isMessagesLoading={isMessagesLoading}
-                messagesError={messagesError}
-                renderTwitchChat={renderTwitchChat}
+            <StreamReplayCard
+                chatterOptions={chattersInStream}
+                onChatterChange={setChatterId}
+                onQueryChange={setTextQuery}
+                messages={replayMessages}
+                hasMore={Boolean(hasNextPage)}
+                isFetchingMore={isFetchingNextPage}
+                onLoadMore={handleLoadMore}
+                isLoading={isMessagesLoading}
+                error={messagesError}
+                jumpToTs={jumpToTs}
             />
         </>
     )

@@ -4,65 +4,15 @@ import React, {
     useCallback,
 } from 'react'
 import { Virtuoso } from 'react-virtuoso'
-import { EMOTES } from '@/lib/bettertv_emotes'
-
-/* Twitch-style username palette (dark-theme readable). */
-const NICK_COLORS = [
-    '#ff7a7a',
-    '#f5b759',
-    '#9fef00',
-    '#2dd4a7',
-    '#58a6ff',
-    '#c58fff',
-    '#ff8fd0',
-    '#5edfff',
-    '#ffb86b',
-    '#a3e635',
-]
-
-/** Deterministic color per nick so it stays stable across renders. */
-const nickColor = nick => {
-    let hash = 0
-    for (let i = 0; i < nick.length; i++) {
-        hash = (hash * 31 + nick.charCodeAt(i)) | 0
-    }
-    return NICK_COLORS[Math.abs(hash) % NICK_COLORS.length]
-}
+import {
+    applyBetterTvEmotes,
+    nickColor,
+} from '@/utils/chatRender'
 
 const TwitchChatLookalike = ({
     nick,
     messages,
 }) => {
-    /**
-     * Applies BetterTV emotes to the message with memoization.
-     * @param {string} message
-     * @returns {JSX.Element}
-     */
-    const applyBetterTvEmotes = useCallback(message => {
-        if (!message) {
-            return null
-        }
-
-        return message
-            .split(' ')
-            .map((word, index) => {
-                if (word in EMOTES) {
-                    return (
-                        <img
-                            key={index}
-                            src={`https://cdn.betterttv.net/emote/${EMOTES[word]}/1x`}
-                            alt={word}
-                            role="img"
-                            aria-label={`${word} emote`}
-                        />
-                    )
-                }
-
-                return <span key={index}>{word + ' '}</span>
-            })
-    }, [
-    ])
-
     const color = useMemo(() => nickColor(nick || ''), [
         nick,
     ])
@@ -87,7 +37,6 @@ const TwitchChatLookalike = ({
     ), [
         color,
         nick,
-        applyBetterTvEmotes,
     ])
 
     const hasMessages = messages && messages.length > 0

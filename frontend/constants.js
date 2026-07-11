@@ -35,12 +35,8 @@ export const CHAT = {
     MESSAGE_CHUNK_SIZE: 50,
 }
 
-// Stream Ordering Options
+// Stream Ordering Options (must match the backend `sort` whitelist: start|message_count|duration)
 export const AVAILABLE_ORDERING = [
-    {
-        value: 'title',
-        label: 'Title',
-    },
     {
         value: 'start',
         label: 'Started at',
@@ -55,8 +51,19 @@ export const AVAILABLE_ORDERING = [
     },
 ]
 
-// Default ordering option
-export const DEFAULT_ORDERING = AVAILABLE_ORDERING[0]
+// Default ordering option ('start')
+export const DEFAULT_ORDERING = AVAILABLE_ORDERING.find(o => o.value === 'start')
+
+// Chat replay page size (keyset pagination); mirrors backend default limit of 100
+export const REPLAY_PAGE_SIZE = 100
+
+// Default minimum streams attended for the creator "regulars" view
+export const DEFAULT_MIN_STREAMS = 2
+
+// Bounds for the "min streams attended" filter; mirror the backend's
+// /creator/{id}/regulars validation (min_streams: ge=1, le=1000).
+export const MIN_STREAMS_MIN = 1
+export const MIN_STREAMS_MAX = 1000
 
 // Color Generation
 export const COLOR_CONFIG = {

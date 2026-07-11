@@ -1,0 +1,222 @@
+// Styles for the stream timeline chart + metrics UI (W3 UI, T12).
+// Inline-SVG single-series msgs/min bar chart, amber spike markers as focusable
+// buttons, ink-token text, hover tooltip, keyboard accessible, reduced-motion aware.
+
+.stream-timeline {
+    margin-bottom: 1.5rem;
+}
+
+.timeline-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+
+.timeline-subtitle {
+    font-family: $font-family-monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: $gray-500;
+    white-space: nowrap;
+}
+
+/* ---------- Chart area ---------- */
+.timeline-chart {
+    position: relative;
+    height: 160px;
+    padding-left: 2.6rem;
+    border-left: 1px solid $hairline;
+    border-bottom: 1px solid $hairline;
+}
+
+.timeline-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+
+    .timeline-bar {
+        fill: $phosphor;
+        opacity: 0.85;
+        transition: opacity 0.12s ease;
+
+        &:hover {
+            opacity: 1;
+        }
+    }
+}
+
+/* y-axis labels (HTML overlay so they don't distort with preserveAspectRatio) */
+.timeline-axis-max,
+.timeline-axis-zero {
+    position: absolute;
+    left: 0;
+    width: 2.3rem;
+    text-align: right;
+    font-family: $font-family-monospace;
+    font-size: 0.62rem;
+    color: $gray-500;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+
+.timeline-axis-max {
+    top: -0.35rem;
+}
+
+.timeline-axis-zero {
+    bottom: -0.35rem;
+}
+
+/* x-axis start/end times */
+.timeline-axis-x {
+    display: flex;
+    justify-content: space-between;
+    margin: 0.4rem 0 0 2.6rem;
+    font-family: $font-family-monospace;
+    font-size: 0.62rem;
+    color: $gray-500;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Spike markers ---------- */
+.timeline-markers {
+    position: absolute;
+    top: 0;
+    left: 2.6rem;
+    right: 0;
+    bottom: 0;
+    pointer-events: none; // bars stay hoverable between markers
+}
+
+.timeline-marker {
+    position: absolute;
+    top: -6px;
+    bottom: 0;
+    width: 16px;
+    transform: translateX(-50%);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    pointer-events: auto;
+
+    .timeline-marker-stem {
+        display: block;
+        width: 2px;
+        height: 100%;
+        margin: 0 auto;
+        background: $amber;
+        opacity: 0.75;
+        border-radius: 1px;
+        transition: opacity 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    /* arrowhead cap on top of the stem */
+    &::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid $amber;
+    }
+
+    &:hover .timeline-marker-stem,
+    &:focus-visible .timeline-marker-stem {
+        opacity: 1;
+        box-shadow: 0 0 6px rgba($amber, 0.7);
+    }
+
+    &:focus-visible {
+        outline: 2px solid rgba($amber, 0.7);
+        outline-offset: 1px;
+        border-radius: 2px;
+    }
+
+    &.timeline-marker--active .timeline-marker-stem {
+        opacity: 1;
+        box-shadow: 0 0 8px rgba($amber, 0.9);
+    }
+}
+
+/* ---------- Hover tooltip ---------- */
+.chart-tooltip {
+    position: absolute;
+    top: -0.35rem;
+    transform: translate(-50%, -100%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.4rem 0.55rem;
+    background: $bg-surface;
+    border: 1px solid $hairline;
+    border-radius: $border-radius;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 5;
+
+    .chart-tooltip-time {
+        font-family: $font-family-monospace;
+        font-size: 0.64rem;
+        letter-spacing: 0.1em;
+        color: $phosphor;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .chart-tooltip-metric {
+        font-family: $font-family-monospace;
+        font-size: 0.66rem;
+        color: $gray-100;
+        font-variant-numeric: tabular-nums;
+    }
+}
+
+/* ---------- Selected-moment / VOD deep-link row ---------- */
+.timeline-selection {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid $hairline;
+}
+
+.timeline-selection-label {
+    font-family: $font-family-monospace;
+    font-size: 0.68rem;
+    color: $gray-400;
+}
+
+.timeline-vod-link {
+    font-family: $font-family-monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    color: $amber;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+        text-decoration: underline;
+        color: $amber;
+    }
+}
+
+/* ---------- Metrics tiles wrapper ---------- */
+.stream-metrics {
+    margin-bottom: 1.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .timeline-svg .timeline-bar,
+    .timeline-marker .timeline-marker-stem {
+        transition: none;
+    }
+}

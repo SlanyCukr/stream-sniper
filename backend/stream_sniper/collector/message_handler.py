@@ -48,7 +48,14 @@ class MessageHandler:
     def set_known_messages(self, known_messages: dict):
         self.known_messages = known_messages
 
-    def handle_message(self, message_timestamp: datetime, chatter_nick: str, message: str, stream_id: int):
+    def handle_message(
+        self,
+        message_timestamp: datetime,
+        chatter_nick: str,
+        message: str,
+        stream_id: int,
+        metadata: tuple = (None, None, None),
+    ):
         tagged_user_id = self.find_tagged_user_id(message)
 
         if message not in self.known_messages:
@@ -56,6 +63,16 @@ class MessageHandler:
             self.known_messages[message] = message_id
 
         message_text_id = self.known_messages[message]
+        is_subscriber, badges, emote_count = metadata
         self.insert_message_fun(
-            (self.known_chatters[chatter_nick], tagged_user_id, stream_id, message_text_id, message_timestamp)
+            (
+                self.known_chatters[chatter_nick],
+                tagged_user_id,
+                stream_id,
+                message_text_id,
+                message_timestamp,
+                is_subscriber,
+                badges,
+                emote_count,
+            )
         )

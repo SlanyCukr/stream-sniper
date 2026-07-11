@@ -22,14 +22,14 @@ def with_cursor_connection(f):
     """
 
     @wraps(f)
-    def wrapper(*args):
+    def wrapper(*args, **kwargs):
         pool = get_pool()
 
         with pool.get_connection() as connection:
             cursor = None
             try:
                 cursor = connection.cursor()
-                values = f(*args, cursor, connection)
+                values = f(*args, cursor, connection, **kwargs)
                 return values
             except Exception as e:
                 logger.error(f"Database operation failed in {f.__name__}: {e}")
@@ -48,12 +48,12 @@ def with_cursor(f):
     """
 
     @wraps(f)
-    def wrapper(*args):
+    def wrapper(*args, **kwargs):
         pool = get_pool()
 
         with pool.get_cursor() as cursor:
             try:
-                values = f(*args, cursor)
+                values = f(*args, cursor, **kwargs)
                 return values
             except Exception as e:
                 logger.error(f"Database operation failed in {f.__name__}: {e}")

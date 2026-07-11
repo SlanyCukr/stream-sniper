@@ -29,17 +29,55 @@ api.interceptors.response.use(
   },
 )
 
+// Query-string helper: drop null/''/undefined, stringify the rest (keys already snake_case).
+type QueryParams = Record<string, string | number | boolean | null | undefined>
+
+const qs = (params: QueryParams) => {
+  const searchParams = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      searchParams.set(key, String(value))
+    }
+  })
+  return searchParams
+}
+
 // Data endpoints (baseURL '/api' already applied; paths are backend-relative after /api strip)
 export const retrieveMessages = (chatterId: string | number, offset = 0, limit = 50) => api.get(`/chatter/${chatterId}/messages?offset=${offset}&limit=${limit}`)
 export const retrieveChatterId = (nick: string) => api.get(`/chatter/${nick}/chatter_id`)
 export const retrieveChatterSearch = (q: string, limit = 10) => api.get(`/chatters/search?q=${encodeURIComponent(q)}&limit=${limit}`)
 export const retrieveTwitchChannelSearch = (q: string, limit = 8) => api.get(`/admin/tracking/twitch-search?q=${encodeURIComponent(q)}&limit=${limit}`)
 export const retrieveChattersOnStream = (streamId: string | number) => api.get(`/stream/${streamId}/chatters`)
-export const retrieveStreams = (creatorId: string | number, offset: number) => api.get(`/streams?creator_id=${creatorId}&offset=${offset}`)
+
+// W1 — replaces the old positional retrieveStreams
+export const retrieveStreams = (p: {
+  creatorId?: number, sort?: string, dir?: 'asc' | 'desc', title?: string,
+  dateFrom?: string, dateTo?: string, minMessages?: number, offset?: number,
+}) => api.get(`/streams?${qs({
+  creator_id: p.creatorId, sort: p.sort, dir: p.dir, title: p.title,
+  date_from: p.dateFrom, date_to: p.dateTo, min_messages: p.minMessages, offset: p.offset,
+})}`)
+
+// W2 — chronological keyset chat replay for a stream
+export const retrieveStreamMessages = (streamId: number, p: {
+  chatterId?: number, q?: string, afterTs?: string, afterId?: number, limit?: number,
+}) => api.get(`/stream/${streamId}/messages?${qs({
+  chatter_id: p.chatterId, q: p.q, after_ts: p.afterTs, after_id: p.afterId, limit: p.limit,
+})}`)
+
+// W3 — stream timeline (buckets + moments + metrics)
+export const retrieveStreamTimeline = (streamId: number) => api.get(`/stream/${streamId}/timeline`)
+
+// W4 — creator analytics
+export const retrieveCreatorTrends = (creatorId: number) => api.get(`/creator/${creatorId}/trends`)
+export const retrieveCreatorRegulars = (creatorId: number, p: {
+  minStreams?: number, sort?: string, dir?: 'asc' | 'desc', limit?: number,
+}) => api.get(`/creator/${creatorId}/regulars?${qs({
+  min_streams: p.minStreams, sort: p.sort, dir: p.dir, limit: p.limit,
+})}`)
+
 export const retrieveStreamComprehensive = (streamId: string | number) => api.get(`/stream/${streamId}`)
-export const retrieveChatterOnStreamMessages = (streamId: string | number, chatterId: string | number) => api.get(`/stream/${streamId}/chatter/${chatterId}/messages`)
 export const retrieveAllCreators = () => api.get('/creators')
-export const retrieveCreatorTopChatters = (creatorId: string | number, limit: number) => api.get(`/creator/${creatorId}/top-chatters?limit=${limit}`)
 export const retrieveChatterStreamActivity = (chatterId: string | number) => api.get(`/chatter/${chatterId}/stream-activity`)
 
 type ApiErrorResponse = {

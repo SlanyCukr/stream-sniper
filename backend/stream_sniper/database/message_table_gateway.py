@@ -28,11 +28,10 @@ def select_chatter_message_count_db(chatter_id, cursor):
 
 def insert_message_db(items: list[tuple], cursor, connection):
     cursor.executemany(
-        "INSERT INTO "
-        "message "
-        "(chatter_id, tagged_chatter_id, stream_id, message_text_id, time) "
-        "VALUES "
-        "(%s, %s, %s, %s, %s)",
+        "INSERT INTO message "
+        "(chatter_id, tagged_chatter_id, stream_id, message_text_id, time, "
+        " is_subscriber, badges, emote_count) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
         items,
     )
     connection.commit()

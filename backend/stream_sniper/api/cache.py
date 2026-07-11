@@ -272,7 +272,9 @@ def warm_cache():
         for creator_id in [-1, 1, 2, 3]:  # -1 for all creators, then top few
             try:
                 count = select_all_stream_count_db(creator_id)
-                cache_key = cache._generate_key("stream_count", creator_id)
+                # Seed the FULL-arity key an unfiltered /streams request generates
+                # (creator_id + the four None filters), so the pre-warm is actually read.
+                cache_key = cache._generate_key("stream_count", creator_id, None, None, None, None)
                 cache.set(cache_key, count, ttl=1800)  # 30 minutes
             except Exception:
                 continue

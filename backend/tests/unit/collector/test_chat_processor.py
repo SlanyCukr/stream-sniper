@@ -140,10 +140,10 @@ class TestChatProcessor:
         assert mock_handler.call_count == len(sample_chat)
 
         # process_chat calls the handler as:
-        #   handler(message_time, chatter_nick, message, stream_id)
+        #   handler(message_time, chatter_nick, message, stream_id, metadata)
         for i, call in enumerate(mock_handler.call_args_list):
             args, kwargs = call
-            message_time, chatter_nick, message, actual_stream_id = args
+            message_time, chatter_nick, message, actual_stream_id, metadata = args
 
             assert actual_stream_id == stream_id
             assert chatter_nick == sample_chat[i]["author"]["name"]
@@ -171,9 +171,9 @@ class TestChatProcessor:
         # Handler should be called once
         assert mock_handler.call_count == 1
 
-        # Verify correct parameters: handler(message_time, chatter_nick, message, stream_id)
+        # Verify correct parameters: handler(message_time, chatter_nick, message, stream_id, metadata)
         args, kwargs = mock_handler.call_args
-        message_time, chatter_nick, message, actual_stream_id = args
+        message_time, chatter_nick, message, actual_stream_id, metadata = args
 
         assert actual_stream_id == stream_id
         assert chatter_nick == "single_user"
