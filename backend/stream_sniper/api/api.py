@@ -25,6 +25,7 @@ from .operations_endpoints import router as operations_router
 from .rate_limiter import setup_rate_limiting
 from .stream_endpoints import router as stream_router
 from .stream_insight_endpoints import router as stream_insight_router
+from .stream_report_endpoints import router as stream_report_router
 from .timeline_endpoints import router as timeline_router
 from .tracking_router import router as tracking_router
 
@@ -188,6 +189,9 @@ app.include_router(analytics_router)
 
 # Include stream insight router (mentions, emotes, phrases)
 app.include_router(stream_insight_router)
+
+# Include stream report card + chat-log export router
+app.include_router(stream_report_router)
 
 # Include community overlap router
 app.include_router(community_router)

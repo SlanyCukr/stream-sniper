@@ -101,6 +101,16 @@ export const putMomentReview = (streamId: number, bucketMinute: string, status: 
 export const deleteMomentReview = (streamId: number, bucketMinute: string) =>
   api.delete(`/stream/${streamId}/moments/${encodeURIComponent(bucketMinute)}/review`)
 
+// W8 — stream report card + data exports
+export const retrieveStreamReport = (streamId: number, lookback?: number) => api.get(`/stream/${streamId}/report?${qs({ lookback })}`)
+// Blob downloads: the JWT lives in localStorage and is attached by the request
+// interceptor, so exports must go through axios (a plain <a href> has no header).
+// timeout: 0 — a full chat log can exceed the instance default of 10s.
+export const downloadStreamExport = (streamId: number, format: 'ndjson' | 'csv' = 'ndjson') =>
+  api.get(`/stream/${streamId}/export?${qs({ format })}`, { responseType: 'blob', timeout: 0 })
+export const downloadStreamInsightCsv = (streamId: number, kind: 'emotes' | 'phrases' | 'mentions') =>
+  api.get(`/stream/${streamId}/${kind}?format=csv`, { responseType: 'blob', timeout: 0 })
+
 export const retrieveStreamComprehensive = (streamId: string | number) => api.get(`/stream/${streamId}`)
 export const retrieveAllCreators = () => api.get('/creators')
 export const retrieveChatterStreamActivity = (chatterId: string | number) => api.get(`/chatter/${chatterId}/stream-activity`)

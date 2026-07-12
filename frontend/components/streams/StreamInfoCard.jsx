@@ -8,9 +8,12 @@ import ThumbImage from './ThumbImage'
 
 /**
  * Stream hero: thumbnail + identity + key numbers.
+ * @param {object} props
+ * @param {import('react').ReactNode} [props.downloadMenu] - optional export
+ *   dropdown rendered in the page-actions slot next to the Twitch button
  */
 const StreamInfoCard = ({
-    streamInfoData, twitchLink, formattedStartTime, formattedEndTime, timeAgo, duration,
+    streamInfoData, twitchLink, formattedStartTime, formattedEndTime, timeAgo, duration, downloadMenu,
 }) => {
     const {
         title, displayName, messageCount, thumbnailUrl,
@@ -40,6 +43,7 @@ const StreamInfoCard = ({
                             aria-hidden="true"></i>
                         Twitch channel
                     </a>
+                    {downloadMenu}
                 </div>
             </div>
 
