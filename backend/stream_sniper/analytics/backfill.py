@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 from ..database.stream_chatter_stats_table_gateway import select_rollup_stream_ids_db
 from ..logging_config import get_logger, setup_logging
+from .community import recompute_creator_overlap
 from .rollup_engine import compute_stream_rollup
 
 
@@ -48,13 +49,22 @@ def main():
     failures = 0
     for stream_id in stream_ids:
         try:
-            compute_stream_rollup(stream_id)
+            # Defer the global overlap recompute to a single blocking pass at the end, so it
+            # runs once (with correct final data) instead of after every stream.
+            compute_stream_rollup(stream_id, refresh_overlap=False)
             processed += 1
         except Exception as e:
             failures += 1
             logger.error(f"Rollup failed for stream {stream_id}: {e}", exc_info=True)
 
     logger.info(f"Backfill complete: {processed} succeeded, {failures} failed.")
+
+    try:
+        recompute_creator_overlap(blocking=True)
+        logger.info("Community overlap recomputed.")
+    except Exception as e:
+        logger.error(f"Community overlap recompute failed: {e}", exc_info=True)
+
     if failures:
         sys.exit(1)
 

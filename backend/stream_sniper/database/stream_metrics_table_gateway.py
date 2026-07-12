@@ -13,7 +13,9 @@ def select_stream_metrics_db(stream_id, cursor):
             peak_messages,
             TO_CHAR(peak_bucket_minute, 'YYYY-MM-DD"T"HH24:MI:SS'),
             new_chatters,
-            returning_chatters
+            returning_chatters,
+            sub_messages,
+            emote_messages
         FROM stream_metrics
         WHERE stream_id = %s
         """,

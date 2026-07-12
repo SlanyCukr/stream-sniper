@@ -38,6 +38,54 @@ def insert_message_db(items: list[tuple], cursor, connection):
 
 
 @with_cursor
+def select_stream_phrase_source_db(stream_id, cursor):
+    """Per (text, chatter) occurrence counts for a stream, feeding the Python phrase rollup.
+
+    Returns (text, chatter_id, occurrence_count). Grouping on (text, chatter_id) lets the phrase
+    stats dedupe chatter_count on (phrase, chatter_id) while still summing repeated sends.
+    """
+    cursor.execute(
+        """
+        SELECT mt.text, m.chatter_id, count(*)
+        FROM message m
+        JOIN message_text mt ON mt.id = m.message_text_id
+        WHERE m.stream_id = %s AND m.chatter_id IS NOT NULL
+        GROUP BY mt.text, m.chatter_id
+        """,
+        (stream_id,),
+    )
+    return cursor.fetchall()
+
+
+@with_cursor
+def select_moment_window_messages_db(stream_id, windows, cursor):
+    """Fetch every message inside ANY moment window in a single query (no per-moment N+1).
+
+    ``windows`` is a list of (start_datetime, end_datetime) half-open ranges. Returns
+    (time, text, chatter_id, is_subscriber, emote_count); the caller partitions rows into windows
+    in memory. Returns [] when there are no windows.
+    """
+    if not windows:
+        return []
+    clauses = []
+    params: list = [stream_id]
+    for start, end in windows:
+        clauses.append("(m.time >= %s AND m.time < %s)")
+        params.append(start)
+        params.append(end)
+    cursor.execute(
+        f"""
+        SELECT m.time, mt.text, m.chatter_id, m.is_subscriber, m.emote_count
+        FROM message m
+        JOIN message_text mt ON mt.id = m.message_text_id
+        WHERE m.stream_id = %s AND ({" OR ".join(clauses)})
+        """,
+        tuple(params),
+    )
+    return cursor.fetchall()
+
+
+@with_cursor
 def select_chatter_id_db(nick, cursor):
     cursor.execute("SELECT id FROM chatter WHERE nick = %s", (nick,))
     return cursor.fetchone()

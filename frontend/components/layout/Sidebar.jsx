@@ -24,6 +24,16 @@ const navigation = [
         href: '/regulars',
         icon: 'bi bi-people',
     },
+    {
+        title: 'Community',
+        href: '/community',
+        icon: 'bi bi-diagram-3',
+    },
+    {
+        title: 'Highlights',
+        href: '/moments',
+        icon: 'bi bi-bookmark-star',
+    },
 ]
 
 const adminNavigation = [

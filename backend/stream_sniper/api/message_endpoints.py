@@ -36,6 +36,7 @@ def get_stream_messages(
     limit: int = Query(100, description="Page size", ge=1, le=200),
     chatter_id: Optional[int] = Query(None, description="Filter to one chatter"),
     q: Optional[str] = Query(None, description="Case-insensitive substring filter on message text", max_length=255),
+    sub_only: bool = Query(False, description="Restrict to messages sent by subscribers"),
 ) -> dict[str, Any]:
     """Get a chronological page of messages for a stream."""
     try:
@@ -48,6 +49,7 @@ def get_stream_messages(
             limit,
             chatter_id or 0,
             (q or "").lower(),
+            sub_only,
         )
         cached_result = cache.get(cache_key)
         if cached_result is not None:
@@ -63,10 +65,19 @@ def get_stream_messages(
             after_id=after_id,
             chatter_id=chatter_id,
             q=q,
+            sub_only=sub_only,
         )
 
         messages = [
-            {"id": row[0], "time": row[1], "chatter_id": row[2], "nick": row[3], "text": row[4]}
+            {
+                "id": row[0],
+                "time": row[1],
+                "chatter_id": row[2],
+                "nick": row[3],
+                "text": row[4],
+                "is_subscriber": row[5],
+                "badges": row[6],
+            }
             for row in rows
         ]
         if len(messages) == limit:

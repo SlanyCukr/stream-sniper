@@ -6,6 +6,9 @@ import {
     useMemo,
 } from 'react'
 import {
+    Row, Col,
+} from 'react-bootstrap'
+import {
     useStreamData,
     useStreamMessages,
     useStreamTimeline,
@@ -16,6 +19,9 @@ import StreamInfoCard from '@/components/streams/StreamInfoCard'
 import StreamTimeline from '@/components/streams/StreamTimeline'
 import StreamMetrics from '@/components/streams/StreamMetrics'
 import StreamStatsCard from '@/components/streams/StreamStatsCard'
+import MentionsPanel from '@/components/streams/MentionsPanel'
+import EmotesPanel from '@/components/streams/EmotesPanel'
+import PhrasesPanel from '@/components/streams/PhrasesPanel'
 import StreamReplayCard from '@/components/streams/StreamReplayCard'
 import {
     formatStreamTimestamp, formatTimeAgo, formatDurationBetween,
@@ -32,6 +38,10 @@ const Stream = ({ streamId }) => {
         textQuery,
         setTextQuery,
     ] = useState(undefined)
+    const [
+        subOnly,
+        setSubOnly,
+    ] = useState(false)
 
     // Lifted jump target. A timeline moment (T12) will set this via handleJump;
     // StreamChatReplay reacts to the object identity change (nonce) to scroll+flash.
@@ -61,6 +71,7 @@ const Stream = ({ streamId }) => {
     } = useStreamMessages(streamId, {
         chatterId,
         q: textQuery,
+        subOnly,
     })
 
     // Timeline (buckets + moments + metrics) powers the activity chart and the
@@ -288,10 +299,23 @@ const Stream = ({ streamId }) => {
                 renderOtherCreators={renderOtherCreators}
             />
 
+            <Row className="g-4">
+                <Col lg={4}>
+                    <MentionsPanel streamId={streamId} />
+                </Col>
+                <Col lg={4}>
+                    <EmotesPanel streamId={streamId} />
+                </Col>
+                <Col lg={4}>
+                    <PhrasesPanel streamId={streamId} />
+                </Col>
+            </Row>
+
             <StreamReplayCard
                 chatterOptions={chattersInStream}
                 onChatterChange={setChatterId}
                 onQueryChange={setTextQuery}
+                onSubOnlyChange={setSubOnly}
                 messages={replayMessages}
                 hasMore={Boolean(hasNextPage)}
                 isFetchingMore={isFetchingNextPage}

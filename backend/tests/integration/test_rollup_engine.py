@@ -18,15 +18,25 @@ import pytest
 CREATOR_NICK = "itest_rollup_creator"
 MSG_TEXT = "itest_rollup_msg"
 
-# The analytics rollup tables (revision 0006). Created IF NOT EXISTS so the test is
-# self-provisioning against any reachable database, regardless of migration state.
+# The analytics rollup tables (revisions 0006-0008). Created IF NOT EXISTS so the test is
+# self-provisioning against any reachable database, regardless of migration state. The
+# 0008 additions (sub/emote bucket columns + emote_dictionary/stream_emote_stats) and the
+# 0007 message metadata columns are required by recompute_stream_rollup_db stages (a)/(c)/(e).
 _ANALYTICS_DDL = """
 SET search_path TO stream_sniper;
+ALTER TABLE message
+    ADD COLUMN IF NOT EXISTS is_subscriber boolean  NULL,
+    ADD COLUMN IF NOT EXISTS badges        text     NULL,
+    ADD COLUMN IF NOT EXISTS emote_count   smallint NULL;
 CREATE TABLE IF NOT EXISTS stream_time_bucket (
     stream_id int NOT NULL, bucket_minute timestamp NOT NULL,
     message_count int NOT NULL, unique_chatters int NOT NULL,
+    sub_messages int NULL, emote_messages int NULL,
     CONSTRAINT stream_time_bucket_pk PRIMARY KEY (stream_id, bucket_minute)
 );
+ALTER TABLE stream_time_bucket
+    ADD COLUMN IF NOT EXISTS sub_messages int NULL,
+    ADD COLUMN IF NOT EXISTS emote_messages int NULL;
 CREATE TABLE IF NOT EXISTS stream_chatter_stats (
     stream_id int NOT NULL, chatter_id int NOT NULL, message_count int NOT NULL,
     first_message_time timestamp NULL, last_message_time timestamp NULL,
@@ -37,14 +47,58 @@ CREATE TABLE IF NOT EXISTS stream_metrics (
     duration_seconds int NULL, messages_per_minute numeric(10,2) NULL,
     peak_messages int NOT NULL DEFAULT 0, peak_bucket_minute timestamp NULL,
     new_chatters int NOT NULL DEFAULT 0, returning_chatters int NOT NULL DEFAULT 0,
+    sub_messages int NULL, emote_messages int NULL,
     computed_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE stream_metrics
+    ADD COLUMN IF NOT EXISTS sub_messages int NULL,
+    ADD COLUMN IF NOT EXISTS emote_messages int NULL;
 CREATE TABLE IF NOT EXISTS creator_chatter_stats (
     creator_id int NOT NULL, chatter_id int NOT NULL, streams_attended int NOT NULL,
     total_messages bigint NOT NULL, first_seen_stream_id int NULL, first_seen_at timestamp NULL,
     last_seen_stream_id int NULL, last_seen_at timestamp NULL,
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT creator_chatter_stats_pk PRIMARY KEY (creator_id, chatter_id)
+);
+CREATE TABLE IF NOT EXISTS emote_dictionary (
+    id serial PRIMARY KEY, name text NOT NULL,
+    source text NOT NULL CHECK (source IN ('bttv','twitch')),
+    provider_id text NULL, first_seen timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT emote_dictionary_uq UNIQUE (name, source)
+);
+CREATE TABLE IF NOT EXISTS stream_emote_stats (
+    stream_id int NOT NULL, emote_id int NOT NULL,
+    usage_count int NOT NULL, chatter_count int NOT NULL,
+    CONSTRAINT stream_emote_stats_pk PRIMARY KEY (stream_id, emote_id)
+);
+CREATE TABLE IF NOT EXISTS stream_phrase_stats (
+    stream_id int NOT NULL, phrase text NOT NULL,
+    usage_count int NOT NULL, chatter_count int NOT NULL,
+    CONSTRAINT stream_phrase_stats_pk PRIMARY KEY (stream_id, phrase)
+);
+CREATE TABLE IF NOT EXISTS stream_moment (
+    stream_id int NOT NULL, bucket_minute timestamp NOT NULL,
+    offset_seconds int NOT NULL, message_count int NOT NULL,
+    baseline numeric(10,2) NOT NULL, ratio numeric(10,2) NULL, unique_chatters int NOT NULL,
+    sub_share numeric(5,4) NULL, emote_share numeric(5,4) NULL,
+    top_phrases jsonb NULL, sample_messages jsonb NULL,
+    computed_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT stream_moment_pk PRIMARY KEY (stream_id, bucket_minute)
+);
+CREATE TABLE IF NOT EXISTS moment_review (
+    stream_id int NOT NULL, bucket_minute timestamp NOT NULL,
+    status text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT moment_review_pk PRIMARY KEY (stream_id, bucket_minute)
+);
+CREATE TABLE IF NOT EXISTS creator_audience (
+    creator_id int PRIMARY KEY, chatters int NOT NULL, regulars int NOT NULL,
+    computed_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS creator_overlap (
+    creator_a int NOT NULL, creator_b int NOT NULL,
+    shared_chatters int NOT NULL, shared_regulars int NOT NULL,
+    computed_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT creator_overlap_pk PRIMARY KEY (creator_a, creator_b)
 );
 """
 
@@ -56,10 +110,18 @@ def _purge(cur, creator_id):
     cur.execute("SELECT id FROM stream WHERE creator_id = %s", (creator_id,))
     stream_ids = [r[0] for r in cur.fetchall()]
     if stream_ids:
+        cur.execute("DELETE FROM moment_review WHERE stream_id = ANY(%s)", (stream_ids,))
+        cur.execute("DELETE FROM stream_moment WHERE stream_id = ANY(%s)", (stream_ids,))
+        cur.execute("DELETE FROM stream_phrase_stats WHERE stream_id = ANY(%s)", (stream_ids,))
+        cur.execute("DELETE FROM stream_emote_stats WHERE stream_id = ANY(%s)", (stream_ids,))
         cur.execute("DELETE FROM stream_metrics WHERE stream_id = ANY(%s)", (stream_ids,))
         cur.execute("DELETE FROM stream_chatter_stats WHERE stream_id = ANY(%s)", (stream_ids,))
         cur.execute("DELETE FROM stream_time_bucket WHERE stream_id = ANY(%s)", (stream_ids,))
         cur.execute("DELETE FROM message WHERE stream_id = ANY(%s)", (stream_ids,))
+    cur.execute(
+        "DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (creator_id, creator_id)
+    )
+    cur.execute("DELETE FROM creator_audience WHERE creator_id = %s", (creator_id,))
     cur.execute("DELETE FROM creator_chatter_stats WHERE creator_id = %s", (creator_id,))
     cur.execute("DELETE FROM stream WHERE creator_id = %s", (creator_id,))
     cur.execute("DELETE FROM message_text WHERE text = %s", (MSG_TEXT,))
@@ -246,3 +308,307 @@ class TestRollupEngine:
         assert second["metrics"] == first["metrics"]
         # creator_stats differ only by updated_at (excluded) -> equal
         assert second["creator_stats"] == first["creator_stats"]
+
+
+def _insert_text(cur, text):
+    cur.execute(
+        "INSERT INTO message_text (text) VALUES (%s) ON CONFLICT (text) DO UPDATE SET text = EXCLUDED.text "
+        "RETURNING id",
+        (text,),
+    )
+    return cur.fetchone()[0]
+
+
+def _insert_creator(cur, nick):
+    cur.execute(
+        "INSERT INTO creator (nick, display_name, profile_image_url, twitch_id) "
+        "VALUES (%s, %s, %s, %s) RETURNING id",
+        (nick, nick, "https://example.com/p.jpg", None),
+    )
+    return cur.fetchone()[0]
+
+
+class TestAnalyticsExpansionRollup:
+    """Emote / phrase / moment rollups + community overlap correctness (revisions 0006-0008)."""
+
+    _ENRICH_CREATOR = "itest_enrich_creator"
+    _ENRICH_CHATTERS = ["itest_e1", "itest_e2", "itest_e3", "itest_e4", "itest_e5"]
+    _T_LOW = "itest_enrich_hello"
+    _T_SPIKE = "OMEGALUL insane play"  # OMEGALUL is a seeded BTTV emote
+
+    @pytest.fixture
+    def enrich_seeded(self, test_db_connection):
+        from stream_sniper.analytics.rollup_engine import compute_stream_rollup
+
+        cur = test_db_connection.cursor()
+        cur.execute(_ANALYTICS_DDL)
+
+        cur.execute("SELECT id FROM creator WHERE nick = %s", (self._ENRICH_CREATOR,))
+        prior = cur.fetchone()
+        self._cleanup(cur, prior[0] if prior else None)
+
+        creator_id = _insert_creator(cur, self._ENRICH_CREATOR)
+        chatter_ids = [_insert_chatter(cur, nick) for nick in self._ENRICH_CHATTERS]
+        low_id = _insert_text(cur, self._T_LOW)
+        spike_id = _insert_text(cur, self._T_SPIKE)
+
+        # Guarantee the emote is present regardless of whether the lazy BTTV seed ran (it skips
+        # when the shared DB already has any bttv row from another test) — the assertion targets
+        # emote text-matching, not the one-time seed.
+        cur.execute(
+            "INSERT INTO emote_dictionary (name, source, provider_id) "
+            "VALUES ('OMEGALUL','bttv','60ca186ef8b3f62601c3eb1d') ON CONFLICT (name, source) DO NOTHING"
+        )
+
+        day = datetime(2026, 3, 1, 18, 0, 0)
+        cur.execute(
+            'INSERT INTO stream (twitch_id, title, start, "end", message_count, creator_id) '
+            "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (910000001, "Enrich Stream", day, day + timedelta(hours=3), 0, creator_id),
+        )
+        stream_id = cur.fetchone()[0]
+
+        # Low baseline minutes 0-9 and 11-12 (2 msgs each), spike at minute 10 (20 msgs, 5 chatters).
+        for minute in list(range(10)) + [11, 12]:
+            for i in range(2):
+                cur.execute(
+                    "INSERT INTO message (chatter_id, stream_id, message_text_id, time) VALUES (%s,%s,%s,%s)",
+                    (chatter_ids[i], stream_id, low_id, day + timedelta(minutes=minute, seconds=5 * i)),
+                )
+        for i in range(20):
+            cur.execute(
+                "INSERT INTO message (chatter_id, stream_id, message_text_id, time) VALUES (%s,%s,%s,%s)",
+                (chatter_ids[i % 5], stream_id, spike_id, day + timedelta(minutes=10, seconds=i)),
+            )
+
+        yield {"cur": cur, "creator_id": creator_id, "stream_id": stream_id, "compute": compute_stream_rollup}
+
+        self._cleanup(cur, creator_id)
+        cur.close()
+
+    def _cleanup(self, cur, creator_id):
+        if creator_id is not None:
+            cur.execute("SELECT id FROM stream WHERE creator_id = %s", (creator_id,))
+            stream_ids = [r[0] for r in cur.fetchall()]
+            if stream_ids:
+                for table in (
+                    "moment_review",
+                    "stream_moment",
+                    "stream_phrase_stats",
+                    "stream_emote_stats",
+                    "stream_metrics",
+                    "stream_chatter_stats",
+                    "stream_time_bucket",
+                    "message",
+                ):
+                    cur.execute(f"DELETE FROM {table} WHERE stream_id = ANY(%s)", (stream_ids,))
+            cur.execute(
+                "DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (creator_id, creator_id)
+            )
+            cur.execute("DELETE FROM creator_audience WHERE creator_id = %s", (creator_id,))
+            cur.execute("DELETE FROM creator_chatter_stats WHERE creator_id = %s", (creator_id,))
+            cur.execute("DELETE FROM stream WHERE creator_id = %s", (creator_id,))
+            cur.execute("DELETE FROM creator WHERE id = %s", (creator_id,))
+        cur.execute("DELETE FROM message_text WHERE text IN %s", ((self._T_LOW, self._T_SPIKE),))
+        cur.execute("DELETE FROM chatter WHERE nick = ANY(%s)", (self._ENRICH_CHATTERS,))
+
+    def test_emote_phrase_and_moment_rows(self, enrich_seeded):
+        cur = enrich_seeded["cur"]
+        stream_id = enrich_seeded["stream_id"]
+        enrich_seeded["compute"](stream_id)
+
+        # emote rollup: OMEGALUL matched via the seeded BTTV dictionary, 20 uses by 5 chatters.
+        cur.execute(
+            """
+            SELECT ed.name, ses.usage_count, ses.chatter_count
+            FROM stream_emote_stats ses
+            JOIN emote_dictionary ed ON ed.id = ses.emote_id
+            WHERE ses.stream_id = %s AND ed.name = 'OMEGALUL'
+            """,
+            (stream_id,),
+        )
+        emote = cur.fetchone()
+        assert emote == ("OMEGALUL", 20, 5)
+
+        # phrase rollup: "insane play" bigram present; the emote token is NOT a phrase.
+        cur.execute(
+            "SELECT phrase, usage_count, chatter_count FROM stream_phrase_stats WHERE stream_id = %s",
+            (stream_id,),
+        )
+        phrases = {row[0]: (row[1], row[2]) for row in cur.fetchall()}
+        assert phrases["insane play"] == (20, 5)
+        assert "omegalul" not in phrases and "OMEGALUL" not in phrases
+
+        # moment rollup: one enriched spike at minute 10.
+        cur.execute(
+            """
+            SELECT message_count, sub_share, emote_share, top_phrases, sample_messages
+            FROM stream_moment WHERE stream_id = %s
+            """,
+            (stream_id,),
+        )
+        moments = cur.fetchall()
+        assert len(moments) == 1
+        message_count, sub_share, emote_share, top_phrases, sample_messages = moments[0]
+        assert message_count == 20
+        # These messages carry no metadata (is_subscriber/emote_count NULL == pre-0007 unknown era),
+        # so shares are NULL (unknown), never a misleading 0.
+        assert sub_share is None and emote_share is None
+        assert any(p["phrase"] == "insane play" for p in top_phrases)
+        assert sample_messages[0] == {"text": self._T_SPIKE, "count": 20}
+
+        # metrics: unknown-era stream -> sub/emote message counts are NULL, not 0.
+        cur.execute(
+            "SELECT sub_messages, emote_messages FROM stream_metrics WHERE stream_id = %s",
+            (stream_id,),
+        )
+        assert cur.fetchone() == (None, None)
+
+    def test_three_creator_overlap_correctness(self, test_db_connection):
+        from stream_sniper.analytics.community import recompute_creator_overlap
+
+        cur = test_db_connection.cursor()
+        cur.execute(_ANALYTICS_DDL)
+        nicks = ["itest_ov_x", "itest_ov_y", "itest_ov_z"]
+        chatter_nicks = ["itest_ovc1", "itest_ovc2", "itest_ovc3"]
+
+        for nick in nicks:
+            cur.execute("SELECT id FROM creator WHERE nick = %s", (nick,))
+            row = cur.fetchone()
+            if row:
+                cur.execute(
+                    "DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (row[0], row[0])
+                )
+                cur.execute("DELETE FROM creator_audience WHERE creator_id = %s", (row[0],))
+                cur.execute("DELETE FROM creator_chatter_stats WHERE creator_id = %s", (row[0],))
+                cur.execute("DELETE FROM creator WHERE id = %s", (row[0],))
+        cur.execute("DELETE FROM chatter WHERE nick = ANY(%s)", (chatter_nicks,))
+
+        try:
+            cx, cy, cz = (_insert_creator(cur, nick) for nick in nicks)
+            ch1, ch2, ch3 = (_insert_chatter(cur, nick) for nick in chatter_nicks)
+
+            # ch1: regular in X and Y; ch2: casual in X and Y; ch3: casual in X and Z.
+            rows = [
+                (cx, ch1, 5), (cy, ch1, 4),
+                (cx, ch2, 1), (cy, ch2, 1),
+                (cx, ch3, 2), (cz, ch3, 2),
+            ]
+            for creator_id, chatter_id, attended in rows:
+                cur.execute(
+                    "INSERT INTO creator_chatter_stats "
+                    "(creator_id, chatter_id, streams_attended, total_messages) VALUES (%s,%s,%s,%s)",
+                    (creator_id, chatter_id, attended, attended * 10),
+                )
+
+            assert recompute_creator_overlap(blocking=True) is True
+
+            ids = [cx, cy, cz]
+            cur.execute(
+                "SELECT creator_a, creator_b, shared_chatters, shared_regulars FROM creator_overlap "
+                "WHERE creator_a = ANY(%s) AND creator_b = ANY(%s)",
+                (ids, ids),
+            )
+            overlap = {frozenset((a, b)): (sc, sr) for a, b, sc, sr in cur.fetchall()}
+            assert overlap[frozenset((cx, cy))] == (2, 1)  # ch1+ch2 shared, only ch1 regular in both
+            assert overlap[frozenset((cx, cz))] == (1, 0)  # ch3 shared, not regular
+            assert frozenset((cy, cz)) not in overlap  # no shared chatters
+
+            cur.execute(
+                "SELECT creator_id, chatters, regulars FROM creator_audience WHERE creator_id = ANY(%s)",
+                (ids,),
+            )
+            audience = {cid: (ch, reg) for cid, ch, reg in cur.fetchall()}
+            assert audience[cx] == (3, 1)
+            assert audience[cy] == (2, 1)
+            assert audience[cz] == (1, 0)
+        finally:
+            for cid in (cx, cy, cz):
+                cur.execute("DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (cid, cid))
+                cur.execute("DELETE FROM creator_audience WHERE creator_id = %s", (cid,))
+                cur.execute("DELETE FROM creator_chatter_stats WHERE creator_id = %s", (cid,))
+            cur.execute("DELETE FROM creator WHERE nick = ANY(%s)", (nicks,))
+            cur.execute("DELETE FROM chatter WHERE nick = ANY(%s)", (chatter_nicks,))
+            cur.close()
+
+    def test_same_name_in_both_sources_counts_once(self, test_db_connection):
+        from stream_sniper.analytics.rollup_engine import compute_stream_rollup
+
+        cur = test_db_connection.cursor()
+        cur.execute(_ANALYTICS_DDL)
+        creator_nick = "itest_dup_creator"
+        chatter_nicks = ["itest_dup1", "itest_dup2"]
+        emote_name = "ITESTDUPEMOTE"  # not in the BTTV seed
+
+        cur.execute("SELECT id FROM creator WHERE nick = %s", (creator_nick,))
+        prior = cur.fetchone()
+        if prior:
+            cur.execute("SELECT id FROM stream WHERE creator_id = %s", (prior[0],))
+            for (sid,) in cur.fetchall():
+                cur.execute("DELETE FROM stream_emote_stats WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM message WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM stream WHERE id = %s", (sid,))
+            cur.execute("DELETE FROM creator WHERE id = %s", (prior[0],))
+        cur.execute("DELETE FROM chatter WHERE nick = ANY(%s)", (chatter_nicks,))
+        cur.execute("DELETE FROM emote_dictionary WHERE name = %s", (emote_name,))
+
+        try:
+            creator_id = _insert_creator(cur, creator_nick)
+            c1, c2 = (_insert_chatter(cur, nick) for nick in chatter_nicks)
+            text_id = _insert_text(cur, emote_name)
+
+            # Same name in both sources; twitch must win the DISTINCT ON dedup.
+            cur.execute(
+                "INSERT INTO emote_dictionary (name, source, provider_id) VALUES (%s,'bttv',%s) RETURNING id",
+                (emote_name, "abc123abc123"),
+            )
+            bttv_id = cur.fetchone()[0]
+            cur.execute(
+                "INSERT INTO emote_dictionary (name, source, provider_id) VALUES (%s,'twitch',%s) RETURNING id",
+                (emote_name, "555"),
+            )
+            twitch_id = cur.fetchone()[0]
+
+            day = datetime(2026, 4, 1, 12, 0, 0)
+            cur.execute(
+                'INSERT INTO stream (twitch_id, title, start, "end", message_count, creator_id) '
+                "VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
+                (920000001, "Dup Stream", day, day + timedelta(hours=1), 0, creator_id),
+            )
+            stream_id = cur.fetchone()[0]
+            for i, chatter_id in enumerate((c1, c1, c2)):
+                cur.execute(
+                    "INSERT INTO message (chatter_id, stream_id, message_text_id, time) VALUES (%s,%s,%s,%s)",
+                    (chatter_id, stream_id, text_id, day + timedelta(seconds=i)),
+                )
+
+            compute_stream_rollup(stream_id)
+
+            cur.execute(
+                "SELECT emote_id, usage_count, chatter_count FROM stream_emote_stats WHERE stream_id = %s",
+                (stream_id,),
+            )
+            emote_rows = cur.fetchall()
+            assert len(emote_rows) == 1  # deduped to a single emote despite two dictionary sources
+            emote_id, usage_count, chatter_count = emote_rows[0]
+            assert emote_id == twitch_id and emote_id != bttv_id  # twitch priority
+            assert usage_count == 3 and chatter_count == 2
+        finally:
+            cur.execute("SELECT id FROM stream WHERE creator_id = %s", (creator_id,))
+            for (sid,) in cur.fetchall():
+                cur.execute("DELETE FROM stream_emote_stats WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM stream_phrase_stats WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM stream_moment WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM stream_metrics WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM stream_chatter_stats WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM stream_time_bucket WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM message WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM stream WHERE id = %s", (sid,))
+            cur.execute("DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (creator_id, creator_id))
+            cur.execute("DELETE FROM creator_audience WHERE creator_id = %s", (creator_id,))
+            cur.execute("DELETE FROM creator_chatter_stats WHERE creator_id = %s", (creator_id,))
+            cur.execute("DELETE FROM creator WHERE id = %s", (creator_id,))
+            cur.execute("DELETE FROM chatter WHERE nick = ANY(%s)", (chatter_nicks,))
+            cur.execute("DELETE FROM emote_dictionary WHERE name = %s", (emote_name,))
+            cur.execute("DELETE FROM message_text WHERE text = %s", (emote_name,))
+            cur.close()

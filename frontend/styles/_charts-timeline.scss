@@ -23,7 +23,12 @@
     white-space: nowrap;
 }
 
-/* ---------- Chart area ---------- */
+/* ---------- Lanes wrapper (message lane + aligned viewer lane) ---------- */
+.timeline-lanes {
+    position: relative;
+}
+
+/* ---------- Chart area (message lane) ---------- */
 .timeline-chart {
     position: relative;
     height: 160px;
@@ -43,10 +48,67 @@
         opacity: 0.85;
         transition: opacity 0.12s ease;
 
+        &--hover,
         &:hover {
             opacity: 1;
         }
     }
+}
+
+/* ---------- Viewer lane (aligned small multiple, own y-scale) ---------- */
+.timeline-viewers {
+    position: relative;
+    height: 72px;
+    margin-top: 0.5rem;
+    padding-left: 2.6rem;
+    border-left: 1px solid $hairline;
+    border-bottom: 1px solid $hairline;
+}
+
+.timeline-viewers-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.timeline-viewers-area {
+    fill: rgba($sky, 0.14);
+    stroke: none;
+}
+
+.timeline-viewers-line {
+    fill: none;
+    stroke: $sky;
+    stroke-width: 2px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+/* right-gutter max label for the viewer lane */
+.timeline-viewers-max {
+    position: absolute;
+    top: 0.1rem;
+    right: 0.35rem;
+    font-family: $font-family-monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    color: $sky;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* ---------- Shared crosshair across both lanes ---------- */
+.timeline-crosshair {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    transform: translateX(-0.5px);
+    background: rgba($gray-100, 0.35);
+    pointer-events: none;
+    z-index: 4;
 }
 
 /* y-axis labels (HTML overlay so they don't distort with preserveAspectRatio) */
@@ -175,24 +237,197 @@
         font-size: 0.66rem;
         color: $gray-100;
         font-variant-numeric: tabular-nums;
+
+        &--viewers {
+            color: $sky;
+        }
     }
 }
 
-/* ---------- Selected-moment / VOD deep-link row ---------- */
+/* ---------- 2-series legend (message lane + viewer lane) ---------- */
+.timeline-legend {
+    margin: 0.5rem 0 0 2.6rem;
+
+    /* Series identity text wears text colors; only the swatch carries series color. */
+    .legend-chip--messages::before { background: $phosphor; }
+    .legend-chip--viewers::before { background: $sky; }
+}
+
+/* ---------- Selected-moment / VOD deep-link + enrichment ---------- */
 .timeline-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid $hairline;
+}
+
+.timeline-selection-head {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.75rem;
-    margin-top: 0.85rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid $hairline;
 }
 
 .timeline-selection-label {
     font-family: $font-family-monospace;
     font-size: 0.68rem;
     color: $gray-400;
+}
+
+/* sub/emote share readouts */
+.timeline-shares {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+}
+
+.timeline-share {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.timeline-share-label {
+    font-family: $font-family-monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: $gray-500;
+}
+
+.timeline-share-value {
+    font-family: $font-family-monospace;
+    font-size: 0.9rem;
+    color: $gray-100;
+    font-variant-numeric: tabular-nums;
+}
+
+/* recurring-phrase chips */
+.timeline-phrases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.timeline-phrase-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.5rem;
+    background: $bg-raised;
+    border: 1px solid $hairline;
+    border-radius: $border-radius;
+    font-family: $font-family-monospace;
+    font-size: 0.68rem;
+    color: $gray-200;
+}
+
+.timeline-phrase-count {
+    font-size: 0.6rem;
+    color: $phosphor;
+    font-variant-numeric: tabular-nums;
+}
+
+/* representative sample messages */
+.timeline-samples {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.timeline-sample {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    color: $gray-300;
+}
+
+.timeline-sample-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.timeline-sample-count {
+    flex: none;
+    font-family: $font-family-monospace;
+    font-size: 0.62rem;
+    color: $gray-500;
+    font-variant-numeric: tabular-nums;
+}
+
+/* admin review actions */
+.timeline-review-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.timeline-review-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.32rem 0.7rem;
+    background: $bg-raised;
+    border: 1px solid $hairline;
+    border-radius: $border-radius;
+    font-family: $font-family-monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    color: $gray-200;
+    cursor: pointer;
+    transition: border-color 0.12s ease, color 0.12s ease;
+
+    &:hover:not(:disabled) {
+        border-color: $phosphor;
+        color: $phosphor;
+    }
+
+    &.is-active {
+        border-color: $phosphor;
+        color: $phosphor;
+    }
+
+    &--reject {
+        &:hover:not(:disabled) {
+            border-color: $signal-red;
+            color: $signal-red;
+        }
+
+        &.is-active {
+            border-color: $signal-red;
+            color: $signal-red;
+        }
+    }
+
+    &--clear {
+        color: $gray-400;
+    }
+
+    &:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+
+    &:focus-visible {
+        outline: 2px solid rgba($phosphor, 0.6);
+        outline-offset: 1px;
+    }
+}
+
+/* review mutation failure (e.g. a stale/non-persisted moment 404s) */
+.timeline-review-error {
+    margin: 0;
+    font-family: $font-family-monospace;
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+    color: $signal-red;
 }
 
 .timeline-vod-link {
@@ -216,7 +451,8 @@
 
 @media (prefers-reduced-motion: reduce) {
     .timeline-svg .timeline-bar,
-    .timeline-marker .timeline-marker-stem {
+    .timeline-marker .timeline-marker-stem,
+    .timeline-review-btn {
         transition: none;
     }
 }

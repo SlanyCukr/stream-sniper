@@ -1,0 +1,202 @@
+// Community overlap map (F4): single-hue Jaccard heatmap + sortable pairs table
+// twin + "audience also watches" neighbor list. Night-ops tokens throughout.
+
+.community-toolbar {
+    flex-wrap: wrap;
+    row-gap: 0.6rem;
+
+    .toolbar-readout {
+        margin-left: auto;
+    }
+
+    .community-truncated {
+        margin-left: 0.75rem;
+        color: $amber;
+
+        strong {
+            color: $amber;
+        }
+    }
+}
+
+.community-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    transition: opacity 0.2s ease;
+
+    // Hold the previous render at reduced opacity while refetching (keepPreviousData).
+    &.is-refetching {
+        opacity: 0.55;
+    }
+}
+
+/* ---------- Heatmap ---------- */
+.overlap-matrix {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.overlap-scale {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .overlap-scale-label {
+        font-family: $font-family-monospace;
+        font-size: 0.62rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: $gray-500;
+    }
+
+    .overlap-scale-ramp {
+        display: block;
+        width: 120px;
+        height: 8px;
+        border-radius: 2px;
+        border: 1px solid $hairline;
+        background: linear-gradient(90deg, rgba($phosphor, 0.08), $phosphor);
+    }
+}
+
+.overlap-matrix-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+}
+
+.overlap-matrix-inner {
+    position: relative;
+}
+
+.overlap-svg {
+    display: block;
+}
+
+.overlap-axis-label {
+    font-family: $font-family-monospace;
+    font-size: 0.66rem;
+    fill: $gray-300;
+
+    &.is-active {
+        fill: $phosphor;
+    }
+}
+
+.overlap-cell {
+    stroke: $hairline;
+    stroke-width: 1;
+    transition: stroke 0.12s ease;
+
+    &.is-empty {
+        // null Jaccard (zero union / not yet computed): hairline outline, no fill.
+        stroke: $hairline;
+    }
+
+    &.is-diagonal {
+        stroke: rgba($hairline, 0.4);
+    }
+
+    &[role="button"] {
+        cursor: pointer;
+
+        &:hover {
+            stroke: $phosphor;
+        }
+
+        &:focus {
+            outline: none;
+            stroke: $phosphor;
+            stroke-width: 2;
+        }
+
+        &:focus-visible {
+            stroke: $phosphor;
+            stroke-width: 2;
+        }
+    }
+
+    &.is-selected {
+        stroke: $amber;
+        stroke-width: 2;
+    }
+}
+
+.overlap-tooltip {
+    top: 0;
+}
+
+/* ---------- Selected-pair detail readout ---------- */
+.overlap-detail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid $hairline;
+
+    .overlap-detail-pair {
+        font-family: $font-family-monospace;
+        font-size: 0.8rem;
+        color: $phosphor;
+        letter-spacing: 0.04em;
+    }
+
+    .overlap-detail-metric {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.4rem;
+    }
+
+    .overlap-detail-key {
+        font-family: $font-family-monospace;
+        font-size: 0.62rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: $gray-500;
+    }
+}
+
+/* ---------- Pairs table twin ---------- */
+.overlap-row {
+    cursor: pointer;
+
+    &.is-selected {
+        background: rgba($amber, 0.08);
+    }
+}
+
+/* ---------- Audience also watches ---------- */
+.neighbors-explorer {
+    margin-top: 0.75rem;
+
+    .toolbar {
+        margin-bottom: 0.75rem;
+    }
+}
+
+.neighbors-rank {
+    li {
+        gap: 0.7rem;
+    }
+
+    .neighbors-bar-wrap {
+        flex: 1 1 auto;
+        min-width: 60px;
+    }
+
+    .data-bar {
+        margin-top: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .community-grid,
+    .overlap-cell {
+        transition: none;
+    }
+}

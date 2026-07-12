@@ -14,14 +14,17 @@ from .analytics_endpoints import router as analytics_router
 from .auth_router import router as auth_router
 from .cache import warm_cache
 from .chatter_endpoints import router as chatter_router
+from .community_endpoints import router as community_router
 from .config import get_config
 from .creator_endpoints import router as creator_router
 from .message_endpoints import router as message_router
 from .middleware import setup_middleware
+from .moment_endpoints import router as moment_router
 from .monitoring import record_request_metrics, setup_monitoring
 from .operations_endpoints import router as operations_router
 from .rate_limiter import setup_rate_limiting
 from .stream_endpoints import router as stream_router
+from .stream_insight_endpoints import router as stream_insight_router
 from .timeline_endpoints import router as timeline_router
 from .tracking_router import router as tracking_router
 
@@ -182,6 +185,15 @@ app.include_router(timeline_router)
 
 # Include creator analytics router (trends, regulars)
 app.include_router(analytics_router)
+
+# Include stream insight router (mentions, emotes, phrases)
+app.include_router(stream_insight_router)
+
+# Include community overlap router
+app.include_router(community_router)
+
+# Include highlight queue + moment review router
+app.include_router(moment_router)
 
 
 # Middleware for request metrics

@@ -13,6 +13,14 @@ class MessageItem(BaseModel):
     chatter_id: int = Field(..., description="Chatter ID", json_schema_extra={"example": 42})
     nick: str = Field(..., description="Chatter nick", json_schema_extra={"example": "some_viewer"})
     text: str = Field(..., description="Message text", json_schema_extra={"example": "Hello everyone!"})
+    is_subscriber: Optional[bool] = Field(
+        None, description="Whether the chatter was a subscriber (null for legacy rows)"
+    )
+    badges: Optional[str] = Field(
+        None,
+        description="Sorted comma-joined name/version badge pairs (null for legacy rows)",
+        json_schema_extra={"example": "moderator/1,subscriber/12"},
+    )
 
 
 class Cursor(BaseModel):

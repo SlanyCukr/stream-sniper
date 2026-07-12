@@ -31,6 +31,26 @@ export {
 } from './useCreatorRegularsQuery'
 
 export {
+    streamInsightsKeys,
+    useCreatorEmotes,
+    useStreamEmotes,
+    useStreamMentions,
+    useStreamPhrases,
+} from './useStreamInsightsQuery'
+
+export {
+    communityKeys,
+    useCommunityOverlap,
+    useCreatorNeighbors,
+} from './useCommunityQuery'
+
+export {
+    momentsQueueKeys,
+    useMomentReview,
+    useMomentsQueue,
+} from './useMomentsQueries'
+
+export {
     useChatters,
     useCreators,
     useChatterId,
