@@ -35,13 +35,19 @@ def recompute_creator_overlap_db(blocking, cursor, connection):
             connection.rollback()
             return False
 
+    # Bots are excluded from the cross-channel audience/overlap layer (per-stream rollups keep
+    # them — that is the factual record). Joining chatter on the (shared) chatter_id and filtering
+    # ch.is_bot IS NOT TRUE drops bot chatters from both sides of each pair.
     cursor.execute("DELETE FROM creator_audience")
     cursor.execute(
         """
         INSERT INTO creator_audience (creator_id, chatters, regulars, computed_at)
-        SELECT creator_id, count(*), count(*) FILTER (WHERE streams_attended >= 3), now()
-        FROM creator_chatter_stats
-        GROUP BY creator_id
+        SELECT ccs.creator_id, count(*),
+               count(*) FILTER (WHERE ccs.streams_attended >= 3), now()
+        FROM creator_chatter_stats ccs
+        JOIN chatter ch ON ch.id = ccs.chatter_id
+        WHERE ch.is_bot IS NOT TRUE
+        GROUP BY ccs.creator_id
         """
     )
 
@@ -57,6 +63,8 @@ def recompute_creator_overlap_db(blocking, cursor, connection):
         FROM creator_chatter_stats a
         JOIN creator_chatter_stats b
             ON b.chatter_id = a.chatter_id AND b.creator_id > a.creator_id
+        JOIN chatter ch ON ch.id = a.chatter_id
+        WHERE ch.is_bot IS NOT TRUE
         GROUP BY a.creator_id, b.creator_id
         """
     )

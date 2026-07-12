@@ -330,6 +330,28 @@ class TestCreatorOverlapGateway:
         analytics_db.execute("SELECT count(*) FROM creator_overlap")
         assert analytics_db.fetchone()[0] == 2
 
+    def test_recompute_excludes_bots(self, overlap_seed, analytics_db):
+        """A chatter flagged is_bot is dropped from both audience and overlap counts."""
+        c1, c2 = overlap_seed["c1"], overlap_seed["c2"]
+        # chB is shared by c1 (2 streams) and c2 (1 stream); mark it a bot.
+        analytics_db.execute(
+            "UPDATE chatter SET is_bot = TRUE, bot_reason = 'known_bot' WHERE nick = 'chB'"
+        )
+        analytics_db.connection.commit()
+
+        assert recompute_creator_overlap_db(True) is True
+
+        analytics_db.execute("SELECT creator_id, chatters FROM creator_audience ORDER BY creator_id")
+        aud = {r[0]: r[1] for r in analytics_db.fetchall()}
+        assert aud[c1] == 2  # chA, chC (chB excluded)
+        assert aud[c2] == 1  # chA only (chB excluded)
+
+        analytics_db.execute(
+            "SELECT shared_chatters FROM creator_overlap WHERE creator_a = %s AND creator_b = %s",
+            (min(c1, c2), max(c1, c2)),
+        )
+        assert analytics_db.fetchone()[0] == 1  # only chA shared now
+
     def test_select_overlap_top_n(self, overlap_seed, analytics_db):
         recompute_creator_overlap_db(True)
         c1, c2 = overlap_seed["c1"], overlap_seed["c2"]

@@ -86,6 +86,50 @@ def select_session_viewer_samples_db(
 
 
 @with_cursor
+def select_live_now_db(cursor) -> List[Tuple]:
+    """Latest sample per tracked streamer within the last 10 minutes (i.e. currently live).
+
+    Liveness is inferred purely from sample freshness (samples are only written while live,
+    on a ~5 min cadence, so 10 min = 2 intervals). Returns one row per streamer:
+      (creator_id, nick, display_name, profile_image_url, viewer_count, title,
+       session_started_at_iso, sampled_at_iso)
+    Timestamps come out UTC-naive ISO strings. Caller sorts by viewer_count DESC.
+    """
+    cursor.execute(
+        """
+        SELECT DISTINCT ON (svs.tracked_streamer_id)
+               ts.creator_id, c.nick, c.display_name, c.profile_image_url,
+               svs.viewer_count, svs.title,
+               TO_CHAR(svs.session_started_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS'),
+               TO_CHAR(svs.sampled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS')
+        FROM stream_viewer_sample svs
+        JOIN tracked_streamers ts ON ts.id = svs.tracked_streamer_id
+        JOIN creator c ON c.id = ts.creator_id
+        WHERE svs.sampled_at >= now() - interval '10 minutes'
+        ORDER BY svs.tracked_streamer_id, svs.sampled_at DESC
+        """
+    )
+    return cursor.fetchall()
+
+
+@with_cursor
+def select_latest_sample_time_db(cursor) -> Optional[str]:
+    """Newest sampled_at across all viewer samples as a UTC-naive ISO string, or None.
+
+    Surfaces tracker health: a stale value means the tracking container is down, so the UI
+    can distinguish "nobody live" from "tracking data is stale".
+    """
+    cursor.execute(
+        """
+        SELECT TO_CHAR(MAX(sampled_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS')
+        FROM stream_viewer_sample
+        """
+    )
+    row = cursor.fetchone()
+    return row[0] if row else None
+
+
+@with_cursor
 def select_stream_viewer_samples_db(stream_id, cursor) -> List[Tuple]:
     """Return viewer-count samples for a stream as (sampled_at_iso, viewer_count), oldest first.
 

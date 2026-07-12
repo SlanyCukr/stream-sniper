@@ -87,20 +87,24 @@ def select_moment_window_messages_db(stream_id, windows, cursor):
 
 @with_cursor
 def select_chatter_id_db(nick, cursor):
-    cursor.execute("SELECT id FROM chatter WHERE nick = %s", (nick,))
+    """Return (id, is_bot) for a nick, or None. is_bot is trailing: NULL = not yet classified."""
+    cursor.execute("SELECT id, is_bot FROM chatter WHERE nick = %s", (nick,))
     return cursor.fetchone()
 
 
 @with_cursor
 def select_chatter_stream_activity_db(chatter_id, cursor):
+    """Per-stream footprint rows for a chatter, with the chatter's is_bot flag trailing."""
     cursor.execute(
         """
-    SELECT m.stream_id, s.title, s.start, cr.id, cr.display_name, COUNT(*) AS message_count
+    SELECT m.stream_id, s.title, s.start, cr.id, cr.display_name, COUNT(*) AS message_count,
+           ch.is_bot
     FROM message m
     JOIN stream s ON s.id = m.stream_id
     JOIN creator cr ON cr.id = s.creator_id
+    JOIN chatter ch ON ch.id = m.chatter_id
     WHERE m.chatter_id = %s
-    GROUP BY m.stream_id, s.title, s.start, cr.id, cr.display_name
+    GROUP BY m.stream_id, s.title, s.start, cr.id, cr.display_name, ch.is_bot
     ORDER BY message_count DESC
     LIMIT 100
     """,

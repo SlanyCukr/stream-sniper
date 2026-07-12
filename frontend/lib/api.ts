@@ -111,6 +111,15 @@ export const downloadStreamExport = (streamId: number, format: 'ndjson' | 'csv' 
 export const downloadStreamInsightCsv = (streamId: number, kind: 'emotes' | 'phrases' | 'mentions') =>
   api.get(`/stream/${streamId}/${kind}?format=csv`, { responseType: 'blob', timeout: 0 })
 
+// W9 — scene expansion (live now, leaderboard, copypasta library)
+export const retrieveSceneLive = () => api.get('/scene/live')
+export const retrieveSceneLeaderboard = (windowDays: 7 | 30 = 7) => api.get(`/scene/leaderboard?${qs({ window: windowDays })}`)
+export const retrieveSceneCopypastas = (p: {
+  days?: number, creatorId?: number, sort?: 'usage' | 'spread' | 'recent', limit?: number, offset?: number,
+} = {}) => api.get(`/scene/copypastas?${qs({
+  days: p.days, creator_id: p.creatorId, sort: p.sort, limit: p.limit, offset: p.offset,
+})}`)
+
 export const retrieveStreamComprehensive = (streamId: string | number) => api.get(`/stream/${streamId}`)
 export const retrieveAllCreators = () => api.get('/creators')
 export const retrieveChatterStreamActivity = (chatterId: string | number) => api.get(`/chatter/${chatterId}/stream-activity`)
