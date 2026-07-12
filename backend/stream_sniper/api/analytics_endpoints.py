@@ -89,6 +89,7 @@ def get_creator_regulars(
     dir: str = Query("desc", pattern="^(asc|desc)$"),
     min_streams: int = Query(2, description="Minimum streams attended to qualify", ge=1, le=1000),
     limit: int = Query(50, description="Maximum number of regulars to return", ge=1, le=200),
+    include_bots: bool = Query(False, description="Include chatters flagged as bots"),
 ) -> CreatorRegulars:
     """Get a creator's recurring chatters with attendance rates."""
     try:
@@ -97,7 +98,7 @@ def get_creator_regulars(
         count_cache_key = cache._generate_key("creator_stream_count", creator_id)
         cached_count = cache.get(count_cache_key)
         regulars_cache_key = cache._generate_key(
-            "creator_regulars", creator_id, sort, dir, min_streams, limit
+            "creator_regulars", creator_id, sort, dir, min_streams, limit, include_bots
         )
         cached_regulars = cache.get(regulars_cache_key)
         count_from_cache = cached_count is not None
@@ -117,7 +118,9 @@ def get_creator_regulars(
             rows = cached_regulars
         else:
             record_cache_operation("miss", "creator_regulars")
-            rows = select_creator_regulars_db(creator_id, min_streams, limit, sort=sort, dir=dir)
+            rows = select_creator_regulars_db(
+                creator_id, min_streams, limit, sort=sort, dir=dir, include_bots=include_bots
+            )
             cache.set(regulars_cache_key, rows, CacheTTL.STREAM_DETAILS)
             record_cache_operation("set", "creator_regulars")
 

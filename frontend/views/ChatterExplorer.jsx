@@ -41,9 +41,11 @@ const ChatterExplorer = ({ initialView = 'footprint' }) => {
 
     /**
      * Prefix-search chatter nicks for the autocomplete dropdown.
-     * The backend returns [[id, nick], ...]; map to react-select options.
+     * The backend returns [[id, nick, is_bot], ...]; map to react-select options,
+     * preserving is_bot (null = unclassified, unknown — never coerced to false)
+     * so a selected bot can be badged.
      * @param {string} query
-     * @returns {Promise<Array<{value: number, label: string}>>}
+     * @returns {Promise<Array<{value: number, label: string, isBot: boolean|null}>>}
      */
     const loadChatterOptions = useCallback(async query => {
         const trimmed = query.trim()
@@ -55,9 +57,11 @@ const ChatterExplorer = ({ initialView = 'footprint' }) => {
             return (data || []).map(([
                 id,
                 nick,
+                isBot,
             ]) => ({
                 value: id,
                 label: nick,
+                isBot: isBot ?? null,
             }))
         } catch {
             return []
@@ -109,6 +113,13 @@ const ChatterExplorer = ({ initialView = 'footprint' }) => {
                         aria-label="Chatter nickname"
                     />
                 </div>
+                {selectedChatter?.isBot === true && (
+                    <span
+                        className="status-chip is-warn"
+                        aria-label="This chatter is flagged as a bot">
+                        BOT
+                    </span>
+                )}
             </div>
 
             <div

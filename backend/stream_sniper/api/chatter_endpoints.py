@@ -85,9 +85,12 @@ def get_chatter_messages(
 
 @router.get(
     "/chatter/{nick}/chatter_id",
-    response_model=list[int],
+    response_model=list[Any],
     summary="Get chatter ID by nickname",
-    description="Look up a chatter's unique ID using their nickname.",
+    description=(
+        "Look up a chatter's unique ID using their nickname. "
+        "Returns [id, is_bot] where is_bot is null when the chatter has not been classified yet."
+    ),
     responses={
         404: {"model": ErrorResponse, "description": "Chatter not found"},
         429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
@@ -98,8 +101,8 @@ def get_chatter_id(
     request: Request,
     response: Response,
     nick: str = Path(..., description="Chatter nickname", json_schema_extra={"example": "viewer123"}),
-) -> list[int]:
-    """Get a chatter ID by nickname."""
+) -> list[Any]:
+    """Get a chatter ID (and bot flag) by nickname."""
     try:
         cache = get_cache()
         cache_key = cache._generate_key("chatter_id", nick)
@@ -118,7 +121,7 @@ def get_chatter_id(
         cache.set(cache_key, result, CacheTTL.CHATTER_MESSAGES)
         record_cache_operation("set", "chatter_id")
         response.headers["X-Cache"] = "MISS"
-        return cast(list[int], result)
+        return cast(list[Any], result)
     except HTTPException:
         raise
     except Exception as exc:
@@ -131,7 +134,10 @@ def get_chatter_id(
     "/chatters/search",
     response_model=list[list[Any]],
     summary="Search chatters by nickname prefix",
-    description="Case-insensitive prefix search over chatter nicknames for autocomplete.",
+    description=(
+        "Case-insensitive prefix search over chatter nicknames for autocomplete. "
+        "Rows are [id, nick, is_bot]; is_bot is null when unclassified — bots are badged, not hidden."
+    ),
     responses={429: {"model": ErrorResponse, "description": "Rate limit exceeded"}},
 )
 @limiter.limit(rate_limits.SEARCH)

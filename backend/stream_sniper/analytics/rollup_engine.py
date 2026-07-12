@@ -6,6 +6,10 @@ from ..database.stream_chatter_stats_table_gateway import (
     recompute_stream_rollup_db,
     select_stream_creator_id_db,
 )
+from ..database.stream_copypasta_stats_table_gateway import (
+    replace_stream_copypasta_stats_db,
+    select_stream_copypasta_source_db,
+)
 from ..database.stream_metrics_table_gateway import select_stream_header_db
 from ..database.stream_moment_table_gateway import replace_stream_text_rollups_db
 from ..database.stream_time_bucket_table_gateway import select_stream_buckets_db
@@ -60,6 +64,13 @@ def compute_stream_rollup(stream_id: int, *, refresh_overlap: bool = True) -> No
     except Exception as e:
         logger.error(f"compute_stream_rollup: text rollups failed for stream {stream_id}: {e}", exc_info=True)
 
+    try:
+        _compute_and_store_copypasta_rollup(stream_id)
+    except Exception as e:
+        logger.error(
+            f"compute_stream_rollup: copypasta rollup failed for stream {stream_id}: {e}", exc_info=True
+        )
+
     if refresh_overlap:
         try:
             community.recompute_creator_overlap(blocking=False)
@@ -85,3 +96,14 @@ def _compute_and_store_text_rollups(stream_id: int) -> None:
     moment_rows = enrich_moments(stream_id, buckets, stream_start, usage, emote_names)
 
     replace_stream_text_rollups_db(stream_id, phrase_rows, moment_rows)
+
+
+def _compute_and_store_copypasta_rollup(stream_id: int) -> None:
+    """Fill stream_copypasta_stats for a stream from its own bot/junk-filtered SQL source.
+
+    Whole-message copypasta identity (keyed on message_text_id), separate from the tokenized
+    phrase rollup. Runs inside the per-stream flow, so `stream-sniper-rollup --all --force`
+    backfills it for free.
+    """
+    rows = select_stream_copypasta_source_db(stream_id)
+    replace_stream_copypasta_stats_db(stream_id, rows)

@@ -56,6 +56,13 @@ export {
 } from './useMomentsQueries'
 
 export {
+    sceneKeys,
+    useSceneCopypastas,
+    useSceneLeaderboard,
+    useSceneLive,
+} from './useSceneQueries'
+
+export {
     useChatters,
     useCreators,
     useChatterId,

@@ -61,10 +61,15 @@ SET search_path TO stream_sniper;
 
 -- Chatter table
 CREATE TABLE IF NOT EXISTS chatter (
-    id   SERIAL PRIMARY KEY,
-    nick VARCHAR(255) NOT NULL,
+    id         SERIAL PRIMARY KEY,
+    nick       VARCHAR(255) NOT NULL,
+    is_bot     boolean NULL,
+    bot_reason text    NULL,
     CONSTRAINT chatter_name_uindex UNIQUE (nick)
 );
+ALTER TABLE chatter
+    ADD COLUMN IF NOT EXISTS is_bot     boolean NULL,
+    ADD COLUMN IF NOT EXISTS bot_reason text    NULL;
 
 -- Creator table
 CREATE TABLE IF NOT EXISTS creator (

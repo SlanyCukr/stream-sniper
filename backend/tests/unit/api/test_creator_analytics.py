@@ -153,7 +153,7 @@ class TestCreatorRegularsEndpoint:
         assert first["message_count"] == 1250
         assert data["regulars"][1]["attendance_rate"] == round(3 / 8, 4)
         mock_count.assert_called_once_with(5)
-        mock_regulars.assert_called_once_with(5, 1, 50, sort="attendance", dir="desc")
+        mock_regulars.assert_called_once_with(5, 1, 50, sort="attendance", dir="desc", include_bots=False)
 
     @patch("stream_sniper.api.analytics_endpoints.get_cache")
     @patch("stream_sniper.api.analytics_endpoints.select_all_stream_count_db")
@@ -187,7 +187,48 @@ class TestCreatorRegularsEndpoint:
             response = client.get("/creator/5/regulars?sort=last_seen&dir=asc&min_streams=4&limit=25")
 
         assert response.status_code == 200
-        mock_regulars.assert_called_once_with(5, 4, 25, sort="last_seen", dir="asc")
+        mock_regulars.assert_called_once_with(5, 4, 25, sort="last_seen", dir="asc", include_bots=False)
+
+    @patch("stream_sniper.api.analytics_endpoints.get_cache")
+    @patch("stream_sniper.api.analytics_endpoints.select_all_stream_count_db")
+    @patch("stream_sniper.api.analytics_endpoints.select_creator_regulars_db")
+    def test_regulars_include_bots_forwarded(self, mock_regulars, mock_count, mock_get_cache):
+        """include_bots=true is forwarded to the gateway and folded into the cache key."""
+        cache = _miss_cache()
+        mock_get_cache.return_value = cache
+        mock_count.return_value = 10
+        mock_regulars.return_value = []
+
+        with TestClient(app) as client:
+            response = client.get("/creator/5/regulars?include_bots=true")
+
+        assert response.status_code == 200
+        mock_regulars.assert_called_once_with(5, 2, 50, sort="attendance", dir="desc", include_bots=True)
+        # include_bots participates in the regulars cache key (True suffix).
+        assert any(
+            call.args and call.args[0] == "creator_regulars" and call.args[-1] is True
+            for call in cache._generate_key.call_args_list
+        )
+
+    @patch("stream_sniper.api.analytics_endpoints.get_cache")
+    @patch("stream_sniper.api.analytics_endpoints.select_all_stream_count_db")
+    @patch("stream_sniper.api.analytics_endpoints.select_creator_regulars_db")
+    def test_regulars_include_bots_defaults_false(self, mock_regulars, mock_count, mock_get_cache):
+        """The default forwards include_bots=False and keys the cache with False."""
+        cache = _miss_cache()
+        mock_get_cache.return_value = cache
+        mock_count.return_value = 10
+        mock_regulars.return_value = []
+
+        with TestClient(app) as client:
+            response = client.get("/creator/5/regulars")
+
+        assert response.status_code == 200
+        mock_regulars.assert_called_once_with(5, 2, 50, sort="attendance", dir="desc", include_bots=False)
+        assert any(
+            call.args and call.args[0] == "creator_regulars" and call.args[-1] is False
+            for call in cache._generate_key.call_args_list
+        )
 
     def test_regulars_bogus_sort_422(self):
         """A sort value outside the whitelist is rejected before the gateway."""

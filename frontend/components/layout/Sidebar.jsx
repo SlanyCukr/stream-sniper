@@ -15,6 +15,11 @@ const navigation = [
         icon: 'bi bi-collection-play',
     },
     {
+        title: 'Live',
+        href: '/live',
+        icon: 'bi bi-broadcast',
+    },
+    {
         title: 'Chatter explorer',
         href: '/chatter',
         icon: 'bi bi-fingerprint',
@@ -28,6 +33,16 @@ const navigation = [
         title: 'Community',
         href: '/community',
         icon: 'bi bi-diagram-3',
+    },
+    {
+        title: 'Scene',
+        href: '/scene',
+        icon: 'bi bi-trophy',
+    },
+    {
+        title: 'Copypasta',
+        href: '/copypasta',
+        icon: 'bi bi-chat-quote',
     },
     {
         title: 'Highlights',

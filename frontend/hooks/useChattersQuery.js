@@ -86,16 +86,31 @@ export const useCreators = (options = {}) => useQuery({
 
 /**
  * Custom hook for fetching chatter ID by nickname using TanStack Query
+ *
+ * The backend returns a positional row with is_bot appended as the trailing
+ * element ([id, is_bot]); null is preserved (`?? null` — unknown, not false)
+ * per the nullable = unknown contract.
+ *
  * @param {string} nick - The chatter nickname
  * @param {boolean} enabled - Whether to execute the request (default: false)
  * @param {object} options - Additional query options
- * @returns {object} useQuery result with data, isLoading, error, etc.
+ * @returns {object} useQuery result; data = {chatterId, isBot}
  */
 export const useChatterId = (nick, enabled = false, options = {}) => useQuery({
     queryKey: chattersKeys.chatterId(nick),
     queryFn: async () => {
         const response = await retrieveChatterId(nick)
-        return response.data
+        const data = response.data
+        if (Array.isArray(data)) {
+            return {
+                chatterId: data[0] ?? null,
+                isBot: data[1] ?? null,
+            }
+        }
+        return {
+            chatterId: data ?? null,
+            isBot: null,
+        }
     },
     enabled: Boolean(nick) && enabled, // Only enabled when nick is provided and enabled is true
     ...options,

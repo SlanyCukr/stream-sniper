@@ -12,9 +12,13 @@ _DIR = {"asc": "ASC", "desc": "DESC"}
 
 
 @with_cursor
-def select_creator_regulars_db(creator_id, min_streams, limit, cursor, *, sort="attendance", dir="desc"):
+def select_creator_regulars_db(
+    creator_id, min_streams, limit, cursor, *, sort="attendance", dir="desc", include_bots=False
+):
     col = _REGULAR_SORT.get(sort, "streams_attended")
     direction = _DIR.get(dir, "DESC")
+    # By default bots are hidden from the regulars list; include_bots=True keeps them.
+    bot_filter = "" if include_bots else "AND c.is_bot IS NOT TRUE"
     cursor.execute(
         f"""
         SELECT
@@ -27,7 +31,7 @@ def select_creator_regulars_db(creator_id, min_streams, limit, cursor, *, sort="
             ccs.total_messages
         FROM creator_chatter_stats ccs
         JOIN chatter c ON c.id = ccs.chatter_id
-        WHERE ccs.creator_id = %s AND ccs.streams_attended >= %s
+        WHERE ccs.creator_id = %s AND ccs.streams_attended >= %s {bot_filter}
         ORDER BY {col} {direction}, ccs.chatter_id ASC
         LIMIT %s
         """,
