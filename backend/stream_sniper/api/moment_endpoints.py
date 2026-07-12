@@ -31,9 +31,11 @@ router = APIRouter(tags=["Moments"])
 
 
 def _invalidate_moment_caches() -> None:
-    """Drop cached timeline + queue pages so a curation change is reflected immediately."""
+    """Drop cached timeline, queue and report pages so a curation change is reflected immediately."""
     invalidate_cache_pattern("stream_timeline:*")
     invalidate_cache_pattern("moments_queue:*")
+    # The report card embeds top_moments filtered by review status.
+    invalidate_cache_pattern("stream_report:*")
 
 
 @router.get(

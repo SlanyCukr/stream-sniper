@@ -16,8 +16,9 @@ import {
 import LoadingSpinner from '@/components/LoadingSpinner'
 import ErrorAlert from '@/components/ErrorAlert'
 import StreamInfoCard from '@/components/streams/StreamInfoCard'
+import StreamDownloadMenu from '@/components/streams/StreamDownloadMenu'
 import StreamTimeline from '@/components/streams/StreamTimeline'
-import StreamMetrics from '@/components/streams/StreamMetrics'
+import StreamReportCard from '@/components/streams/StreamReportCard'
 import StreamStatsCard from '@/components/streams/StreamStatsCard'
 import MentionsPanel from '@/components/streams/MentionsPanel'
 import EmotesPanel from '@/components/streams/EmotesPanel'
@@ -284,14 +285,20 @@ const Stream = ({ streamId }) => {
                 formattedEndTime={formattedEndTime}
                 timeAgo={timeAgo}
                 duration={duration}
+                downloadMenu={(
+                    <StreamDownloadMenu
+                        streamId={streamId}
+                        title={streamInfoData.title}
+                    />
+                )}
             />
+
+            <StreamReportCard streamId={streamId} />
 
             <StreamTimeline
                 timeline={timeline}
                 onJump={handleJump}
             />
-
-            <StreamMetrics metrics={timeline?.metrics} />
 
             <StreamStatsCard
                 mostActiveChatters={mostActiveChatters}

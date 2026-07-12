@@ -150,6 +150,7 @@ class TestSetMomentReview:
         mock_upsert.assert_called_once_with(42, "2024-01-15T20:10:00", "bookmarked")
         mock_invalidate.assert_any_call("stream_timeline:*")
         mock_invalidate.assert_any_call("moments_queue:*")
+        mock_invalidate.assert_any_call("stream_report:*")
 
     @patch("stream_sniper.api.moment_endpoints.invalidate_cache_pattern")
     @patch("stream_sniper.api.moment_endpoints.upsert_moment_review_db")
@@ -207,6 +208,7 @@ class TestClearMomentReview:
         mock_delete.assert_called_once_with(42, "2024-01-15T20:10:00")
         mock_invalidate.assert_any_call("stream_timeline:*")
         mock_invalidate.assert_any_call("moments_queue:*")
+        mock_invalidate.assert_any_call("stream_report:*")
 
     @patch("stream_sniper.api.moment_endpoints.invalidate_cache_pattern")
     @patch("stream_sniper.api.moment_endpoints.delete_moment_review_db")

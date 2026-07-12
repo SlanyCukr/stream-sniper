@@ -181,6 +181,144 @@ class TestStreamPhrases:
         assert _client().get("/stream/7/phrases?limit=101").status_code == 422
 
 
+class TestStreamInsightCsvFormat:
+    """format=csv on the per-stream aggregate endpoints (default stays JSON)."""
+
+    @patch("stream_sniper.api.stream_insight_endpoints.get_cache")
+    @patch("stream_sniper.api.stream_insight_endpoints.select_stream_emotes_db")
+    def test_emotes_default_stays_json(self, mock_emotes, mock_get_cache):
+        mock_get_cache.return_value = _miss_cache()
+        mock_emotes.return_value = [("KEKW", "bttv", "abc123", 120, 30)]
+
+        response = _client().get("/stream/7/emotes")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("application/json")
+        assert "content-disposition" not in response.headers
+        assert response.json()["emotes"][0]["name"] == "KEKW"
+
+    @patch("stream_sniper.api.stream_insight_endpoints.get_cache")
+    @patch("stream_sniper.api.stream_insight_endpoints.select_stream_emotes_db")
+    def test_emotes_csv(self, mock_emotes, mock_get_cache):
+        mock_get_cache.return_value = _miss_cache()
+        mock_emotes.return_value = [
+            ("KEKW", "bttv", "abc123", 120, 30),
+            ("nopixel", "bttv", None, 5, 2),
+        ]
+
+        response = _client().get("/stream/7/emotes?format=csv")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/csv")
+        assert response.headers["content-disposition"] == 'attachment; filename="stream_7_emotes.csv"'
+        assert response.headers["X-Cache"] == "MISS"
+        assert response.text.splitlines() == [
+            "name,source,provider_id,usage_count,chatter_count",
+            "KEKW,bttv,abc123,120,30",
+            "nopixel,bttv,,5,2",
+        ]
+
+    @patch("stream_sniper.api.stream_insight_endpoints.get_cache")
+    @patch("stream_sniper.api.stream_insight_endpoints.select_stream_emotes_db")
+    def test_emotes_csv_served_from_cache_hit(self, mock_emotes, mock_get_cache):
+        cache = Mock()
+        cache._generate_key = Mock(return_value="k")
+        cache.get = Mock(
+            return_value={
+                "emotes": [
+                    {
+                        "name": "KEKW",
+                        "source": "bttv",
+                        "provider_id": "abc123",
+                        "usage_count": 120,
+                        "chatter_count": 30,
+                    }
+                ]
+            }
+        )
+        cache.set = Mock()
+        mock_get_cache.return_value = cache
+
+        response = _client().get("/stream/7/emotes?format=csv")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/csv")
+        assert response.headers["X-Cache"] == "HIT"
+        assert response.text.splitlines()[1] == "KEKW,bttv,abc123,120,30"
+        mock_emotes.assert_not_called()
+        cache.set.assert_not_called()  # format never enters the cache flow
+
+    def test_emotes_invalid_format_rejected(self):
+        assert _client().get("/stream/7/emotes?format=bogus").status_code == 422
+
+    @patch("stream_sniper.api.stream_insight_endpoints.get_cache")
+    @patch("stream_sniper.api.stream_insight_endpoints.select_stream_phrases_db")
+    def test_phrases_default_stays_json(self, mock_phrases, mock_get_cache):
+        mock_get_cache.return_value = _miss_cache()
+        mock_phrases.return_value = [("gg wp", 22, 15)]
+
+        response = _client().get("/stream/7/phrases")
+
+        assert response.headers["content-type"].startswith("application/json")
+        assert response.json() == {
+            "phrases": [{"phrase": "gg wp", "usage_count": 22, "chatter_count": 15}]
+        }
+
+    @patch("stream_sniper.api.stream_insight_endpoints.get_cache")
+    @patch("stream_sniper.api.stream_insight_endpoints.select_stream_phrases_db")
+    def test_phrases_csv(self, mock_phrases, mock_get_cache):
+        mock_get_cache.return_value = _miss_cache()
+        mock_phrases.return_value = [("gg wp", 22, 15), ("no, way", 10, 8)]
+
+        response = _client().get("/stream/7/phrases?format=csv")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/csv")
+        assert response.headers["content-disposition"] == 'attachment; filename="stream_7_phrases.csv"'
+        assert response.text.splitlines() == [
+            "phrase,usage_count,chatter_count",
+            "gg wp,22,15",
+            '"no, way",10,8',
+        ]
+
+    def test_phrases_invalid_format_rejected(self):
+        assert _client().get("/stream/7/phrases?format=bogus").status_code == 422
+
+    @patch("stream_sniper.api.stream_insight_endpoints.get_cache")
+    @patch("stream_sniper.api.stream_insight_endpoints.select_stream_mentions_db")
+    def test_mentions_default_stays_json(self, mock_mentions, mock_get_cache):
+        mock_get_cache.return_value = _miss_cache()
+        mock_mentions.return_value = ([(42, "target_a", 9)], [])
+
+        response = _client().get("/stream/7/mentions")
+
+        assert response.headers["content-type"].startswith("application/json")
+        assert response.json()["mentioned"] == [{"chatter_id": 42, "nick": "target_a", "count": 9}]
+
+    @patch("stream_sniper.api.stream_insight_endpoints.get_cache")
+    @patch("stream_sniper.api.stream_insight_endpoints.select_stream_mentions_db")
+    def test_mentions_csv_exports_mentioned_list(self, mock_mentions, mock_get_cache):
+        mock_get_cache.return_value = _miss_cache()
+        mock_mentions.return_value = (
+            [(42, "target_a", 9), (43, "target_b", 4)],
+            [(7, "caller", 42, "target_a", 5)],
+        )
+
+        response = _client().get("/stream/7/mentions?format=csv")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/csv")
+        assert response.headers["content-disposition"] == 'attachment; filename="stream_7_mentions.csv"'
+        assert response.text.splitlines() == [
+            "chatter_id,nick,count",
+            "42,target_a,9",
+            "43,target_b,4",
+        ]
+
+    def test_mentions_invalid_format_rejected(self):
+        assert _client().get("/stream/7/mentions?format=bogus").status_code == 422
+
+
 class TestCreatorEmotes:
     @patch("stream_sniper.api.stream_insight_endpoints.get_cache")
     @patch("stream_sniper.api.stream_insight_endpoints.select_creator_emotes_db")

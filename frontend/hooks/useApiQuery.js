@@ -31,6 +31,11 @@ export {
 } from './useCreatorRegularsQuery'
 
 export {
+    useStreamReport,
+    streamReportKeys,
+} from './useStreamReportQuery'
+
+export {
     streamInsightsKeys,
     useCreatorEmotes,
     useStreamEmotes,
