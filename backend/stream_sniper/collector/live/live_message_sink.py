@@ -26,6 +26,20 @@ def _emote_count(raw) -> int:
     )
 
 
+def _badge_text(raw) -> str | None:
+    """Match the canonical ``name/version`` text used by VOD ingestion."""
+    if not raw:
+        return None
+    if isinstance(raw, dict):
+        pairs = (
+            f"{name}/{version if version is not None else 0}"
+            for name, version in sorted(raw.items())
+            if name
+        )
+        return ",".join(pairs) or None
+    return str(raw)
+
+
 class LiveMessageSink:
     def __init__(self, buffer_size: int = 1000):
         self.buffer_size = max(10, buffer_size)
@@ -77,7 +91,7 @@ class LiveMessageSink:
         if "@" in text:
             tagged = text.lower().split("@", 1)[1].split(" ", 1)[0].rstrip(".,:;!?")
             tagged_id = self._chatters.get(tagged)
-        badges = message.user.badges or None
+        badges = _badge_text(message.user.badges)
         emote_count = _emote_count(message.emotes)
         sent_at = datetime.fromtimestamp(message.sent_timestamp / 1000, UTC)
         self._items.append(
