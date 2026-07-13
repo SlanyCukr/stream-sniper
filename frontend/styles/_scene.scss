@@ -2,6 +2,207 @@
 // the copypasta library card list. Night-ops tokens throughout.
 
 /* ---------- Live now ---------- */
+.creator-dossier-header .creator-identity {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.creator-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba($phosphor, 0.45);
+}
+
+.dossier-section {
+    margin-top: 1.5rem;
+}
+
+.dossier-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+
+    .dossier-copypastas {
+        grid-column: 1 / -1;
+    }
+}
+
+.propagation-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.propagation-timeline {
+    list-style: none;
+    padding: 0 0 0 0.65rem;
+    margin: 1rem 0 0;
+    border-left: 1px solid rgba($phosphor, 0.25);
+
+    li {
+        position: relative;
+        padding: 0 0 1.25rem 1.25rem;
+    }
+
+    .propagation-node {
+        position: absolute;
+        left: -0.98rem;
+        top: 0.25rem;
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 50%;
+        background: $phosphor;
+        box-shadow: 0 0 8px rgba($phosphor, 0.55);
+    }
+}
+
+.propagation-creator,
+.propagation-stream {
+    display: block;
+}
+
+.propagation-creator {
+    font-weight: 700;
+}
+
+.origin-chat {
+    max-height: 34rem;
+    overflow: auto;
+    margin-top: 1rem;
+}
+
+.origin-message {
+    display: grid;
+    grid-template-columns: 5rem minmax(6rem, auto) 1fr;
+    gap: 0.65rem;
+    padding: 0.35rem 0.5rem;
+
+    &.is-pasta {
+        background: rgba($phosphor, 0.12);
+        border-left: 2px solid $phosphor;
+    }
+}
+
+.origin-nick {
+    color: $phosphor;
+    font-weight: 600;
+}
+
+.compare-toolbar .rs__control {
+    min-width: min(680px, 72vw);
+}
+
+.compare-chart-wrap {
+    margin-top: 1rem;
+}
+
+.compare-chart {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+
+    text {
+        fill: $gray-500;
+        font-size: 12px;
+    }
+}
+
+.compare-grid-line {
+    stroke: $hairline;
+}
+
+.compare-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+
+    i {
+        display: inline-block;
+        width: 0.75rem;
+        height: 0.75rem;
+        margin-right: 0.35rem;
+        border-radius: 50%;
+    }
+}
+
+.compare-table th,
+.compare-table td {
+    min-width: 150px;
+}
+
+.retention-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.movement-toolbar .rs__control {
+    min-width: 260px;
+}
+
+.movement-caveat {
+    margin: 1rem 0 0;
+    color: $gray-500;
+    font-size: 0.8rem;
+}
+
+.pulse-toolbar .form-select {
+    width: auto;
+}
+
+.pulse-feed {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.pulse-event .card-body {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    gap: 0.75rem;
+}
+
+.pulse-icon {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid rgba($phosphor, 0.35);
+    border-radius: 50%;
+    color: $phosphor;
+}
+
+.pulse-content {
+    h2 {
+        margin: 0.2rem 0;
+        font-size: 1rem;
+    }
+
+    p {
+        margin: 0;
+        color: $gray-300;
+    }
+}
+
+.pulse-links {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+}
+
+@media (max-width: 767px) {
+    .dossier-grid,
+    .propagation-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .live-stale-note {
     display: flex;
     align-items: center;

@@ -17,6 +17,7 @@ from ..logging_config import get_logger
 from . import community, text_stats
 from .emote_seed import ensure_emote_dictionary_seeded
 from .moment_enrichment import enrich_moments
+from .scene_events import refresh_stream_events
 
 logger = get_logger(__name__)
 
@@ -70,6 +71,11 @@ def compute_stream_rollup(stream_id: int, *, refresh_overlap: bool = True) -> No
         logger.error(
             f"compute_stream_rollup: copypasta rollup failed for stream {stream_id}: {e}", exc_info=True
         )
+
+    try:
+        refresh_stream_events(stream_id)
+    except Exception as e:
+        logger.error(f"compute_stream_rollup: scene events failed for stream {stream_id}: {e}", exc_info=True)
 
     if refresh_overlap:
         try:

@@ -119,6 +119,91 @@ class TestCreatorTrendsEndpoint:
         assert response.json()["detail"] == "Internal server error"
 
 
+class TestCreatorSummaryEndpoint:
+    """Test suite for GET /creator/{creator_id}/summary."""
+
+    @patch("stream_sniper.api.analytics_endpoints.get_cache")
+    @patch("stream_sniper.api.analytics_endpoints.select_creator_summary_db")
+    def test_summary_maps_rollup_row(self, mock_summary, mock_get_cache):
+        mock_get_cache.return_value = _miss_cache()
+        mock_summary.return_value = (
+            5,
+            "alice",
+            "Alice",
+            "https://example.com/avatar.png",
+            "12345",
+            12,
+            "2024-01-01T20:00:00",
+            "2024-02-01T20:00:00",
+            15000,
+            72000,
+            12.5,
+            900,
+            75,
+            99,
+            "Latest stream",
+            "2024-02-01T20:00:00",
+        )
+
+        with TestClient(app) as client:
+            response = client.get("/creator/5/summary")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "creator_id": 5,
+            "nick": "alice",
+            "display_name": "Alice",
+            "profile_image_url": "https://example.com/avatar.png",
+            "twitch_id": "12345",
+            "total_streams": 12,
+            "first_stream_at": "2024-01-01T20:00:00",
+            "last_stream_at": "2024-02-01T20:00:00",
+            "total_messages": 15000,
+            "duration_seconds": 72000,
+            "messages_per_minute": 12.5,
+            "audience_size": 900,
+            "regulars": 75,
+            "latest_stream": {
+                "stream_id": 99,
+                "title": "Latest stream",
+                "start": "2024-02-01T20:00:00",
+            },
+        }
+        mock_summary.assert_called_once_with(5)
+
+    @patch("stream_sniper.api.analytics_endpoints.get_cache")
+    @patch("stream_sniper.api.analytics_endpoints.select_creator_summary_db")
+    def test_summary_missing_creator_404(self, mock_summary, mock_get_cache):
+        mock_get_cache.return_value = _miss_cache()
+        mock_summary.return_value = None
+
+        with TestClient(app) as client:
+            response = client.get("/creator/404/summary")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Creator not found"
+
+    @patch("stream_sniper.api.analytics_endpoints.get_cache")
+    def test_summary_cache_hit_skips_gateway(self, mock_get_cache):
+        cache = _miss_cache()
+        cache.get.return_value = {
+            "creator_id": 5,
+            "nick": "alice",
+            "display_name": "Alice",
+            "total_streams": 0,
+            "total_messages": 0,
+            "audience_size": 0,
+            "regulars": 0,
+        }
+        mock_get_cache.return_value = cache
+
+        with TestClient(app) as client:
+            response = client.get("/creator/5/summary")
+
+        assert response.status_code == 200
+        assert response.headers["X-Cache"] == "HIT"
+
+
 class TestCreatorRegularsEndpoint:
     """Test suite for GET /creator/{creator_id}/regulars."""
 

@@ -3,10 +3,18 @@
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 
 from ..database.creator_chatter_stats_table_gateway import select_creator_regulars_db
+from ..database.creator_table_gateway import select_creator_summary_db
 from ..database.stream_metrics_table_gateway import select_creator_metrics_series_db
 from ..database.stream_table_gateway import select_all_stream_count_db
 from ..logging_config import get_logger
-from .analytics_models import CreatorRegulars, CreatorTrends, Regular, TrendPoint
+from .analytics_models import (
+    CreatorRegulars,
+    CreatorSummary,
+    CreatorTrends,
+    LatestCreatorStream,
+    Regular,
+    TrendPoint,
+)
 from .cache import CacheTTL, get_cache
 from .models import ErrorResponse
 from .monitoring import record_cache_operation
@@ -15,6 +23,70 @@ from .rate_limiter import limiter, rate_limits
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["Creators"])
+
+
+@router.get(
+    "/creator/{creator_id}/summary",
+    response_model=CreatorSummary,
+    summary="Get a creator dossier summary",
+    description="Identity and lifetime analytics assembled from bounded rollup tables.",
+    responses={
+        404: {"model": ErrorResponse, "description": "Creator not found"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit(rate_limits.ANALYTICS)
+def get_creator_summary(
+    request: Request,
+    response: Response,
+    creator_id: int = Path(..., description="Creator ID", json_schema_extra={"example": 5}),
+) -> CreatorSummary:
+    """Get the stable header and lifetime totals for a permanent creator page."""
+    try:
+        cache = get_cache()
+        cache_key = cache._generate_key("creator_summary", creator_id)
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            response.headers["X-Cache"] = "HIT"
+            record_cache_operation("hit", "creator_summary")
+            return CreatorSummary(**cached_result)
+
+        record_cache_operation("miss", "creator_summary")
+        row = select_creator_summary_db(creator_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Creator not found")
+
+        latest_stream = (
+            LatestCreatorStream(stream_id=row[13], title=row[14], start=row[15])
+            if row[13] is not None
+            else None
+        )
+        result = CreatorSummary(
+            creator_id=row[0],
+            nick=row[1],
+            display_name=row[2],
+            profile_image_url=row[3],
+            twitch_id=row[4],
+            total_streams=row[5],
+            first_stream_at=row[6],
+            last_stream_at=row[7],
+            total_messages=row[8],
+            duration_seconds=row[9],
+            messages_per_minute=row[10],
+            audience_size=row[11],
+            regulars=row[12],
+            latest_stream=latest_stream,
+        )
+        cache.set(cache_key, result.model_dump(), CacheTTL.STREAM_ANALYTICS)
+        record_cache_operation("set", "creator_summary")
+        response.headers["X-Cache"] = "MISS"
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Error fetching creator summary: {exc}")
+        record_cache_operation("error", "creator_summary")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get(

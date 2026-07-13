@@ -69,14 +69,22 @@ export const retrieveStreamMessages = (streamId: number, p: {
 
 // W3 — stream timeline (buckets + moments + metrics)
 export const retrieveStreamTimeline = (streamId: number) => api.get(`/stream/${streamId}/timeline`)
+export const retrieveStreamComparison = (streamIds: number[]) => {
+  const params = new URLSearchParams()
+  streamIds.forEach(id => params.append('stream_ids', String(id)))
+  return api.get(`/streams/compare?${params}`)
+}
 
 // W4 — creator analytics
+export const retrieveCreatorSummary = (creatorId: number) => api.get(`/creator/${creatorId}/summary`)
 export const retrieveCreatorTrends = (creatorId: number) => api.get(`/creator/${creatorId}/trends`)
 export const retrieveCreatorRegulars = (creatorId: number, p: {
   minStreams?: number, sort?: string, dir?: 'asc' | 'desc', limit?: number,
 }) => api.get(`/creator/${creatorId}/regulars?${qs({
-  min_streams: p.minStreams, sort: p.sort, dir: p.dir, limit: p.limit,
+    min_streams: p.minStreams, sort: p.sort, dir: p.dir, limit: p.limit,
 })}`)
+export const retrieveAudienceMovement = (creatorId: number, days = 30) =>
+  api.get(`/creator/${creatorId}/audience-movement?${qs({ days })}`)
 
 // W5 — per-stream insights (mentions, emotes, phrases) + creator emotes
 export const retrieveStreamMentions = (streamId: number, limit = 20) => api.get(`/stream/${streamId}/mentions?${qs({ limit })}`)
@@ -92,12 +100,20 @@ export const retrieveCreatorNeighbors = (creatorId: number, p: {
 
 // W7 — highlight queue + moment review (review endpoints are admin-only)
 export const retrieveMomentsQueue = (p: {
-  status?: 'pending' | 'bookmarked' | 'rejected', creatorId?: number, limit?: number, offset?: number,
+  status?: 'pending' | 'bookmarked' | 'rejected' | 'clipped' | 'published', creatorId?: number, limit?: number, offset?: number,
 } = {}) => api.get(`/moments?${qs({
   status: p.status, creator_id: p.creatorId, limit: p.limit, offset: p.offset,
 })}`)
-export const putMomentReview = (streamId: number, bucketMinute: string, status: 'bookmarked' | 'rejected') =>
-  api.put(`/stream/${streamId}/moments/${encodeURIComponent(bucketMinute)}/review`, { status })
+export const putMomentReview = (
+  streamId: number,
+  bucketMinute: string,
+  status: 'bookmarked' | 'rejected' | 'clipped' | 'published',
+  metadata: { clipUrl?: string | null, note?: string | null } = {},
+) => api.put(`/stream/${streamId}/moments/${encodeURIComponent(bucketMinute)}/review`, {
+  status,
+  clip_url: metadata.clipUrl || null,
+  note: metadata.note || null,
+})
 export const deleteMomentReview = (streamId: number, bucketMinute: string) =>
   api.delete(`/stream/${streamId}/moments/${encodeURIComponent(bucketMinute)}/review`)
 
@@ -119,6 +135,14 @@ export const retrieveSceneCopypastas = (p: {
 } = {}) => api.get(`/scene/copypastas?${qs({
   days: p.days, creator_id: p.creatorId, sort: p.sort, limit: p.limit, offset: p.offset,
 })}`)
+export const retrieveCopypastaPropagation = (messageTextId: number, contextSeconds = 90) =>
+  api.get(`/scene/copypastas/${messageTextId}?${qs({ context_seconds: contextSeconds })}`)
+export const retrieveScenePulse = (p: {
+  days?: number, eventType?: string, creatorId?: number, limit?: number, offset?: number,
+} = {}) => api.get(`/scene/pulse?${qs({
+  days: p.days, event_type: p.eventType, creator_id: p.creatorId, limit: p.limit, offset: p.offset,
+})}`)
+export const retrieveSceneDigest = (days = 7) => api.get(`/scene/digest?${qs({ days })}`)
 
 export const retrieveStreamComprehensive = (streamId: string | number) => api.get(`/stream/${streamId}`)
 export const retrieveAllCreators = () => api.get('/creators')

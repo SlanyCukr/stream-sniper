@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import {
+    retrieveCopypastaPropagation,
     retrieveSceneCopypastas,
     retrieveSceneLeaderboard,
     retrieveSceneLive,
+    retrieveScenePulse,
+    retrieveSceneDigest,
 } from '@/lib/api'
 
 /**
@@ -26,6 +29,13 @@ export const sceneKeys = {
         'copypastas',
         filters,
     ],
+    copypasta: (messageTextId, contextSeconds) => [
+        ...sceneKeys.all,
+        'copypasta',
+        { messageTextId, contextSeconds },
+    ],
+    pulse: filters => [...sceneKeys.all, 'pulse', filters],
+    digest: days => [...sceneKeys.all, 'digest', { days }],
 }
 
 /**
@@ -151,5 +161,72 @@ export const useSceneCopypastas = ({
             })),
         }
     },
+    ...options,
+})
+
+export const useCopypastaPropagation = (messageTextId, contextSeconds = 90, options = {}) => useQuery({
+    queryKey: sceneKeys.copypasta(messageTextId, contextSeconds),
+    queryFn: async () => {
+        const { data = {} } = await retrieveCopypastaPropagation(messageTextId, contextSeconds)
+        return {
+            messageTextId: data.message_text_id,
+            text: data.text,
+            usageCount: data.usage_count ?? 0,
+            chatterAppearances: data.chatter_appearances ?? 0,
+            streamCount: data.stream_count ?? 0,
+            creatorCount: data.creator_count ?? 0,
+            firstSeen: data.first_seen ?? null,
+            occurrences: (data.occurrences || []).map(item => ({
+                streamId: item.stream_id,
+                creatorId: item.creator_id,
+                nick: item.nick,
+                displayName: item.display_name,
+                profileImageUrl: item.profile_image_url ?? null,
+                streamTitle: item.stream_title,
+                streamStart: item.stream_start ?? null,
+                firstSeen: item.first_seen ?? null,
+                usageCount: item.usage_count,
+                chatterCount: item.chatter_count,
+            })),
+            originContext: (data.origin_context || []).map(item => ({
+                id: item.id,
+                time: item.time,
+                chatterId: item.chatter_id,
+                nick: item.nick,
+                text: item.text,
+            })),
+        }
+    },
+    enabled: Boolean(messageTextId),
+    ...options,
+})
+
+export const useScenePulse = (filters = {}, options = {}) => useQuery({
+    queryKey: sceneKeys.pulse(filters),
+    queryFn: async () => {
+        const { data = {} } = await retrieveScenePulse(filters)
+        return {
+            total: data.total ?? 0,
+            items: (data.items || []).map(item => ({
+                id: item.id,
+                eventType: item.event_type,
+                occurredAt: item.occurred_at,
+                creatorId: item.creator_id ?? null,
+                creatorNick: item.creator_nick ?? null,
+                creatorDisplayName: item.creator_display_name ?? null,
+                streamId: item.stream_id ?? null,
+                messageTextId: item.message_text_id ?? null,
+                title: item.title,
+                summary: item.summary,
+                metadata: item.metadata || {},
+            })),
+        }
+    },
+    ...options,
+})
+
+export const useSceneDigest = (days = 7, options = {}) => useQuery({
+    queryKey: sceneKeys.digest(days),
+    queryFn: async () => (await retrieveSceneDigest(days)).data?.markdown || '',
     ...options,
 })

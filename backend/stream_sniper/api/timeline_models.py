@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TimelineBucket(BaseModel):
@@ -53,6 +53,16 @@ class ViewerSample(BaseModel):
     viewer_count: int
 
 
+class StreamContextChange(BaseModel):
+    t: str
+    title: Optional[str] = None
+    category_id: Optional[str] = None
+    category_name: Optional[str] = None
+    language: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    is_mature: Optional[bool] = None
+
+
 class StreamTimeline(BaseModel):
     stream_id: int
     stream_start: Optional[str]
@@ -61,5 +71,6 @@ class StreamTimeline(BaseModel):
     buckets: List[TimelineBucket]
     moments: List[TimelineMoment]
     metrics: Optional[TimelineMetrics]  # None when stream_metrics has no row (un-rolled-up)
-    viewer_samples: List[ViewerSample] = []
+    viewer_samples: List[ViewerSample] = Field(default_factory=list)
     peak_viewers: Optional[int] = None  # None when no viewer samples exist
+    context_changes: List[StreamContextChange] = Field(default_factory=list)

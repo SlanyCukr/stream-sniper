@@ -42,6 +42,16 @@ const STATUS_TABS = [
         label: 'Rejected',
         value: 'rejected',
     },
+    {
+        key: 'clipped',
+        label: 'Clipped',
+        value: 'clipped',
+    },
+    {
+        key: 'published',
+        label: 'Published',
+        value: 'published',
+    },
 ]
 
 const EMPTY_HINT = {
@@ -49,6 +59,8 @@ const EMPTY_HINT = {
     pending: 'Nothing awaiting review — every surfaced moment has been triaged.',
     bookmarked: 'No bookmarked moments yet. Bookmark spikes worth clipping to collect them here.',
     rejected: 'No rejected moments.',
+    clipped: 'No clips attached yet.',
+    published: 'No published highlights yet.',
 }
 
 /**
@@ -126,11 +138,13 @@ const Moments = () => {
     }, [
     ])
 
-    const handleReview = useCallback((moment, nextStatus) => {
+    const handleReview = useCallback((moment, nextStatus, metadata = {}) => {
         review.mutate({
             streamId: moment.streamId,
             bucketMinute: moment.t,
             status: nextStatus,
+            clipUrl: metadata.clipUrl,
+            note: metadata.note,
         })
     }, [
         review,
@@ -240,7 +254,7 @@ const Moments = () => {
                                     moment={moment}
                                     isAdmin={isAdmin}
                                     pending={pendingKey === key}
-                                    onReview={next => handleReview(moment, next)}
+                                    onReview={(next, metadata) => handleReview(moment, next, metadata)}
                                 />
                             )
                         })}

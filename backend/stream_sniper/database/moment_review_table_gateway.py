@@ -8,18 +8,22 @@ from .decorators import with_cursor_connection
 
 
 @with_cursor_connection
-def upsert_moment_review_db(stream_id, bucket_minute, status, cursor, connection):
-    """Set a moment's review status (bookmarked/rejected); returns the new updated_at."""
+def upsert_moment_review_db(
+    stream_id, bucket_minute, status, cursor, connection, *, clip_url=None, note=None
+):
+    """Set workflow status and optional clip metadata; returns the new updated_at."""
     cursor.execute(
         """
-        INSERT INTO moment_review (stream_id, bucket_minute, status, updated_at)
-        VALUES (%s, %s, %s, now())
+        INSERT INTO moment_review (stream_id, bucket_minute, status, clip_url, note, updated_at)
+        VALUES (%s, %s, %s, %s, %s, now())
         ON CONFLICT (stream_id, bucket_minute) DO UPDATE SET
             status = EXCLUDED.status,
+            clip_url = EXCLUDED.clip_url,
+            note = EXCLUDED.note,
             updated_at = EXCLUDED.updated_at
         RETURNING TO_CHAR(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS')
         """,
-        (stream_id, bucket_minute, status),
+        (stream_id, bucket_minute, status, clip_url, note),
     )
     updated_at = cursor.fetchone()[0]
     connection.commit()

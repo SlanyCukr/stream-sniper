@@ -207,6 +207,54 @@
     }
 }
 
+.timeline-context-marker {
+    position: absolute;
+    bottom: -5px;
+    width: 7px;
+    height: 7px;
+    transform: translateX(-50%) rotate(45deg);
+    border: 1px solid $sky;
+    background: $bg-surface;
+    pointer-events: auto;
+    z-index: 3;
+}
+
+.timeline-context-list {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0.85rem 0 0 2.6rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid $hairline;
+}
+
+.timeline-context-item {
+    display: grid;
+    grid-template-columns: 3.25rem minmax(7rem, 0.35fr) minmax(12rem, 1fr) auto;
+    gap: 0.65rem;
+    align-items: baseline;
+    font-size: 0.75rem;
+
+    time,
+    .timeline-context-tags {
+        font-family: $font-family-monospace;
+        font-size: 0.64rem;
+        color: $gray-500;
+    }
+
+    .timeline-context-category { color: $sky; }
+    .timeline-context-title { color: $gray-100; }
+    .timeline-context-tags { text-align: right; }
+}
+
+@media (max-width: 720px) {
+    .timeline-context-item {
+        grid-template-columns: 3rem 1fr;
+
+        .timeline-context-title,
+        .timeline-context-tags { grid-column: 2; text-align: left; }
+    }
+}
+
 /* ---------- Hover tooltip ---------- */
 .chart-tooltip {
     position: absolute;

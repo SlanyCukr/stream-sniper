@@ -45,3 +45,30 @@ class CreatorRegulars(BaseModel):
     creator_id: int = Field(..., description="Creator ID", json_schema_extra={"example": 5})
     total_streams: int = Field(..., description="Total streams for this creator (attendance denominator)")
     regulars: List[Regular] = Field(..., description="Recurring chatters")
+
+
+class LatestCreatorStream(BaseModel):
+    """Most recent captured stream linked from a creator dossier."""
+
+    stream_id: int
+    title: str
+    start: Optional[str] = None
+
+
+class CreatorSummary(BaseModel):
+    """Identity and lifetime rollup summary used by the permanent creator page."""
+
+    creator_id: int
+    nick: str
+    display_name: str
+    profile_image_url: Optional[str] = None
+    twitch_id: Optional[str] = None
+    total_streams: int
+    first_stream_at: Optional[str] = None
+    last_stream_at: Optional[str] = None
+    total_messages: int
+    duration_seconds: Optional[int] = None
+    messages_per_minute: Optional[float] = None
+    audience_size: int
+    regulars: int
+    latest_stream: Optional[LatestCreatorStream] = None

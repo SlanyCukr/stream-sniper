@@ -1,5 +1,6 @@
 'use client'
 import { useMemo, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { Table } from 'react-bootstrap'
 
 const COLUMNS = [
@@ -184,8 +185,8 @@ const OverlapTable = ({
                             onClick={() => onSelectPair({ aId: row.aId, bId: row.bId })}
                             aria-selected={isSelected(row) || undefined}
                         >
-                            <td>{row.aName}</td>
-                            <td>{row.bName}</td>
+                            <td><Link href={`/creator/${row.aId}`} onClick={event => event.stopPropagation()}>{row.aName}</Link></td>
+                            <td><Link href={`/creator/${row.bId}`} onClick={event => event.stopPropagation()}>{row.bName}</Link></td>
                             <td className="mono text-end">{row.shared.toLocaleString()}</td>
                             <td className="mono text-end">
                                 {row.jaccard == null ? '--' : `${(row.jaccard * 100).toFixed(1)}%`}

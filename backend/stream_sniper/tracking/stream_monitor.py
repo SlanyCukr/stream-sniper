@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from ..collector.twitch_api import TwitchAPI
 from ..database.processing_jobs_table_gateway import insert_processing_job_db, job_exists_db
+from ..database.stream_context_table_gateway import insert_stream_context_sample_db
 from ..database.stream_viewer_sample_table_gateway import insert_stream_viewer_sample_db
 from ..database.tracked_streamers_table_gateway import (
     select_active_tracked_streamers_db,
@@ -28,6 +29,11 @@ class StreamStatus:
     title: Optional[str] = None
     started_at: Optional[datetime] = None
     viewer_count: Optional[int] = None
+    category_id: Optional[str] = None
+    category_name: Optional[str] = None
+    language: Optional[str] = None
+    tags: Optional[List[str]] = None
+    is_mature: Optional[bool] = None
     last_checked: Optional[datetime] = None
 
 
@@ -156,6 +162,11 @@ class StreamMonitor:
                     title=stream_info.title,
                     started_at=stream_info.started_at,
                     viewer_count=stream_info.viewer_count,
+                    category_id=stream_info.game_id,
+                    category_name=stream_info.game_name,
+                    language=stream_info.language,
+                    tags=list(stream_info.tags or []),
+                    is_mature=stream_info.is_mature,
                     last_checked=datetime.now()
                 )
             else:
@@ -174,15 +185,28 @@ class StreamMonitor:
             )
 
     def _record_viewer_snapshot(self, tracked_streamer_id: int, status: StreamStatus) -> None:
-        """Persist a viewer-count snapshot for a live stream. Never raises."""
+        """Persist viewer and context snapshots for a live stream. Never raises."""
         try:
+            sampled_at = datetime.now(UTC)
             insert_stream_viewer_sample_db(
                 tracked_streamer_id=tracked_streamer_id,
                 twitch_stream_session_id=status.stream_id,
-                sampled_at=datetime.now(UTC),
+                sampled_at=sampled_at,
                 viewer_count=status.viewer_count,
                 title=status.title,
                 session_started_at=status.started_at,
+            )
+            insert_stream_context_sample_db(
+                tracked_streamer_id=tracked_streamer_id,
+                twitch_stream_session_id=status.stream_id,
+                sampled_at=sampled_at,
+                session_started_at=status.started_at,
+                title=status.title,
+                category_id=status.category_id,
+                category_name=status.category_name,
+                language=status.language,
+                tags=status.tags,
+                is_mature=status.is_mature,
             )
         except Exception as e:
             self.logger.error(f"Error recording viewer snapshot for ts_id={tracked_streamer_id}: {e}")

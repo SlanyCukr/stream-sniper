@@ -24,7 +24,11 @@ class MomentQueueItem(BaseModel):
     emote_share: Optional[float] = Field(None, description="Emote message share (0-1); null if unknown")
     top_phrases: Optional[List[Any]] = Field(None, description="Distinctive phrases for the moment")
     sample_messages: Optional[List[Any]] = Field(None, description="Representative repeated messages")
-    status: str = Field(..., description="Review status: pending, bookmarked, or rejected")
+    status: str = Field(
+        ..., description="Workflow status: pending, bookmarked, rejected, clipped, or published"
+    )
+    clip_url: Optional[str] = Field(None, description="Published Twitch/external clip URL")
+    note: Optional[str] = Field(None, description="Curator note")
 
 
 class MomentQueue(BaseModel):
@@ -39,7 +43,13 @@ class MomentQueue(BaseModel):
 class MomentReviewRequest(BaseModel):
     """Body for setting a moment's review status."""
 
-    status: str = Field(..., pattern="^(bookmarked|rejected)$", description="bookmarked or rejected")
+    status: str = Field(
+        ...,
+        pattern="^(bookmarked|rejected|clipped|published)$",
+        description="Workflow status",
+    )
+    clip_url: Optional[str] = Field(None, pattern=r"^https?://", max_length=2000)
+    note: Optional[str] = Field(None, max_length=500)
 
 
 class MomentReviewResponse(BaseModel):
@@ -47,3 +57,5 @@ class MomentReviewResponse(BaseModel):
 
     status: Optional[str] = Field(None, description="New review status, or null after a clear")
     updated_at: Optional[str] = Field(None, description="When set (ISO 8601), or null after a clear")
+    clip_url: Optional[str] = None
+    note: Optional[str] = None

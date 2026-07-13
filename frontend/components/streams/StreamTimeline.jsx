@@ -107,6 +107,9 @@ const StreamTimeline = ({ timeline, onJump }) => {
     const viewerSamples = useMemo(() => timeline?.viewerSamples || [], [
         timeline?.viewerSamples,
     ])
+    const contextChanges = useMemo(() => timeline?.contextChanges || [], [
+        timeline?.contextChanges,
+    ])
 
     const n = buckets.length
 
@@ -330,6 +333,15 @@ const StreamTimeline = ({ timeline, onJump }) => {
                         </svg>
 
                         <div className="timeline-markers">
+                            {contextChanges.map(change => (
+                                <span
+                                    key={`context-${change.t}`}
+                                    className="timeline-context-marker"
+                                    style={{ left: `${markerLeft(change.t)}%` }}
+                                    title={`${clock(change.t)} · ${change.categoryName || 'Uncategorized'} · ${change.title || 'Untitled'}`}
+                                    aria-label={`Context changed at ${clock(change.t)} to ${change.categoryName || 'uncategorized'}: ${change.title || 'untitled'}`}
+                                    role="img" />
+                            ))}
                             {moments.map(moment => (
                                 <button
                                     key={moment.t}
@@ -425,6 +437,27 @@ const StreamTimeline = ({ timeline, onJump }) => {
                     </div>
                 ) : null}
 
+                {contextChanges.length ? (
+                    <div className="timeline-context-list" aria-label="Stream context changes">
+                        {contextChanges.map(change => (
+                            <div key={change.t} className="timeline-context-item">
+                                <time>{clock(change.t)}</time>
+                                <span className="timeline-context-category">
+                                    {change.categoryName || 'Uncategorized'}
+                                </span>
+                                <span className="timeline-context-title">
+                                    {change.title || 'Untitled stream'}
+                                </span>
+                                {change.tags.length ? (
+                                    <span className="timeline-context-tags">
+                                        {change.tags.slice(0, 3).join(' · ')}
+                                    </span>
+                                ) : null}
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+
                 {activeMoment ? (
                     <div className="timeline-selection">
                         <div className="timeline-selection-head">
@@ -435,7 +468,7 @@ const StreamTimeline = ({ timeline, onJump }) => {
                             {activeMoment.status ? (
                                 <span
                                     className={`status-chip ${
-                                        activeMoment.status === 'bookmarked' ? 'is-ok' : 'is-err'
+                                        activeMoment.status === 'rejected' ? 'is-err' : 'is-ok'
                                     }`}>
                                     {activeMoment.status}
                                 </span>

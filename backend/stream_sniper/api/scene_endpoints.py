@@ -13,7 +13,11 @@ from ..database.scene_table_gateway import (
     select_scene_leaderboard_db,
     select_scene_peak_viewers_db,
 )
-from ..database.stream_copypasta_stats_table_gateway import select_scene_copypastas_db
+from ..database.stream_copypasta_stats_table_gateway import (
+    select_copypasta_context_db,
+    select_copypasta_propagation_db,
+    select_scene_copypastas_db,
+)
 from ..database.stream_viewer_sample_table_gateway import (
     select_latest_sample_time_db,
     select_live_now_db,
@@ -25,6 +29,9 @@ from .monitoring import record_cache_operation
 from .rate_limiter import limiter, rate_limits
 from .scene_models import (
     Copypasta,
+    CopypastaContextMessage,
+    CopypastaOccurrence,
+    CopypastaPropagation,
     LeaderboardEntry,
     LiveStreamer,
     SceneCopypastas,
@@ -39,6 +46,86 @@ logger = get_logger(__name__)
 _LIVE_CACHE_TTL_SECONDS = 60
 
 router = APIRouter(tags=["Scene"])
+
+
+@router.get(
+    "/scene/copypastas/{message_text_id}",
+    response_model=CopypastaPropagation,
+    summary="Get a copypasta propagation history",
+    description="Every stream/channel where a copypasta appeared, plus context around its origin.",
+    responses={
+        404: {"model": ErrorResponse, "description": "Copypasta not found"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit(rate_limits.ANALYTICS)
+def get_copypasta_propagation(
+    request: Request,
+    response: Response,
+    message_text_id: int,
+    context_seconds: int = Query(90, ge=15, le=300),
+) -> CopypastaPropagation:
+    """Return the complete bounded-rollup propagation path for one message text."""
+    try:
+        cache = get_cache()
+        cache_key = cache._generate_key("copypasta_propagation", message_text_id, context_seconds)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            response.headers["X-Cache"] = "HIT"
+            record_cache_operation("hit", "copypasta_propagation")
+            return CopypastaPropagation(**cached)
+
+        record_cache_operation("miss", "copypasta_propagation")
+        text, rows = select_copypasta_propagation_db(message_text_id)
+        if text is None:
+            raise HTTPException(status_code=404, detail="Copypasta not found")
+
+        occurrences = [
+            CopypastaOccurrence(
+                stream_id=row[0],
+                creator_id=row[1],
+                nick=row[2],
+                display_name=row[3],
+                profile_image_url=row[4],
+                stream_title=row[5],
+                stream_start=row[6],
+                first_seen=row[7],
+                usage_count=row[8],
+                chatter_count=row[9],
+            )
+            for row in rows
+        ]
+        first = next((item for item in occurrences if item.first_seen is not None), None)
+        context_rows = (
+            select_copypasta_context_db(first.stream_id, first.first_seen, context_seconds, 100)
+            if first is not None
+            else []
+        )
+        context = [
+            CopypastaContextMessage(id=row[0], time=row[1], chatter_id=row[2], nick=row[3], text=row[4])
+            for row in context_rows
+        ]
+        result = CopypastaPropagation(
+            message_text_id=message_text_id,
+            text=text,
+            usage_count=sum(item.usage_count for item in occurrences),
+            chatter_appearances=sum(item.chatter_count for item in occurrences),
+            stream_count=len(occurrences),
+            creator_count=len({item.creator_id for item in occurrences}),
+            first_seen=first.first_seen if first else None,
+            occurrences=occurrences,
+            origin_context=context,
+        )
+        cache.set(cache_key, result.model_dump(), CacheTTL.STREAM_ANALYTICS)
+        record_cache_operation("set", "copypasta_propagation")
+        response.headers["X-Cache"] = "MISS"
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Error fetching copypasta propagation: {exc}")
+        record_cache_operation("error", "copypasta_propagation")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get(

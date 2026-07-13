@@ -1,6 +1,7 @@
 # Design: Live Twitch Chat Capture Collector
 
-Status: proposal (no implementation). Scope: `backend/stream_sniper/`.
+Status: implemented in migrations 0013 and the `stream-sniper-live` service.
+Scope: `backend/stream_sniper/`.
 
 ## 1. Goal & scope
 
@@ -103,16 +104,13 @@ message for a channel, `LiveMessageSink` inserts the stream via
 pass `None` for `stopped_at`). On stream end it sets `"end"` and calls
 `update_stream_message_count_db`.
 
-**Reconciliation key (recommended).** Standardize `stream.twitch_id` on the
-**Twitch stream-session id** for *both* paths. Twitch's archive `Video` object
-exposes `stream_id` linking a VOD back to its originating session; the VOD
-collector can key `insert_stream_db` on `video.stream_id` instead of the video id.
-Both paths then converge on the same unique `twitch_id`, and the existing
-`insert_stream_db` `ON CONFLICT DO NOTHING … UNION SELECT id` returns the same
-row — natural dedup at the stream level. This is a schema-*semantics* change
-(existing rows are keyed by video id); migration is called out in §8. If we defer
-that, the interim rule is: **a live-captured stream must not be VOD-reprocessed**
-(§7 dedup).
+**Implemented reconciliation key.** Migration 0013 adds a separate unique
+`stream.twitch_stream_session_id`, preserving the existing meaning of
+`stream.twitch_id` as the VOD video id (which the frontend needs for deep links).
+An in-progress row temporarily uses the negative session id as its non-null
+`twitch_id`; when Twitch publishes the archive, the VOD collector attaches the
+real video id and skips duplicate message ingestion. `message.source_message_id`
+also makes websocket reconnect/replay idempotent.
 
 ## 4. Entry point & tracking integration
 
@@ -166,6 +164,12 @@ LIVE_CHANNELS              # standalone mode: comma-separated logins
 LIVE_FLUSH_INTERVAL=5      # seconds
 LIVE_BUFFER_SIZE=1000      # rows per flush (lower than VOD's 5000)
 ```
+
+Bootstrap the dedicated bot once by registering `http://localhost:17563` as an
+OAuth redirect URL for the Twitch application, then run
+`stream-sniper-live-auth --output .live-refresh-token` while logged into the bot
+account. The command requests only `chat:read` and writes the refresh token with
+mode `0600`; provision that value as `TWITCH_BOT_REFRESH_TOKEN` on first deploy.
 
 Add to `docs/../.env.example`. **Docker:** a new `live` service in
 `docker-compose.yml` reusing `Dockerfile.collector`/api image with the

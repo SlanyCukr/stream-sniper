@@ -74,6 +74,8 @@ def _queue_row(status=None):
         [{"phrase": "pog", "count": 9, "lift": 3.2}],  # top_phrases
         [{"text": "POG", "count": 5}],                 # sample_messages
         status,                   # review status (None -> pending)
+        None,                     # clip_url
+        None,                     # note
     )
 
 
@@ -96,6 +98,8 @@ class TestMomentQueueEndpoint:
         assert item["creator_display_name"] == "TheCreator"
         assert item["ratio"] == 24.0
         assert item["status"] == "pending"  # NULL review row -> pending
+        assert item["clip_url"] is None
+        assert item["note"] is None
         assert item["top_phrases"] == [{"phrase": "pog", "count": 9, "lift": 3.2}]
         mock_queue.assert_called_once_with("pending", 7, 50, 0)
 
@@ -146,8 +150,16 @@ class TestSetMomentReview:
         assert response.json() == {
             "status": "bookmarked",
             "updated_at": "2024-01-15T21:00:00",
+            "clip_url": None,
+            "note": None,
         }
-        mock_upsert.assert_called_once_with(42, "2024-01-15T20:10:00", "bookmarked")
+        mock_upsert.assert_called_once_with(
+            42,
+            "2024-01-15T20:10:00",
+            "bookmarked",
+            clip_url=None,
+            note=None,
+        )
         mock_invalidate.assert_any_call("stream_timeline:*")
         mock_invalidate.assert_any_call("moments_queue:*")
         mock_invalidate.assert_any_call("stream_report:*")
@@ -175,6 +187,40 @@ class TestSetMomentReview:
             json={"status": "loved"},
         )
         assert response.status_code == 422
+
+    @patch("stream_sniper.api.moment_endpoints.invalidate_cache_pattern")
+    @patch("stream_sniper.api.moment_endpoints.upsert_moment_review_db")
+    @patch("stream_sniper.api.moment_endpoints.select_moment_exists_db")
+    def test_clipped_requires_url_and_persists_metadata(
+        self, mock_exists, mock_upsert, mock_invalidate
+    ):
+        mock_exists.return_value = True
+        missing = _admin_client().put(
+            "/stream/42/moments/2024-01-15T20:10:00/review",
+            json={"status": "clipped"},
+        )
+        assert missing.status_code == 422
+        mock_upsert.assert_not_called()
+
+        mock_upsert.return_value = "2024-01-15T21:00:00"
+        response = _admin_client().put(
+            "/stream/42/moments/2024-01-15T20:10:00/review",
+            json={
+                "status": "clipped",
+                "clip_url": "https://clips.twitch.tv/example",
+                "note": "Great reaction",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["clip_url"] == "https://clips.twitch.tv/example"
+        assert response.json()["note"] == "Great reaction"
+        mock_upsert.assert_called_once_with(
+            42,
+            "2024-01-15T20:10:00",
+            "clipped",
+            clip_url="https://clips.twitch.tv/example",
+            note="Great reaction",
+        )
 
     def test_unauthenticated_rejected(self):
         response = _client().put(
@@ -204,7 +250,12 @@ class TestClearMomentReview:
         response = _admin_client().delete("/stream/42/moments/2024-01-15T20:10:00/review")
 
         assert response.status_code == 200
-        assert response.json() == {"status": None, "updated_at": None}
+        assert response.json() == {
+            "status": None,
+            "updated_at": None,
+            "clip_url": None,
+            "note": None,
+        }
         mock_delete.assert_called_once_with(42, "2024-01-15T20:10:00")
         mock_invalidate.assert_any_call("stream_timeline:*")
         mock_invalidate.assert_any_call("moments_queue:*")
@@ -245,10 +296,16 @@ CREATE TABLE IF NOT EXISTS stream_moment (
 );
 CREATE TABLE IF NOT EXISTS moment_review (
     stream_id int NOT NULL, bucket_minute timestamp NOT NULL,
-    status text NOT NULL CHECK (status IN ('bookmarked','rejected')),
+    status text NOT NULL CHECK (status IN ('bookmarked','rejected','clipped','published')),
+    clip_url text NULL, note text NULL,
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT moment_review_pk PRIMARY KEY (stream_id, bucket_minute)
 );
+ALTER TABLE moment_review ADD COLUMN IF NOT EXISTS clip_url text NULL;
+ALTER TABLE moment_review ADD COLUMN IF NOT EXISTS note text NULL;
+ALTER TABLE moment_review DROP CONSTRAINT IF EXISTS moment_review_status_check;
+ALTER TABLE moment_review ADD CONSTRAINT moment_review_status_check
+    CHECK (status IN ('bookmarked','rejected','clipped','published'));
 """
 
 

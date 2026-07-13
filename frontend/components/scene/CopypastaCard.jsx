@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 
 /** Naive UTC "YYYY-MM-DDTHH:MM:SS" -> "YYYY-MM-DD" date slice (no TZ drift). */
 const dateOnly = ts => (typeof ts === 'string' && ts.length >= 10 ? ts.slice(0, 10) : null)
@@ -17,6 +18,7 @@ const CLAMP_CHARS = 240
  */
 const CopypastaCard = ({ pasta }) => {
     const {
+        messageTextId,
         text,
         usageCount,
         streamCount,
@@ -66,6 +68,9 @@ const CopypastaCard = ({ pasta }) => {
                         first seen {firstSeenDate}
                     </span>
                 ) : null}
+                <Link className="pasta-chip pasta-trace-link" href={`/copypasta/${messageTextId}`}>
+                    Trace spread →
+                </Link>
             </div>
         </article>
     )

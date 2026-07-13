@@ -2,6 +2,10 @@ from typing import Any, Iterator, Optional, Tuple
 
 from chat_downloader import ChatDownloader
 
+from ..database.live_chat_table_gateway import (
+    reconcile_live_stream_vod_db,
+    select_live_stream_by_session_db,
+)
 from ..database.stream_table_gateway import select_stream_by_twitch_id_db
 from ..logging_config import get_logger
 from . import twitch_gql_patch  # noqa: F401  (import applies the VideoMetadata GQL patch)
@@ -39,6 +43,23 @@ class IrcChatDownloader:
                 return None, None, None, None, None, None
 
             currently_processed_video: Any = self.available_video_ids.pop(0)
+
+            # A completed live capture already contains this broadcast's chat. Attach
+            # the VOD id to its stream row for deep-links, then avoid double-counting.
+            session_id = getattr(currently_processed_video, "stream_id", None)
+            if session_id:
+                captured = select_live_stream_by_session_db(session_id)
+                if captured and captured[1]:
+                    reconcile_live_stream_vod_db(
+                        session_id,
+                        currently_processed_video.id,
+                        currently_processed_video.thumbnail_url,
+                    )
+                    self.logger.info(
+                        f"Skipping VOD {currently_processed_video.id}; session {session_id} "
+                        "was captured live"
+                    )
+                    continue
 
             # available video was already processed - is in the database
             if select_stream_by_twitch_id_db(currently_processed_video.id):

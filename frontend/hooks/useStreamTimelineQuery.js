@@ -87,6 +87,15 @@ export const useStreamTimeline = (streamId, options = {}) => useQuery({
                 t: s.t,
                 viewerCount: s.viewer_count,
             })),
+            contextChanges: (data.context_changes || []).map(change => ({
+                t: change.t,
+                title: change.title,
+                categoryId: change.category_id,
+                categoryName: change.category_name,
+                language: change.language,
+                tags: change.tags || [],
+                isMature: change.is_mature,
+            })),
             peakViewers,
         }
     },

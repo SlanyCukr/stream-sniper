@@ -51,7 +51,7 @@ def _invalidate_moment_caches() -> None:
 def get_moment_queue(
     request: Request,
     response: Response,
-    status: str = Query("", pattern="^(pending|bookmarked|rejected|)$"),
+    status: str = Query("", pattern="^(pending|bookmarked|rejected|clipped|published|)$"),
     creator_id: Optional[int] = Query(None, description="Restrict to one creator", ge=1),
     limit: int = Query(50, description="Page size", ge=1, le=200),
     offset: int = Query(0, description="Page offset", ge=0),
@@ -91,6 +91,8 @@ def get_moment_queue(
                 top_phrases=row[14],
                 sample_messages=row[15],
                 status=row[16] or "pending",
+                clip_url=row[17],
+                note=row[18],
             )
             for row in rows
         ]
@@ -109,7 +111,7 @@ def get_moment_queue(
     "/stream/{stream_id}/moments/{bucket_minute}/review",
     response_model=MomentReviewResponse,
     summary="Set a moment's review status (Admin only)",
-    description="Bookmark or reject a moment. Curation is global state, so admin only.",
+    description="Bookmark, reject, attach a clip, or publish a moment. Admin only.",
     responses={
         401: {"description": "Authentication required"},
         403: {"description": "Admin role required"},
@@ -131,13 +133,26 @@ def set_moment_review(
         if not select_moment_exists_db(stream_id, bucket_minute):
             raise HTTPException(status_code=404, detail="Moment not found")
 
-        updated_at = upsert_moment_review_db(stream_id, bucket_minute, body.status)
+        if body.status in {"clipped", "published"} and not body.clip_url:
+            raise HTTPException(status_code=422, detail="clip_url is required for clipped/published moments")
+        updated_at = upsert_moment_review_db(
+            stream_id,
+            bucket_minute,
+            body.status,
+            clip_url=body.clip_url,
+            note=body.note,
+        )
         _invalidate_moment_caches()
         logger.info(
             f"Moment review set by admin {current_user.username}: "
             f"stream={stream_id} bucket={bucket_minute} status={body.status}"
         )
-        return MomentReviewResponse(status=body.status, updated_at=updated_at)
+        return MomentReviewResponse(
+            status=body.status,
+            updated_at=updated_at,
+            clip_url=body.clip_url,
+            note=body.note,
+        )
     except HTTPException:
         raise
     except Exception as exc:

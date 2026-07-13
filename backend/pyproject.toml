@@ -67,6 +67,9 @@ stream-sniper-tracking = "stream_sniper.tracking_service:run_tracking_service"
 stream-sniper-migrate = "stream_sniper.database.migrate:main"
 stream-sniper-rollup = "stream_sniper.analytics.backfill:main"
 stream-sniper-classify-bots = "stream_sniper.analytics.bot_detection:main"
+stream-sniper-digest = "stream_sniper.analytics.digest:main"
+stream-sniper-live = "stream_sniper.live_service:run_live_service"
+stream-sniper-live-auth = "stream_sniper.live_auth_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/slanycukr/stream-sniper"

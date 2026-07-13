@@ -83,3 +83,42 @@ class SceneCopypastas(BaseModel):
 
     total: int = Field(..., description="Total distinct copypastas matching the filter")
     items: List[Copypasta] = Field(..., description="Copypastas for this page")
+
+
+class CopypastaOccurrence(BaseModel):
+    """One stream in the propagation history of a copypasta."""
+
+    stream_id: int
+    creator_id: int
+    nick: str
+    display_name: str
+    profile_image_url: Optional[str] = None
+    stream_title: str
+    stream_start: Optional[str] = None
+    first_seen: Optional[str] = None
+    usage_count: int
+    chatter_count: int
+
+
+class CopypastaContextMessage(BaseModel):
+    """One chat line surrounding the copypasta's earliest appearance."""
+
+    id: int
+    time: str
+    chatter_id: int
+    nick: str
+    text: str
+
+
+class CopypastaPropagation(BaseModel):
+    """Chronological spread history and first-appearance context."""
+
+    message_text_id: int
+    text: str
+    usage_count: int
+    chatter_appearances: int
+    stream_count: int
+    creator_count: int
+    first_seen: Optional[str] = None
+    occurrences: List[CopypastaOccurrence]
+    origin_context: List[CopypastaContextMessage]

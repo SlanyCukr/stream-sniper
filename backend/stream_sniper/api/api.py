@@ -11,10 +11,12 @@ from slowapi.util import get_remote_address
 from ..database.connection_pool import close_pool
 from ..logging_config import get_logger, setup_logging
 from .analytics_endpoints import router as analytics_router
+from .audience_endpoints import router as audience_router
 from .auth_router import router as auth_router
 from .cache import warm_cache
 from .chatter_endpoints import router as chatter_router
 from .community_endpoints import router as community_router
+from .compare_endpoints import router as compare_router
 from .config import get_config
 from .creator_endpoints import router as creator_router
 from .message_endpoints import router as message_router
@@ -24,6 +26,7 @@ from .monitoring import record_request_metrics, setup_monitoring
 from .operations_endpoints import router as operations_router
 from .rate_limiter import setup_rate_limiting
 from .scene_endpoints import router as scene_router
+from .scene_event_endpoints import router as scene_event_router
 from .stream_endpoints import router as stream_router
 from .stream_insight_endpoints import router as stream_insight_router
 from .stream_report_endpoints import router as stream_report_router
@@ -169,6 +172,7 @@ app.include_router(chatter_router)
 
 # Include stream router
 app.include_router(stream_router)
+app.include_router(compare_router)
 
 # Include creator router
 app.include_router(creator_router)
@@ -187,6 +191,7 @@ app.include_router(timeline_router)
 
 # Include creator analytics router (trends, regulars)
 app.include_router(analytics_router)
+app.include_router(audience_router)
 
 # Include stream insight router (mentions, emotes, phrases)
 app.include_router(stream_insight_router)
@@ -199,6 +204,7 @@ app.include_router(community_router)
 
 # Include scene router (live-now, leaderboard, copypasta library)
 app.include_router(scene_router)
+app.include_router(scene_event_router)
 
 # Include highlight queue + moment review router
 app.include_router(moment_router)
