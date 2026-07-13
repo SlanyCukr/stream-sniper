@@ -66,7 +66,7 @@ def get_creator_summary(
             nick=row[1],
             display_name=row[2],
             profile_image_url=row[3],
-            twitch_id=row[4],
+            twitch_id=str(row[4]) if row[4] is not None else None,
             total_streams=row[5],
             first_stream_at=row[6],
             last_stream_at=row[7],
