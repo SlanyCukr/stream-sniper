@@ -125,13 +125,14 @@ class TestCreatorSummaryEndpoint:
     @patch("stream_sniper.api.analytics_endpoints.get_cache")
     @patch("stream_sniper.api.analytics_endpoints.select_creator_summary_db")
     def test_summary_maps_rollup_row(self, mock_summary, mock_get_cache):
+        """Production BIGINT Twitch IDs serialize using the public string contract."""
         mock_get_cache.return_value = _miss_cache()
         mock_summary.return_value = (
             5,
             "alice",
             "Alice",
             "https://example.com/avatar.png",
-            "12345",
+            12345,
             12,
             "2024-01-01T20:00:00",
             "2024-02-01T20:00:00",
