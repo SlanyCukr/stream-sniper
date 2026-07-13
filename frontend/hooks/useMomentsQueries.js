@@ -30,6 +30,8 @@ const mapMoment = m => ({
     topPhrases: m.top_phrases,
     sampleMessages: m.sample_messages,
     status: m.status,
+    clipUrl: m.clip_url ?? null,
+    note: m.note ?? null,
 })
 
 export const useMomentsQueue = ({
@@ -61,10 +63,10 @@ export const useMomentReview = (options = {}) => {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({
-            streamId, bucketMinute, status,
+            streamId, bucketMinute, status, clipUrl, note,
         }) => {
             const response = status
-                ? await putMomentReview(streamId, bucketMinute, status)
+                ? await putMomentReview(streamId, bucketMinute, status, { clipUrl, note })
                 : await deleteMomentReview(streamId, bucketMinute)
             return response.data
         },

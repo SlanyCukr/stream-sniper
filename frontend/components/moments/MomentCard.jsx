@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import Link from 'next/link'
 import { vodDeepLink } from '@/utils/chatRender'
 import { formatTimeAgo } from '@/utils/dateUtils'
@@ -41,7 +42,13 @@ const MomentCard = ({
         topPhrases,
         sampleMessages,
         status,
+        clipUrl,
+        note,
     } = moment
+
+    const [showClipForm, setShowClipForm] = useState(false)
+    const [draftClipUrl, setDraftClipUrl] = useState(clipUrl || '')
+    const [draftNote, setDraftNote] = useState(note || '')
 
     const vodHref = vodDeepLink(twitchId, streamStart, t)
     const topPhrase = Array.isArray(topPhrases) && topPhrases.length ? topPhrases[0] : null
@@ -52,6 +59,8 @@ const MomentCard = ({
     const chipClass =
         status === 'bookmarked'
             ? 'status-chip is-ok'
+            : status === 'clipped' || status === 'published'
+                ? 'status-chip is-ok'
             : status === 'rejected'
                 ? 'status-chip is-warn'
                 : 'status-chip'
@@ -136,6 +145,46 @@ const MomentCard = ({
                 </p>
             ) : null}
 
+            {clipUrl ? (
+                <div className="moment-clip-result">
+                    <a href={clipUrl} target="_blank" rel="noopener noreferrer">Watch clip</a>
+                    {note ? <p>{note}</p> : null}
+                </div>
+            ) : null}
+
+            {isAdmin && showClipForm ? (
+                <form className="moment-clip-form" onSubmit={event => {
+                    event.preventDefault()
+                    onReview('clipped', { clipUrl: draftClipUrl, note: draftNote })
+                    setShowClipForm(false)
+                }}>
+                    <label>
+                        Clip URL
+                        <input
+                            className="form-control form-control-sm"
+                            type="url"
+                            required
+                            value={draftClipUrl}
+                            onChange={event => setDraftClipUrl(event.target.value)}
+                            placeholder="https://clips.twitch.tv/..."
+                        />
+                    </label>
+                    <label>
+                        Curator note
+                        <textarea
+                            className="form-control form-control-sm"
+                            maxLength={500}
+                            value={draftNote}
+                            onChange={event => setDraftNote(event.target.value)}
+                        />
+                    </label>
+                    <div>
+                        <button className="btn btn-primary btn-sm" type="submit" disabled={pending}>Save clip</button>
+                        <button className="btn btn-link btn-sm" type="button" onClick={() => setShowClipForm(false)}>Cancel</button>
+                    </div>
+                </form>
+            ) : null}
+
             <footer className="moment-actions">
                 {vodHref ? (
                     <a
@@ -168,6 +217,26 @@ const MomentCard = ({
                                 aria-hidden="true" />
                             Bookmark
                         </button>
+                        {(status === 'bookmarked' || status === 'clipped') ? (
+                            <button
+                                type="button"
+                                className={`moment-review-btn${status === 'clipped' ? ' is-active-ok' : ''}`}
+                                disabled={pending}
+                                onClick={() => setShowClipForm(value => !value)}>
+                                <i className="bi bi-camera-video" aria-hidden="true" />
+                                {clipUrl ? 'Edit clip' : 'Attach clip'}
+                            </button>
+                        ) : null}
+                        {status === 'clipped' ? (
+                            <button
+                                type="button"
+                                className="moment-review-btn"
+                                disabled={pending}
+                                onClick={() => onReview('published', { clipUrl, note })}>
+                                <i className="bi bi-send" aria-hidden="true" />
+                                Publish
+                            </button>
+                        ) : null}
                         <button
                             type="button"
                             className={`moment-review-btn${status === 'rejected' ? ' is-active-warn' : ''}`}
@@ -179,7 +248,7 @@ const MomentCard = ({
                                 aria-hidden="true" />
                             Reject
                         </button>
-                        {status === 'bookmarked' || status === 'rejected' ? (
+                        {status !== 'pending' ? (
                             <button
                                 type="button"
                                 className="moment-review-btn"

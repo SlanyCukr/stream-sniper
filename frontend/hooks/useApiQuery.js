@@ -1,5 +1,10 @@
 // TanStack Query API hooks index file
 export {
+    useAudienceMovement,
+    audienceMovementKeys,
+} from './useAudienceMovementQuery'
+
+export {
     useStreams,
     useStreamData,
     streamsKeys,
@@ -16,9 +21,19 @@ export {
 } from './useStreamMessagesQuery'
 
 export {
+    useStreamComparison,
+    streamComparisonKeys,
+} from './useStreamComparisonQuery'
+
+export {
     useStreamTimeline,
     streamTimelineKeys,
 } from './useStreamTimelineQuery'
+
+export {
+    useCreatorSummary,
+    creatorSummaryKeys,
+} from './useCreatorSummaryQuery'
 
 export {
     useCreatorTrends,
@@ -57,9 +72,12 @@ export {
 
 export {
     sceneKeys,
+    useCopypastaPropagation,
     useSceneCopypastas,
+    useSceneDigest,
     useSceneLeaderboard,
     useSceneLive,
+    useScenePulse,
 } from './useSceneQueries'
 
 export {

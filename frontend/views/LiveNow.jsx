@@ -1,5 +1,6 @@
 'use client'
 import { useMemo } from 'react'
+import Link from 'next/link'
 import { Card } from 'react-bootstrap'
 import { useSceneLive } from '@/hooks/useApiQuery'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -54,6 +55,7 @@ const uptimeLabel = startedAt => {
  */
 const LiveCard = ({ streamer }) => {
     const {
+        creatorId,
         nick,
         displayName,
         profileImageUrl,
@@ -86,7 +88,7 @@ const LiveCard = ({ streamer }) => {
                                 aria-hidden="true" />
                         )}
                     <div className="live-identity">
-                        <span className="live-name">{name}</span>
+                        <Link className="live-name" href={`/creator/${creatorId}`}>{name}</Link>
                         <span
                             className="status-chip is-ok live-chip"
                             aria-label="Live now">

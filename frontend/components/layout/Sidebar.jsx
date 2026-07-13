@@ -35,9 +35,19 @@ const navigation = [
         icon: 'bi bi-diagram-3',
     },
     {
+        title: 'Movement',
+        href: '/movement',
+        icon: 'bi bi-arrow-left-right',
+    },
+    {
         title: 'Scene',
         href: '/scene',
         icon: 'bi bi-trophy',
+    },
+    {
+        title: 'Pulse',
+        href: '/pulse',
+        icon: 'bi bi-activity',
     },
     {
         title: 'Copypasta',
@@ -48,6 +58,11 @@ const navigation = [
         title: 'Highlights',
         href: '/moments',
         icon: 'bi bi-bookmark-star',
+    },
+    {
+        title: 'Compare',
+        href: '/compare',
+        icon: 'bi bi-columns-gap',
     },
 ]
 

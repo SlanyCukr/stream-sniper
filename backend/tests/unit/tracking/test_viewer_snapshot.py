@@ -150,6 +150,8 @@ def monitor(monkeypatch):
     monkeypatch.setattr(monitor_module, "TwitchAPI", lambda: object())
     m = StreamMonitor()
     monkeypatch.setattr(monitor_module, "update_stream_check_time_db", lambda *a, **kw: True)
+    monkeypatch.setattr(monitor_module, "insert_stream_viewer_sample_db", lambda **kw: True)
+    monkeypatch.setattr(monitor_module, "insert_stream_context_sample_db", lambda **kw: True)
     return m
 
 
@@ -184,6 +186,24 @@ async def test_live_stream_records_viewer_snapshot(monitor, monkeypatch):
     assert call["viewer_count"] == 123
     assert call["title"] == "Live now"
     assert call["session_started_at"] == status.started_at
+
+
+@pytest.mark.asyncio
+async def test_live_stream_records_context_snapshot(monitor, monkeypatch):
+    calls = []
+    monkeypatch.setattr(monitor_module, "insert_stream_context_sample_db", lambda **kw: calls.append(kw))
+    status = StreamStatus(
+        twitch_username="somestreamer", is_live=True, stream_id=999,
+        title="New title", category_id="509658", category_name="Just Chatting",
+        language="en", tags=["English", "NoBackseating"], is_mature=False,
+    )
+    monkeypatch.setattr(monitor, "_get_stream_status", AsyncMock(return_value=status))
+
+    await monitor._check_single_stream(_streamer_data(ts_id=7))
+
+    assert len(calls) == 1
+    assert calls[0]["category_name"] == "Just Chatting"
+    assert calls[0]["tags"] == ["English", "NoBackseating"]
 
 
 @pytest.mark.asyncio

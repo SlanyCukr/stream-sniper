@@ -262,3 +262,28 @@
         transition: none;
     }
 }
+.moment-clip-form {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+    padding: 0.75rem;
+    border: 1px solid $hairline;
+
+    label {
+        display: grid;
+        gap: 0.3rem;
+        font-size: 0.78rem;
+        color: $gray-400;
+    }
+}
+
+.moment-clip-result {
+    margin: 0.75rem 0;
+    padding-left: 0.75rem;
+    border-left: 2px solid $phosphor;
+
+    p {
+        margin: 0.25rem 0 0;
+        color: $gray-400;
+    }
+}

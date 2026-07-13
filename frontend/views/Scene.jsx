@@ -4,6 +4,7 @@ import {
     useMemo,
     useState,
 } from 'react'
+import Link from 'next/link'
 import { Card, Table } from 'react-bootstrap'
 import { useSceneLeaderboard } from '@/hooks/useApiQuery'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -278,7 +279,7 @@ const Scene = () => {
                                         <tr key={entry.creatorId}>
                                             <td className="rank-num">{String(entry.rank).padStart(2, '0')}</td>
                                             <td>
-                                                <span className="scene-streamer">
+                                                <Link className="scene-streamer" href={`/creator/${entry.creatorId}`}>
                                                     {entry.profileImageUrl
                                                         ? (
                                                             <img
@@ -298,7 +299,7 @@ const Scene = () => {
                                                     <span className="scene-streamer-name">
                                                         {entry.displayName || entry.nick}
                                                     </span>
-                                                </span>
+                                                </Link>
                                             </td>
                                             <td className="mono text-end">{numCell(entry.streams)}</td>
                                             <td className="mono text-end">{numCell(entry.hoursStreamed, 1)}</td>

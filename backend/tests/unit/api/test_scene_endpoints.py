@@ -272,3 +272,55 @@ class TestSceneCopypastasEndpoint:
 
         assert response.status_code == 500
         assert response.json()["detail"] == "Internal server error"
+
+
+class TestCopypastaPropagationEndpoint:
+    """GET /scene/copypastas/{message_text_id}."""
+
+    @patch("stream_sniper.api.scene_endpoints.get_cache")
+    @patch("stream_sniper.api.scene_endpoints.select_copypasta_context_db")
+    @patch("stream_sniper.api.scene_endpoints.select_copypasta_propagation_db")
+    def test_propagation_maps_occurrences_and_origin_context(
+        self, mock_propagation, mock_context, mock_get_cache
+    ):
+        mock_get_cache.return_value = _miss_cache()
+        mock_propagation.return_value = (
+            "a legendary pasta",
+            [
+                (1, 5, "alice", "Alice", None, "Origin", "2024-01-01T20:00:00", "2024-01-01T20:05:00", 3, 2),
+                (2, 6, "bob", "Bob", None, "Spread", "2024-01-02T20:00:00", "2024-01-02T20:06:00", 7, 4),
+            ],
+        )
+        mock_context.return_value = [
+            (10, "2024-01-01T20:04:59.000000", 9, "viewer", "what happened"),
+            (11, "2024-01-01T20:05:00.000000", 10, "starter", "a legendary pasta"),
+        ]
+
+        response = TestClient(app).get("/scene/copypastas/42?context_seconds=120")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["message_text_id"] == 42
+        assert data["usage_count"] == 10
+        assert data["chatter_appearances"] == 6
+        assert data["stream_count"] == 2
+        assert data["creator_count"] == 2
+        assert data["first_seen"] == "2024-01-01T20:05:00"
+        assert data["occurrences"][1]["creator_id"] == 6
+        assert data["origin_context"][1]["text"] == "a legendary pasta"
+        mock_context.assert_called_once_with(1, "2024-01-01T20:05:00", 120, 100)
+
+    @patch("stream_sniper.api.scene_endpoints.get_cache")
+    @patch("stream_sniper.api.scene_endpoints.select_copypasta_propagation_db")
+    def test_missing_text_404(self, mock_propagation, mock_get_cache):
+        mock_get_cache.return_value = _miss_cache()
+        mock_propagation.return_value = (None, [])
+
+        response = TestClient(app).get("/scene/copypastas/404")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Copypasta not found"
+
+    def test_context_window_is_bounded(self):
+        response = TestClient(app).get("/scene/copypastas/42?context_seconds=301")
+        assert response.status_code == 422

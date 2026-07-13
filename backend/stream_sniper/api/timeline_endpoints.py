@@ -6,6 +6,7 @@ from typing import Any, List, cast
 from fastapi import APIRouter, HTTPException, Path, Request, Response
 
 from ..analytics.moments import detect_moments
+from ..database.stream_context_table_gateway import select_stream_context_changes_db
 from ..database.stream_metrics_table_gateway import (
     select_stream_header_db,
     select_stream_metrics_db,
@@ -19,6 +20,7 @@ from .models import ErrorResponse
 from .monitoring import record_cache_operation
 from .rate_limiter import limiter, rate_limits
 from .timeline_models import (
+    StreamContextChange,
     StreamTimeline,
     TimelineBucket,
     TimelineMetrics,
@@ -128,6 +130,7 @@ def get_stream_timeline(
         header_row = select_stream_header_db(stream_id)
         moment_rows = select_stream_moments_db(stream_id)
         sample_rows = select_stream_viewer_samples_db(stream_id)
+        context_rows = select_stream_context_changes_db(stream_id)
 
         stream_start = header_row[0] if header_row else None
         twitch_id = header_row[1] if header_row else None
@@ -141,6 +144,13 @@ def get_stream_timeline(
 
         viewer_samples = [ViewerSample(t=row[0], viewer_count=row[1]) for row in sample_rows]
         peak_viewers = max((s.viewer_count for s in viewer_samples), default=None)
+        context_changes = [
+            StreamContextChange(
+                t=row[0], title=row[1], category_id=row[2], category_name=row[3],
+                language=row[4], tags=row[5] or [], is_mature=row[6],
+            )
+            for row in context_rows
+        ]
 
         metrics = None
         if metrics_row is not None:
@@ -167,6 +177,7 @@ def get_stream_timeline(
             metrics=metrics,
             viewer_samples=viewer_samples,
             peak_viewers=peak_viewers,
+            context_changes=context_changes,
         )
         payload = result.model_dump()
         cache.set(cache_key, payload, CacheTTL.STREAM_ANALYTICS)

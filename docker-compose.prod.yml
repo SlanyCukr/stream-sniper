@@ -67,7 +67,36 @@ services:
     depends_on:
       - stream-sniper-api
 
+  stream-sniper-live:
+    image: stream-sniper-api:latest
+    command: ["python", "-m", "stream_sniper.live_service"]
+    environment:
+      - POSTGRES_HOST=172.17.0.1
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=stream_sniper
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+      - TWITCH_BOT_REFRESH_TOKEN=${TWITCH_BOT_REFRESH_TOKEN}
+      - LIVE_CHANNELS=${LIVE_CHANNELS}
+      - LIVE_TRACKED_CHANNELS=${LIVE_TRACKED_CHANNELS:-true}
+      - LIVE_FLUSH_INTERVAL=${LIVE_FLUSH_INTERVAL:-5}
+      - LIVE_BUFFER_SIZE=${LIVE_BUFFER_SIZE:-1000}
+      - TWITCH_BOT_TOKEN_FILE=/tokens/refresh-token
+    volumes:
+      - live_tokens:/tokens
+    restart: unless-stopped
+    container_name: stream-sniper-live
+    networks:
+      - stream-sniper-prod
+    depends_on:
+      - stream-sniper-api
+
 
 networks:
   stream-sniper-prod:
     driver: bridge
+
+volumes:
+  live_tokens:

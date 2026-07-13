@@ -143,3 +143,53 @@ def select_scene_copypastas_db(
     )
     rows = cursor.fetchall()
     return rows, total
+
+
+@with_cursor
+def select_copypasta_propagation_db(message_text_id: int, cursor):
+    """Return the text plus every per-stream occurrence in chronological order."""
+    cursor.execute("SELECT text FROM message_text WHERE id = %s", (message_text_id,))
+    text_row = cursor.fetchone()
+    if text_row is None:
+        return None, []
+
+    cursor.execute(
+        """
+        SELECT
+            scs.stream_id, s.creator_id, c.nick, c.display_name, c.profile_image_url,
+            s.title, TO_CHAR(s.start, 'YYYY-MM-DD"T"HH24:MI:SS'),
+            TO_CHAR(scs.first_seen, 'YYYY-MM-DD"T"HH24:MI:SS'),
+            scs.usage_count, scs.chatter_count
+        FROM stream_copypasta_stats scs
+        JOIN stream s ON s.id = scs.stream_id
+        JOIN creator c ON c.id = s.creator_id
+        WHERE scs.message_text_id = %s
+        ORDER BY scs.first_seen ASC NULLS LAST, scs.stream_id ASC
+        """,
+        (message_text_id,),
+    )
+    return text_row[0], cursor.fetchall()
+
+
+@with_cursor
+def select_copypasta_context_db(stream_id: int, first_seen: str, seconds: int, limit: int, cursor):
+    """Messages surrounding one occurrence, supported by message(stream_id,time,id)."""
+    cursor.execute(
+        """
+        SELECT id, TO_CHAR(time, 'YYYY-MM-DD"T"HH24:MI:SS.US'), chatter_id, nick, text
+        FROM (
+            SELECT m.id, m.time, m.chatter_id, c.nick, mt.text
+            FROM message m
+            JOIN chatter c ON c.id = m.chatter_id
+            JOIN message_text mt ON mt.id = m.message_text_id
+            WHERE m.stream_id = %s
+              AND m.time BETWEEN %s::timestamp - (%s * interval '1 second')
+                             AND %s::timestamp + (%s * interval '1 second')
+            ORDER BY ABS(EXTRACT(EPOCH FROM (m.time - %s::timestamp))), m.id
+            LIMIT %s
+        ) context
+        ORDER BY time ASC, id ASC
+        """,
+        (stream_id, first_seen, seconds, first_seen, seconds, first_seen, limit),
+    )
+    return cursor.fetchall()

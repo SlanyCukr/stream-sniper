@@ -12,6 +12,7 @@ Gateway arities after migration 0008: buckets are 5-tuples
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -19,6 +20,14 @@ from stream_sniper.api.rate_limiter import setup_rate_limiting
 from stream_sniper.api.timeline_endpoints import router
 
 _BASE = datetime(2024, 1, 15, 20, 0, 0)
+
+
+@pytest.fixture(autouse=True)
+def _empty_context_changes(monkeypatch):
+    monkeypatch.setattr(
+        "stream_sniper.api.timeline_endpoints.select_stream_context_changes_db",
+        lambda _stream_id: [],
+    )
 
 
 def _iso(minute_offset: int) -> str:
@@ -310,3 +319,35 @@ class TestTimelineEndpoint:
         assert data["metrics"]["emote_messages"] is None
         assert data["buckets"][0]["sub_messages"] is None
         assert data["buckets"][0]["emote_messages"] is None
+
+    @patch("stream_sniper.api.timeline_endpoints.get_cache")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_viewer_samples_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_moments_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_header_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_metrics_db")
+    @patch("stream_sniper.api.timeline_endpoints.select_stream_buckets_db")
+    def test_context_changes_are_exposed(
+        self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples,
+        mock_get_cache, monkeypatch,
+    ):
+        mock_get_cache.return_value = _miss_cache()
+        mock_buckets.return_value = [(_iso(0), 4, 2, 0, 0)]
+        mock_metrics.return_value = None
+        mock_header.return_value = (_iso(0), "vod1")
+        mock_moments.return_value = []
+        mock_samples.return_value = []
+        monkeypatch.setattr(
+            "stream_sniper.api.timeline_endpoints.select_stream_context_changes_db",
+            lambda _stream_id: [
+                (_iso(0), "Opening", "509658", "Just Chatting", "en", ["English"], False),
+            ],
+        )
+
+        response = _client().get("/stream/1/timeline")
+
+        assert response.status_code == 200
+        assert response.json()["context_changes"] == [{
+            "t": _iso(0), "title": "Opening", "category_id": "509658",
+            "category_name": "Just Chatting", "language": "en",
+            "tags": ["English"], "is_mature": False,
+        }]

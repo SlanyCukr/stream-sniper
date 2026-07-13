@@ -1,5 +1,6 @@
 'use client'
 import { useMemo } from 'react'
+import Link from 'next/link'
 import Select from 'react-select'
 import { useCreatorNeighbors } from '@/hooks/useApiQuery'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -133,7 +134,9 @@ const NeighborsExplorer = ({
                     {neighbors.map((nbr, index) => (
                         <li key={nbr.creatorId}>
                             <span className="rank">{String(index + 1).padStart(2, '0')}</span>
-                            <span className="nick">{nbr.displayName || nbr.nick || `#${nbr.creatorId}`}</span>
+                            <Link className="nick" href={`/creator/${nbr.creatorId}`}>
+                                {nbr.displayName || nbr.nick || `#${nbr.creatorId}`}
+                            </Link>
                             <span className="neighbors-bar-wrap">
                                 <span
                                     className="data-bar"

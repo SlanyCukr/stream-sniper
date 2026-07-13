@@ -19,6 +19,8 @@ _QUEUE_STATUS_CLAUSE = {
     "pending": "mr.status IS NULL",
     "bookmarked": "mr.status = 'bookmarked'",
     "rejected": "mr.status = 'rejected'",
+    "clipped": "mr.status = 'clipped'",
+    "published": "mr.status = 'published'",
 }
 
 
@@ -37,7 +39,9 @@ def select_stream_moments_db(stream_id, cursor):
             sm.emote_share::double precision,
             sm.top_phrases,
             sm.sample_messages,
-            mr.status
+            mr.status,
+            mr.clip_url,
+            mr.note
         FROM stream_moment sm
         LEFT JOIN moment_review mr
             ON mr.stream_id = sm.stream_id AND mr.bucket_minute = sm.bucket_minute
@@ -56,7 +60,7 @@ def select_moment_queue_db(status, creator_id, limit, offset, cursor):
     Returns (rows, total). Each row:
       (stream_id, title, start, twitch_id, creator_id, creator_display_name,
        bucket_minute, offset_seconds, message_count, baseline, ratio, unique_chatters,
-       sub_share, emote_share, top_phrases, sample_messages, status)
+       sub_share, emote_share, top_phrases, sample_messages, status, clip_url, note)
     where status is NULL for pending (no moment_review row). `status` filters through a
     hardcoded whitelist; `creator_id` (optional) restricts to one creator. Ordering places
     reviewed moments first by recency, then pending moments by spike ratio.
@@ -106,7 +110,9 @@ def select_moment_queue_db(status, creator_id, limit, offset, cursor):
             sm.emote_share::double precision,
             sm.top_phrases,
             sm.sample_messages,
-            mr.status
+            mr.status,
+            mr.clip_url,
+            mr.note
         FROM stream_moment sm
         JOIN stream s ON s.id = sm.stream_id
         LEFT JOIN creator c ON c.id = s.creator_id
