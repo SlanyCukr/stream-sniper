@@ -1,9 +1,16 @@
 """Derive human-readable, deterministic events from one stream's rollups."""
 
+from decimal import Decimal
+
 from ..database.scene_event_table_gateway import (
     replace_stream_scene_events_db,
     select_stream_event_signals_db,
 )
+
+
+def _json_number(value):
+    """Convert PostgreSQL NUMERIC values before placing them in JSON metadata."""
+    return float(value) if isinstance(value, Decimal) else value
 
 
 def _record_event(stream_id, creator_id, creator, occurred_at, kind, label, value):
@@ -24,6 +31,8 @@ def refresh_stream_events(stream_id: int) -> int:
         replace_stream_scene_events_db(stream_id, [])
         return 0
     _, creator_id, creator, stream_title, occurred_at, messages, unique, rate, prev_messages, prev_unique, prev_rate = header
+    rate = _json_number(rate)
+    prev_rate = _json_number(prev_rate)
     events = [{
         "event_type": "stream_report",
         "occurred_at": occurred_at,
