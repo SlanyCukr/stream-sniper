@@ -165,6 +165,12 @@ LIVE_FLUSH_INTERVAL=5      # seconds
 LIVE_BUFFER_SIZE=1000      # rows per flush (lower than VOD's 5000)
 ```
 
+Bootstrap the dedicated bot once by registering `http://localhost:17563` as an
+OAuth redirect URL for the Twitch application, then run
+`stream-sniper-live-auth --output .live-refresh-token` while logged into the bot
+account. The command requests only `chat:read` and writes the refresh token with
+mode `0600`; provision that value as `TWITCH_BOT_REFRESH_TOKEN` on first deploy.
+
 Add to `docs/../.env.example`. **Docker:** a new `live` service in
 `docker-compose.yml` reusing `Dockerfile.collector`/api image with the
 hot-reload bind mount, `command: ["stream-sniper-live"]`, `restart: unless-stopped`
