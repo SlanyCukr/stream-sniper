@@ -199,6 +199,13 @@ jobs:
         docker run --rm -e JWT_SECRET_KEY=ci-test-secret stream-sniper-api:test \
           python -c "import stream_sniper.api.api; print('API image import OK')"
 
+        # An empty named volume inherits /tokens ownership from the image. The
+        # non-root live service must be able to persist OAuth token rotations.
+        token_volume=$(docker volume create)
+        trap 'docker volume rm -f "$token_volume"' EXIT
+        docker run --rm -v "$token_volume:/tokens" stream-sniper-api:test \
+          sh -c "touch /tokens/refresh-token && test -w /tokens/refresh-token"
+
         # Collector image: the CLI supports --help
         docker run --rm stream-sniper-collector:test --help
 

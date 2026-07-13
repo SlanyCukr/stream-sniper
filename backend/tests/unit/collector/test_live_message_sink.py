@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from stream_sniper.collector.live import live_message_sink as sink_module
-from stream_sniper.collector.live.live_message_sink import LiveMessageSink, _emote_count
+from stream_sniper.collector.live.live_message_sink import LiveMessageSink, _badge_text, _emote_count
 
 
 def _stream(session_id=123):
@@ -20,7 +20,11 @@ def _message(message_id="uuid-1"):
     return SimpleNamespace(
         id=message_id,
         room=SimpleNamespace(name="SomeStreamer"),
-        user=SimpleNamespace(name="Viewer", subscriber=True, badges="subscriber/3"),
+        user=SimpleNamespace(
+            name="Viewer",
+            subscriber=True,
+            badges={"subscriber": "3", "moderator": "1"},
+        ),
         text="hello @other",
         emotes=None,
         sent_timestamp=1_752_408_100_000,
@@ -30,6 +34,11 @@ def _message(message_id="uuid-1"):
 def test_emote_count_counts_each_range():
     assert _emote_count(None) == 0
     assert _emote_count("25:0-4,6-10/1902:12-16") == 3
+
+
+def test_badge_text_handles_empty_and_already_serialized_values():
+    assert _badge_text(None) is None
+    assert _badge_text("subscriber/3") == "subscriber/3"
 
 
 @pytest.mark.asyncio
@@ -47,7 +56,7 @@ async def test_handle_maps_and_flushes_live_message(monkeypatch):
     assert len(written) == 1
     row = written[0]
     assert row[0:4] == (8, None, 77, 9)
-    assert row[5:9] == (True, "subscriber/3", 0, "uuid-1")
+    assert row[5:9] == (True, "moderator/1,subscriber/3", 0, "uuid-1")
     assert sink.active_session("somestreamer") == 123
 
 

@@ -36,6 +36,10 @@ WORKDIR /app
 # Copy only the built virtualenv — no uv, no build tools, no source-as-editable
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 
+# Docker copies this ownership into a newly created named volume. The live-chat
+# service must be able to persist rotated Twitch refresh tokens as `app`.
+RUN install -d -o app -g app /tokens
+
 # Make the venv's console scripts / interpreter the default PATH
 ENV PATH="/app/.venv/bin:$PATH"
 
