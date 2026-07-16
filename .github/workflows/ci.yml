@@ -195,7 +195,7 @@ jobs:
       run: |
         python -c "import stream_sniper; print('Package import successful')"
         python -c "import stream_sniper.api.api; print('API module import successful')"
-        python -c "from stream_sniper.collector import twitch_collector_facade; print('Collector module import successful')"
+        python -c "from stream_sniper.collector.archived import twitch_collector_facade; print('Collector module import successful')"
 
   docker-test:
     name: Docker Build Test
