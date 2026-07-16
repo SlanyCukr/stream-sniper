@@ -159,7 +159,10 @@ jobs:
         file: ./backend/coverage.xml
         flags: unittests
         name: codecov-umbrella
-        fail_ci_if_error: true
+        # Codecov rejects tokenless uploads intermittently ("Token required");
+        # coverage is already gated by pytest --cov fail-under, so the upload
+        # is reporting-only and must not block CI.
+        fail_ci_if_error: false
 
   package-test:
     name: Package Installation Test
