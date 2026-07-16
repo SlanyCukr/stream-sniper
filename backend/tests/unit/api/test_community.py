@@ -10,8 +10,14 @@ from unittest.mock import Mock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from stream_sniper.api.community_endpoints import _jaccard, router
-from stream_sniper.api.rate_limiter import setup_rate_limiting
+from stream_sniper.api.features.community.community_endpoints import router
+from stream_sniper.api.security.rate_limiter import setup_rate_limiting
+from stream_sniper.application.community.community_query import jaccard as _jaccard
+from stream_sniper.database.gateways.community.records import (
+    CommunityCreatorRow,
+    CommunityPairRow,
+    CreatorNeighborRow,
+)
 
 
 def _client() -> TestClient:
@@ -23,7 +29,7 @@ def _client() -> TestClient:
 
 def _miss_cache():
     cache = Mock()
-    cache._generate_key = Mock(return_value="test-cache-key")
+    cache.generate_key = Mock(return_value="test-cache-key")
     cache.get = Mock(return_value=None)
     cache.set = Mock(return_value=True)
     return cache
@@ -45,15 +51,15 @@ class TestJaccard:
 
 
 class TestCommunityOverlapEndpoint:
-    @patch("stream_sniper.api.community_endpoints.get_cache")
-    @patch("stream_sniper.api.community_endpoints.select_overlap_db")
+    @patch("stream_sniper.api.features.community.community_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.select_overlap_db")
     def test_success_maps_creators_pairs_and_jaccard(self, mock_overlap, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         creators = [
-            (1, "alice", "Alice", 10, 4, "2024-01-15T20:00:00"),
-            (2, "bob", "Bob", 20, 8, "2024-01-15T20:00:00"),
+            CommunityCreatorRow(1, "alice", "Alice", 10, 4, "2024-01-15T20:00:00"),
+            CommunityCreatorRow(2, "bob", "Bob", 20, 8, "2024-01-15T20:00:00"),
         ]
-        pairs = [(1, 2, 5, 2)]
+        pairs = [CommunityPairRow(1, 2, 5, 2)]
         mock_overlap.return_value = (creators, pairs)
 
         response = _client().get("/community/overlap?limit=40")
@@ -77,15 +83,15 @@ class TestCommunityOverlapEndpoint:
         assert pair["jaccard_regulars"] == 0.2
         mock_overlap.assert_called_once_with(40)
 
-    @patch("stream_sniper.api.community_endpoints.get_cache")
-    @patch("stream_sniper.api.community_endpoints.select_overlap_db")
+    @patch("stream_sniper.api.features.community.community_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.select_overlap_db")
     def test_zero_union_pair_yields_null_jaccard(self, mock_overlap, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         creators = [
-            (3, "cara", "Cara", 0, 0, "2024-01-15T20:00:00"),
-            (4, "dan", "Dan", 0, 0, "2024-01-15T20:00:00"),
+            CommunityCreatorRow(3, "cara", "Cara", 0, 0, "2024-01-15T20:00:00"),
+            CommunityCreatorRow(4, "dan", "Dan", 0, 0, "2024-01-15T20:00:00"),
         ]
-        pairs = [(3, 4, 0, 0)]
+        pairs = [CommunityPairRow(3, 4, 0, 0)]
         mock_overlap.return_value = (creators, pairs)
 
         response = _client().get("/community/overlap")
@@ -95,8 +101,8 @@ class TestCommunityOverlapEndpoint:
         assert pair["jaccard_chatters"] is None
         assert pair["jaccard_regulars"] is None
 
-    @patch("stream_sniper.api.community_endpoints.get_cache")
-    @patch("stream_sniper.api.community_endpoints.select_overlap_db")
+    @patch("stream_sniper.api.features.community.community_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.select_overlap_db")
     def test_empty_overlap_returns_null_computed_at(self, mock_overlap, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_overlap.return_value = ([], [])
@@ -115,16 +121,16 @@ class TestCommunityOverlapEndpoint:
 
 
 class TestCreatorNeighborsEndpoint:
-    @patch("stream_sniper.api.community_endpoints.get_cache")
-    @patch("stream_sniper.api.community_endpoints.select_creator_neighbors_db")
+    @patch("stream_sniper.api.features.community.community_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.select_creator_neighbors_db")
     def test_success_maps_metric_to_column(self, mock_neighbors, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_neighbors.return_value = [
-            (8, "eve", "Eve", 12, 5),
-            (9, "finn", "Finn", 7, 3),
+            CreatorNeighborRow(8, "eve", "Eve", 12, 5),
+            CreatorNeighborRow(9, "finn", "Finn", 7, 3),
         ]
 
-        response = _client().get("/community/creator/5/neighbors?metric=regulars&limit=10")
+        response = _client().get("/community/creators/5/neighbors?metric=regulars&limit=10")
 
         assert response.status_code == 200
         data = response.json()
@@ -140,17 +146,17 @@ class TestCreatorNeighborsEndpoint:
         # metric "regulars" maps to the whitelisted column "shared_regulars".
         mock_neighbors.assert_called_once_with(5, "shared_regulars", 10)
 
-    @patch("stream_sniper.api.community_endpoints.get_cache")
-    @patch("stream_sniper.api.community_endpoints.select_creator_neighbors_db")
+    @patch("stream_sniper.api.features.community.community_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.select_creator_neighbors_db")
     def test_chatters_metric_maps_to_shared_chatters(self, mock_neighbors, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_neighbors.return_value = []
 
-        response = _client().get("/community/creator/5/neighbors?metric=chatters")
+        response = _client().get("/community/creators/5/neighbors?metric=chatters")
 
         assert response.status_code == 200
         mock_neighbors.assert_called_once_with(5, "shared_chatters", 10)
 
     def test_invalid_metric_rejected(self):
-        response = _client().get("/community/creator/5/neighbors?metric=bogus")
+        response = _client().get("/community/creators/5/neighbors?metric=bogus")
         assert response.status_code == 422

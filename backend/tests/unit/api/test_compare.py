@@ -5,8 +5,15 @@ from unittest.mock import Mock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from stream_sniper.api.compare_endpoints import _normalise_curve, router
-from stream_sniper.api.rate_limiter import setup_rate_limiting
+from stream_sniper.api.features.streams.compare_endpoints import router
+from stream_sniper.api.security.rate_limiter import setup_rate_limiting
+from stream_sniper.application.streams.compare_query import normalize_curve
+from stream_sniper.database.gateways.analytics.records import (
+    StreamCompareBucketRow,
+    StreamCompareHeaderRow,
+    StreamPairRetentionRow,
+)
+from stream_sniper.database.gateways.streams.records import ViewerSampleRow
 
 
 def _client():
@@ -18,38 +25,72 @@ def _client():
 
 def _cache():
     cache = Mock()
-    cache._generate_key.return_value = "key"
+    cache.generate_key.return_value = "key"
     cache.get.return_value = None
     return cache
 
 
-def test_normalise_curve_uses_percentage_slots():
+def test_normalize_curve_uses_percentage_slots():
     rows = [
-        (1, "2024-01-01T20:00:00", 10, 5),
-        (1, "2024-01-01T20:05:00", 20, 8),
-        (1, "2024-01-01T20:10:00", 30, 10),
+        StreamCompareBucketRow(1, "2024-01-01T20:00:00", 10, 5),
+        StreamCompareBucketRow(1, "2024-01-01T20:05:00", 20, 8),
+        StreamCompareBucketRow(1, "2024-01-01T20:10:00", 30, 10),
     ]
-    points = _normalise_curve(rows, "2024-01-01T20:00:00", 600)
+    points = normalize_curve(rows, "2024-01-01T20:00:00", 600)
     assert [point.percent for point in points] == [0, 50, 100]
 
 
-@patch("stream_sniper.api.compare_endpoints.get_cache")
-@patch("stream_sniper.api.compare_endpoints.select_stream_pair_retention_db")
-@patch("stream_sniper.api.compare_endpoints.select_stream_viewer_samples_db")
-@patch("stream_sniper.api.compare_endpoints.select_stream_compare_buckets_db")
-@patch("stream_sniper.api.compare_endpoints.select_stream_compare_headers_db")
+@patch("stream_sniper.api.features.streams.compare_endpoints.get_cache")
+@patch("stream_sniper.api.composition.select_stream_pair_retention_db")
+@patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
+@patch("stream_sniper.api.composition.select_stream_compare_buckets_db")
+@patch("stream_sniper.api.composition.select_stream_compare_headers_db")
 def test_compare_maps_metrics_curve_and_retention(headers, buckets, samples, retention, get_cache):
     get_cache.return_value = _cache()
     headers.return_value = [
-        (1, 10, "a", "A", "One", "2024-01-01T20:00:00", 600, 100, 10.0, 20, 8, 12, 25, 50, 30, "2024-01-01T20:05:00"),
-        (2, 10, "a", "A", "Two", "2024-01-02T20:00:00", 600, 200, 20.0, 30, 10, 20, 40, 80, 50, "2024-01-02T20:05:00"),
+        StreamCompareHeaderRow(
+            1,
+            10,
+            "a",
+            "A",
+            "One",
+            "2024-01-01T20:00:00",
+            600,
+            100,
+            10.0,
+            20,
+            8,
+            12,
+            25,
+            50,
+            30,
+            "2024-01-01T20:05:00",
+        ),
+        StreamCompareHeaderRow(
+            2,
+            10,
+            "a",
+            "A",
+            "Two",
+            "2024-01-02T20:00:00",
+            600,
+            200,
+            20.0,
+            30,
+            10,
+            20,
+            40,
+            80,
+            50,
+            "2024-01-02T20:05:00",
+        ),
     ]
     buckets.return_value = [
-        (1, "2024-01-01T20:00:00", 10, 5),
-        (2, "2024-01-02T20:00:00", 20, 8),
+        StreamCompareBucketRow(1, "2024-01-01T20:00:00", 10, 5),
+        StreamCompareBucketRow(2, "2024-01-02T20:00:00", 20, 8),
     ]
-    samples.side_effect = [[("x", 50)], [("y", 80)]]
-    retention.return_value = [(1, 2, 20, 30, 12)]
+    samples.side_effect = [[ViewerSampleRow("x", 50)], [ViewerSampleRow("y", 80)]]
+    retention.return_value = [StreamPairRetentionRow(1, 2, 20, 30, 12)]
 
     response = _client().get("/streams/compare?stream_ids=1&stream_ids=2")
 

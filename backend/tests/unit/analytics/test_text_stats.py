@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from stream_sniper.analytics import text_stats
+from stream_sniper.analytics.calculations import text_stats
 
 
 class TestTokenize:

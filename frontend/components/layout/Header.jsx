@@ -11,10 +11,8 @@ import {
     Button,
 } from 'react-bootstrap'
 import { useAuth } from '@/contexts/AuthContext'
+import { isAdminRole } from '@/lib/auth/roles'
 
-/**
- * Admin menu items component
- */
 const AdminMenuItems = ({ navigate }) => (
     <>
         <Dropdown.Divider role="separator" />
@@ -45,9 +43,6 @@ const AdminMenuItems = ({ navigate }) => (
     </>
 )
 
-/**
- * User dropdown menu component
- */
 const UserDropdown = ({
     user, dropdownOpen, toggle, handleProfile, handleLogout, navigate,
 }) => (
@@ -71,7 +66,7 @@ const UserDropdown = ({
             <span className="d-none d-md-inline">
                 {user?.username}
             </span>
-            {user?.role === 'admin' && (
+            {isAdminRole(user?.role) && (
                 <span className="role-chip d-none d-md-inline">
                     Admin
                 </span>
@@ -92,7 +87,7 @@ const UserDropdown = ({
                 <i className="bi bi-person me-2"></i>
                 My Profile
             </Dropdown.Item>
-            {user?.role === 'admin' && <AdminMenuItems navigate={navigate} />}
+            {isAdminRole(user?.role) && <AdminMenuItems navigate={navigate} />}
             <Dropdown.Divider role="separator" />
             <Dropdown.Item
                 role="menuitem"
@@ -105,20 +100,16 @@ const UserDropdown = ({
     </Dropdown>
 )
 
-/**
- * Mobile sidebar toggle button
- */
 const MobileSidebarToggle = ({
-    showMobilemenu, handleKeyDown,
+    isSidebarOpen, onToggleSidebar,
 }) => (
     <Button
         variant="outline-primary"
         size="sm"
         className="d-lg-none"
-        onClick={() => showMobilemenu()}
-        onKeyDown={e => handleKeyDown(e, showMobilemenu)}
+        onClick={onToggleSidebar}
         aria-label="Open navigation menu"
-        aria-expanded="false"
+        aria-expanded={isSidebarOpen}
     >
         <i
             className="bi bi-list"
@@ -126,7 +117,6 @@ const MobileSidebarToggle = ({
     </Button>
 )
 
-/** Mono breadcrumb-style readout of the current route. */
 const HeaderPath = ({ pathname }) => {
     const segments = pathname === '/'
         ? [
@@ -151,7 +141,7 @@ const HeaderPath = ({ pathname }) => {
     )
 }
 
-const Header = () => {
+const Header = ({ isSidebarOpen = false, onToggleSidebar = () => {} }) => {
     const [
         dropdownOpen,
         setDropdownOpen,
@@ -163,10 +153,6 @@ const Header = () => {
     const pathname = usePathname()
 
     const toggle = () => setDropdownOpen(prevState => !prevState)
-    const showMobilemenu = () => {
-        document.getElementById('sidebarArea').classList.toggle('showSidebar')
-    }
-
     const handleLogout = () => {
         logout()
         router.push('/login')
@@ -174,14 +160,6 @@ const Header = () => {
 
     const handleLogin = () => router.push('/login')
     const handleProfile = () => router.push('/profile')
-
-    // Handle keyboard navigation
-    const handleKeyDown = (event, action) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            action()
-        }
-    }
 
     return (
         <header
@@ -191,8 +169,8 @@ const Header = () => {
         >
             <div className="d-flex align-items-center gap-3">
                 <MobileSidebarToggle
-                    showMobilemenu={showMobilemenu}
-                    handleKeyDown={handleKeyDown}
+                    isSidebarOpen={isSidebarOpen}
+                    onToggleSidebar={onToggleSidebar}
                 />
                 <HeaderPath pathname={pathname} />
             </div>

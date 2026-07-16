@@ -110,6 +110,8 @@ def _purge(cur, creator_id):
     cur.execute("SELECT id FROM stream WHERE creator_id = %s", (creator_id,))
     stream_ids = [r[0] for r in cur.fetchall()]
     if stream_ids:
+        cur.execute("DELETE FROM scene_event WHERE stream_id = ANY(%s)", (stream_ids,))
+        cur.execute("DELETE FROM stream_copypasta_stats WHERE stream_id = ANY(%s)", (stream_ids,))
         cur.execute("DELETE FROM moment_review WHERE stream_id = ANY(%s)", (stream_ids,))
         cur.execute("DELETE FROM stream_moment WHERE stream_id = ANY(%s)", (stream_ids,))
         cur.execute("DELETE FROM stream_phrase_stats WHERE stream_id = ANY(%s)", (stream_ids,))
@@ -118,9 +120,7 @@ def _purge(cur, creator_id):
         cur.execute("DELETE FROM stream_chatter_stats WHERE stream_id = ANY(%s)", (stream_ids,))
         cur.execute("DELETE FROM stream_time_bucket WHERE stream_id = ANY(%s)", (stream_ids,))
         cur.execute("DELETE FROM message WHERE stream_id = ANY(%s)", (stream_ids,))
-    cur.execute(
-        "DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (creator_id, creator_id)
-    )
+    cur.execute("DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (creator_id, creator_id))
     cur.execute("DELETE FROM creator_audience WHERE creator_id = %s", (creator_id,))
     cur.execute("DELETE FROM creator_chatter_stats WHERE creator_id = %s", (creator_id,))
     cur.execute("DELETE FROM stream WHERE creator_id = %s", (creator_id,))
@@ -134,8 +134,7 @@ def _purge(cur, creator_id):
 
 def _insert_chatter(cur, nick):
     cur.execute(
-        "INSERT INTO chatter (nick) VALUES (%s) ON CONFLICT (nick) DO UPDATE SET nick = EXCLUDED.nick "
-        "RETURNING id",
+        "INSERT INTO chatter (nick) VALUES (%s) ON CONFLICT (nick) DO UPDATE SET nick = EXCLUDED.nick RETURNING id",
         (nick,),
     )
     return cur.fetchone()[0]
@@ -183,7 +182,7 @@ def _snapshot(cur, creator_id, stream_ids):
 class TestRollupEngine:
     @pytest.fixture
     def seeded(self, test_db_connection):
-        from stream_sniper.analytics.rollup_engine import compute_stream_rollup
+        from stream_sniper.analytics.rollups.rollup_engine import compute_stream_rollup
 
         cur = test_db_connection.cursor()
         cur.execute(_ANALYTICS_DDL)
@@ -321,8 +320,7 @@ def _insert_text(cur, text):
 
 def _insert_creator(cur, nick):
     cur.execute(
-        "INSERT INTO creator (nick, display_name, profile_image_url, twitch_id) "
-        "VALUES (%s, %s, %s, %s) RETURNING id",
+        "INSERT INTO creator (nick, display_name, profile_image_url, twitch_id) VALUES (%s, %s, %s, %s) RETURNING id",
         (nick, nick, "https://example.com/p.jpg", None),
     )
     return cur.fetchone()[0]
@@ -338,7 +336,7 @@ class TestAnalyticsExpansionRollup:
 
     @pytest.fixture
     def enrich_seeded(self, test_db_connection):
-        from stream_sniper.analytics.rollup_engine import compute_stream_rollup
+        from stream_sniper.analytics.rollups.rollup_engine import compute_stream_rollup
 
         cur = test_db_connection.cursor()
         cur.execute(_ANALYTICS_DDL)
@@ -392,6 +390,8 @@ class TestAnalyticsExpansionRollup:
             stream_ids = [r[0] for r in cur.fetchall()]
             if stream_ids:
                 for table in (
+                    "scene_event",
+                    "stream_copypasta_stats",
                     "moment_review",
                     "stream_moment",
                     "stream_phrase_stats",
@@ -402,9 +402,7 @@ class TestAnalyticsExpansionRollup:
                     "message",
                 ):
                     cur.execute(f"DELETE FROM {table} WHERE stream_id = ANY(%s)", (stream_ids,))
-            cur.execute(
-                "DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (creator_id, creator_id)
-            )
+            cur.execute("DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (creator_id, creator_id))
             cur.execute("DELETE FROM creator_audience WHERE creator_id = %s", (creator_id,))
             cur.execute("DELETE FROM creator_chatter_stats WHERE creator_id = %s", (creator_id,))
             cur.execute("DELETE FROM stream WHERE creator_id = %s", (creator_id,))
@@ -465,7 +463,7 @@ class TestAnalyticsExpansionRollup:
         assert cur.fetchone() == (None, None)
 
     def test_three_creator_overlap_correctness(self, test_db_connection):
-        from stream_sniper.analytics.community import recompute_creator_overlap
+        from stream_sniper.analytics.rollups.community import recompute_creator_overlap
 
         cur = test_db_connection.cursor()
         cur.execute(_ANALYTICS_DDL)
@@ -476,9 +474,7 @@ class TestAnalyticsExpansionRollup:
             cur.execute("SELECT id FROM creator WHERE nick = %s", (nick,))
             row = cur.fetchone()
             if row:
-                cur.execute(
-                    "DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (row[0], row[0])
-                )
+                cur.execute("DELETE FROM creator_overlap WHERE creator_a = %s OR creator_b = %s", (row[0], row[0]))
                 cur.execute("DELETE FROM creator_audience WHERE creator_id = %s", (row[0],))
                 cur.execute("DELETE FROM creator_chatter_stats WHERE creator_id = %s", (row[0],))
                 cur.execute("DELETE FROM creator WHERE id = %s", (row[0],))
@@ -490,9 +486,12 @@ class TestAnalyticsExpansionRollup:
 
             # ch1: regular in X and Y; ch2: casual in X and Y; ch3: casual in X and Z.
             rows = [
-                (cx, ch1, 5), (cy, ch1, 4),
-                (cx, ch2, 1), (cy, ch2, 1),
-                (cx, ch3, 2), (cz, ch3, 2),
+                (cx, ch1, 5),
+                (cy, ch1, 4),
+                (cx, ch2, 1),
+                (cy, ch2, 1),
+                (cx, ch3, 2),
+                (cz, ch3, 2),
             ]
             for creator_id, chatter_id, attended in rows:
                 cur.execute(
@@ -532,7 +531,7 @@ class TestAnalyticsExpansionRollup:
             cur.close()
 
     def test_same_name_in_both_sources_counts_once(self, test_db_connection):
-        from stream_sniper.analytics.rollup_engine import compute_stream_rollup
+        from stream_sniper.analytics.rollups.rollup_engine import compute_stream_rollup
 
         cur = test_db_connection.cursor()
         cur.execute(_ANALYTICS_DDL)
@@ -545,6 +544,8 @@ class TestAnalyticsExpansionRollup:
         if prior:
             cur.execute("SELECT id FROM stream WHERE creator_id = %s", (prior[0],))
             for (sid,) in cur.fetchall():
+                cur.execute("DELETE FROM scene_event WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM stream_copypasta_stats WHERE stream_id = %s", (sid,))
                 cur.execute("DELETE FROM stream_emote_stats WHERE stream_id = %s", (sid,))
                 cur.execute("DELETE FROM message WHERE stream_id = %s", (sid,))
                 cur.execute("DELETE FROM stream WHERE id = %s", (sid,))
@@ -596,6 +597,8 @@ class TestAnalyticsExpansionRollup:
         finally:
             cur.execute("SELECT id FROM stream WHERE creator_id = %s", (creator_id,))
             for (sid,) in cur.fetchall():
+                cur.execute("DELETE FROM scene_event WHERE stream_id = %s", (sid,))
+                cur.execute("DELETE FROM stream_copypasta_stats WHERE stream_id = %s", (sid,))
                 cur.execute("DELETE FROM stream_emote_stats WHERE stream_id = %s", (sid,))
                 cur.execute("DELETE FROM stream_phrase_stats WHERE stream_id = %s", (sid,))
                 cur.execute("DELETE FROM stream_moment WHERE stream_id = %s", (sid,))

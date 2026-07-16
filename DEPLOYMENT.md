@@ -120,8 +120,11 @@ curl -f http://localhost:5002/health
 ### Database
 - PostgreSQL runs **on the RPI host**, not in Docker Compose. Containers reach it
   via the Docker bridge gateway (`POSTGRES_HOST=172.17.0.1`).
-- Schema is applied **manually** (`create_table.sql`) — no automatic init and no
-  `postgres_data` Docker volume.
+- Schema upgrades are applied explicitly from `backend/` with
+  `uv run stream-sniper-migrate upgrade head`; there is no automatic init and no
+  `postgres_data` Docker volume. For a pre-Alembic database whose baseline tables
+  already exist, run `uv run stream-sniper-migrate stamp 0001` once before the
+  upgrade. `create_table.sql` is reference-only and must not be applied.
 
 ## Monitoring
 

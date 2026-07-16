@@ -1,0 +1,6 @@
+export const PAGINATION = {
+    DEFAULT_OFFSET: 0,
+    ITEMS_PER_PAGE: 20,
+    MESSAGES_PER_PAGE: 50,
+    MAX_VISIBLE_PAGES: 5,
+}

@@ -1,1 +1,24 @@
-Generic single-database configuration.
+# Database migrations
+
+Alembic is the authoritative schema path. From `backend/`, create or upgrade a
+database with:
+
+```bash
+uv run stream-sniper-migrate upgrade head
+```
+
+The command uses the packaged migration directory and the same `POSTGRES_*`
+environment variables as the application, so it works from a source checkout or
+an installed wheel without an `alembic.ini`.
+
+For a pre-Alembic database that already has the revision `0001` baseline tables,
+record the existing baseline once and then apply later revisions:
+
+```bash
+uv run stream-sniper-migrate stamp 0001
+uv run stream-sniper-migrate upgrade head
+```
+
+Do not stamp a fresh or partially-created database. The
+`database/create_table.sql` file is a reference-only snapshot and is not an
+installation or upgrade mechanism.

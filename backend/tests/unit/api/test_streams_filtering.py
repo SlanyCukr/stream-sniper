@@ -11,13 +11,14 @@ from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
-from stream_sniper.api.api import app
+from stream_sniper.api.asgi import app
+from stream_sniper.database.gateways.streams.records import StreamListRow
 
 
 def _miss_cache():
     """A mock cache that always misses, so endpoint tests don't depend on cache state."""
     cache = Mock()
-    cache._generate_key = Mock(return_value="test-cache-key")
+    cache.generate_key = Mock(return_value="test-cache-key")
     cache.get = Mock(return_value=None)
     cache.set = Mock(return_value=True)
     return cache
@@ -26,9 +27,9 @@ def _miss_cache():
 class TestStreamsFiltering:
     """GET /streams sort/filter forwarding and validation."""
 
-    @patch("stream_sniper.api.stream_endpoints.get_cache")
-    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
-    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
+    @patch("stream_sniper.api.features.streams.stream_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.count_streams_db")
+    @patch("stream_sniper.api.composition.select_stream_page_db")
     def test_defaults_unchanged(self, mock_streams, mock_count, mock_get_cache):
         """Bare request forwards the default sort/dir and all-None filters."""
         mock_get_cache.return_value = _miss_cache()
@@ -40,16 +41,16 @@ class TestStreamsFiltering:
 
         assert response.status_code == 200
         data = response.json()
-        assert data == {"streams": [], "max_offset": 0}
+        assert data == {"streams": [], "total": 0, "offset": 0, "limit": 20}
 
         mock_streams.assert_called_once_with(
-            5, 0, sort="start", dir="desc", title=None, date_from=None, date_to=None, min_messages=None
+            5, 0, 20, sort="start", direction="desc", title=None, date_from=None, date_to=None, min_messages=None
         )
         mock_count.assert_called_once_with(5, title=None, date_from=None, date_to=None, min_messages=None)
 
-    @patch("stream_sniper.api.stream_endpoints.get_cache")
-    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
-    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
+    @patch("stream_sniper.api.features.streams.stream_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.count_streams_db")
+    @patch("stream_sniper.api.composition.select_stream_page_db")
     def test_sort_and_dir_forwarded(self, mock_streams, mock_count, mock_get_cache):
         """sort/dir query params reach the row gateway (count ignores them)."""
         mock_get_cache.return_value = _miss_cache()
@@ -61,14 +62,14 @@ class TestStreamsFiltering:
 
         assert response.status_code == 200
         mock_streams.assert_called_once_with(
-            5, 0, sort="message_count", dir="asc", title=None, date_from=None, date_to=None, min_messages=None
+            5, 0, 20, sort="message_count", direction="asc", title=None, date_from=None, date_to=None, min_messages=None
         )
         # count query never receives sort/dir
         mock_count.assert_called_once_with(5, title=None, date_from=None, date_to=None, min_messages=None)
 
-    @patch("stream_sniper.api.stream_endpoints.get_cache")
-    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
-    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
+    @patch("stream_sniper.api.features.streams.stream_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.count_streams_db")
+    @patch("stream_sniper.api.composition.select_stream_page_db")
     def test_filters_forwarded_to_both_gateways(self, mock_streams, mock_count, mock_get_cache):
         """title/date_from/date_to/min_messages reach BOTH gateways identically."""
         mock_get_cache.return_value = _miss_cache()
@@ -84,8 +85,9 @@ class TestStreamsFiltering:
         mock_streams.assert_called_once_with(
             5,
             0,
+            20,
             sort="start",
-            dir="desc",
+            direction="desc",
             title="epic",
             date_from=date(2024, 1, 1),
             date_to=date(2024, 1, 31),
@@ -99,25 +101,25 @@ class TestStreamsFiltering:
             min_messages=10,
         )
 
-    @patch("stream_sniper.api.stream_endpoints.get_cache")
-    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
-    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
+    @patch("stream_sniper.api.features.streams.stream_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.count_streams_db")
+    @patch("stream_sniper.api.composition.select_stream_page_db")
     def test_count_respects_filters(self, mock_streams, mock_count, mock_get_cache):
-        """max_offset is the filtered count returned by the count gateway."""
+        """total is the filtered count returned by the count gateway."""
         mock_get_cache.return_value = _miss_cache()
-        mock_streams.return_value = [[1, "S", "2024-01-15 20:00:00", "2024-01-15 22:00:00", "t.jpg", 42]]
+        mock_streams.return_value = [StreamListRow(1, "S", "2024-01-15 20:00:00", "2024-01-15 22:00:00", "t.jpg", 42)]
         mock_count.return_value = 1
 
         with TestClient(app) as client:
             response = client.get("/streams?creator_id=5&min_messages=40")
 
         assert response.status_code == 200
-        assert response.json()["max_offset"] == 1
+        assert response.json()["total"] == 1
         mock_count.assert_called_once_with(5, title=None, date_from=None, date_to=None, min_messages=40)
 
-    @patch("stream_sniper.api.stream_endpoints.get_cache")
-    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
-    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
+    @patch("stream_sniper.api.features.streams.stream_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.count_streams_db")
+    @patch("stream_sniper.api.composition.select_stream_page_db")
     def test_sql_injection_sort_rejected(self, mock_streams, mock_count, mock_get_cache):
         """A malicious sort value 422s before any gateway is touched."""
         mock_get_cache.return_value = _miss_cache()
@@ -129,9 +131,9 @@ class TestStreamsFiltering:
         mock_streams.assert_not_called()
         mock_count.assert_not_called()
 
-    @patch("stream_sniper.api.stream_endpoints.get_cache")
-    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
-    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
+    @patch("stream_sniper.api.features.streams.stream_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.count_streams_db")
+    @patch("stream_sniper.api.composition.select_stream_page_db")
     def test_invalid_dir_rejected(self, mock_streams, mock_count, mock_get_cache):
         """An out-of-whitelist dir value 422s."""
         mock_get_cache.return_value = _miss_cache()
@@ -143,9 +145,9 @@ class TestStreamsFiltering:
         mock_streams.assert_not_called()
         mock_count.assert_not_called()
 
-    @patch("stream_sniper.api.stream_endpoints.get_cache")
-    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
-    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
+    @patch("stream_sniper.api.features.streams.stream_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.count_streams_db")
+    @patch("stream_sniper.api.composition.select_stream_page_db")
     def test_negative_offset_rejected(self, mock_streams, mock_count, mock_get_cache):
         """offset<0 fails ge=0 validation."""
         mock_get_cache.return_value = _miss_cache()
@@ -156,9 +158,9 @@ class TestStreamsFiltering:
         assert response.status_code == 422
         mock_streams.assert_not_called()
 
-    @patch("stream_sniper.api.stream_endpoints.get_cache")
-    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
-    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
+    @patch("stream_sniper.api.features.streams.stream_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.count_streams_db")
+    @patch("stream_sniper.api.composition.select_stream_page_db")
     def test_negative_min_messages_rejected(self, mock_streams, mock_count, mock_get_cache):
         """min_messages<0 fails ge=0 validation."""
         mock_get_cache.return_value = _miss_cache()
@@ -169,9 +171,9 @@ class TestStreamsFiltering:
         assert response.status_code == 422
         mock_streams.assert_not_called()
 
-    @patch("stream_sniper.api.stream_endpoints.get_cache")
-    @patch("stream_sniper.api.stream_endpoints.select_all_stream_count_db")
-    @patch("stream_sniper.api.stream_endpoints.select_all_streams_db")
+    @patch("stream_sniper.api.features.streams.stream_endpoints.get_cache")
+    @patch("stream_sniper.api.composition.count_streams_db")
+    @patch("stream_sniper.api.composition.select_stream_page_db")
     def test_gateway_raise_returns_500(self, mock_streams, mock_count, mock_get_cache):
         """A gateway exception surfaces as a 500 Internal server error."""
         mock_get_cache.return_value = _miss_cache()

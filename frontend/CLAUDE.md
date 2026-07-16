@@ -7,11 +7,12 @@ Twitch-like chat, inspect chatter/message data, JWT auth, and an admin panel
 ## Technology Stack
 
 - **Framework**: Next.js 16 (App Router, Turbopack) + React 19
-- **Language**: TypeScript scaffold (`app/**` and `lib/api.ts` in `.ts/.tsx`);
-  migrated components stay `.jsx` (JS type-checking off via `checkJs: false`).
+- **Language**: TypeScript scaffold (`app/**` and `lib/api/**` in `.ts/.tsx`);
+  migrated components remain `.jsx`. The main config keeps `checkJs: false`,
+  while `tsconfig.checkjs-boundaries.json` checks a deliberately small JS slice.
 - **UI**: Bootstrap 5.3 + `react-bootstrap`, `react-select`; SASS.
 - **Data**: `@tanstack/react-query` (server-state cache), `axios` (single client
-  in `lib/api.ts`).
+  in `lib/api/client.ts`; endpoint adapters in `lib/api/*.ts`).
 - **Auth**: client-side JWT in `localStorage['token']`; `contexts/AuthContext.jsx`.
 - **Output**: `output: 'standalone'` — a Node server runs in the prod container
   (replaces the old nginx container).
@@ -29,12 +30,19 @@ npm run dev            # next dev --turbopack on :3000
 npm run build          # next build -> .next/standalone/server.js (primary gate)
 npm run start          # next start on :3000 (serves a production build)
 npm run typecheck      # tsc --noEmit
+npm run typecheck:js:boundaries # incremental checkJs gate for selected JS seams
+npm run typecheck:js:ratchet # prevent unchecked production JS from increasing
+npm test -- --run      # Vitest suite
+npx playwright install chromium # one-time local browser runtime setup
+npm run test:e2e       # critical browser journeys; owns localhost:4173
 npm run lint           # eslint . (advisory; build does not fail on lint)
 npm run lint:fix
 ```
 
 Bare-metal dev reads `.env.local` (gitignored) for `API_PROXY_TARGET`
 (default `http://localhost:5002`). Start the FastAPI backend on 5002 for live data.
+Playwright tests intercept `/api/**` at the browser boundary, so their deterministic
+auth, stream-replay, and admin-session journeys do not require a live backend.
 
 ## API proxying (important)
 
@@ -50,7 +58,7 @@ the old nginx `proxy_pass .../;` trailing-slash strip.
   build; override with `--build-arg` if the api service name ever changes.
 - Bare metal: `API_PROXY_TARGET=http://localhost:5002` in `.env.local`
 
-`lib/api.ts` is the one axios instance (`baseURL: '/api'`). A request interceptor
+`lib/api/client.ts` owns the axios instance (`baseURL: '/api'`). A request interceptor
 attaches `Authorization: Bearer <token>` from `localStorage` to **every** `/api`
 call; a response interceptor clears the token and fires the registered
 `onUnauthorized` handler (AuthContext's `logout`) on 401.
@@ -61,7 +69,7 @@ No `src/` directory. Path alias `@/*` -> repo-relative (`./*`).
 
 ```
 app/                       # App Router: file-based routes
-  layout.tsx               # root <html><body class="dark">, global SCSS, Providers, LegacyHashRedirect
+  layout.tsx               # root <html data-bs-theme="dark">, global SCSS, Providers, LegacyHashRedirect
   providers.tsx            # QueryClientProvider + AuthProvider ('use client')
   loading.tsx / error.tsx / global-error.tsx / not-found.tsx
   login/page.tsx           # login (no app shell)
@@ -73,12 +81,13 @@ app/                       # App Router: file-based routes
     profile/page.tsx
     admin/                 # admin/layout.tsx wraps children in <AdminGuard>
       page.tsx, dashboard/, users/(+create/), system/, tracking/(streamers/, jobs/)
-components/                # 'use client' components (layout/, streams/, auth/, admin/)
-views/                     # page bodies imported by the thin page.tsx wrappers
+components/                # client UI by capability (admin/, auth/, chatter/, community/, creator/, streams/, ...)
+views/                     # route bodies grouped by owning product domain and imported by thin page.tsx wrappers
 contexts/AuthContext.jsx
-hooks/                     # react-query hooks (useApiQuery barrel + streams/chatters/messages)
-lib/api.ts                 # axios instance + JWT/401 interceptors + retrieve* data fns
-utils/, constants.js, styles/  # styles/style.scss is the SCSS entry
+hooks/                     # capability folders mirror API/product domains (admin/, chatter/, community/, creator/, moments/, scene/, stream/)
+lib/api/                   # client.ts plus domain endpoint adapters and exact wire DTOs
+lib/auth/, lib/creator/, lib/stream/, lib/models/ # capability contracts and static UI models
+utils/, styles/            # styles/style.scss is the SCSS entry
 public/images/             # xtremelogo.svg, xtremelogowhite.svg, user1.jpg
 next.config.ts, tsconfig.json, eslint.config.mjs
 Dockerfile (dev), Dockerfile.prod (multi-stage standalone, non-root)
@@ -90,10 +99,15 @@ Dockerfile (dev), Dockerfile.prod (multi-stage standalone, non-root)
   (organizational, not in the URL). `[id]` is a dynamic segment.
 - Client components need `'use client'` at the top. Every `components/**` and
   `views/**` file here is a client component.
+- Route views follow their owning product domain: community lives in
+  `views/community`, moments in `views/moments`, audience movement in
+  `views/creator`, and scene-owned discovery surfaces in `views/scene`. Their
+  `page.tsx` files stay thin and import one matching view. Reusable data/state and
+  presentation remain in the matching `hooks/**` and `components/**` capability.
 - Navigation: `useRouter()`/`usePathname()`/`useSearchParams()` from
   `next/navigation`; `<Link href>` from `next/link`. Dynamic `params` is a
   Promise — unwrap with `use(params)` in the page and pass values down as props.
-- Legacy `/#/path` hash links are handled by `components/LegacyHashRedirect.jsx`.
+- Legacy `/#/path` hash links are handled by `components/layout/LegacyHashRedirect.jsx`.
 
 ## Docker
 
@@ -116,6 +130,13 @@ target port is unchanged. `Dockerfile.prod` runs `npm ci`, so a committed
   so bare `@import "bootstrap/scss/bootstrap"` resolves. Bootstrap emits Sass
   deprecation warnings (harmless). If Turbopack ever rejects `includePaths`,
   switch to `loadPaths`.
+- **JavaScript checking is incremental.** Keep the main `checkJs: false` until
+  migrated files have explicit contracts. Add stable boundary files to
+  `tsconfig.checkjs-boundaries.json` and keep that gate green rather than
+  enabling repository-wide checked JavaScript in one step.
+- **Unchecked JavaScript is ratcheted.** `type-migration-baseline.json` stores
+  the current ceiling. New production `.js`/`.jsx` must enter the selected
+  checkJs boundary (or be TypeScript); lower the ceiling whenever files migrate.
 - **ESLint** is flat-config (`eslint.config.mjs`) spreading
   `eslint-config-next`'s default array. Several React-19 rules
   (`react-hooks/set-state-in-effect`, `react-hooks/purity`,

@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from stream_sniper.api.api import app
+from stream_sniper.api.asgi import app
 from tests.conftest import create_test_chatter, create_test_creator, create_test_message_text, create_test_stream
 
 
@@ -24,7 +24,7 @@ class TestAPIWorkflowIntegration:
     def api_client_with_db(self, test_db_connection):
         """Create API client with real database connection."""
         # Mock the connection pool to use our test database
-        with patch("stream_sniper.database.decorators.get_pool") as mock_get_pool:
+        with patch("stream_sniper.database.core.decorators.get_active_pool") as mock_get_pool:
             mock_pool = type("MockPool", (), {})()
             mock_pool.get_connection = lambda: test_db_connection
             mock_pool.get_cursor = lambda: test_db_connection.cursor()
@@ -47,7 +47,7 @@ class TestAPIWorkflowIntegration:
         creator_id = create_test_creator(db_cursor, creator_data)
 
         stream_data = {
-            "twitch_id": "api_stream_123",
+            "twitch_id": 123,
             "title": "API Integration Test Stream",
             "start_time": datetime(2024, 1, 15, 20, 0, 0),
             "end_time": datetime(2024, 1, 15, 23, 0, 0),
@@ -93,58 +93,58 @@ class TestAPIWorkflowIntegration:
         assert response.status_code == 200
         creators = response.json()
         assert len(creators) >= 1
-        assert any(creator[1] == creator_data["display_name"] for creator in creators)
+        assert any(creator["display_name"] == creator_data["display_name"] for creator in creators)
 
         # 2. Test GET /streams/ for specific creator
         response = api_client_with_db.get(f"/streams/?creator_id={creator_id}&offset=0")
         assert response.status_code == 200
         data = response.json()
         assert "streams" in data
-        assert "max_offset" in data
+        assert "total" in data
+        assert data["offset"] == 0
+        assert data["limit"] == 20
         assert len(data["streams"]) >= 1
 
-        # Find our test stream — rows are
-        # (id, display_name, start, end, thumbnail_url, message_count)
+        # Find our test stream through the named public response contract.
         test_stream = None
         for stream in data["streams"]:
-            if stream[0] == stream_id:
+            if stream["stream_id"] == stream_id:
                 test_stream = stream
                 break
 
         assert test_stream is not None
-        assert test_stream[1] == creator_data["display_name"]
+        assert test_stream["creator_name"] == creator_data["display_name"]
 
         # 3. Test GET /stream/{stream_id}/ comprehensive analytics
-        response = api_client_with_db.get(f"/stream/{stream_id}/")
+        response = api_client_with_db.get(f"/streams/{stream_id}/")
         assert response.status_code == 200
         analytics = response.json()
 
         # Verify comprehensive stream info structure
-        assert "csi" in analytics  # comprehensive stream info
-        assert "mac" in analytics  # most active chatters
-        assert "mtc" in analytics  # most tagged chatters
-        assert "octw" in analytics  # other creators that wrote
-        assert "cis" in analytics  # chatters in stream
+        assert "info" in analytics
+        assert "most_active_chatters" in analytics
+        assert "most_tagged_chatters" in analytics
+        assert "other_creators" in analytics
+        assert "chatters" in analytics
 
         # Verify stream info
-        csi = analytics["csi"]
-        assert csi[0] == stream_data["title"]  # title
-        assert csi[5] == creator_data["nick"]  # creator nick
-        assert csi[6] == creator_data["display_name"]  # creator display name
+        info = analytics["info"]
+        assert info["title"] == stream_data["title"]
+        assert info["creator_nick"] == creator_data["nick"]
+        assert info["creator_display_name"] == creator_data["display_name"]
 
-        # Verify chatters in stream — cis is a list of (chatter_id, nick) rows
-        cis = analytics["cis"]
-        assert len(cis) == len(chatters)
-        assert sorted(row[1] for row in cis) == sorted(chatters)
+        participants = analytics["chatters"]
+        assert len(participants) == len(chatters)
+        assert sorted(row["nick"] for row in participants) == sorted(chatters)
 
         # 4. Test GET /stream/{stream_id}/chatters
-        response = api_client_with_db.get(f"/stream/{stream_id}/chatters")
+        response = api_client_with_db.get(f"/streams/{stream_id}/chatters")
         assert response.status_code == 200
         stream_chatters = response.json()
         assert len(stream_chatters) == len(chatters)
 
         # Verify all our test chatters are present
-        chatter_nicks = [chatter[1] for chatter in stream_chatters]
+        chatter_nicks = [chatter["nick"] for chatter in stream_chatters]
         for nick in chatters:
             assert nick in chatter_nicks
 
@@ -152,24 +152,23 @@ class TestAPIWorkflowIntegration:
         test_chatter_id = chatter_ids[0]
         test_chatter_nick = chatters[0]
 
-        # Test GET /chatter/{nick}/chatter_id
-        response = api_client_with_db.get(f"/chatter/{test_chatter_nick}/chatter_id")
+        # Test GET /chatters/by-nick/{nick}
+        response = api_client_with_db.get(f"/chatters/by-nick/{test_chatter_nick}")
         assert response.status_code == 200
         chatter_id_result = response.json()
-        assert chatter_id_result[0] == test_chatter_id
+        assert chatter_id_result["chatter_id"] == test_chatter_id
 
         # Test GET /chatter/{chatter_id}/messages/
-        response = api_client_with_db.get(f"/chatter/{test_chatter_id}/messages/")
+        response = api_client_with_db.get(f"/chatters/{test_chatter_id}/messages/")
         assert response.status_code == 200
         chatter_messages = response.json()
         assert chatter_messages["total"] >= 1
         assert len(chatter_messages["messages"]) >= 1
-        # Each row is [stream_id, stream_title, streamer_display_name, text, timestamp]
-        assert chatter_messages["messages"][0][0] == stream_id
-        assert chatter_messages["messages"][0][3] in messages
+        assert chatter_messages["messages"][0]["stream_id"] == stream_id
+        assert chatter_messages["messages"][0]["text"] in messages
 
         # Test GET /stream/{stream_id}/chatter/{chatter_id}/messages
-        response = api_client_with_db.get(f"/stream/{stream_id}/chatter/{test_chatter_id}/messages")
+        response = api_client_with_db.get(f"/streams/{stream_id}/chatters/{test_chatter_id}/messages")
         assert response.status_code == 200
         stream_chatter_messages = response.json()
         assert len(stream_chatter_messages) >= 1
@@ -194,7 +193,7 @@ class TestAPIWorkflowIntegration:
             stream_id = create_test_stream(
                 db_cursor,
                 {
-                    "twitch_id": f"pagination_stream_{i}",
+                    "twitch_id": 2000 + i,
                     "title": f"Pagination Test Stream {i}",
                     "message_count": i * 10,
                 },
@@ -216,35 +215,35 @@ class TestAPIWorkflowIntegration:
         # Verify pagination works
         assert "streams" in page1
         assert "streams" in page2
-        assert "max_offset" in page1
-        assert "max_offset" in page2
+        assert "total" in page1
+        assert "total" in page2
 
         # Should have fewer streams on second page
         assert len(page2["streams"]) <= len(page1["streams"])
 
         # Max offset should be consistent
-        assert page1["max_offset"] == page2["max_offset"]
+        assert page1["total"] == page2["total"]
 
     def test_api_error_handling_workflow(self, api_client_with_db, db_cursor):
         """Test API error handling with non-existent resources."""
         # Test 404 errors
 
         # Non-existent stream
-        response = api_client_with_db.get("/stream/99999/")
+        response = api_client_with_db.get("/streams/99999/")
         assert response.status_code == 404
         assert "detail" in response.json()
 
         # Non-existent chatter — messages endpoint returns an empty page, not a 404
-        response = api_client_with_db.get("/chatter/99999/messages/")
+        response = api_client_with_db.get("/chatters/99999/messages/")
         assert response.status_code == 200
-        assert response.json() == {"messages": [], "total": 0}
+        assert response.json() == {"messages": [], "total": 0, "offset": 0, "limit": 50}
 
         # Non-existent chatter nick
-        response = api_client_with_db.get("/chatter/nonexistent_chatter/chatter_id")
+        response = api_client_with_db.get("/chatters/by-nick/nonexistent_chatter")
         assert response.status_code == 404
 
         # Non-existent stream chatters
-        response = api_client_with_db.get("/stream/99999/chatters")
+        response = api_client_with_db.get("/streams/99999/chatters")
         assert response.status_code == 404
 
         # Non-existent chatter messages in stream
@@ -262,7 +261,7 @@ class TestAPIWorkflowIntegration:
         chatter_id = create_test_chatter(db_cursor, "error_test_chatter")
 
         # Test valid stream with chatter that has no messages
-        response = api_client_with_db.get(f"/stream/{stream_id}/chatter/{chatter_id}/messages")
+        response = api_client_with_db.get(f"/streams/{stream_id}/chatters/{chatter_id}/messages")
         assert response.status_code == 404
 
     def test_api_data_consistency_workflow(self, api_client_with_db, db_cursor):
@@ -280,7 +279,7 @@ class TestAPIWorkflowIntegration:
 
         stream_id = create_test_stream(
             db_cursor,
-            {"twitch_id": "consistency_stream", "title": "Consistency Test Stream", "message_count": 0},
+            {"twitch_id": 3000, "title": "Consistency Test Stream", "message_count": 0},
             creator_id,
         )
 
@@ -302,37 +301,36 @@ class TestAPIWorkflowIntegration:
         # Test consistency across endpoints
 
         # 1. Get stream info
-        response = api_client_with_db.get(f"/stream/{stream_id}/")
+        response = api_client_with_db.get(f"/streams/{stream_id}/")
         assert response.status_code == 200
         stream_analytics = response.json()
 
         # 2. Get stream chatters
-        response = api_client_with_db.get(f"/stream/{stream_id}/chatters")
+        response = api_client_with_db.get(f"/streams/{stream_id}/chatters")
         assert response.status_code == 200
         stream_chatters = response.json()
 
         # 3. Get chatter messages
-        response = api_client_with_db.get(f"/chatter/{chatter_id}/messages/")
+        response = api_client_with_db.get(f"/chatters/{chatter_id}/messages/")
         assert response.status_code == 200
         chatter_messages = response.json()
 
         # Verify consistency
         # Stream should show 1 unique chatter
-        cis = stream_analytics["cis"]
-        assert cis[0][0] == 1  # 1 unique chatter
+        participants = stream_analytics["chatters"]
+        assert len(participants) == 1
 
         # Stream chatters should include our test chatter
         chatter_found = False
         for chatter in stream_chatters:
-            if chatter[0] == chatter_id and chatter[1] == "consistency_chatter":
+            if chatter["chatter_id"] == chatter_id and chatter["nick"] == "consistency_chatter":
                 chatter_found = True
                 break
         assert chatter_found
 
         # Chatter should have messages
         assert chatter_messages["total"] >= 1
-        # Each row is [stream_id, stream_title, streamer_display_name, text, timestamp]
-        assert chatter_messages["messages"][0][3] == "Consistency test message"
+        assert chatter_messages["messages"][0]["text"] == "Consistency test message"
 
     def test_api_health_check_workflow(self, api_client_with_db):
         """Test health check endpoint with real database."""
@@ -360,7 +358,7 @@ class TestAPIWorkflowIntegration:
                     "nick": f"multi_creator_{i}",
                     "display_name": f"Multi Creator {i}",
                     "profile_image_url": f"url_{i}",
-                    "twitch_id": f"twitch_{i}",
+                    "twitch_id": 4000 + i,
                 },
             )
             creator_ids.append(creator_id)
@@ -370,7 +368,7 @@ class TestAPIWorkflowIntegration:
                 create_test_stream(
                     db_cursor,
                     {
-                        "twitch_id": f"multi_stream_{i}_{j}",
+                        "twitch_id": 5000 + i * 10 + j,
                         "title": f"Stream {j} by Creator {i}",
                         "message_count": j * 5,
                     },
@@ -383,13 +381,13 @@ class TestAPIWorkflowIntegration:
 
         data = response.json()
         assert "streams" in data
-        assert "max_offset" in data
+        assert "total" in data
 
         # Should have streams from all creators (6 total: 3 creators × 2 streams each)
         assert len(data["streams"]) >= 6
 
         # Test stream count for all creators
-        assert data["max_offset"] >= 6
+        assert data["total"] >= 6
 
     def test_api_unicode_handling_workflow(self, api_client_with_db, db_cursor):
         """Test API handling of unicode content."""
@@ -406,7 +404,7 @@ class TestAPIWorkflowIntegration:
 
         stream_id = create_test_stream(
             db_cursor,
-            {"twitch_id": "unicode_stream", "title": "游戏直播 Gaming Stream 🎯", "message_count": 0},
+            {"twitch_id": 6000, "title": "游戏直播 Gaming Stream 🎯", "message_count": 0},
             creator_id,
         )
 
@@ -425,21 +423,20 @@ class TestAPIWorkflowIntegration:
         # Test API endpoints with unicode content
 
         # Test stream analytics
-        response = api_client_with_db.get(f"/stream/{stream_id}/")
+        response = api_client_with_db.get(f"/streams/{stream_id}/")
         assert response.status_code == 200
         analytics = response.json()
 
         # Verify unicode content is preserved
-        csi = analytics["csi"]
-        assert "游戏直播 Gaming Stream 🎯" in csi[0]  # title
-        assert "Unicode Creator 🎮" in csi[6]  # creator display name
+        info = analytics["info"]
+        assert "游戏直播 Gaming Stream 🎯" in info["title"]
+        assert "Unicode Creator 🎮" in info["creator_display_name"]
 
         # Test chatter messages
-        response = api_client_with_db.get(f"/chatter/{chatter_id}/messages/")
+        response = api_client_with_db.get(f"/chatters/{chatter_id}/messages/")
         assert response.status_code == 200
         messages = response.json()
 
         # Verify unicode message content
         assert messages["total"] >= 1
-        # Each row is [stream_id, stream_title, streamer_display_name, text, timestamp]
-        assert "Hello! 😀🎮 你好世界 ★☆♦" in messages["messages"][0][3]
+        assert "Hello! 😀🎮 你好世界 ★☆♦" in messages["messages"][0]["text"]

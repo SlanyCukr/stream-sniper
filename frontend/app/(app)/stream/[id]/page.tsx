@@ -1,8 +1,15 @@
 'use client'
 import { use } from 'react'
-import Stream from '@/views/Stream'
+import { notFound } from 'next/navigation'
+import Stream from '@/views/stream/Stream'
 
 export default function StreamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  return <Stream streamId={id} />
+  const streamId = Number(id)
+
+  if (!Number.isSafeInteger(streamId) || streamId <= 0) {
+    notFound()
+  }
+
+  return <Stream streamId={streamId} />
 }

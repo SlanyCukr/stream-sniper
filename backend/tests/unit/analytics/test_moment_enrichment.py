@@ -3,7 +3,9 @@
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from stream_sniper.analytics.moment_enrichment import enrich_moments
+from stream_sniper.analytics.rollups.moment_enrichment import enrich_moments
+from stream_sniper.database.gateways.analytics.records import StreamBucketRow
+from stream_sniper.database.gateways.chat.records import MomentWindowRow
 
 _BASE = datetime(2024, 1, 15, 20, 0, 0)
 _FMT = "%Y-%m-%dT%H:%M:%S"
@@ -15,17 +17,17 @@ def _iso(minute_offset: int) -> str:
 
 def _spike_buckets():
     # 10 flat minutes then a spike at minute 10 -> exactly one detected moment (bucket_minute=_iso(10)).
-    buckets = [(_iso(i), 5, 3, 0, 0) for i in range(10)]
-    buckets.append((_iso(10), 100, 40, 0, 0))
+    buckets = [StreamBucketRow(_iso(i), 5, 3, 0, 0) for i in range(10)]
+    buckets.append(StreamBucketRow(_iso(10), 100, 40, 0, 0))
     return buckets
 
 
-_MODULE = "stream_sniper.analytics.moment_enrichment.select_moment_window_messages_db"
+_MODULE = "stream_sniper.analytics.rollups.moment_enrichment.select_moment_window_messages_db"
 
 
 class TestEnrichMoments:
     def test_no_moments_returns_empty_without_query(self):
-        flat = [(_iso(i), 5, 3, 0, 0) for i in range(10)]
+        flat = [StreamBucketRow(_iso(i), 5, 3, 0, 0) for i in range(10)]
         with patch(_MODULE) as mock_q:
             assert enrich_moments(7, flat, _iso(0), {}, set()) == []
         mock_q.assert_not_called()
@@ -33,10 +35,10 @@ class TestEnrichMoments:
     def test_window_shares_and_jsonb_shapes(self):
         t10 = _BASE + timedelta(minutes=10)
         rows = [
-            (t10, "insane play", 1, True, 2),
-            (t10, "insane play", 2, True, None),
-            (t10, "insane play", 3, False, 1),
-            (t10, "boring", 4, None, None),
+            MomentWindowRow(t10, "insane play", 1, True, 2),
+            MomentWindowRow(t10, "insane play", 2, True, None),
+            MomentWindowRow(t10, "insane play", 3, False, 1),
+            MomentWindowRow(t10, "boring", 4, None, None),
         ]
         phrase_usage = {"insane play": 1, "insane": 1, "play": 1, "boring": 1}
 
@@ -46,7 +48,18 @@ class TestEnrichMoments:
         assert len(result) == 1
         row = result[0]
         assert len(row) == 10
-        (bucket_minute, _offset, message_count, _baseline, _ratio, _unique, sub_share, emote_share, top_phrases, samples) = row
+        (
+            bucket_minute,
+            _offset,
+            message_count,
+            _baseline,
+            _ratio,
+            _unique,
+            sub_share,
+            emote_share,
+            top_phrases,
+            samples,
+        ) = row
 
         assert bucket_minute == _iso(10)
         assert message_count == 100  # spike-minute count, not window total
@@ -63,10 +76,10 @@ class TestEnrichMoments:
 
     def test_single_query_for_all_windows(self):
         # Two spikes far enough apart to be two moments -> still exactly one gateway call.
-        buckets = [(_iso(i), 5, 3, 0, 0) for i in range(10)]
-        buckets.append((_iso(10), 100, 40, 0, 0))
-        buckets += [(_iso(i), 5, 3, 0, 0) for i in range(11, 30)]
-        buckets.append((_iso(30), 120, 50, 0, 0))
+        buckets = [StreamBucketRow(_iso(i), 5, 3, 0, 0) for i in range(10)]
+        buckets.append(StreamBucketRow(_iso(10), 100, 40, 0, 0))
+        buckets += [StreamBucketRow(_iso(i), 5, 3, 0, 0) for i in range(11, 30)]
+        buckets.append(StreamBucketRow(_iso(30), 120, 50, 0, 0))
 
         with patch(_MODULE, return_value=[]) as mock_q:
             result = enrich_moments(7, buckets, _iso(0), {}, set())
@@ -88,9 +101,9 @@ class TestEnrichMoments:
         # window is non-empty, sub_share/emote_share must be None (unknown), never a misleading 0.
         t10 = _BASE + timedelta(minutes=10)
         rows = [
-            (t10, "insane play", 1, None, None),
-            (t10, "insane play", 2, None, None),
-            (t10, "boring", 3, None, None),
+            MomentWindowRow(t10, "insane play", 1, None, None),
+            MomentWindowRow(t10, "insane play", 2, None, None),
+            MomentWindowRow(t10, "boring", 3, None, None),
         ]
         phrase_usage = {"insane play": 1, "boring": 1}
         with patch(_MODULE, return_value=rows):
@@ -105,9 +118,9 @@ class TestEnrichMoments:
         # count toward the denominator (is_subscriber known) but never as emote-positive.
         t10 = _BASE + timedelta(minutes=10)
         rows = [
-            (t10, "hi", 1, False, 0),
-            (t10, "hi", 2, True, 0),
-            (t10, "pog", 3, True, 4),
+            MomentWindowRow(t10, "hi", 1, False, 0),
+            MomentWindowRow(t10, "hi", 2, True, 0),
+            MomentWindowRow(t10, "pog", 3, True, 4),
         ]
         with patch(_MODULE, return_value=rows):
             result = enrich_moments(7, _spike_buckets(), _iso(0), {"hi": 1, "pog": 1}, set())

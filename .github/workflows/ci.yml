@@ -39,8 +39,11 @@ jobs:
     - name: Run ruff format check (advisory)
       run: uv run ruff format --check . || true
 
-    - name: Run mypy (type checking, advisory)
-      run: uv run mypy stream_sniper/ || true
+    - name: Run enforced mypy ratchet
+      run: uv run mypy stream_sniper
+
+    - name: Verify generated BTTV assets
+      run: uv run python ../tools/refresh_bettertv_emotes.py --check
 
   test:
     name: Tests (Python 3.14)
@@ -98,15 +101,18 @@ jobs:
         # Create test database if it doesn't exist
         PGPASSWORD=postgres psql -h localhost -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'test_stream_sniper'" | grep -q 1 || PGPASSWORD=postgres createdb -h localhost -U postgres test_stream_sniper
 
-    - name: Run unit tests
-      env:
-        TEST_DB_HOST: localhost
-        TEST_DB_NAME: test_stream_sniper
-        TEST_DB_USER: postgres
-        TEST_DB_PASSWORD: postgres
-        TEST_DB_PORT: 5432
+    - name: Run database-free unit tests
       run: |
         uv run pytest tests/unit -v --cov=stream_sniper --cov-report=xml --cov-report=term-missing
+
+    - name: Migrate integration test database
+      env:
+        POSTGRES_HOST: localhost
+        POSTGRES_DB: test_stream_sniper
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_PORT: 5432
+      run: uv run stream-sniper-migrate upgrade head
 
     - name: Run integration tests
       env:
@@ -115,8 +121,37 @@ jobs:
         TEST_DB_USER: postgres
         TEST_DB_PASSWORD: postgres
         TEST_DB_PORT: 5432
+        TEST_DB_SCHEMA_READY: "true"
       run: |
-        uv run pytest tests/integration -v --cov=stream_sniper --cov-append --cov-report=xml --cov-report=term-missing
+        uv run pytest tests/integration -v --cov=stream_sniper --cov-append --cov-report=xml --cov-report=term-missing --cov-fail-under=70
+
+    - name: Set up Node.js 22 for real browser smoke
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install frontend dependencies
+      working-directory: frontend
+      run: npm ci
+
+    - name: Install Playwright Chromium
+      working-directory: frontend
+      run: npx playwright install --with-deps chromium
+
+    - name: Run real API browser smoke
+      working-directory: frontend
+      env:
+        POSTGRES_HOST: localhost
+        POSTGRES_DB: test_stream_sniper
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_PORT: 5432
+        JWT_SECRET_KEY: ci-test-secret
+        CACHE_WARM_ON_STARTUP: "false"
+        E2E_ADMIN_LOGIN_VALUE: "CiE2eAdminPass123!"
+      run: npm run test:e2e:real
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
@@ -124,6 +159,9 @@ jobs:
         file: ./backend/coverage.xml
         flags: unittests
         name: codecov-umbrella
+        # Codecov rejects tokenless uploads intermittently ("Token required");
+        # coverage is already gated by pytest --cov fail-under, so the upload
+        # is reporting-only and must not block CI.
         fail_ci_if_error: false
 
   package-test:
@@ -157,7 +195,7 @@ jobs:
       run: |
         python -c "import stream_sniper; print('Package import successful')"
         python -c "import stream_sniper.api.api; print('API module import successful')"
-        python -c "from stream_sniper.collector import twitch_collector_facade; print('Collector module import successful')"
+        python -c "from stream_sniper.collector.archived import twitch_collector_facade; print('Collector module import successful')"
 
   docker-test:
     name: Docker Build Test
@@ -261,6 +299,21 @@ jobs:
 
     - name: Type check
       run: npm run typecheck
+
+    - name: Check JavaScript boundary contracts
+      run: npm run typecheck:js:boundaries
+
+    - name: Enforce unchecked JavaScript ratchet
+      run: npm run typecheck:js:ratchet
+
+    - name: Run frontend tests with coverage
+      run: npm run test:ci
+
+    - name: Install Playwright Chromium
+      run: npx playwright install --with-deps chromium
+
+    - name: Run browser smoke tests
+      run: npm run test:e2e
 
     - name: Build
       run: npm run build

@@ -1,52 +1,16 @@
 'use client'
-import { useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import {
-    Container, Alert,
-} from 'react-bootstrap'
+import { Container, Alert } from 'react-bootstrap'
+import AuthenticatedGuard from '@/components/auth/guards/AuthenticatedGuard'
 
 const AdminGuard = ({ children }) => {
     const {
-        isAuthenticated, isAdmin, loading,
+        isAdmin,
     } = useAuth()
-    const router = useRouter()
-    const pathname = usePathname()
 
-    useEffect(() => {
-        if (!loading && !isAuthenticated) {
-            router.replace(`/login?from=${encodeURIComponent(pathname)}`)
-        }
-    }, [
-        loading,
-        isAuthenticated,
-        router,
-        pathname,
-    ])
-
-    // Show loading state while checking authentication
-    if (loading) {
-        return (
-            <Container
-                className="d-flex justify-content-center align-items-center"
-                style={{ minHeight: '300px' }}>
-                <div
-                    className="spinner-border text-primary"
-                    role="status">
-                    <span className="visually-hidden">Loading...</span>
-                </div>
-            </Container>
-        )
-    }
-
-    // Render nothing while redirecting unauthenticated users to login
-    if (!isAuthenticated) {
-        return null
-    }
-
-    // Show access denied if authenticated but not admin
-    if (!isAdmin) {
-        return (
+    return (
+        <AuthenticatedGuard>
+            {isAdmin ? children : (
             <Container className="mt-5">
                 <Alert variant="danger">
                     <Alert.Heading>Access Denied</Alert.Heading>
@@ -60,11 +24,9 @@ const AdminGuard = ({ children }) => {
                     </p>
                 </Alert>
             </Container>
-        )
-    }
-
-    // Render the protected content
-    return children
+            )}
+        </AuthenticatedGuard>
+    )
 }
 
 export default AdminGuard

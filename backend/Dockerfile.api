@@ -49,4 +49,4 @@ EXPOSE 5002
 # Production: no --reload. Dev hot-reload is handled via a docker-compose
 # command override that bind-mounts live source over the installed package
 # path and adds --reload (see docker-compose.yml comment on the api service).
-CMD ["uvicorn", "stream_sniper.api.api:app", "--host", "0.0.0.0", "--port", "5002"]
+CMD ["uvicorn", "stream_sniper.api.asgi:app", "--host", "0.0.0.0", "--port", "5002"]

@@ -132,11 +132,11 @@ jobs:
         TWITCH_USERNAME=testuser
         JWT_SECRET_KEY=ci-test-secret
         # DB connection vars read by the app (connection_pool.py)
-        USER=postgres
-        PASSWORD=testpass
-        HOST=postgres
-        DATABASE=stream_sniper
-        PORT=5432
+        POSTGRES_USER=postgres
+        POSTGRES_PASSWORD=testpass
+        POSTGRES_HOST=postgres
+        POSTGRES_DB=stream_sniper
+        POSTGRES_PORT=5432
         TEST_DB_HOST=postgres
         TEST_DB_NAME=test_stream_sniper
         TEST_DB_USER=postgres

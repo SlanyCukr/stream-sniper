@@ -1,7 +1,7 @@
 import '@/styles/style.scss'
 import type { Metadata } from 'next'
 import { Providers } from './providers'
-import { LegacyHashRedirect } from '@/components/LegacyHashRedirect'
+import LegacyHashRedirect from '@/components/layout/LegacyHashRedirect'
 
 export const metadata: Metadata = {
   title: 'Stream Sniper',

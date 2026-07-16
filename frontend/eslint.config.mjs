@@ -2,8 +2,8 @@ import js from '@eslint/js'
 import next from 'eslint-config-next'
 import globals from 'globals'
 
-export default [
-  { ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'] },
+const config = [
+  { ignores: ['.next/**', 'coverage/**', 'node_modules/**', 'next-env.d.ts'] },
   js.configs.recommended,
   ...next,                         // Next core-web-vitals + react-hooks (flat-config array)
   {
@@ -29,6 +29,18 @@ export default [
     },
   },
   {
+    files: [
+      'views/creator/AudienceMovement.jsx',
+      'views/scene/ScenePulse.jsx',
+      'views/stream/StreamCompare.jsx',
+    ],
+    rules: {
+      'react/jsx-first-prop-new-line': ['error', 'multiprop'],
+      'react/jsx-max-props-per-line': ['error', { maximum: 1 }],
+      'react/jsx-one-expression-per-line': ['error', { allow: 'single-child' }],
+    },
+  },
+  {
     // TypeScript understands type-only references (e.g. React.ReactNode) and
     // globals itself; the core `no-undef` rule is a known false-positive on
     // .ts/.tsx and is disabled per typescript-eslint guidance.
@@ -38,3 +50,5 @@ export default [
     },
   },
 ]
+
+export default config

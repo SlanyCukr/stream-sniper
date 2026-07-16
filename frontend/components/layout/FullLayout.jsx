@@ -1,17 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import {
     Container,
 } from 'react-bootstrap'
 
-/** Closes the mobile sidebar when the dimmed backdrop is tapped. */
-const closeMobileSidebar = () => {
-    document.getElementById('sidebarArea')?.classList.remove('showSidebar')
-}
+const FullLayout = ({ children }) => {
+    const [isSidebarOpen, setSidebarOpen] = useState(false)
+    const closeSidebar = () => setSidebarOpen(false)
 
-const FullLayout = ({ children }) => (
+    return (
     <>
         {/* Skip link for keyboard navigation */}
         <a
@@ -22,25 +22,25 @@ const FullLayout = ({ children }) => (
             Skip to main content
         </a>
         <div className="pageWrapper d-lg-flex">
-            {/********Sidebar**********/}
             <aside
-                className="sidebarArea"
+                className={`sidebarArea${isSidebarOpen ? ' showSidebar' : ''}`}
                 id="sidebarArea"
                 aria-label="Main navigation sidebar">
-                <Sidebar />
+                <Sidebar
+                    isSidebarOpen={isSidebarOpen}
+                    onCloseSidebar={closeSidebar} />
             </aside>
             {/* mobile-only dimmed backdrop; visible while the sidebar is open */}
             <div
                 className="sidebar-backdrop d-lg-none"
-                onClick={closeMobileSidebar}
+                onClick={closeSidebar}
+                data-open={String(isSidebarOpen)}
                 aria-hidden="true"
             />
-            {/********Content Area**********/}
-
             <div className="contentArea">
-                {/********header**********/}
-                <Header />
-                {/********Middle Content**********/}
+                <Header
+                    isSidebarOpen={isSidebarOpen}
+                    onToggleSidebar={() => setSidebarOpen(open => !open)} />
                 <main
                     id="main-content"
                     aria-label="Main content area"
@@ -54,6 +54,7 @@ const FullLayout = ({ children }) => (
             </div>
         </div>
     </>
-)
+    )
+}
 
 export default FullLayout

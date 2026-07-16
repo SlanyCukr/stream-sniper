@@ -13,32 +13,41 @@ import os
 import sys
 import time
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
-from functools import wraps
 from pathlib import Path
-from typing import Dict, Optional, Union
+from types import TracebackType
+from typing import TypedDict, Unpack
 
-# Context variable for correlation ID
 correlation_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("correlation_id", default="")
+DEFAULT_MAX_LOG_FILE_SIZE_BYTES = 10 * 1_024 * 1_024
+
+
+class LoggingOptions(TypedDict, total=False):
+    """Supported keyword options for :func:`setup_logging`."""
+
+    log_level: str | int
+    log_dir: str | Path | None
+    enable_file_logging: bool
+    enable_console_logging: bool
+    enable_json_logging: bool | None
+    max_file_size: int
+    backup_count: int
+    correlation_id_enabled: bool
 
 
 class CorrelationIDFilter(logging.Filter):
-    """Add correlation ID to log records."""
-
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         record.correlation_id = correlation_id_var.get("")
         return True
 
 
 class JSONFormatter(logging.Formatter):
-    """JSON formatter for structured logging."""
-
     def __init__(self, include_extra_fields: bool = True):
         super().__init__()
         self.include_extra_fields = include_extra_fields
 
     def format(self, record: logging.LogRecord) -> str:
-        # Base log fields
         log_data = {
             "timestamp": self.formatTime(record, self.datefmt),
             "level": record.levelname,
@@ -49,16 +58,13 @@ class JSONFormatter(logging.Formatter):
             "line": record.lineno,
         }
 
-        # Add correlation ID if present
         correlation_id = getattr(record, "correlation_id", "")
         if correlation_id:
             log_data["correlation_id"] = correlation_id
 
-        # Add exception info if present
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
 
-        # Add extra fields if enabled
         if self.include_extra_fields:
             for key, value in record.__dict__.items():
                 if key not in {
@@ -91,8 +97,6 @@ class JSONFormatter(logging.Formatter):
 
 
 class ColoredConsoleFormatter(logging.Formatter):
-    """Colored console formatter for development."""
-
     COLORS = {
         "DEBUG": "\033[36m",  # Cyan
         "INFO": "\033[32m",  # Green
@@ -139,14 +143,19 @@ class PerformanceTimer:
         self.operation = operation
         self.level = level
         self.slow_threshold = slow_threshold
-        self.start_time = None
+        self.start_time = 0.0
 
-    def __enter__(self):
+    def __enter__(self) -> PerformanceTimer:
         self.start_time = time.time()
         self.logger.log(self.level, f"Starting {self.operation}")
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         duration = time.time() - self.start_time
 
         if duration >= self.slow_threshold:
@@ -167,25 +176,8 @@ class PerformanceTimer:
         )
 
 
-def performance_timer(operation: str = None, slow_threshold: float = 1.0):
-    """Decorator for measuring function performance."""
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            logger = logging.getLogger(func.__module__)
-            op_name = operation or f"{func.__name__}"
-
-            with PerformanceTimer(logger, op_name, slow_threshold=slow_threshold):
-                return func(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
 @contextmanager
-def correlation_context(correlation_id: str = None):
+def correlation_context(correlation_id: str | None = None) -> Iterator[str]:
     """Context manager for setting correlation ID."""
     if correlation_id is None:
         correlation_id = str(uuid.uuid4())
@@ -198,12 +190,10 @@ def correlation_context(correlation_id: str = None):
 
 
 def get_correlation_id() -> str:
-    """Get current correlation ID."""
     return correlation_id_var.get("")
 
 
-def set_correlation_id(correlation_id: str):
-    """Set correlation ID for current context."""
+def set_correlation_id(correlation_id: str) -> None:
     correlation_id_var.set(correlation_id)
 
 
@@ -212,13 +202,13 @@ class LoggingConfig:
 
     def __init__(
         self,
-        environment: str = None,
-        log_level: Union[str, int] = logging.INFO,
-        log_dir: Union[str, Path] = None,
+        environment: str | None = None,
+        log_level: str | int = logging.INFO,
+        log_dir: str | Path | None = None,
         enable_file_logging: bool = True,
         enable_console_logging: bool = True,
-        enable_json_logging: bool = None,
-        max_file_size: int = 10 * 1024 * 1024,  # 10MB
+        enable_json_logging: bool | None = None,
+        max_file_size: int = DEFAULT_MAX_LOG_FILE_SIZE_BYTES,
         backup_count: int = 10,
         correlation_id_enabled: bool = True,
     ):
@@ -237,109 +227,112 @@ class LoggingConfig:
 
         self._ensure_log_directory()
 
-    def _parse_log_level(self, level: Union[str, int]) -> int:
-        """Parse log level from string or int."""
+    def _parse_log_level(self, level: str | int) -> int:
         if isinstance(level, str):
             return getattr(logging, level.upper(), logging.INFO)
         return level
 
-    def _ensure_log_directory(self):
-        """Ensure log directory exists."""
+    def _ensure_log_directory(self) -> None:
         if self.enable_file_logging:
             try:
                 self.log_dir.mkdir(parents=True, exist_ok=True)
-                # Test write permissions
                 test_file = self.log_dir / ".write_test"
                 test_file.touch()
                 test_file.unlink()
-            except (PermissionError, OSError):
-                # Fallback to user's home directory
-
+            except PermissionError, OSError:
                 fallback_dir = Path.home() / ".stream_sniper_logs"
                 fallback_dir.mkdir(parents=True, exist_ok=True)
                 self.log_dir = fallback_dir
                 print(f"Warning: Could not write to {self.log_dir}, using fallback: {fallback_dir}")
 
     def configure_logging(
-        self, loggers: Optional[Dict[str, Union[str, int]]] = None, disable_existing_loggers: bool = False
+        self, loggers: dict[str, str | int] | None = None, disable_existing_loggers: bool = False
     ) -> logging.Logger:
-        """Configure logging system."""
-
-        # Create root logger
+        """Configure logging, replacing handlers owned by this package."""
         root_logger = logging.getLogger()
         root_logger.setLevel(self.log_level)
-
-        # Clear existing handlers if requested
-        if disable_existing_loggers:
-            for handler in root_logger.handlers[:]:
-                root_logger.removeHandler(handler)
-
-        # Add correlation ID filter if enabled
+        self._remove_handlers(root_logger, disable_existing_loggers)
         correlation_filter = CorrelationIDFilter() if self.correlation_id_enabled else None
 
-        # Configure console logging
         if self.enable_console_logging:
-            console_handler = logging.StreamHandler(sys.stdout)
-
-            console_formatter = JSONFormatter() if self.enable_json_logging else ColoredConsoleFormatter()
-
-            console_handler.setFormatter(console_formatter)
-            console_handler.setLevel(self.log_level)
-
-            if correlation_filter:
-                console_handler.addFilter(correlation_filter)
-
-            root_logger.addHandler(console_handler)
-
-        # Configure file logging
+            root_logger.addHandler(self._console_handler(correlation_filter))
         if self.enable_file_logging:
-            # Main application log
-            app_log_file = self.log_dir / "stream_sniper.log"
-            file_handler = logging.handlers.RotatingFileHandler(
-                app_log_file, maxBytes=self.max_file_size, backupCount=self.backup_count, encoding="utf-8"
-            )
+            for handler in self._file_handlers(correlation_filter):
+                root_logger.addHandler(handler)
 
-            if self.enable_json_logging:
-                file_formatter = JSONFormatter()
-            else:
-                file_formatter = logging.Formatter(
-                    "%(asctime)s | %(levelname)-8s | %(name)-20s | %(funcName)s:%(lineno)-4d | %(message)s",
-                    datefmt="%Y-%m-%d %H:%M:%S",
-                )
-
-            file_handler.setFormatter(file_formatter)
-            file_handler.setLevel(self.log_level)
-
-            if correlation_filter:
-                file_handler.addFilter(correlation_filter)
-
-            root_logger.addHandler(file_handler)
-
-            # Error log (only ERROR and CRITICAL)
-            error_log_file = self.log_dir / "stream_sniper_errors.log"
-            error_handler = logging.handlers.RotatingFileHandler(
-                error_log_file, maxBytes=self.max_file_size, backupCount=self.backup_count, encoding="utf-8"
-            )
-            error_handler.setLevel(logging.ERROR)
-            error_handler.setFormatter(file_formatter)
-
-            if correlation_filter:
-                error_handler.addFilter(correlation_filter)
-
-            root_logger.addHandler(error_handler)
-
-        # Configure specific loggers
-        if loggers:
-            for logger_name, level in loggers.items():
-                logger = logging.getLogger(logger_name)
-                logger.setLevel(self._parse_log_level(level))
-
-        # Configure third-party loggers to reduce noise
+        self._configure_named_loggers(loggers)
         self._configure_third_party_loggers()
-
         return root_logger
 
-    def _configure_third_party_loggers(self):
+    @staticmethod
+    def _remove_handlers(
+        root_logger: logging.Logger,
+        disable_existing_loggers: bool,
+    ) -> None:
+        """Remove handlers owned by this package, or every handler on request."""
+        for handler in root_logger.handlers[:]:
+            if disable_existing_loggers or getattr(handler, "_stream_sniper_owned", False):
+                root_logger.removeHandler(handler)
+                handler.close()
+
+    def _console_handler(
+        self,
+        correlation_filter: CorrelationIDFilter | None,
+    ) -> logging.Handler:
+        handler = logging.StreamHandler(sys.stdout)
+        handler._stream_sniper_owned = True  # type: ignore[attr-defined]
+        formatter = JSONFormatter() if self.enable_json_logging else ColoredConsoleFormatter()
+        handler.setFormatter(formatter)
+        handler.setLevel(self.log_level)
+        if correlation_filter:
+            handler.addFilter(correlation_filter)
+        return handler
+
+    def _file_formatter(self) -> logging.Formatter:
+        if self.enable_json_logging:
+            return JSONFormatter()
+        return logging.Formatter(
+            "%(asctime)s | %(levelname)-8s | %(name)-20s | %(funcName)s:%(lineno)-4d | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+
+    def _file_handlers(
+        self,
+        correlation_filter: CorrelationIDFilter | None,
+    ) -> tuple[logging.Handler, logging.Handler]:
+        formatter = self._file_formatter()
+        app_handler = self._rotating_handler("stream_sniper.log", self.log_level, formatter)
+        error_handler = self._rotating_handler("stream_sniper_errors.log", logging.ERROR, formatter)
+        if correlation_filter:
+            app_handler.addFilter(correlation_filter)
+            error_handler.addFilter(correlation_filter)
+        return app_handler, error_handler
+
+    def _rotating_handler(
+        self,
+        filename: str,
+        level: int,
+        formatter: logging.Formatter,
+    ) -> logging.Handler:
+        handler = logging.handlers.RotatingFileHandler(
+            self.log_dir / filename,
+            maxBytes=self.max_file_size,
+            backupCount=self.backup_count,
+            encoding="utf-8",
+        )
+        handler._stream_sniper_owned = True  # type: ignore[attr-defined]
+        handler.setLevel(level)
+        handler.setFormatter(formatter)
+        return handler
+
+    def _configure_named_loggers(
+        self,
+        loggers: dict[str, str | int] | None,
+    ) -> None:
+        for logger_name, level in (loggers or {}).items():
+            logging.getLogger(logger_name).setLevel(self._parse_log_level(level))
+
+    def _configure_third_party_loggers(self) -> None:
         """Configure third-party library loggers to reduce noise."""
         third_party_configs = {
             "urllib3.connectionpool": logging.WARNING,
@@ -355,42 +348,42 @@ class LoggingConfig:
             logging.getLogger(logger_name).setLevel(level)
 
     def get_logger(self, name: str) -> logging.Logger:
-        """Get a logger with the given name."""
         return logging.getLogger(name)
 
 
-# Global logging configuration instance
-_logging_config: Optional[LoggingConfig] = None
+_logging_config: LoggingConfig | None = None
 
 
-def setup_logging(environment: str = None, **kwargs) -> logging.Logger:
-    """Setup logging configuration globally."""
+def setup_logging(environment: str | None = None, **kwargs: Unpack[LoggingOptions]) -> logging.Logger:
+    """Apply the requested process logging configuration.
+
+    Repeated calls replace package-owned handlers and honor the latest explicit
+    options. This makes executable entry points authoritative regardless of
+    prior imports.
+    """
     global _logging_config
 
-    if _logging_config is None:
-        _logging_config = LoggingConfig(environment=environment, **kwargs)
-
+    _logging_config = LoggingConfig(environment=environment, **kwargs)
     return _logging_config.configure_logging()
 
 
-def get_logger(name: str = None) -> logging.Logger:
-    """Get a logger instance."""
-    if _logging_config is None:
-        # Initialize with defaults if not configured
-        setup_logging()
-
+def get_logger(name: str | None = None) -> logging.Logger:
+    """Get a logger without mutating process logging state."""
     if name is None:
-        # Get the calling module's name
         import inspect
 
-        frame = inspect.currentframe().f_back
-        name = frame.f_globals.get("__name__", "stream_sniper")
+        current_frame = inspect.currentframe()
+        caller_frame = current_frame.f_back if current_frame else None
+        name = caller_frame.f_globals.get("__name__", "stream_sniper") if caller_frame else "stream_sniper"
 
     return logging.getLogger(name)
 
 
-# Convenience functions
+def is_logging_configured() -> bool:
+    """Return whether an executable boundary configured package logging."""
+    return _logging_config is not None
+
+
 def get_performance_timer(operation: str, slow_threshold: float = 1.0) -> PerformanceTimer:
-    """Get a performance timer context manager."""
     logger = get_logger()
     return PerformanceTimer(logger, operation, slow_threshold=slow_threshold)

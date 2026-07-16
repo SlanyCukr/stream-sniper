@@ -1,24 +1,19 @@
 """API server entry point."""
 
-import sys
-
 import uvicorn
 
 from ..logging_config import get_logger, setup_logging
 
-# Setup structured logging for production
-setup_logging(environment="production")
 
-
-def run():
+def run() -> int:
     """Run the API server."""
+    setup_logging(environment="production")
     logger = get_logger(__name__)
 
     try:
-        from .api import app
-        from .config import get_config
+        from .asgi import app
 
-        config = get_config()
+        config = app.state.config
         logger.info(f"Starting Stream Sniper API server on {config.host}:{config.port}")
 
         uvicorn.run(
@@ -28,10 +23,11 @@ def run():
             log_config=None,  # Disable uvicorn's default logging to use our structured logging
             access_log=False,  # We handle access logging in middleware
         )
+        return 0
     except Exception as e:
         logger.error(f"Failed to start API server: {e}", exc_info=True)
-        sys.exit(1)
+        return 1
 
 
 if __name__ == "__main__":
-    run()
+    raise SystemExit(run())

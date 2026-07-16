@@ -8,13 +8,14 @@ PostgreSQL, so the tracking process upserts a status snapshot into
 `stream_sniper.tracking_heartbeat` and the API reads it back with a freshness check.
 """
 
-from typing import Any, Dict, Optional
+from pydantic import ValidationError
 
-from ..database.tracking_heartbeat_table_gateway import (
+from ..database.gateways.tracking.tracking_heartbeat_table_gateway import (
     delete_heartbeat_db,
     select_heartbeat_db,
     upsert_heartbeat_db,
 )
+from .status import HeartbeatSnapshot, HeartbeatState, TrackingStatus
 
 # Single-row component key for the tracking service's heartbeat.
 HEARTBEAT_COMPONENT = "tracking"
@@ -28,28 +29,39 @@ HEARTBEAT_INTERVAL = 15
 HEARTBEAT_STALE_AFTER = 45
 
 
-def write_heartbeat(status: Dict[str, Any]) -> bool:
+def write_heartbeat(status: TrackingStatus) -> bool:
     """Publish a status snapshot (stamped with the DB clock). Returns success."""
-    return upsert_heartbeat_db(HEARTBEAT_COMPONENT, status)
+    return upsert_heartbeat_db(HEARTBEAT_COMPONENT, status.model_dump(mode="json"))
 
 
-def read_heartbeat() -> Optional[Dict[str, Any]]:
+def read_heartbeat() -> HeartbeatSnapshot:
     """Read the latest heartbeat.
 
-    Returns ``None`` if the row is absent or the DB is unreachable. Otherwise a
-    dict with the published ``status``, its ``age_seconds`` (DB-clock), and an
-    ``alive`` flag (fresh within ``HEARTBEAT_STALE_AFTER``).
+    Missing, stale, and schema-incompatible payloads remain distinct. Database
+    failures propagate so callers do not mistake an unavailable DB for a dead
+    tracking service.
     """
     row = select_heartbeat_db(HEARTBEAT_COMPONENT)
     if row is None:
-        return None
+        return HeartbeatSnapshot(state=HeartbeatState.MISSING)
 
-    status, age_seconds = row
-    return {
-        "status": status or {},
-        "age_seconds": age_seconds,
-        "alive": age_seconds <= HEARTBEAT_STALE_AFTER,
-    }
+    payload, age_seconds = row
+    try:
+        status = TrackingStatus.model_validate(payload)
+    except ValidationError as exc:
+        return HeartbeatSnapshot(
+            state=HeartbeatState.INCOMPATIBLE,
+            age_seconds=age_seconds,
+            validation_error=str(exc),
+        )
+
+    alive = age_seconds <= HEARTBEAT_STALE_AFTER
+    return HeartbeatSnapshot(
+        state=HeartbeatState.FRESH if alive else HeartbeatState.STALE,
+        status=status,
+        age_seconds=age_seconds,
+        alive=alive,
+    )
 
 
 def delete_heartbeat() -> bool:

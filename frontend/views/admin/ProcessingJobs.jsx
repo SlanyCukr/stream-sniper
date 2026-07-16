@@ -1,56 +1,23 @@
 'use client'
-import { useState } from 'react'
-import {
-    Card, Table, Alert, Spinner, Form, Pagination,
-} from 'react-bootstrap'
+import { Form } from 'react-bootstrap'
 import Select from 'react-select'
-import { getApiErrorMessage } from '@/lib/api'
-import {
-    useProcessingJobs,
-    useTrackedStreamerOptions,
-    useTrackingStats,
-} from '@/hooks/useTrackingQueries'
+import ErrorAlert from '@/components/common/error/ErrorAlert'
+import LoadingSpinner from '@/components/common/LoadingSpinner'
+import ProcessingJobsStatistics from '@/components/admin/tracking/jobs/ProcessingJobsStatistics'
+import ProcessingJobsTable from '@/components/admin/tracking/jobs/ProcessingJobsTable'
+import { useProcessingJobsController } from '@/hooks/admin/tracking/useProcessingJobsController'
+
+/** @typedef {{status:string, trackedStreamerId:number|string}} JobFilterState */
+/** @typedef {{value:number, label:string}} StreamerOption */
 
 /**
- * Statistics Tiles Component
- */
-const StatisticsCards = ({ stats }) => (
-    <div className="stat-grid">
-        <div className="stat-tile">
-            <div className="stat-label">Total</div>
-            <div className="stat-value">{stats.total || 0}</div>
-        </div>
-        <div className="stat-tile">
-            <div className="stat-label">Pending</div>
-            <div className="stat-value">{stats.pending || 0}</div>
-        </div>
-        <div className="stat-tile">
-            <div className="stat-label">In Progress</div>
-            <div className="stat-value">{stats.in_progress || 0}</div>
-        </div>
-        <div className="stat-tile">
-            <div className="stat-label">Completed</div>
-            <div className="stat-value">{stats.completed || 0}</div>
-        </div>
-        <div className="stat-tile">
-            <div className="stat-label">Failed</div>
-            <div className="stat-value">{stats.failed || 0}</div>
-        </div>
-        <div className="stat-tile">
-            <div className="stat-label">Recent 24h</div>
-            <div className="stat-value">{stats.recent_24h || 0}</div>
-        </div>
-    </div>
-)
-
-/**
- * Filters Toolbar Component
+ * @param {{filters:JobFilterState, onFilterChange:(key:keyof JobFilterState, value:string|number)=>void, total:number, streamerOptions:StreamerOption[], streamerOptionsDisabled:boolean}} props
  */
 const JobFilters = ({
-    filters, setFilters, total, streamerOptions,
+    filters, onFilterChange, total, streamerOptions, streamerOptionsDisabled,
 }) => {
     const selectedStreamer = streamerOptions.find(
-        option => String(option.value) === String(filters.tracked_streamer_id)
+        option => String(option.value) === String(filters.trackedStreamerId)
     ) || null
 
     return (
@@ -70,10 +37,7 @@ const JobFilters = ({
                 <Form.Select
                     id="jobs-status-filter"
                     value={filters.status}
-                    onChange={e => setFilters(prev => ({
-                        ...prev,
-                        status: e.target.value,
-                    }))}
+                    onChange={e => onFilterChange('status', e.target.value)}
                 >
                     <option value="">All statuses</option>
                     <option value="pending">Pending</option>
@@ -95,12 +59,10 @@ const JobFilters = ({
                     inputId="jobs-streamer-filter"
                     options={streamerOptions}
                     value={selectedStreamer}
-                    onChange={option => setFilters(prev => ({
-                        ...prev,
-                        tracked_streamer_id: option?.value ?? '',
-                    }))}
+                    onChange={option => onFilterChange('trackedStreamerId', option?.value ?? '')}
                     placeholder="Filter by streamer"
                     isClearable
+                    isDisabled={streamerOptionsDisabled}
                 />
             </div>
             <span className="toolbar-readout">
@@ -111,75 +73,13 @@ const JobFilters = ({
 }
 
 const ProcessingJobs = () => {
-    const [
-        pagination,
-        setPagination,
-    ] = useState({
-        offset: 0,
-        limit: 50,
-    })
-    const [
-        filters,
-        setFilters,
-    ] = useState({
-        status: '',
-        tracked_streamer_id: '',
-    })
     const {
-        data: jobsData,
-        error: jobsError,
-        isPending: loading,
-    } = useProcessingJobs({
-        ...pagination,
-        ...filters,
-    })
-    const { data: trackingStats } = useTrackingStats()
-    const { data: streamerOptions = [] } = useTrackedStreamerOptions()
-    const jobs = jobsData?.jobs || []
-    const total = jobsData?.total || 0
-    const currentPage = Math.floor(pagination.offset / pagination.limit) + 1
-    const error = jobsError && getApiErrorMessage(jobsError, 'Failed to fetch processing jobs')
-    const stats = trackingStats?.processing_jobs || {}
-
-    const handlePageChange = page => {
-        setPagination(prev => ({
-            ...prev,
-            offset: (page - 1) * prev.limit,
-        }))
-    }
-
-    const formatDateTime = dateString => {
-        if (!dateString) {
-            return 'N/A'
-        }
-        return new Date(dateString).toLocaleString()
-    }
-
-    const getDuration = (startTime, endTime) => {
-        if (!startTime || !endTime) {
-            return 'N/A'
-        }
-        const start = new Date(startTime)
-        const end = new Date(endTime)
-        const duration = Math.floor((end - start) / 1000)
-        return `${duration}s`
-    }
-
-    const getStatusChip = status => {
-        const modifiers = {
-            'pending': ' is-warn',
-            'in_progress': ' is-warn',
-            'completed': ' is-ok',
-            'failed': ' is-err',
-        }
-        return (
-            <span className={`status-chip${modifiers[status] || ''}`}>
-                {status === 'in_progress' ? 'in progress' : status}
-            </span>
-        )
-    }
-
-    const totalPages = Math.ceil(total / pagination.limit)
+        jobsQueryState,
+        statisticsState,
+        streamerOptionsState,
+        filterProps,
+        tableProps,
+    } = useProcessingJobsController()
 
     return (
         <>
@@ -190,132 +90,36 @@ const ProcessingJobs = () => {
                 </div>
             </div>
 
-            {error && (
-                <Alert
-                    variant="danger"
-                    className="mb-4">
-                    {error}
-                </Alert>
-            )}
+            <ErrorAlert
+                error={jobsQueryState.error}
+                title="Processing jobs unavailable"
+                onRetry={jobsQueryState.refetch}
+                className="mb-4" />
 
-            <StatisticsCards stats={stats} />
+            {statisticsState.error ? (
+                <ErrorAlert
+                    error={statisticsState.error}
+                    title="Processing statistics unavailable"
+                    onRetry={statisticsState.refetch}
+                    className="mb-4" />
+            ) : statisticsState.isLoading ? (
+                <LoadingSpinner text="Loading processing statistics..." />
+            ) : statisticsState.data ? (
+                <ProcessingJobsStatistics
+                    processingStats={statisticsState.data}
+                    card={false}
+                    heading="" />
+            ) : null}
 
-            <JobFilters
-                filters={filters}
-                setFilters={setFilters}
-                total={total}
-                streamerOptions={streamerOptions} />
+            <ErrorAlert
+                error={streamerOptionsState.error}
+                title="Streamer filters unavailable"
+                onRetry={streamerOptionsState.refetch}
+                className="mb-3" />
 
-            <Card>
-                <Card.Body className={!loading && jobs.length === 0 ? 'p-0' : ''}>
-                    {loading ? (
-                        <div className="text-center py-5">
-                            <Spinner
-                                animation="border"
-                                variant="primary" />
-                        </div>
-                    ) : jobs.length === 0 ? (
-                        <div className="empty-state">
-                            <div
-                                className="empty-scope"
-                                aria-hidden="true" />
-                            <p className="empty-title">No processing jobs</p>
-                            <p className="empty-hint">
-                                No jobs match this filter. Jobs appear here once tracked streamers have streams queued for processing.
-                            </p>
-                        </div>
-                    ) : (
-                        <>
-                            <Table
-                                hover
-                                responsive>
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Streamer</th>
-                                        <th>Stream ID</th>
-                                        <th>Status</th>
-                                        <th>Created</th>
-                                        <th>Started</th>
-                                        <th>Completed</th>
-                                        <th>Duration</th>
-                                        <th>Retries</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {jobs.map(job => (
-                                        <tr key={job.id}>
-                                            <td className="mono">{job.id}</td>
-                                            <td>
-                                                <strong>{job.twitch_username}</strong>
-                                                {job.streamer_display_name && (
-                                                    <small className="text-muted d-block">
-                                                        {job.streamer_display_name}
-                                                    </small>
-                                                )}
-                                            </td>
-                                            <td className="mono">{job.twitch_stream_id}</td>
-                                            <td>{getStatusChip(job.status)}</td>
-                                            <td className="mono">{formatDateTime(job.created_at)}</td>
-                                            <td className="mono">{formatDateTime(job.started_at)}</td>
-                                            <td className="mono">{formatDateTime(job.completed_at)}</td>
-                                            <td className="mono">{getDuration(job.started_at, job.completed_at)}</td>
-                                            <td className="mono">
-                                                {job.retry_count > 0 && (
-                                                    <span className="status-chip is-warn">{job.retry_count}</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </Table>
+            <JobFilters {...filterProps} />
 
-                            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
-                                <span className="mono small text-muted">
-                                    Showing {jobs.length} of {total}
-                                </span>
-                                {totalPages > 1 && (
-                                    <Pagination className="mb-0">
-                                        <Pagination.First
-                                            onClick={() => handlePageChange(1)}
-                                            disabled={currentPage === 1}
-                                        />
-                                        <Pagination.Prev
-                                            onClick={() => handlePageChange(currentPage - 1)}
-                                            disabled={currentPage === 1}
-                                        />
-                                        {[
-                                            ...Array(Math.min(5, totalPages)),
-                                        ].map((_, i) => {
-                                            const page = Math.max(1, currentPage - 2) + i
-                                            if (page <= totalPages) {
-                                                return (
-                                                    <Pagination.Item
-                                                        key={page}
-                                                        active={page === currentPage}
-                                                        onClick={() => handlePageChange(page)}
-                                                    >
-                                                        {page}
-                                                    </Pagination.Item>
-                                                )
-                                            }
-                                            return null
-                                        })}
-                                        <Pagination.Next
-                                            onClick={() => handlePageChange(currentPage + 1)}
-                                            disabled={currentPage === totalPages}
-                                        />
-                                        <Pagination.Last
-                                            onClick={() => handlePageChange(totalPages)}
-                                            disabled={currentPage === totalPages}
-                                        />
-                                    </Pagination>
-                                )}
-                            </div>
-                        </>
-                    )}
-                </Card.Body>
-            </Card>
+            <ProcessingJobsTable {...tableProps} />
         </>
     )
 }

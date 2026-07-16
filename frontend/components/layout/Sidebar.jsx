@@ -89,7 +89,6 @@ const adminNavigation = [
     },
 ]
 
-/** Active when the path matches exactly, or is nested under a non-root href. */
 const isActivePath = (pathname, href) => {
     if (href === '/') {
         return pathname === '/'
@@ -123,27 +122,14 @@ const NavLinks = ({
     </Nav.Item>
 ))
 
-const Sidebar = () => {
+const Sidebar = ({ isSidebarOpen = false, onCloseSidebar = () => {} }) => {
     const {
         isAuthenticated, isAdmin,
     } = useAuth()
 
-    const showMobilemenu = () => {
-        document.getElementById('sidebarArea').classList.toggle('showSidebar')
-    }
-
-    // Handle keyboard navigation for mobile menu
     const handleMobileMenuKeyDown = event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            showMobilemenu()
-        }
         if (event.key === 'Escape') {
-            // Close mobile menu if open
-            const sidebarArea = document.getElementById('sidebarArea')
-            if (sidebarArea?.classList.contains('showSidebar')) {
-                showMobilemenu()
-            }
+            onCloseSidebar()
         }
     }
 
@@ -157,10 +143,10 @@ const Sidebar = () => {
                     variant="close"
                     size="sm"
                     className="ms-auto d-lg-none"
-                    onClick={() => showMobilemenu()}
+                    onClick={onCloseSidebar}
                     onKeyDown={handleMobileMenuKeyDown}
                     aria-label="Close navigation menu"
-                    aria-expanded="true"
+                    aria-expanded={isSidebarOpen}
                 />
             </div>
             <nav
@@ -179,7 +165,6 @@ const Sidebar = () => {
                         keyPrefix=""
                     />
 
-                    {/* Admin Navigation */}
                     {isAuthenticated && isAdmin && (
                         <>
                             <hr className="my-3" />

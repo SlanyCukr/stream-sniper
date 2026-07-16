@@ -1,8 +1,10 @@
-"""Stream Sniper - Twitch stream analytics platform."""
+"""Stream Sniper Twitch analytics package."""
 
-__version__ = "1.0.0"
-__author__ = "slanycukr"
+from importlib.metadata import PackageNotFoundError, version
 
-# Components are available for import but not imported at package level
-# to avoid database connection issues during import
-__all__ = ["TwitchCollectorFacade", "app"]
+try:
+    __version__ = version("stream-sniper")
+except PackageNotFoundError:  # Source tree imported without an installed distribution.
+    __version__ = "0+unknown"
+
+__all__ = ["__version__"]

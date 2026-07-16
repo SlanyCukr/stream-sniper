@@ -37,7 +37,7 @@ services:
     command:
       [
         "uvicorn",
-        "stream_sniper.api.api:app",
+        "stream_sniper.api.asgi:app",
         "--host", "0.0.0.0",
         "--port", "5002",
         "--reload",

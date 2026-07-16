@@ -1,6 +1,3 @@
-/**
- * Email validation helper
- */
 export const validateEmail = email => {
     if (!email.trim()) {
         return 'Email is required'
@@ -11,9 +8,6 @@ export const validateEmail = email => {
     return null
 }
 
-/**
- * Password validation helper
- */
 export const validatePasswordChange = passwordData => {
     if (!passwordData.currentPassword) {
         return 'Current password is required'
