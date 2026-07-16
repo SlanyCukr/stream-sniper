@@ -6,15 +6,26 @@ database connections and error handling across the application.
 """
 
 import logging
+from inspect import signature
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from stream_sniper.database.decorators import get_db_config, with_cursor, with_cursor_connection
+from stream_sniper.database.core.decorators import log_database_operation, with_cursor, with_cursor_connection
 
 
 class TestDatabaseDecorators:
     """Test suite for database decorator functions."""
+
+    def test_database_operation_success_has_no_formulaic_log_noise(self, caplog):
+        @log_database_operation
+        def operation():
+            return 42
+
+        with caplog.at_level(logging.DEBUG):
+            assert operation() == 42
+
+        assert caplog.records == []
 
     def test_with_cursor_decorator_success(self):
         """Test successful execution with cursor decorator."""
@@ -30,12 +41,12 @@ class TestDatabaseDecorators:
 
         # Create a test function with the decorator
         @with_cursor
-        def test_function(test_arg, cursor):
+        def test_function(cursor, test_arg):
             cursor.execute("SELECT * FROM test WHERE id = %s", (test_arg,))
             return cursor.fetchone()[0]
 
-        # Patch get_pool to return our mock
-        with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
+        # Patch get_active_pool to return our mock
+        with patch("stream_sniper.database.core.decorators.get_active_pool", return_value=mock_pool):
             result = test_function("test_value")
 
         # Verify behavior
@@ -57,14 +68,13 @@ class TestDatabaseDecorators:
             cursor.execute("INVALID SQL")
             return "should not reach here"
 
-        with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
+        with patch("stream_sniper.database.core.decorators.get_active_pool", return_value=mock_pool):
             with pytest.raises(Exception) as exc_info:
                 failing_function()
 
         assert "Database error" in str(exc_info.value)
 
-    def test_with_cursor_decorator_logging(self, caplog):
-        """Test that decorator logs errors appropriately."""
+    def test_with_cursor_propagates_without_duplicate_logging(self, caplog):
         mock_pool = MagicMock()
         mock_cursor = MagicMock()
 
@@ -76,12 +86,11 @@ class TestDatabaseDecorators:
             cursor.execute("SELECT 1")
 
         with caplog.at_level(logging.ERROR):
-            with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
+            with patch("stream_sniper.database.core.decorators.get_active_pool", return_value=mock_pool):
                 with pytest.raises(Exception):
                     logging_test_function()
 
-        # Check that error was logged
-        assert any("Database operation failed" in record.message for record in caplog.records)
+        assert caplog.records == []
 
     def test_with_cursor_connection_decorator_success(self):
         """Test successful execution with cursor connection decorator."""
@@ -95,12 +104,12 @@ class TestDatabaseDecorators:
         mock_cursor.fetchone.return_value = (42,)
 
         @with_cursor_connection
-        def test_function(test_data, cursor, connection):
+        def test_function(cursor, connection, test_data):
             cursor.execute("INSERT INTO test (data) VALUES (%s) RETURNING id", (test_data,))
             connection.commit()
             return cursor.fetchone()[0]
 
-        with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
+        with patch("stream_sniper.database.core.decorators.get_active_pool", return_value=mock_pool):
             result = test_function("test_data")
 
         assert result == 42
@@ -119,11 +128,11 @@ class TestDatabaseDecorators:
         mock_cursor.execute.side_effect = Exception("Insert failed")
 
         @with_cursor_connection
-        def failing_insert(data, cursor, connection):
+        def failing_insert(cursor, connection, data):
             cursor.execute("INSERT INTO test (data) VALUES (%s)", (data,))
             connection.commit()
 
-        with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
+        with patch("stream_sniper.database.core.decorators.get_active_pool", return_value=mock_pool):
             with pytest.raises(Exception) as exc_info:
                 failing_insert("test_data")
 
@@ -144,7 +153,7 @@ class TestDatabaseDecorators:
         def cleanup_test(cursor, connection):
             cursor.execute("SELECT 1")
 
-        with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
+        with patch("stream_sniper.database.core.decorators.get_active_pool", return_value=mock_pool):
             with pytest.raises(Exception):
                 cleanup_test()
 
@@ -163,35 +172,18 @@ class TestDatabaseDecorators:
         def none_cursor_test(cursor, connection):
             return "executed"
 
-        with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
+        with patch("stream_sniper.database.core.decorators.get_active_pool", return_value=mock_pool):
             result = none_cursor_test()
 
         assert result == "executed"
         # Should not call close on None cursor
         mock_connection.cursor.assert_called_once()
 
-    def test_get_db_config_function(self):
-        """Test get_db_config function returns pool configuration."""
-        mock_pool = MagicMock()
-        mock_config = {
-            "host": "localhost",
-            "database": "test_db",
-            "user": "test_user",
-            "password": "test_pass",
-            "port": "5432",
-        }
-        mock_pool._config = mock_config
-
-        with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
-            config = get_db_config()
-
-        assert config == mock_config
-
     def test_decorator_preserves_function_metadata(self):
         """Test that decorators preserve original function metadata."""
 
         @with_cursor
-        def documented_function(arg1, cursor):
+        def documented_function(cursor, arg1):
             """This function has documentation."""
             return arg1
 
@@ -199,12 +191,24 @@ class TestDatabaseDecorators:
         assert "This function has documentation" in documented_function.__doc__
 
         @with_cursor_connection
-        def another_documented_function(arg1, cursor, connection):
+        def another_documented_function(cursor, connection, arg1):
             """Another documented function."""
             return arg1
 
         assert another_documented_function.__name__ == "another_documented_function"
         assert "Another documented function" in another_documented_function.__doc__
+
+    def test_decorators_hide_injected_parameters_from_public_signatures(self):
+        @with_cursor
+        def read_row(cursor, row_id):
+            return row_id
+
+        @with_cursor_connection
+        def write_row(cursor, connection, row_id):
+            return row_id
+
+        assert tuple(signature(read_row).parameters) == ("row_id",)
+        assert tuple(signature(write_row).parameters) == ("row_id",)
 
     def test_decorator_argument_passing(self):
         """Test that decorators correctly pass arguments to wrapped functions."""
@@ -216,12 +220,10 @@ class TestDatabaseDecorators:
         mock_pool.get_cursor.return_value.__enter__.return_value = mock_cursor
 
         @with_cursor
-        def multi_arg_function(arg1, arg2, keyword_arg=None, cursor=None):
+        def multi_arg_function(cursor, arg1, arg2, keyword_arg=None):
             return (arg1, arg2, keyword_arg)
 
-        # The decorator's wrapper is ``def wrapper(*args)`` and calls ``f(*args, cursor)``,
-        # so it only forwards positional arguments (cursor is appended positionally).
-        with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
+        with patch("stream_sniper.database.core.decorators.get_active_pool", return_value=mock_pool):
             result = multi_arg_function("value1", "value2", "keyword_value")
 
         assert result == ("value1", "value2", "keyword_value")
@@ -231,10 +233,10 @@ class TestDatabaseDecorators:
         mock_connection.cursor.return_value = mock_cursor
 
         @with_cursor_connection
-        def multi_arg_function_with_conn(arg1, arg2, cursor=None, connection=None):
+        def multi_arg_function_with_conn(cursor, connection, arg1, arg2):
             return (arg1, arg2)
 
-        with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
+        with patch("stream_sniper.database.core.decorators.get_active_pool", return_value=mock_pool):
             result = multi_arg_function_with_conn("conn_value1", "conn_value2")
 
         assert result == ("conn_value1", "conn_value2")
@@ -261,7 +263,7 @@ class TestDatabaseDecorators:
         def dict_return_function(cursor):
             return {"key": "value"}
 
-        with patch("stream_sniper.database.decorators.get_pool", return_value=mock_pool):
+        with patch("stream_sniper.database.core.decorators.get_active_pool", return_value=mock_pool):
             assert none_return_function() is None
             assert tuple_return_function() == (1, 2, 3)
             assert dict_return_function() == {"key": "value"}
@@ -273,7 +275,7 @@ class TestDatabaseDecorators:
         def pool_failure_test(cursor):
             return "should not reach here"
 
-        with patch("stream_sniper.database.decorators.get_pool", side_effect=Exception("Pool unavailable")):
+        with patch("stream_sniper.database.core.decorators.get_active_pool", side_effect=Exception("Pool unavailable")):
             with pytest.raises(Exception) as exc_info:
                 pool_failure_test()
 

@@ -2,13 +2,11 @@
 
 import sys
 
-from dotenv import load_dotenv
-
-from .collector import TwitchCollectorFacade
+from .database.core.connection_pool import database_entrypoint
 from .logging_config import get_logger, setup_logging
 
 
-def show_help():
+def show_help() -> None:
     """Display help information."""
     help_text = """Usage: stream-sniper <twitch_username>
 
@@ -30,35 +28,34 @@ Environment Variables:
     print(help_text)
 
 
-def main():
-    """Main CLI entry point."""
+def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] in ["--help", "-h", "help"]:
         show_help()
-        if sys.argv[1:] and sys.argv[1] in ["--help", "-h", "help"]:
-            sys.exit(0)
-        else:
-            sys.exit(1)
+        return 0 if sys.argv[1:] else 1
 
-    load_dotenv()
+    return _ingest_archived_vods(sys.argv[1])
 
-    # Set up structured logging
+
+@database_entrypoint
+def _ingest_archived_vods(twitch_username: str) -> int:
     setup_logging(environment="development")
     logger = get_logger(__name__)
+    from .collector.archived.twitch_collector_facade import TwitchCollectorFacade
 
-    nickname = sys.argv[1]
-    logger.info(f"Stream Sniper CLI started for user: {nickname}")
+    logger.info(f"Stream Sniper CLI started for user: {twitch_username}")
 
     try:
-        twitch_collector_facade = TwitchCollectorFacade(nickname)
-        twitch_collector_facade.start_processing()
-        logger.info(f"Data collection completed successfully for user: {nickname}")
+        twitch_collector_facade = TwitchCollectorFacade(twitch_username)
+        twitch_collector_facade.ingest_archived_vods()
+        logger.info(f"Data collection completed successfully for user: {twitch_username}")
+        return 0
     except KeyboardInterrupt:
         logger.warning("Data collection interrupted by user")
-        sys.exit(1)
+        return 1
     except Exception as e:
-        logger.error(f"Data collection failed for user {nickname}: {e}", exc_info=True)
-        sys.exit(1)
+        logger.error(f"Data collection failed for user {twitch_username}: {e}", exc_info=True)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

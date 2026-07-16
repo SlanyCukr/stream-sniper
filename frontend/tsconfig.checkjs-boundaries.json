@@ -1,0 +1,39 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "checkJs": true,
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "components/common/search/AsyncSearchSelect.jsx",
+    "hooks/useAsyncSearchLoader.js",
+    "hooks/useTableSort.js",
+    "hooks/chatter/useChattersQuery.js",
+    "hooks/chatter/useChatterExplorer.js",
+    "lib/api/contractGuards.js",
+    "hooks/stream/report/useStreamReportQuery.js",
+    "hooks/stream/timeline/useStreamTimelineQuery.js",
+    "hooks/stream/insights/useStreamInsightsQuery.js",
+    "hooks/stream/list/useStreamsQuery.js",
+    "hooks/stream/list/useStreamsExplorerController.js",
+    "hooks/scene/useSceneLiveQueries.js",
+    "hooks/scene/useSceneCopypastaQueries.js",
+    "hooks/scene/useScenePulseQueries.js",
+    "hooks/community/useOverlapModel.js",
+    "hooks/creator/useCreatorTrendsQuery.js",
+    "hooks/admin/tracking/useTrackingQueries.js",
+    "hooks/admin/tracking/useProcessingJobsController.js",
+    "hooks/admin/users/useUserAdminQueries.js",
+    "views/admin/TrackingDashboard.jsx",
+    "views/admin/ProcessingJobs.jsx",
+    "utils/dateUtils.js",
+    "utils/errorUtils.js",
+    "components/stream/list/thumbnailUrl.js"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "coverage"
+  ]
+}

@@ -1,6 +1,6 @@
 'use client'
 import { use } from 'react'
-import CreatorDossier from '@/views/CreatorDossier'
+import CreatorDossier from '@/views/creator/CreatorDossier'
 
 export default function CreatorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)

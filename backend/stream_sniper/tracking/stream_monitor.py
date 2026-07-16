@@ -1,164 +1,157 @@
-"""
-Stream monitoring service for tracking Twitch streamers.
-"""
-
 import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Dict, List, Optional
 
-from ..collector.twitch_api import TwitchAPI
-from ..database.processing_jobs_table_gateway import insert_processing_job_db, job_exists_db
-from ..database.stream_context_table_gateway import insert_stream_context_sample_db
-from ..database.stream_viewer_sample_table_gateway import insert_stream_viewer_sample_db
-from ..database.tracked_streamers_table_gateway import (
+from stream_sniper.application.tracking.models import TrackedStreamer
+from stream_sniper.database.gateways.streams.records import StreamContextSample
+
+from ..collector.twitch_api import ArchivedVideo, TwitchAPI, TwitchUpstreamError
+from ..database.gateways.streams.stream_viewer_sample_table_gateway import insert_live_snapshot_db
+from ..database.gateways.tracking.processing_jobs_table_gateway import enqueue_processing_job_db
+from ..database.gateways.tracking.tracked_streamers_table_gateway import (
     select_active_tracked_streamers_db,
-    update_stream_check_time_db,
+    update_tracked_streamer_check_time_db,
 )
 from ..logging_config import get_logger
+from .status import StreamMonitorStatus, StreamObservation
 
 logger = get_logger(__name__)
 
 
 @dataclass
 class StreamStatus:
-    """Data class for stream status information."""
     twitch_username: str
-    is_live: bool
-    stream_id: Optional[int] = None
-    title: Optional[str] = None
-    started_at: Optional[datetime] = None
-    viewer_count: Optional[int] = None
-    category_id: Optional[str] = None
-    category_name: Optional[str] = None
-    language: Optional[str] = None
-    tags: Optional[List[str]] = None
-    is_mature: Optional[bool] = None
-    last_checked: Optional[datetime] = None
+    state: StreamObservation
+    twitch_stream_session_id: int | None = None
+    title: str | None = None
+    started_at: datetime | None = None
+    viewer_count: int | None = None
+    category_id: str | None = None
+    category_name: str | None = None
+    language: str | None = None
+    tags: list[str] | None = None
+    is_mature: bool | None = None
+    last_checked: datetime | None = None
+    error: str | None = None
+
+    @property
+    def is_live(self) -> bool:
+        return self.state is StreamObservation.LIVE
 
 
 class StreamMonitor:
-    """
-    Service for monitoring Twitch streams and detecting stream state changes.
-    """
-    
     def __init__(self, check_interval: int = 300):  # 5 minutes default
         self.check_interval = check_interval
         self.twitch_api = TwitchAPI()
         self.logger = get_logger(__name__)
         self._running = False
-        self._last_stream_states: Dict[str, bool] = {}
-        
-    async def initialize(self):
-        """Initialize the Twitch API connection (idempotent across restarts)."""
-        try:
-            await self.twitch_api.ensure_initialized()
-            self.logger.info("Stream monitor initialized successfully")
-        except Exception as e:
-            self.logger.error(f"Failed to initialize stream monitor: {e}")
-            raise
+        self._last_stream_states: dict[str, StreamObservation] = {}
+        self._successful_checks = 0
+        self._failed_checks = 0
+        self._unknown_checks = 0
+        self._last_cycle_completed_at: datetime | None = None
+        self._last_successful_cycle: datetime | None = None
 
-    async def start_monitoring(self):
-        """Start the stream monitoring loop."""
+    async def initialize(self) -> None:
+        """Initialize the Twitch API connection (idempotent across restarts)."""
+        await self.twitch_api.ensure_initialized()
+        self.logger.info("Stream monitor initialized successfully")
+
+    async def start_monitoring(self) -> None:
         self._running = True
-        self.logger.info("Starting stream monitoring...")
-        
+
         try:
             while self._running:
                 await self._check_all_streams()
                 await asyncio.sleep(self.check_interval)
-        except Exception as e:
-            self.logger.error(f"Error in monitoring loop: {e}")
         finally:
-            self.logger.info("Stream monitoring stopped")
+            self._running = False
 
-    async def stop_monitoring(self):
-        """Stop the stream monitoring loop."""
+    def stop_monitoring(self) -> None:
         self._running = False
-        self.logger.info("Stopping stream monitoring...")
 
-    async def _check_all_streams(self):
-        """Check all tracked streamers for stream status changes."""
-        try:
-            # Get all active tracked streamers
-            tracked_streamers = select_active_tracked_streamers_db()
-            
-            if not tracked_streamers:
-                self.logger.debug("No active tracked streamers found")
-                return
-            
-            self.logger.info(f"Checking {len(tracked_streamers)} tracked streamers")
-            
-            # Check each streamer
-            for streamer in tracked_streamers:
-                try:
-                    await self._check_single_stream(streamer)
-                except Exception as e:
-                    self.logger.error(f"Error checking stream for {streamer[2]}: {e}")
-                
-                # Small delay between checks to avoid rate limiting
-                await asyncio.sleep(1)
-                
-        except Exception as e:
-            self.logger.error(f"Error in _check_all_streams: {e}")
+    async def close(self) -> None:
+        """Stop monitoring and close the owned Twitch client."""
+        self.stop_monitoring()
+        await self.twitch_api.close()
 
-    async def _check_single_stream(self, streamer_data: tuple):
-        """Check a single streamer for stream status changes."""
-        try:
-            # Extract streamer data
-            (ts_id, creator_id, twitch_username, display_name, is_active,
-             last_stream_check, last_processed_stream_id, processing_enabled,
-             created_at, updated_at, created_by, notes,
-             creator_display_name, profile_image_url, created_by_username) = streamer_data
-            
-            # Get current stream status
-            stream_status = await self._get_stream_status(twitch_username)
+    async def _check_all_streams(self) -> None:
+        tracked_streamers = await asyncio.to_thread(select_active_tracked_streamers_db)
 
-            # Update last check time
-            update_stream_check_time_db(ts_id, datetime.now())
+        if not tracked_streamers:
+            self.logger.debug("No active tracked streamers found")
+            self._finish_cycle(successful=0, failed=0, unknown=0)
+            return
 
-            # Record a viewer-count snapshot while the stream is live
-            if stream_status.is_live:
-                self._record_viewer_snapshot(ts_id, stream_status)
+        self.logger.info(f"Checking {len(tracked_streamers)} tracked streamers")
+        successful = 0
+        failed = 0
+        unknown = 0
 
-            # Check if stream state changed
-            previous_state = self._last_stream_states.get(twitch_username, False)
-            current_state = stream_status.is_live
-            
-            self.logger.debug(
-                f"Stream check for {twitch_username}: "
-                f"Previous={previous_state}, Current={current_state}"
+        for streamer in tracked_streamers:
+            try:
+                observation = await self._check_single_stream(streamer)
+            except Exception:
+                failed += 1
+                self.logger.exception("Error checking stream for %s", streamer.twitch_username)
+            else:
+                if observation is StreamObservation.UNKNOWN:
+                    unknown += 1
+                else:
+                    successful += 1
+
+            await asyncio.sleep(1)
+
+        self._finish_cycle(successful=successful, failed=failed, unknown=unknown)
+
+    def _finish_cycle(self, *, successful: int, failed: int, unknown: int) -> None:
+        completed_at = datetime.now(UTC)
+        self._successful_checks = successful
+        self._failed_checks = failed
+        self._unknown_checks = unknown
+        self._last_cycle_completed_at = completed_at
+        if failed == 0 and unknown == 0:
+            self._last_successful_cycle = completed_at
+
+    async def _check_single_stream(self, row: TrackedStreamer) -> StreamObservation:
+        stream_status = await self._get_stream_status(row.twitch_username)
+
+        await asyncio.to_thread(update_tracked_streamer_check_time_db, row.id, datetime.now())
+
+        if stream_status.state is StreamObservation.UNKNOWN:
+            self.logger.warning(
+                "Stream state for %s is unknown; preserving previous state",
+                row.twitch_username,
             )
-            
-            # Update state tracking
-            self._last_stream_states[twitch_username] = current_state
-            
-            # If stream just ended, queue it for processing
-            if previous_state and not current_state:
-                self.logger.info(f"Stream ended for {twitch_username}, queuing for processing")
-                await self._queue_stream_for_processing(ts_id, twitch_username)
-                
-            # If stream just started, log it
-            elif not previous_state and current_state:
-                self.logger.info(f"Stream started for {twitch_username}")
-                
-        except Exception as e:
-            self.logger.error(f"Error checking single stream for {streamer_data[2]}: {e}")
+            return StreamObservation.UNKNOWN
+
+        if stream_status.state is StreamObservation.LIVE:
+            await asyncio.to_thread(self._record_viewer_snapshot, row.id, stream_status)
+
+        previous_state = self._last_stream_states.get(row.twitch_username, StreamObservation.UNKNOWN)
+        current_state = stream_status.state
+
+        self.logger.debug(f"Stream check for {row.twitch_username}: Previous={previous_state}, Current={current_state}")
+
+        if previous_state is StreamObservation.LIVE and current_state is StreamObservation.OFFLINE:
+            self.logger.info(f"Stream ended for {row.twitch_username}, queuing for processing")
+            await self._queue_stream_for_processing(row.id, row.twitch_username)
+        elif previous_state is not StreamObservation.LIVE and current_state is StreamObservation.LIVE:
+            self.logger.info(f"Stream started for {row.twitch_username}")
+
+        # Commit the observed state only after any ended-stream scheduling succeeds.
+        self._last_stream_states[row.twitch_username] = current_state
+        return current_state
 
     async def _get_stream_status(self, twitch_username: str) -> StreamStatus:
-        """Get current stream status for a Twitch username."""
         try:
-            # Set the streamer nickname for the API
-            self.twitch_api.set_streamer_nickname(twitch_username)
-            
-            # Get stream info
-            stream_info = await self.twitch_api.get_stream_info_async()
-            
+            stream_info = await self.twitch_api.get_live_stream(twitch_username)
+
             if stream_info:
                 return StreamStatus(
                     twitch_username=twitch_username,
-                    is_live=True,
-                    stream_id=int(stream_info.id),
+                    state=StreamObservation.LIVE,
+                    twitch_stream_session_id=int(stream_info.id),
                     title=stream_info.title,
                     started_at=stream_info.started_at,
                     viewer_count=stream_info.viewer_count,
@@ -167,116 +160,81 @@ class StreamMonitor:
                     language=stream_info.language,
                     tags=list(stream_info.tags or []),
                     is_mature=stream_info.is_mature,
-                    last_checked=datetime.now()
+                    last_checked=datetime.now(),
                 )
-            else:
-                return StreamStatus(
-                    twitch_username=twitch_username,
-                    is_live=False,
-                    last_checked=datetime.now()
-                )
-                
-        except Exception as e:
-            self.logger.error(f"Error getting stream status for {twitch_username}: {e}")
+            return StreamStatus(
+                twitch_username=twitch_username, state=StreamObservation.OFFLINE, last_checked=datetime.now()
+            )
+
+        except TwitchUpstreamError as e:
+            self.logger.warning("Twitch status lookup failed for %s: %s", twitch_username, e)
             return StreamStatus(
                 twitch_username=twitch_username,
-                is_live=False,
-                last_checked=datetime.now()
+                state=StreamObservation.UNKNOWN,
+                last_checked=datetime.now(),
+                error=str(e),
             )
 
     def _record_viewer_snapshot(self, tracked_streamer_id: int, status: StreamStatus) -> None:
-        """Persist viewer and context snapshots for a live stream. Never raises."""
-        try:
-            sampled_at = datetime.now(UTC)
-            insert_stream_viewer_sample_db(
-                tracked_streamer_id=tracked_streamer_id,
-                twitch_stream_session_id=status.stream_id,
-                sampled_at=sampled_at,
-                viewer_count=status.viewer_count,
-                title=status.title,
-                session_started_at=status.started_at,
-            )
-            insert_stream_context_sample_db(
-                tracked_streamer_id=tracked_streamer_id,
-                twitch_stream_session_id=status.stream_id,
-                sampled_at=sampled_at,
-                session_started_at=status.started_at,
-                title=status.title,
-                category_id=status.category_id,
-                category_name=status.category_name,
-                language=status.language,
-                tags=status.tags,
-                is_mature=status.is_mature,
-            )
-        except Exception as e:
-            self.logger.error(f"Error recording viewer snapshot for ts_id={tracked_streamer_id}: {e}")
+        """Persist the retry-safe viewer and context snapshot pair."""
+        if status.twitch_stream_session_id is None or status.viewer_count is None:
+            raise ValueError("live snapshot requires twitch_stream_session_id and viewer_count")
+        sampled_at = datetime.now(UTC)
+        context = StreamContextSample(
+            tracked_streamer_id=tracked_streamer_id,
+            twitch_stream_session_id=status.twitch_stream_session_id,
+            sampled_at=sampled_at,
+            session_started_at=status.started_at,
+            title=status.title,
+            category_id=status.category_id,
+            category_name=status.category_name,
+            language=status.language,
+            tags=status.tags,
+            is_mature=status.is_mature,
+        )
+        insert_live_snapshot_db(
+            tracked_streamer_id=tracked_streamer_id,
+            twitch_stream_session_id=status.twitch_stream_session_id,
+            sampled_at=sampled_at,
+            viewer_count=status.viewer_count,
+            title=status.title,
+            session_started_at=status.started_at,
+            context=context,
+        )
 
-    async def _queue_stream_for_processing(self, tracked_streamer_id: int, twitch_username: str):
-        """Queue a stream for processing when it ends."""
-        try:
-            # Get the most recent stream for this user
-            recent_streams = await self._get_recent_streams(twitch_username)
-            
-            if not recent_streams:
-                self.logger.warning(f"No recent streams found for {twitch_username}")
-                return
-            
-            # Get the most recent stream
-            latest_stream = recent_streams[0]
-            twitch_stream_id = int(latest_stream.id)
-            
-            # Check if we already have a processing job for this stream
-            if job_exists_db(tracked_streamer_id, twitch_stream_id):
-                self.logger.debug(f"Processing job already exists for stream {twitch_stream_id}")
-                return
-            
-            # Create processing job
-            job_id = insert_processing_job_db(tracked_streamer_id, twitch_stream_id)
-            
-            if job_id:
-                self.logger.info(
-                    f"Created processing job {job_id} for stream {twitch_stream_id} "
-                    f"by {twitch_username}"
-                )
-            else:
-                self.logger.error(f"Failed to create processing job for stream {twitch_stream_id}")
-                
-        except Exception as e:
-            self.logger.error(f"Error queuing stream for processing: {e}")
+    async def _queue_stream_for_processing(self, tracked_streamer_id: int, twitch_username: str) -> None:
+        archived_videos = await self._get_recent_archived_videos(twitch_username)
+        if not archived_videos:
+            self.logger.warning(f"No archived videos found for {twitch_username}")
+            return
 
-    async def _get_recent_streams(self, twitch_username: str, limit: int = 5) -> List[Any]:
-        """Get recent streams for a Twitch username."""
-        try:
-            # Set the streamer nickname for the API
-            self.twitch_api.set_streamer_nickname(twitch_username)
-            
-            # Get available video IDs (recent streams)
-            videos = await self.twitch_api.get_available_video_ids_async()
-            
-            # Return the most recent videos (limited)
-            return videos[:limit] if videos else []
-            
-        except Exception as e:
-            self.logger.error(f"Error getting recent streams for {twitch_username}: {e}")
-            return []
+        latest_video = archived_videos[0]
+        twitch_vod_id = int(latest_video.twitch_vod_id)
+        job_id = await asyncio.to_thread(enqueue_processing_job_db, tracked_streamer_id, twitch_vod_id)
+        if job_id is None:
+            self.logger.debug(f"Processing job already exists for VOD {twitch_vod_id}")
+            return
+        self.logger.info(f"Created processing job {job_id} for VOD {twitch_vod_id} by {twitch_username}")
+
+    async def _get_recent_archived_videos(self, twitch_username: str, limit: int = 5) -> list[ArchivedVideo]:
+        videos = await self.twitch_api.get_archived_videos(twitch_username)
+        return videos[:limit] if videos else []
 
     async def check_streamer_now(self, twitch_username: str) -> StreamStatus:
-        """Check a specific streamer's current status (for manual checks)."""
-        try:
-            return await self._get_stream_status(twitch_username)
-        except Exception as e:
-            self.logger.error(f"Error checking streamer {twitch_username}: {e}")
-            return StreamStatus(
-                twitch_username=twitch_username,
-                is_live=False,
-                last_checked=datetime.now()
-            )
+        return await self._get_stream_status(twitch_username)
 
-    def get_monitoring_stats(self) -> Dict[str, Any]:
-        """Get monitoring statistics."""
-        return {
-            'running': self._running,
-            'check_interval': self.check_interval,
-            'tracked_streamers_count': len(self._last_stream_states),
-            'last_stream_states': self._last_stream_states.copy()
-        }
+    def get_monitoring_stats(self) -> StreamMonitorStatus:
+        return StreamMonitorStatus(
+            running=self._running,
+            check_interval=self.check_interval,
+            tracked_streamers_count=len(self._last_stream_states),
+            last_stream_states=self._last_stream_states.copy(),
+            successful_checks=self._successful_checks,
+            failed_checks=self._failed_checks,
+            unknown_checks=self._unknown_checks,
+            degraded=self._failed_checks > 0 or self._unknown_checks > 0,
+            last_cycle_completed_at=(
+                self._last_cycle_completed_at.isoformat() if self._last_cycle_completed_at else None
+            ),
+            last_successful_cycle=self._last_successful_cycle.isoformat() if self._last_successful_cycle else None,
+        )

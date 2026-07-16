@@ -1,6 +1,6 @@
 'use client'
 import { use } from 'react'
-import StreamerRegulars from '@/views/StreamerRegulars'
+import CreatorHub from '@/views/creator/CreatorHub'
 
 export default function RegularsPage({
   searchParams,
@@ -8,5 +8,5 @@ export default function RegularsPage({
   searchParams: Promise<{ view?: string }>
 }) {
   const { view } = use(searchParams)
-  return <StreamerRegulars initialView={view === 'trends' ? 'trends' : 'regulars'} />
+  return <CreatorHub initialView={view === 'trends' ? 'trends' : 'regulars'} />
 }

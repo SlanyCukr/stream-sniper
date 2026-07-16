@@ -3,7 +3,7 @@
 import {
     Container, Row, Col,
 } from 'react-bootstrap'
-import UserProfile from '@/components/auth/UserProfile'
+import UserProfile from '@/components/auth/profile/UserProfile'
 
 const Profile = () => (
     <Container className="p-0">

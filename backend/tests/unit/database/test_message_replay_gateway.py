@@ -4,7 +4,7 @@ These are pure-SQL-shape tests: they mock the connection pool cursor and assert 
 query text / bound params, so they do NOT need a live database.
 """
 
-from stream_sniper.database.message_replay_gateway import select_stream_messages_db
+from stream_sniper.database.gateways.chat.message_replay_gateway import select_stream_messages_db
 
 
 class TestSelectStreamMessagesDb:
@@ -23,7 +23,7 @@ class TestSelectStreamMessagesDb:
         query = self._captured_query(mock_cursor)
         # microsecond format token, not the second-truncated 'HH24:MI:SS'
         assert "HH24:MI:SS.US" in query
-        assert 'HH24:MI:SS\'' not in query.replace("HH24:MI:SS.US", "")
+        assert "HH24:MI:SS'" not in query.replace("HH24:MI:SS.US", "")
 
     def test_keyset_predicate_uses_time_and_id_tuple(self, mock_connection_pool):
         _mock_pool, _mock_connection, mock_cursor = mock_connection_pool

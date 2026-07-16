@@ -11,7 +11,7 @@ The Stream Sniper Automated Tracking System enables administrators to monitor Tw
 - **Automatic Processing**: Triggers chat data processing when streams end
 - **Job Management**: Queues and manages processing jobs with retry capabilities
 - **Admin Interface**: Complete web-based administration for managing tracked streamers
-- **Service Control**: Start, stop, and restart the tracking service through the admin interface
+- **Service Telemetry**: Inspect validated heartbeat, queue, and tracking status through the admin interface
 
 ### Technical Features
 - **Concurrent Processing**: Configurable concurrent job processing
@@ -43,7 +43,7 @@ The Stream Sniper Automated Tracking System enables administrators to monitor Tw
 
 #### 4. Tracking Scheduler (`scheduler.py`)
 - Coordinates all tracking services
-- Manages service lifecycle (start/stop/restart)
+- Owns component restart and graceful-shutdown behavior in the tracking process
 - Provides system status and health monitoring
 - Handles graceful shutdown
 
@@ -52,7 +52,7 @@ The Stream Sniper Automated Tracking System enables administrators to monitor Tw
 #### 1. Tracking Dashboard (`TrackingDashboard.jsx`)
 - Overview of tracking system status
 - Real-time metrics and statistics
-- Service control buttons
+- Read-only heartbeat and scheduler status
 - System health indicators
 
 #### 2. Streamer Management (`StreamerTracking.jsx`)
@@ -64,44 +64,27 @@ The Stream Sniper Automated Tracking System enables administrators to monitor Tw
 #### 3. Processing Jobs (`ProcessingJobs.jsx`)
 - View all processing jobs with filtering
 - Monitor job status and progress
-- Cancel or retry failed jobs
 - View job details and error messages
+
+Cancellation requests and failed-job retries are currently available through the
+admin API; the web table is read-only.
 
 ## Database Schema
 
-### Tracked Streamers Table
-```sql
-CREATE TABLE stream_sniper.tracked_streamers (
-    id SERIAL PRIMARY KEY,
-    creator_id INT NOT NULL REFERENCES stream_sniper.creator(id),
-    twitch_username VARCHAR(255) NOT NULL UNIQUE,
-    display_name VARCHAR(255) NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    last_stream_check TIMESTAMP NULL,
-    last_processed_stream_id BIGINT NULL,
-    processing_enabled BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by INT REFERENCES stream_sniper.users(id),
-    notes TEXT
-);
-```
+Alembic migrations are the authoritative schema definition. The current readable
+snapshot is `backend/stream_sniper/database/create_table.sql`; it is documentation,
+not an installation script.
 
-### Processing Jobs Table
-```sql
-CREATE TABLE stream_sniper.processing_jobs (
-    id SERIAL PRIMARY KEY,
-    tracked_streamer_id INT NOT NULL REFERENCES stream_sniper.tracked_streamers(id),
-    twitch_stream_id BIGINT NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending',
-    started_at TIMESTAMP NULL,
-    completed_at TIMESTAMP NULL,
-    error_message TEXT NULL,
-    retry_count INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+The tracking schema maintains these invariants:
+
+- Each creator and Twitch username has at most one `tracked_streamers` row.
+- `last_processed_twitch_vod_id` records the latest completed Twitch VOD identity; it is
+  distinct from a live stream-session ID.
+- Each `(tracked_streamer_id, twitch_vod_id)` has at most one processing job.
+- A claimed job carries `worker_token` and `lease_expires_at`, allowing ownership
+  checks and recovery of expired work.
+- `cancellation_requested_at` is a durable request observed by the owning worker.
+- The dispatch index orders eligible jobs by status, update time, and ID.
 
 ## API Endpoints
 
@@ -114,14 +97,14 @@ CREATE TABLE stream_sniper.processing_jobs (
 
 ### Processing Jobs
 - `GET /admin/tracking/jobs` - List processing jobs
-- `POST /admin/tracking/jobs/{id}/cancel` - Cancel job
+- `POST /admin/tracking/jobs/{id}/cancel` - Request job cancellation
 - `POST /admin/tracking/jobs/{id}/retry` - Retry failed job
 
 ### Service Management
-- `GET /admin/tracking/service/status` - Get service status
-- `POST /admin/tracking/service/start` - Start tracking service
-- `POST /admin/tracking/service/stop` - Stop tracking service
-- `POST /admin/tracking/service/restart` - Restart tracking service
+- `GET /admin/tracking/service/status` - Get validated heartbeat and service status
+
+The tracking service runs in a separate process/container. Start, stop, and restart
+it through the deployment supervisor (Docker Compose/systemd), not the API process.
 
 ### Statistics
 - `GET /admin/tracking/stats` - Get tracking statistics
@@ -129,10 +112,21 @@ CREATE TABLE stream_sniper.processing_jobs (
 ## Installation & Setup
 
 ### 1. Database Setup
-Run the updated database schema:
+Apply the packaged Alembic migration chain:
 ```bash
-psql -U postgres -d stream_sniper -f backend/stream_sniper/database/create_table.sql
+cd backend
+uv run stream-sniper-migrate upgrade head
 ```
+
+For a pre-Alembic database that already contains the revision `0001` baseline
+tables, record that baseline once before upgrading:
+```bash
+uv run stream-sniper-migrate stamp 0001
+uv run stream-sniper-migrate upgrade head
+```
+
+`backend/stream_sniper/database/create_table.sql` is a reference-only schema
+snapshot; do not execute it to create or upgrade a database.
 
 ### 2. Install Dependencies
 The tracking system uses the existing dependencies. No additional packages required.
@@ -157,7 +151,7 @@ POSTGRES_PORT=5432
 docker-compose up api
 
 # Start the tracking service (separate terminal)
-docker-compose exec api python -m stream_sniper.tracking_service
+docker-compose exec api python -m stream_sniper.tracking.service
 
 # Or use the CLI command
 stream-sniper-tracking
@@ -168,8 +162,8 @@ stream-sniper-tracking
 # Start all services
 docker-compose up -d
 
-# The tracking service can be managed through the admin interface
-# or started as a separate service
+# The tracking service runs as a separate service; the admin interface manages
+# tracked streamers and processing jobs through the API.
 ```
 
 ### Admin Interface
@@ -177,8 +171,8 @@ docker-compose up -d
 1. **Access Admin Panel**: Navigate to `/admin/tracking` in your browser
 2. **Add Streamers**: Use the "Add Streamer" button to add new streamers to track
 3. **Monitor Status**: View real-time tracking status and statistics
-4. **Manage Jobs**: View and manage processing jobs in the jobs section
-5. **Service Control**: Start/stop/restart the tracking service as needed
+4. **View Jobs**: Inspect and filter processing jobs in the jobs section; request cancellation or retry through the admin API
+5. **Service Lifecycle**: Use Docker Compose or systemd to start, stop, or restart the separate tracking process
 
 ### CLI Commands
 
@@ -247,7 +241,8 @@ scheduler = TrackingScheduler(
 
 The system is designed to handle:
 - **Streamers**: Hundreds of tracked streamers
-- **Processing Jobs**: Thousands of concurrent jobs
+- **Processing Jobs**: Thousands of queued or historical jobs; active processing is
+  bounded by `max_concurrent_jobs` (default 3)
 - **Database**: Millions of processed messages
 - **API Requests**: High-frequency admin operations
 

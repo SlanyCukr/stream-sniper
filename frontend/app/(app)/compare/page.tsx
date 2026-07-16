@@ -1,6 +1,6 @@
 'use client'
 import { use } from 'react'
-import StreamCompare from '@/views/StreamCompare'
+import StreamCompare from '@/views/stream/StreamCompare'
 
 export default function ComparePage({ searchParams }: { searchParams: Promise<{ ids?: string }> }) {
   const { ids = '' } = use(searchParams)

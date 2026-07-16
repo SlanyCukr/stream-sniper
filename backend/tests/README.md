@@ -186,7 +186,9 @@ def test_database_integration():
 
 ## Coverage Requirements
 
-Target coverage levels:
+The enforced overall coverage floor is **62%**. This is the current ratchet: CI
+must not regress below it, and the value should only move upward as coverage is
+added. Longer-term target coverage levels are:
 - **Overall**: > 85%
 - **API Endpoints**: > 90%
 - **Database Gateways**: > 95%
@@ -194,14 +196,16 @@ Target coverage levels:
 
 ## Continuous Integration
 
-### GitHub Actions (when set up)
+### GitHub Actions
 ```yaml
 - name: Run Tests
   run: |
-    pytest --cov=stream_sniper --cov-report=xml
+    uv run pytest --cov=stream_sniper --cov-report=xml
     
 - name: Upload Coverage
-  uses: codecov/codecov-action@v3
+  uses: codecov/codecov-action@v5
+  with:
+    fail_ci_if_error: true
 ```
 
 ## Test Development Guidelines

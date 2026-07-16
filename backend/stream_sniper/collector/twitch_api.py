@@ -1,171 +1,187 @@
+"""Typed async Twitch client plus an explicit synchronous collector adapter."""
+
+from __future__ import annotations
+
 import asyncio
 import os
-from typing import Any, List, Optional, Tuple, Union
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Self, TypeVar
 
-from twitchAPI.object.api import Stream, TwitchUser
+from aiohttp import ClientError
+from twitchAPI.object.api import SearchChannelResult, Stream, Video
 from twitchAPI.twitch import Twitch
-from twitchAPI.type import VideoType
+from twitchAPI.type import TwitchAPIException, VideoType
+
+from ..application.identity.tracked_streamer_creation import CreatorProfile
+
+
+class TwitchOperationError(RuntimeError):
+    """Base class for expected Twitch adapter failures."""
+
+
+class TwitchConfigurationError(TwitchOperationError):
+    """Local Twitch credentials or client configuration are invalid."""
+
+
+class TwitchUpstreamError(TwitchOperationError):
+    """Twitch transport, authentication, or payload handling failed."""
+
+
+EXPECTED_TWITCH_ERRORS = (TwitchAPIException, ClientError, TimeoutError, OSError, ValueError)
+
+
+@dataclass(frozen=True)
+class ArchivedVideo:
+    twitch_vod_id: int
+    twitch_stream_session_id: int | None
+    created_at: datetime
+    title: str
+    duration: str
+    thumbnail_url: str
+
+    @classmethod
+    def from_twitch(cls, video: Video) -> Self:
+        created_at = video.created_at
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        if not isinstance(created_at, datetime):
+            raise ValueError(f"Twitch VOD {video.id} has no valid creation timestamp")
+        return cls(
+            twitch_vod_id=int(video.id),
+            twitch_stream_session_id=int(video.stream_id) if getattr(video, "stream_id", None) else None,
+            created_at=created_at,
+            title=str(getattr(video, "title", "")),
+            duration=str(getattr(video, "duration", "")),
+            thumbnail_url=str(getattr(video, "thumbnail_url", "")),
+        )
 
 
 class TwitchAPI:
-    _instance = None
+    """Async Twitch contract for event-loop-native callers."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._init_lock = asyncio.Lock()
-        self.streamer_nickname: Optional[str] = None
+        self.twitch: Twitch | None = None
 
-    @classmethod
-    def instance(cls):
-        """Process-wide shared client for long-lived concurrent callers (the API).
-
-        Only this constructor path assigns the singleton: privately constructed
-        instances (collector facade, stream monitor) must never become the shared
-        client, since their sessions may be bound to short-lived worker loops and
-        their nickname state is mutated freely.
-        """
-        if cls._instance is None:
-            cls._instance = TwitchAPI()
-        return cls._instance
-
-    def set_streamer_nickname(self, streamer_nickname: str):
-        self.streamer_nickname = streamer_nickname
-
-    def _resolve_login(self, login: Optional[str]) -> str:
-        """Resolve the per-call login, falling back to the instance nickname.
-
-        Raises instead of silently querying whichever streamer the nickname
-        state last pointed at (or none at all) — shared-instance callers must
-        pass the login explicitly.
-        """
-        resolved = login if login is not None else self.streamer_nickname
-        if not resolved:
-            raise ValueError("No Twitch login provided and no streamer nickname set")
-        return resolved
-
-    async def twitch_api_init(self):
+    async def _initialize_client(self) -> None:
         client_id = os.environ.get("TWITCH_CLIENT_ID")
         client_secret = os.environ.get("TWITCH_CLIENT_SECRET")
         if not client_id or not client_secret:
-            raise RuntimeError(
+            raise TwitchConfigurationError(
                 "TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET environment variables must be set"
             )
-        self.twitch = await Twitch(client_id, client_secret)
-
-    async def ensure_initialized(self):
-        """
-        Initialize the Twitch client once and reuse it (idempotent).
-        Long-lived callers such as the API process (channel-search autocomplete,
-        add-streamer) should use this to avoid re-running the OAuth handshake on
-        every request. The reused aiohttp session stays bound to the API's single
-        event loop, which is where these coroutines are awaited.
-        """
-        if getattr(self, "twitch", None) is None:
-            # Guard against concurrent first requests each running the OAuth
-            # handshake and leaking all but one client session.
-            async with self._init_lock:
-                if getattr(self, "twitch", None) is None:
-                    await self.twitch_api_init()
-
-    async def search_channels_async(self, query: str, limit: int = 8) -> List[Any]:
-        """
-        Search Twitch channels by name for autocomplete. Returns SearchChannelResult
-        objects (broadcaster_login, display_name, id, is_live, thumbnail_url, ...).
-        Only channels that streamed within the past 6 months are returned by Twitch.
-        """
-        results: List[Any] = []
-        async for channel in self.twitch.search_channels(query, first=limit):
-            results.append(channel)
-            if len(results) >= limit:
-                break
-        return results
-
-    @staticmethod
-    def get_async_result(async_generator, return_all_values: bool = False) -> Union[List, Any]:
-        """
-        Get the first value from an async generator
-        :param async_generator: The async generator to get the first value from
-        :param return_all_values: If True, return all values from the async generator
-        :return: The first value from the async generator
-        """
-
-        async def get_first_value(async_gen, return_all_values):
-            returned_values = []
-
-            async for value in async_gen:
-                returned_values.append(value)
-                if not return_all_values:
-                    return returned_values[0]
-            return returned_values
-
         try:
-            # Try to get the current running loop
-            loop = asyncio.get_running_loop()
+            self.twitch = await Twitch(client_id, client_secret)
+        except EXPECTED_TWITCH_ERRORS as error:
+            raise TwitchUpstreamError("Failed to initialize Twitch client") from error
+
+    async def ensure_initialized(self) -> None:
+        if self.twitch is None:
+            async with self._init_lock:
+                if self.twitch is None:
+                    await self._initialize_client()
+
+    def _client(self) -> Twitch:
+        if self.twitch is None:
+            raise RuntimeError("Twitch client is not initialized")
+        return self.twitch
+
+    async def close(self) -> None:
+        if self.twitch is not None:
+            await self.twitch.close()
+            self.twitch = None
+
+    async def search_channels(self, query: str, limit: int = 8) -> list[SearchChannelResult]:
+        try:
+            results: list[SearchChannelResult] = []
+            async for channel in self._client().search_channels(query, first=limit):
+                results.append(channel)
+                if len(results) >= limit:
+                    break
+            return results
+        except EXPECTED_TWITCH_ERRORS as error:
+            raise TwitchUpstreamError(f"Failed to search Twitch channels for {query}") from error
+
+    async def get_creator_profile(self, login: str) -> CreatorProfile | None:
+        try:
+            async for user in self._client().get_users(logins=[login]):
+                return CreatorProfile(
+                    twitch_user_id=str(user.id),
+                    display_name=str(user.display_name),
+                    profile_image_url=str(user.profile_image_url),
+                )
+            return None
+        except EXPECTED_TWITCH_ERRORS as error:
+            raise TwitchUpstreamError(f"Failed to load Twitch profile for {login}") from error
+
+    async def get_live_stream(self, login: str) -> Stream | None:
+        try:
+            async for stream in self._client().get_streams(user_login=[login]):
+                return stream
+            return None
+        except EXPECTED_TWITCH_ERRORS as error:
+            raise TwitchUpstreamError(f"Failed to load live Twitch stream for {login}") from error
+
+    async def get_archived_videos(self, login: str) -> list[ArchivedVideo]:
+        try:
+            profile = await self.get_creator_profile(login)
+            if profile is None:
+                return []
+            return [
+                ArchivedVideo.from_twitch(video)
+                async for video in self._client().get_videos(
+                    user_id=profile.twitch_user_id,
+                    video_type=VideoType.ARCHIVE,
+                )
+            ]
+        except TwitchOperationError:
+            raise
+        except EXPECTED_TWITCH_ERRORS as error:
+            raise TwitchUpstreamError(f"Failed to load archived Twitch videos for {login}") from error
+
+
+T = TypeVar("T")
+
+
+class SyncTwitchClient:
+    """Collector-only bridge that owns one persistent event loop."""
+
+    def __init__(self, client: TwitchAPI | None = None) -> None:
+        try:
+            asyncio.get_running_loop()
         except RuntimeError:
-            # No running loop, create a new one
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            has_running_loop = False
+        else:
+            has_running_loop = True
 
-        # Run the internal async function to get the first value from the async generator
-        return loop.run_until_complete(get_first_value(async_generator, return_all_values))
+        if has_running_loop:
+            raise RuntimeError("SyncTwitchClient cannot be created inside a running event loop")
 
-    def get_creator_twitch_id(self):
-        response: TwitchUser = self.get_async_result(self.twitch.get_users(logins=[self.streamer_nickname]))
+        self.client = client or TwitchAPI()
+        self._loop = asyncio.new_event_loop()
+        self._closed = False
 
-        return response.id
+    def _run(self, operation: Callable[[], Awaitable[T]]) -> T:
+        if self._closed:
+            raise RuntimeError("SyncTwitchClient is closed")
+        return self._loop.run_until_complete(operation())
 
-    def get_creator_info(self) -> Tuple[str, str]:
-        response: TwitchUser = self.get_async_result(self.twitch.get_users(logins=[self.streamer_nickname]))
+    def initialize(self) -> None:
+        self._run(self.client.ensure_initialized)
 
-        return response.display_name, response.profile_image_url
+    def get_creator_profile(self, login: str) -> CreatorProfile | None:
+        return self._run(lambda: self.client.get_creator_profile(login))
 
-    def get_stream_info(self) -> Stream:
-        stream: Stream = self.get_async_result(self.twitch.get_streams(user_login=self.streamer_nickname))
+    def get_archived_videos(self, login: str) -> list[ArchivedVideo]:
+        return self._run(lambda: self.client.get_archived_videos(login))
 
-        return stream
-
-    def get_available_video_ids(self) -> List[dict]:
-        twitch_user_id = self.get_creator_twitch_id()
-        videos = self.get_async_result(
-            self.twitch.get_videos(user_id=twitch_user_id, video_type=VideoType.ARCHIVE), return_all_values=True
-        )
-
-        if videos is None:
-            return []
-
-        return videos
-
-    # Async variants for callers that already run inside an event loop (the
-    # FastAPI endpoints and the tracking monitor). The sync get_async_result
-    # helper above uses loop.run_until_complete, which raises "This event loop
-    # is already running" when called from async code — and the Twitch client's
-    # aiohttp session is bound to the running loop, so the coroutines must be
-    # awaited on that same loop rather than bridged from a worker thread.
-    #
-    # Each takes an optional per-call ``login``: callers sharing the singleton
-    # (the concurrent FastAPI handlers) must pass it instead of mutating the
-    # shared ``set_streamer_nickname`` state, which interleaved requests could
-    # overwrite between the set and the awaited lookup.
-    async def get_creator_twitch_id_async(self, login: Optional[str] = None) -> Any:
-        async for user in self.twitch.get_users(logins=[self._resolve_login(login)]):
-            return user.id
-        return None
-
-    async def get_creator_info_async(self, login: Optional[str] = None) -> Optional[Tuple[str, str]]:
-        """Return (display_name, profile_image_url), or None if the login doesn't exist."""
-        async for user in self.twitch.get_users(logins=[self._resolve_login(login)]):
-            return user.display_name, user.profile_image_url
-        return None
-
-    async def get_stream_info_async(self, login: Optional[str] = None) -> Any:
-        async for stream in self.twitch.get_streams(user_login=[self._resolve_login(login)]):
-            return stream
-        return None
-
-    async def get_available_video_ids_async(self, login: Optional[str] = None) -> List[Any]:
-        twitch_user_id = await self.get_creator_twitch_id_async(login)
-        if twitch_user_id is None:
-            return []
-        videos = []
-        async for video in self.twitch.get_videos(user_id=twitch_user_id, video_type=VideoType.ARCHIVE):
-            videos.append(video)
-        return videos
+    def close(self) -> None:
+        if self._closed:
+            return
+        try:
+            self._run(self.client.close)
+        finally:
+            self._closed = True
+            self._loop.close()

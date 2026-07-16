@@ -1,31 +1,26 @@
 'use client'
-import { useState } from 'react'
 import {
-    Container,
-    Alert,
-    Spinner,
     Button,
 } from 'react-bootstrap'
-import SystemHealthOverview from '@/components/admin/SystemHealthOverview'
-import ComponentsHealth from '@/components/admin/ComponentsHealth'
-import RequestStatistics from '@/components/admin/RequestStatistics'
-import RateLimitingMetrics from '@/components/admin/RateLimitingMetrics'
-import CacheDetails from '@/components/admin/CacheDetails'
-import { getApiErrorMessage } from '@/lib/api'
+import ActionFeedback from '@/components/admin/ActionFeedback'
+import SystemHealthOverview from '@/components/admin/system/SystemHealthOverview'
+import ComponentsHealth from '@/components/admin/system/ComponentsHealth'
+import RequestStatistics from '@/components/admin/system/RequestStatistics'
+import RateLimitingMetrics from '@/components/admin/system/RateLimitingMetrics'
+import CacheDetails from '@/components/admin/system/CacheDetails'
+import ErrorAlert from '@/components/common/error/ErrorAlert'
+import LoadingSpinner from '@/components/common/LoadingSpinner'
+import { useActionFeedback } from '@/hooks/admin/shared/useActionFeedback'
 import {
     useCacheStats,
     useDetailedHealth,
     useFlushCache,
     useSystemMetrics,
-} from '@/hooks/useSystemQueries'
+} from '@/hooks/admin/system/useSystemQueries'
 
 
 const SystemInfo = () => {
-    const [actionError, setActionError] = useState(null)
-    const [
-        success,
-        setSuccess,
-    ] = useState(null)
+    const feedback = useActionFeedback()
     const healthQuery = useDetailedHealth()
     const metricsQuery = useSystemMetrics()
     const cacheStatsQuery = useCacheStats()
@@ -33,15 +28,14 @@ const SystemInfo = () => {
     const healthData = healthQuery.data
     const metricsData = metricsQuery.data
     const cacheStats = cacheStatsQuery.data
-    const loading = healthQuery.isPending || metricsQuery.isPending || cacheStatsQuery.isPending
-    const refreshing = healthQuery.isFetching || metricsQuery.isFetching || cacheStatsQuery.isFetching
-    const telemetryError = !healthData && !metricsData && !cacheStats && (
-        healthQuery.error || metricsQuery.error || cacheStatsQuery.error
+    const hasTelemetry = Boolean(healthData || metricsData || cacheStats)
+    const loading = !hasTelemetry && (
+        healthQuery.isPending || metricsQuery.isPending || cacheStatsQuery.isPending
     )
-    const error = actionError || telemetryError
+    const refreshing = healthQuery.isFetching || metricsQuery.isFetching || cacheStatsQuery.isFetching
+    const telemetryError = healthQuery.error || metricsQuery.error || cacheStatsQuery.error
 
     const fetchSystemInfo = async () => {
-        setActionError(null)
         await Promise.all([
             healthQuery.refetch(),
             metricsQuery.refetch(),
@@ -63,7 +57,7 @@ const SystemInfo = () => {
         }
     }
 
-    const getStatusBadge = status => {
+    const renderStatusBadge = status => {
         const statusMap = {
             'healthy': 'is-ok',
             'degraded': 'is-warn',
@@ -78,32 +72,18 @@ const SystemInfo = () => {
         )
     }
 
-    const flushCache = async () => {
-        setActionError(null)
-        setSuccess(null)
-        try {
-            await flushCacheMutation.mutateAsync()
-            setSuccess('Cache flushed successfully')
-        } catch (flushError) {
-            console.error('Error flushing cache:', flushError)
-            setActionError(getApiErrorMessage(flushError, 'Error flushing cache'))
-        }
-    }
+    const flushCache = () => feedback.runAction({
+        action: () => flushCacheMutation.mutateAsync(),
+        successMessage: 'Cache flushed successfully',
+        errorTitle: 'Error flushing cache',
+    })
 
     if (loading) {
-        return (
-            <Container
-                className="d-flex justify-content-center align-items-center"
-                style={{ minHeight: '300px' }}>
-                <Spinner
-                    animation="border"
-                    variant="primary" />
-            </Container>
-        )
+        return <LoadingSpinner size="lg" text="Loading system telemetry..." />
     }
 
     return (
-        <Container>
+        <>
             <div className="page-head">
                 <div>
                     <h1 className="page-title">System information</h1>
@@ -120,27 +100,15 @@ const SystemInfo = () => {
                 </div>
             </div>
 
-            {error && (
-                <Alert
-                    variant="danger"
-                    className="mb-4"
-                    dismissible={Boolean(actionError)}
-                    onClose={() => setActionError(null)}>
-                    {getApiErrorMessage(error, 'Unable to fetch system telemetry')}
-                </Alert>
-            )}
+            <ErrorAlert
+                error={telemetryError}
+                title="System telemetry incomplete"
+                onRetry={fetchSystemInfo}
+                className="mb-4" />
 
-            {success && (
-                <Alert
-                    variant="success"
-                    className="mb-4"
-                    dismissible
-                    onClose={() => setSuccess(null)}>
-                    {success}
-                </Alert>
-            )}
+            <ActionFeedback feedback={feedback} />
 
-            {!healthData && !metricsData && !cacheStats && (
+            {!hasTelemetry && (
                 <div className="card">
                     <div className="empty-state">
                         <div
@@ -160,34 +128,32 @@ const SystemInfo = () => {
                 <SystemHealthOverview
                     healthData={healthData}
                     formatUptime={formatUptime}
-                    getStatusBadge={getStatusBadge}
+                    renderStatusBadge={renderStatusBadge}
                 />
             )}
 
-            {healthData?.components && (
+            {healthData?.components?.length > 0 && (
                 <ComponentsHealth
-                    healthData={healthData}
-                    getStatusBadge={getStatusBadge} />
+                    components={healthData.components}
+                    renderStatusBadge={renderStatusBadge} />
             )}
 
-            {/* Request Metrics */}
             {metricsData?.requests && (
                 <RequestStatistics
-                    metricsData={metricsData}
+                    requests={metricsData.requests}
+                    cache={metricsData.cache}
                     flushCache={flushCache}
                 />
             )}
 
-            {/* Rate Limiting */}
-            {metricsData?.rate_limiting && (
-                <RateLimitingMetrics metricsData={metricsData} />
+            {metricsData?.rateLimiting && (
+                <RateLimitingMetrics rateLimiting={metricsData.rateLimiting} />
             )}
 
-            {/* Cache Stats Details */}
-            {cacheStats?.cache_stats && (
+            {cacheStats && (
                 <CacheDetails cacheStats={cacheStats} />
             )}
-        </Container>
+        </>
     )
 }
 

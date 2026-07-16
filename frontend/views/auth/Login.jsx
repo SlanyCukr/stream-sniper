@@ -11,8 +11,8 @@ import {
 } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import Logo from '@/components/layout/Logo'
-import LoginForm from '@/components/auth/LoginForm'
-import RegisterForm from '@/components/auth/RegisterForm'
+import LoginForm from '@/components/auth/login/LoginForm'
+import RegisterForm from '@/components/auth/register/RegisterForm'
 
 const Login = () => {
     const [

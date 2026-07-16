@@ -1181,14 +1181,6 @@ h1, h2, h3, h4, h5, h6,
     }
 }
 
-/* legacy hooks kept for safety */
-.chat-lookalike, .twitch-chat {
-    font-family: $font-family-sans-serif;
-    background: $bg-raised;
-    border: 1px solid $hairline;
-    border-radius: $border-radius;
-}
-
 /* ---------- Definition lists (stream info) ---------- */
 .spec-list {
     display: grid;

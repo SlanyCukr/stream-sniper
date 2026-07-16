@@ -7,6 +7,14 @@ const API_PROXY_TARGET = process.env.API_PROXY_TARGET || 'http://localhost:5002'
 const nextConfig: NextConfig = {
   output: 'standalone',
   reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.jtvnw.net' },
+      { protocol: 'https', hostname: '**.twitch.tv' },
+      { protocol: 'https', hostname: '**.twitchcdn.net' },
+      { protocol: 'https', hostname: 'cdn.betterttv.net' },
+    ],
+  },
   sassOptions: {
     // let bare `@import "bootstrap/..."` resolve from node_modules
     includePaths: ['node_modules'],

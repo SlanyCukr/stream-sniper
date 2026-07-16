@@ -10,21 +10,37 @@ import json
 from contextlib import contextmanager
 from datetime import datetime
 from types import SimpleNamespace
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from stream_sniper.api.auth import get_current_user
-from stream_sniper.api.rate_limiter import setup_rate_limiting
-from stream_sniper.api.stream_report_endpoints import router
-from stream_sniper.api.stream_report_models import ReportMetric, ReportMetrics, StreamReport
+from stream_sniper.api.error_boundary import UnexpectedExceptionMiddleware
+from stream_sniper.api.features.streams.stream_report_endpoints import router
+from stream_sniper.api.security.auth import get_current_user
+from stream_sniper.api.security.rate_limiter import setup_rate_limiting
+from stream_sniper.application.streams.report_models import ReportMetric, ReportMetrics, StreamReport
+from stream_sniper.database.gateways.analytics.records import (
+    CreatorReportRow,
+    StreamMetricsRow,
+    TopEmoteRow,
+    TopPhraseRow,
+)
+from stream_sniper.database.gateways.chat.records import MessageReplayRow
+from stream_sniper.database.gateways.content.records import StreamMomentRow
+from stream_sniper.database.gateways.streams.records import (
+    StreamComprehensiveRow,
+    ViewerSampleRow,
+)
 
-_EP = "stream_sniper.api.stream_report_endpoints"
+_EP = "stream_sniper.api.features.streams.stream_report_endpoints"
+_COMPOSITION = "stream_sniper.api.composition"
+_EXPORT_QUERY = "stream_sniper.application.streams.export_query"
 
 
 def _client() -> TestClient:
     app = FastAPI()
+    app.add_middleware(UnexpectedExceptionMiddleware)
     setup_rate_limiting(app)
     app.include_router(router)
     return TestClient(app)
@@ -40,7 +56,7 @@ def _user_client() -> TestClient:
 
 def _miss_cache():
     cache = Mock()
-    cache._generate_key = Mock(return_value="test-cache-key")
+    cache.generate_key = Mock(return_value="test-cache-key")
     cache.get = Mock(return_value=None)
     cache.set = Mock(return_value=True)
     return cache
@@ -48,7 +64,7 @@ def _miss_cache():
 
 # select_stream_comprehensive_db row:
 # (title, start, end, thumbnail_url, message_count, nick, display_name, profile_image_url, creator_id)
-_COMPREHENSIVE = (
+_COMPREHENSIVE = StreamComprehensiveRow(
     "Test stream",
     datetime(2026, 7, 1, 18, 0, 0),
     datetime(2026, 7, 1, 20, 0, 0),
@@ -63,27 +79,27 @@ _COMPREHENSIVE = (
 # select_stream_metrics_db row: (total_messages, unique_chatters, duration_seconds,
 # messages_per_minute, peak_messages, peak_bucket_minute, new_chatters,
 # returning_chatters, sub_messages, emote_messages)
-_METRICS = (1200, 300, 7200, 10.0, 60, "2026-07-01T19:00:00", 40, 260, 600, 100)
+_METRICS = StreamMetricsRow(1200, 300, 7200, 10.0, 60, "2026-07-01T19:00:00", 40, 260, 600, 100)
 
 # select_creator_report_series_db rows (ascending by start): (stream_id, start_str,
 # duration_seconds, total_messages, messages_per_minute, unique_chatters,
 # new_chatters, returning_chatters, sub_messages, peak_messages)
 _SERIES = [
-    (5, "2026-06-01T18:00:00", 7000, 1000, 8.0, 200, 30, 170, 400, 50),
-    (6, "2026-06-15T18:00:00", 7100, 1100, 12.0, 400, 50, 350, 550, 70),
-    (7, "2026-07-01T18:00:00", 7200, 1200, 10.0, 300, 40, 260, 600, 60),  # the stream itself
+    CreatorReportRow(5, "2026-06-01T18:00:00", 7000, 1000, 8.0, 200, 30, 170, 400, 50),
+    CreatorReportRow(6, "2026-06-15T18:00:00", 7100, 1100, 12.0, 400, 50, 350, 550, 70),
+    CreatorReportRow(7, "2026-07-01T18:00:00", 7200, 1200, 10.0, 300, 40, 260, 600, 60),
 ]
 
-_SAMPLES = [("2026-07-01T18:00:00", 100), ("2026-07-01T18:05:00", 200)]
+_SAMPLES = [ViewerSampleRow("2026-07-01T18:00:00", 100), ViewerSampleRow("2026-07-01T18:05:00", 200)]
 
 # select_stream_moments_db rows (ascending by bucket): (bucket_minute, offset_seconds,
 # message_count, baseline, ratio, unique_chatters, sub_share, emote_share,
 # top_phrases, sample_messages, status)
 _MOMENTS = [
-    ("2026-07-01T18:30:00", 1800, 90, 30.0, 3.0, 50, None, None, None, None, None),
-    ("2026-07-01T19:00:00", 3600, 120, 30.0, 4.0, 60, 0.5, 0.2, None, None, "bookmarked"),
-    ("2026-07-01T19:30:00", 5400, 150, 30.0, 5.0, 70, None, None, None, None, "rejected"),
-    ("2026-07-01T20:00:00", 7200, 45, 30.0, None, 20, None, None, None, None, None),
+    StreamMomentRow("2026-07-01T18:30:00", 1800, 90, 30.0, 3.0, 50, None, None, None, None, None, None, None),
+    StreamMomentRow("2026-07-01T19:00:00", 3600, 120, 30.0, 4.0, 60, 0.5, 0.2, None, None, "bookmarked", None, None),
+    StreamMomentRow("2026-07-01T19:30:00", 5400, 150, 30.0, 5.0, 70, None, None, None, None, "rejected", None, None),
+    StreamMomentRow("2026-07-01T20:00:00", 7200, 45, 30.0, None, 20, None, None, None, None, None, None, None),
 ]
 
 
@@ -100,13 +116,13 @@ def _report_mocks(
 ):
     with (
         patch(f"{_EP}.get_cache", return_value=cache if cache is not None else _miss_cache()),
-        patch(f"{_EP}.select_stream_comprehensive_db", return_value=comprehensive) as mock_comp,
-        patch(f"{_EP}.select_stream_metrics_db", return_value=metrics) as mock_metrics,
-        patch(f"{_EP}.select_stream_viewer_samples_db", return_value=list(samples)) as mock_samples,
-        patch(f"{_EP}.select_stream_emotes_db", return_value=list(emotes)) as mock_emotes,
-        patch(f"{_EP}.select_stream_phrases_db", return_value=list(phrases)) as mock_phrases,
-        patch(f"{_EP}.select_stream_moments_db", return_value=list(moments)) as mock_moments,
-        patch(f"{_EP}.select_creator_report_series_db", return_value=list(series)) as mock_series,
+        patch(f"{_COMPOSITION}.select_stream_comprehensive_db", return_value=comprehensive) as mock_comp,
+        patch(f"{_COMPOSITION}.select_stream_metrics_db", return_value=metrics) as mock_metrics,
+        patch(f"{_COMPOSITION}.select_stream_viewer_samples_db", return_value=list(samples)) as mock_samples,
+        patch(f"{_COMPOSITION}.select_stream_emotes_db", return_value=list(emotes)) as mock_emotes,
+        patch(f"{_COMPOSITION}.select_stream_phrases_db", return_value=list(phrases)) as mock_phrases,
+        patch(f"{_COMPOSITION}.select_stream_moments_db", return_value=list(moments)) as mock_moments,
+        patch(f"{_COMPOSITION}.select_creator_report_series_db", return_value=list(series)) as mock_series,
     ):
         yield SimpleNamespace(
             comprehensive=mock_comp,
@@ -123,12 +139,12 @@ class TestStreamReport:
     def test_success_full_shape(self):
         with _report_mocks(
             samples=_SAMPLES,
-            emotes=[("KEKW", "bttv", "abc123", 120, 30)],
-            phrases=[("gg wp", 22, 15)],
+            emotes=[TopEmoteRow("KEKW", "bttv", "abc123", 120, 30)],
+            phrases=[TopPhraseRow("gg wp", 22, 15)],
             moments=_MOMENTS,
             series=_SERIES,
         ) as mocks:
-            response = _client().get("/stream/7/report")
+            response = _client().get("/streams/7/report")
 
         assert response.status_code == 200
         assert response.headers["X-Cache"] == "MISS"
@@ -235,7 +251,7 @@ class TestStreamReport:
 
     def test_404_when_stream_missing(self):
         with _report_mocks(comprehensive=None) as mocks:
-            response = _client().get("/stream/999/report")
+            response = _client().get("/streams/999/report")
 
         assert response.status_code == 404
         assert response.json() == {"detail": "Stream not found"}
@@ -245,11 +261,11 @@ class TestStreamReport:
         # Un-rolled-up: no stream_metrics row, no samples/emotes/phrases/moments; the
         # creator's previous streams are un-rolled too (NULL metrics columns).
         unrolled_series = [
-            (5, "2026-06-01T18:00:00", None, None, None, None, None, None, None, None),
-            (6, "2026-06-15T18:00:00", None, None, None, None, None, None, None, None),
+            CreatorReportRow(5, "2026-06-01T18:00:00", None, None, None, None, None, None, None, None),
+            CreatorReportRow(6, "2026-06-15T18:00:00", None, None, None, None, None, None, None, None),
         ]
         with _report_mocks(metrics=None, series=unrolled_series):
-            response = _client().get("/stream/7/report")
+            response = _client().get("/streams/7/report")
 
         assert response.status_code == 200
         data = response.json()
@@ -269,7 +285,7 @@ class TestStreamReport:
 
     def test_single_baseline_stream_suppresses_baseline_stats(self):
         with _report_mocks(series=[_SERIES[0], _SERIES[2]]):
-            response = _client().get("/stream/7/report")
+            response = _client().get("/streams/7/report")
 
         data = response.json()
         assert data["baseline_count"] == 1
@@ -281,9 +297,9 @@ class TestStreamReport:
         }
 
     def test_streams_after_this_one_excluded_from_baseline(self):
-        newer = (9, "2026-07-10T18:00:00", 7000, 900, 9.0, 250, 20, 230, 450, 55)
+        newer = CreatorReportRow(9, "2026-07-10T18:00:00", 7000, 900, 9.0, 250, 20, 230, 450, 55)
         with _report_mocks(series=[_SERIES[0], _SERIES[2], newer]):
-            response = _client().get("/stream/7/report")
+            response = _client().get("/streams/7/report")
 
         data = response.json()
         # Only stream 5 predates this one; the newer stream 9 must not enter the baseline.
@@ -292,14 +308,14 @@ class TestStreamReport:
 
     def test_lookback_forwarded_and_echoed(self):
         with _report_mocks(series=_SERIES) as mocks:
-            response = _client().get("/stream/7/report?lookback=5")
+            response = _client().get("/streams/7/report?lookback=5")
 
         assert response.json()["lookback"] == 5
         mocks.series.assert_called_once_with(3, 6)
 
     def test_lookback_out_of_range_rejected(self):
-        assert _client().get("/stream/7/report?lookback=1").status_code == 422
-        assert _client().get("/stream/7/report?lookback=31").status_code == 422
+        assert _client().get("/streams/7/report?lookback=1").status_code == 422
+        assert _client().get("/streams/7/report?lookback=31").status_code == 422
 
     def test_cache_hit_skips_gateways(self):
         cached_payload = StreamReport(
@@ -325,11 +341,11 @@ class TestStreamReport:
             ),
         ).model_dump()
         cache = Mock()
-        cache._generate_key = Mock(return_value="k")
+        cache.generate_key = Mock(return_value="k")
         cache.get = Mock(return_value=cached_payload)
         cache.set = Mock()
         with _report_mocks(cache=cache) as mocks:
-            response = _client().get("/stream/7/report")
+            response = _client().get("/streams/7/report")
 
         assert response.status_code == 200
         assert response.headers["X-Cache"] == "HIT"
@@ -341,53 +357,41 @@ class TestStreamReport:
     def test_gateway_error_returns_500(self):
         with _report_mocks() as mocks:
             mocks.comprehensive.side_effect = Exception("boom")
-            response = _client().get("/stream/7/report")
+            response = _client().get("/streams/7/report")
 
         assert response.status_code == 500
         assert response.json() == {"detail": "Internal server error"}
 
 
 _EXPORT_ROWS = [
-    (1, "2026-07-01T18:00:00.000000", 11, "alice", "hello, world", True, "subscriber/12"),
-    (2, "2026-07-01T18:00:01.500000", 12, "bob", 'say "hi"\nbye', None, None),
+    MessageReplayRow(1, "2026-07-01T18:00:00.000000", 11, "alice", "hello, world", True, "subscriber/12"),
+    MessageReplayRow(2, "2026-07-01T18:00:01.500000", 12, "bob", 'say "hi"\nbye', None, None),
 ]
-
-
-def _mock_pool(rows):
-    cursor = MagicMock()
-    cursor.__iter__ = Mock(return_value=iter(rows))
-    connection = MagicMock()
-    connection.cursor.return_value = cursor
-    pool = MagicMock()
-    pool.get_connection.return_value.__enter__ = Mock(return_value=connection)
-    pool.get_connection.return_value.__exit__ = Mock(return_value=False)
-    return pool, connection, cursor
 
 
 class TestStreamExport:
     def test_unauthenticated_rejected(self):
-        response = _client().get("/stream/7/export")
+        response = _client().get("/streams/7/export")
         assert response.status_code in (401, 403)
 
-    @patch(f"{_EP}.select_stream_comprehensive_db")
-    @patch(f"{_EP}.get_pool")
-    def test_404_when_stream_missing(self, mock_get_pool, mock_comprehensive):
+    @patch(f"{_EXPORT_QUERY}.select_stream_comprehensive_db")
+    @patch(f"{_EXPORT_QUERY}.iter_stream_message_export_db")
+    def test_404_when_stream_missing(self, mock_export_rows, mock_comprehensive):
         mock_comprehensive.return_value = None
 
-        response = _user_client().get("/stream/999/export")
+        response = _user_client().get("/streams/999/export")
 
         assert response.status_code == 404
         assert response.json() == {"detail": "Stream not found"}
-        mock_get_pool.assert_not_called()
+        mock_export_rows.assert_not_called()
 
-    @patch(f"{_EP}.select_stream_comprehensive_db")
-    @patch(f"{_EP}.get_pool")
-    def test_ndjson_default(self, mock_get_pool, mock_comprehensive):
+    @patch(f"{_EXPORT_QUERY}.select_stream_comprehensive_db")
+    @patch(f"{_EXPORT_QUERY}.iter_stream_message_export_db")
+    def test_ndjson_default(self, mock_export_rows, mock_comprehensive):
         mock_comprehensive.return_value = _COMPREHENSIVE
-        pool, connection, cursor = _mock_pool(_EXPORT_ROWS)
-        mock_get_pool.return_value = pool
+        mock_export_rows.return_value = iter(_EXPORT_ROWS)
 
-        response = _user_client().get("/stream/7/export")
+        response = _user_client().get("/streams/7/export")
 
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("application/x-ndjson")
@@ -413,21 +417,15 @@ class TestStreamExport:
                 "badges": None,
             },
         ]
-        # Server-side (named) cursor with the replay SQL, cleaned up after streaming.
-        assert connection.cursor.call_args.kwargs["name"].startswith("chat_export_7_")
-        assert cursor.itersize == 5000
-        assert cursor.execute.call_args.args[1] == (7,)
-        cursor.close.assert_called_once()
-        connection.rollback.assert_called_once()
+        mock_export_rows.assert_called_once_with(7, None)
 
-    @patch(f"{_EP}.select_stream_comprehensive_db")
-    @patch(f"{_EP}.get_pool")
-    def test_csv_format(self, mock_get_pool, mock_comprehensive):
+    @patch(f"{_EXPORT_QUERY}.select_stream_comprehensive_db")
+    @patch(f"{_EXPORT_QUERY}.iter_stream_message_export_db")
+    def test_csv_format(self, mock_export_rows, mock_comprehensive):
         mock_comprehensive.return_value = _COMPREHENSIVE
-        pool, _connection, _cursor = _mock_pool(_EXPORT_ROWS)
-        mock_get_pool.return_value = pool
+        mock_export_rows.return_value = iter(_EXPORT_ROWS)
 
-        response = _user_client().get("/stream/7/export?format=csv")
+        response = _user_client().get("/streams/7/export?format=csv")
 
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/csv")
@@ -439,13 +437,13 @@ class TestStreamExport:
         )
 
     def test_invalid_format_rejected(self):
-        assert _user_client().get("/stream/7/export?format=xml").status_code == 422
+        assert _user_client().get("/streams/7/export?format=xml").status_code == 422
 
-    @patch(f"{_EP}.select_stream_comprehensive_db")
+    @patch(f"{_EXPORT_QUERY}.select_stream_comprehensive_db")
     def test_gateway_error_returns_500(self, mock_comprehensive):
         mock_comprehensive.side_effect = Exception("boom")
 
-        response = _user_client().get("/stream/7/export")
+        response = _user_client().get("/streams/7/export")
 
         assert response.status_code == 500
         assert response.json() == {"detail": "Internal server error"}

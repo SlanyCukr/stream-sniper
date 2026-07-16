@@ -1,6 +1,6 @@
 """Unit tests for the pure report-card baseline math (analytics/report_stats.py)."""
 
-from stream_sniper.analytics.report_stats import (
+from stream_sniper.analytics.calculations.report_stats import (
     build_metric,
     delta_pct,
     median,

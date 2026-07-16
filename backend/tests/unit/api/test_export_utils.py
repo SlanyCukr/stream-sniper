@@ -2,7 +2,7 @@
 
 import json
 
-from stream_sniper.api.export_utils import csv_content, csv_response, iter_csv, iter_ndjson
+from stream_sniper.api.transport.export_utils import csv_content, csv_response, iter_csv, iter_ndjson
 
 
 class TestCsvContent:

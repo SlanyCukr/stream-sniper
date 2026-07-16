@@ -1,4 +1,5 @@
 import React from 'react'
+import Image from 'next/image'
 import { EMOTES } from '@/lib/bettertv_emotes'
 
 /* Twitch-style username palette (dark-theme readable). */
@@ -96,12 +97,8 @@ export const parseBadges = badges => {
         .filter(badge => badge.name)
 }
 
-/**
- * Applies BetterTV emotes to a message, replacing known emote words with <img> tags.
- * @param {string} message
- * @returns {JSX.Element[]|null}
- */
-export const applyBetterTvEmotes = message => {
+/** @param {string} message @returns {JSX.Element[]|null} */
+export const renderMessageWithBetterTtvEmotes = message => {
     if (!message) {
         return null
     }
@@ -111,10 +108,13 @@ export const applyBetterTvEmotes = message => {
         .map((word, index) => {
             if (word in EMOTES) {
                 return (
-                    <img
+                    <Image
                         key={index}
                         src={`https://cdn.betterttv.net/emote/${EMOTES[word]}/1x`}
                         alt={word}
+                        width={28}
+                        height={28}
+                        unoptimized
                         role="img"
                         aria-label={`${word} emote`}
                     />
@@ -127,13 +127,13 @@ export const applyBetterTvEmotes = message => {
 
 /**
  * Builds a Twitch VOD deep-link seeked to a moment's offset from the stream start.
- * @param {string|number|null} twitchId - The VOD id
+ * @param {string|number|null} twitchVodId - The VOD id
  * @param {string} streamStart - ISO timestamp of the stream start
  * @param {string} momentTs - ISO timestamp of the moment to seek to
  * @returns {string|null} A twitch.tv/videos deep-link, or null when there is no VOD id
  */
-export const vodDeepLink = (twitchId, streamStart, momentTs) => {
-    if (!twitchId) {
+export const vodDeepLink = (twitchVodId, streamStart, momentTs) => {
+    if (!twitchVodId) {
         return null
     }
     const startMs = new Date(streamStart).getTime()
@@ -145,5 +145,5 @@ export const vodDeepLink = (twitchId, streamStart, momentTs) => {
     const h = Math.floor(offset / 3600)
     const m = Math.floor((offset % 3600) / 60)
     const s = offset % 60
-    return `https://www.twitch.tv/videos/${twitchId}?t=${h}h${m}m${s}s`
+    return `https://www.twitch.tv/videos/${twitchVodId}?t=${h}h${m}m${s}s`
 }

@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from stream_sniper.analytics import emote_seed
+from stream_sniper.analytics.rollups import emote_seed
 
 
 class TestValidBttvId:
@@ -23,8 +23,8 @@ class TestEnsureSeededValidatesIds:
     def test_invalid_provider_ids_seeded_name_only(self):
         fake_map = {
             "KEKW": "60ca186ef8b3f62601c3eb1d",  # valid
-            "Evil": "../../etc/passwd",          # invalid -> None
-            "Short": "abc",                       # invalid -> None
+            "Evil": "../../etc/passwd",  # invalid -> None
+            "Short": "abc",  # invalid -> None
         }
         with (
             patch.object(emote_seed, "select_dictionary_count_db", return_value=0),

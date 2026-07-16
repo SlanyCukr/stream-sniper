@@ -5,9 +5,11 @@ The backend component of Stream Sniper - a Twitch stream analytics platform that
 ## Overview
 
 This backend provides:
-- **Data Collection**: Downloads chat data from Twitch VODs
-- **REST API**: Serves processed data via FastAPI endpoints
-- **Database Management**: PostgreSQL integration with normalized schema
+
+- **Data Collection**: Captures Twitch VOD and live chat
+- **REST API**: Serves typed analytics and operational endpoints with FastAPI
+- **Analytics Jobs**: Builds stream rollups, digests, and bot classifications
+- **Database Management**: Uses function-based PostgreSQL table gateways and Alembic migrations
 
 ## Installation
 
@@ -26,11 +28,13 @@ uv run stream-sniper --help
 ## Usage
 
 ### Data Collection
+
 ```bash
 stream-sniper <twitch_username>
 ```
 
 ### API Server
+
 ```bash
 stream-sniper-api
 ```
@@ -60,12 +64,19 @@ TWITCH_USERNAME=someuser docker-compose up collector
 backend/
 ├── stream_sniper/           # Main package
 │   ├── api/                # REST API components
-│   ├── collector/          # Data collection modules
-│   ├── database/           # Database layer
-│   └── utils/             # Utilities
+│   │   └── features/       # Domain routers and transport models
+│   ├── application/        # Cross-gateway query and write-workflow orchestration
+│   ├── analytics/          # Rollups, digests, and enrichment jobs
+│   ├── collector/          # Archived-stream, VOD, and live-chat collection
+│   ├── database/           # Function-based table gateways and migrations
+│   └── tracking/           # Stream monitoring and processing queue
 ├── tests/                  # Test suite
 └── pyproject.toml         # Package configuration
 ```
+
+API routers own HTTP validation, authorization, caching, and error translation.
+They may call a single table gateway for narrow CRUD, while workflows spanning
+multiple gateways belong under `application/`.
 
 ## Database Schema
 
@@ -77,8 +88,8 @@ backend/
 
 ## Dependencies
 
-- **twitch-python**: Twitch API integration
-- **chat-downloader**: VOD chat extraction
+- **twitchAPI**: Twitch API integration
+- **requests**: project-owned Twitch archived-chat GraphQL client
 - **psycopg2-binary**: PostgreSQL connectivity
 - **fastapi**: REST API framework
 - **uvicorn**: ASGI server

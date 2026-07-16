@@ -32,22 +32,23 @@ dependencies = [
     "tqdm~=4.67.1",
     "pytimeparse~=1.1.8",
     "python-dotenv~=1.1.1",
-    "fastapi>=0.115.0",
-    "starlette>=0.40.0",
+    "fastapi>=0.115.0,<1",
+    "pydantic>=2.13,<3",
+    "starlette>=0.40.0,<2",
     "uvicorn~=0.35.0",
-    "chat-downloader~=0.2.8",
-    "requests>=2.32.0",
-    "urllib3>=2.2.0",
+    "requests>=2.32.0,<3",
+    "urllib3>=2.2.0,<3",
+    "aiohttp>=3.12,<4",
     # Rate limiting (in-process memory storage)
-    "slowapi>=0.1.9",
+    "slowapi>=0.1.9,<1",
     # Authentication dependencies
-    "PyJWT>=2.8.0",
-    "bcrypt>=4.0.0",
-    "email-validator>=2.0.0",
+    "PyJWT>=2.8.0,<3",
+    "bcrypt>=4.0.0,<6",
+    "email-validator>=2.0.0,<3",
     # Monitoring and utilities
-    "prometheus-client>=0.20.0",
-    "psutil>=6.0.0",
-    "alembic>=1.18.5",
+    "psutil>=6.0.0,<8",
+    "alembic>=1.18.5,<2",
+    "sqlalchemy>=2.0,<3",
 ]
 
 [dependency-groups]
@@ -58,18 +59,19 @@ dev = [
     "httpx>=0.25.0",  # For API testing
     "ruff>=0.9",
     "mypy>=1.0",
+    "types-psycopg2>=2.9.21.20260712",
 ]
 
 [project.scripts]
 stream-sniper = "stream_sniper.cli:main"
 stream-sniper-api = "stream_sniper.api.server:run"
-stream-sniper-tracking = "stream_sniper.tracking_service:run_tracking_service"
-stream-sniper-migrate = "stream_sniper.database.migrate:main"
-stream-sniper-rollup = "stream_sniper.analytics.backfill:main"
-stream-sniper-classify-bots = "stream_sniper.analytics.bot_detection:main"
-stream-sniper-digest = "stream_sniper.analytics.digest:main"
-stream-sniper-live = "stream_sniper.live_service:run_live_service"
-stream-sniper-live-auth = "stream_sniper.live_auth_cli:main"
+stream-sniper-tracking = "stream_sniper.tracking.service:run_tracking_service"
+stream-sniper-migrate = "stream_sniper.database.commands.migrate:main"
+stream-sniper-rollup = "stream_sniper.analytics.operations.backfill:main"
+stream-sniper-classify-bots = "stream_sniper.analytics.operations.bot_detection:main"
+stream-sniper-digest = "stream_sniper.analytics.operations.digest:main"
+stream-sniper-live = "stream_sniper.collector.live.service:run_live_service"
+stream-sniper-live-auth = "stream_sniper.collector.live.auth_cli:main"
 
 [project.urls]
 Homepage = "https://github.com/slanycukr/stream-sniper"
@@ -102,17 +104,11 @@ ignore = [
     "E501",   # line-length handled by formatter
     # Pervasive pre-existing style on a working codebase; not modernization-scope.
     # Annotation-style modernization would churn nearly every file.
-    "UP006",  # non-pep585-annotation (List -> list)
-    "UP007",  # non-pep604-annotation-union (Union -> |)
-    "UP035",  # deprecated typing import
-    "UP045",  # non-pep604-annotation-optional (Optional[X] -> X | None)
     "B008",   # function-call-in-default-argument (FastAPI Depends/Query/Path pattern)
     "B904",   # raise-without-from-inside-except (pre-existing style across API error handlers)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Deliberate star-import barrel that re-exports the table-gateway API.
-"stream_sniper/database/__init__.py" = ["F403", "F405"]
 # Test-authoring patterns that are intentional in the test suite:
 #   B017/pytest.raises(Exception) broad-exception assertions,
 #   E712 explicit == True/False against DB-returned values,
@@ -137,6 +133,7 @@ python_functions = ["test_*"]
 
 [tool.coverage.run]
 source = ["stream_sniper"]
+branch = true
 omit = [
     "*/tests/*",
     "*/venv/*",
@@ -144,6 +141,7 @@ omit = [
 ]
 
 [tool.coverage.report]
+fail_under = 75
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

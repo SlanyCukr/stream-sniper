@@ -1,13 +1,13 @@
 -- REFERENCE ONLY — do not apply by hand.
 -- Human-readable snapshot of the table/column/constraint set. The baseline tables are
 -- mirrored by Alembic revision 0001 (stream_sniper/database/migrations/versions/0001_...);
--- this file additionally mirrors the transactional analytics additions from revisions
--- 0006 (rollup + viewer-sample tables) and 0007 (message metadata columns) so the full
--- table shape is readable in one place. NOTE: revision 0001 additionally issues
+-- this file additionally mirrors the transactional analytics additions and tracking
+-- lifecycle changes through revision 0016, so the full table shape is readable in one
+-- place. NOTE: revision 0001 additionally issues
 -- CREATE SCHEMA IF NOT EXISTS stream_sniper (online schema creation lives in env.py); this
 -- file assumes the schema already exists, as it always did.
 -- Schema is now versioned with Alembic; build/upgrade a DB with:
---   cd backend && uv run alembic upgrade head        (fresh DB)
+--   cd backend && uv run stream-sniper-migrate upgrade head        (fresh DB)
 -- CONCURRENTLY indexes (chatter_nick_lower_prefix_idx / 0002, message_stream_time_id_idx /
 -- 0004, message_chatter_time_id_idx / 0005) and the tracking_heartbeat table (0003) live
 -- ONLY in their migrations, NOT here. See backend/CLAUDE.md "Database migrations".
@@ -98,7 +98,7 @@ create table stream_sniper.tracked_streamers
     display_name              varchar(255) not null,
     is_active                 boolean      not null default true,
     last_stream_check         timestamp    null,
-    last_processed_stream_id  bigint       null,
+    last_processed_vod_id     bigint       null,
     processing_enabled        boolean      not null default true,
     created_at                timestamp    not null default current_timestamp,
     updated_at                timestamp    not null default current_timestamp,
@@ -118,19 +118,26 @@ create table stream_sniper.processing_jobs
 (
     id                    serial       primary key,
     tracked_streamer_id   int          not null,
-    twitch_stream_id      bigint       not null,
+    twitch_vod_id         bigint       not null,
     status                varchar(50)  not null default 'pending',
     started_at            timestamp    null,
     completed_at          timestamp    null,
     error_message         text         null,
     retry_count           int          not null default 0,
+    worker_token          varchar(64)  null,
+    lease_expires_at      timestamptz  null,
+    cancellation_requested_at timestamptz null,
     created_at            timestamp    not null default current_timestamp,
     updated_at            timestamp    not null default current_timestamp,
     constraint processing_jobs_tracked_streamer_id_fk
         foreign key (tracked_streamer_id) references stream_sniper.tracked_streamers (id),
     constraint processing_jobs_status_check
-        check (status IN ('pending', 'in_progress', 'completed', 'failed'))
+        check (status IN ('pending', 'in_progress', 'completed', 'failed')),
+    constraint processing_jobs_streamer_vod_uq
+        unique (tracked_streamer_id, twitch_vod_id)
 );
+create index processing_jobs_dispatch_idx
+    on stream_sniper.processing_jobs (status, updated_at, id);
 
 -- ---------------------------------------------------------------------------
 -- Analytics rollup + viewer-sample tables (Alembic revision 0006).
@@ -218,4 +225,3 @@ create index creator_chatter_stats_recency_idx
 
 create index stream_creator_start_idx
     on stream_sniper.stream (creator_id, start desc);
-

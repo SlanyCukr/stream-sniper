@@ -55,6 +55,4 @@ def downgrade() -> None:
     # DROP INDEX CONCURRENTLY is also non-transactional. Qualify by the INDEX's
     # own schema (stream_sniper), not the table name.
     with op.get_context().autocommit_block():
-        op.execute(
-            "DROP INDEX CONCURRENTLY IF EXISTS stream_sniper.chatter_nick_lower_prefix_idx"
-        )
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS stream_sniper.chatter_nick_lower_prefix_idx")

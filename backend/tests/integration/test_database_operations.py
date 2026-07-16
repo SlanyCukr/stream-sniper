@@ -32,7 +32,7 @@ class TestDatabaseIntegration:
 
         # 2. Create stream
         stream_data = {
-            "twitch_id": "stream_abc123",
+            "twitch_id": 987654321,
             "title": "Epic Gaming Session",
             "start_time": datetime(2024, 1, 15, 20, 0, 0),
             "end_time": datetime(2024, 1, 15, 23, 30, 0),
@@ -151,7 +151,7 @@ class TestDatabaseIntegration:
                 INSERT INTO stream (twitch_id, title, creator_id)
                 VALUES (%s, %s, %s)
             """,
-                ("stream_123", "Test Stream", 999),
+                (123, "Test Stream", 999),
             )
 
     def test_unique_constraints(self, db_cursor):
@@ -315,7 +315,7 @@ class TestDatabaseIntegration:
         # Create multiple streams
         for i in range(3):
             stream_id = create_test_stream(
-                db_cursor, {"twitch_id": f"stream_{i}", "title": f"Stream {i}", "message_count": 0}, creator_id
+                db_cursor, {"twitch_id": 1000 + i, "title": f"Stream {i}", "message_count": 0}, creator_id
             )
             stream_ids.append(stream_id)
 
@@ -376,12 +376,13 @@ class TestDatabaseIntegration:
 
         # Test data type constraints
         with pytest.raises(Exception):
+            creator_id = create_test_creator(db_cursor)
             db_cursor.execute(
                 """
-                INSERT INTO stream (twitch_id, start_time, creator_id) 
-                VALUES (%s, %s, %s)
+                INSERT INTO stream (twitch_id, title, start, creator_id)
+                VALUES (%s, %s, %s, %s)
             """,
-                ("stream_123", "invalid_timestamp", 1),
+                (123, "Invalid timestamp", "invalid_timestamp", creator_id),
             )
 
     def test_indexing_performance(self, db_cursor):

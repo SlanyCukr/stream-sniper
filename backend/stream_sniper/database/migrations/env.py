@@ -3,10 +3,10 @@
 Migrations are HAND-WRITTEN raw SQL (op.execute / op.create_*). There are no ORM
 models and no autogenerate; target_metadata is None.
 
-The database URL and schema are reproduced EXACTLY from
-stream_sniper.database.connection_pool.DatabaseConnectionPool._get_db_config:
+The database URL and schema match the POSTGRES_* contract consumed by API
+configuration used by executable database runtimes:
   * load_dotenv() first,
-  * POSTGRES_* preferred with legacy un-prefixed fallback (empty string falls through),
+  * one POSTGRES_* environment contract,
   * port default 5432,
   * schema `stream_sniper` applied via libpq search_path (same as the app), and
     alembic_version kept in that schema via version_table_schema.
@@ -43,15 +43,11 @@ target_metadata = None
 SCHEMA = "stream_sniper"
 
 
-def _db_env(prefixed: str, legacy: str, default: str | None = None) -> str:
-    """Exact reproduction of connection_pool._db_env precedence:
-    POSTGRES_* first, legacy un-prefixed fallback, empty-string falls through
-    (Python `or` semantics), fail-fast if still unset."""
-    value = os.environ.get(prefixed) or os.environ.get(legacy) or default
+def _db_env(name: str, default: str | None = None) -> str:
+    """Read the same required POSTGRES_* contract as the application."""
+    value = os.environ.get(name) or default
     if value is None:
-        raise RuntimeError(
-            f"Database configuration missing: set {prefixed} (or legacy {legacy}) in the environment"
-        )
+        raise RuntimeError(f"Database configuration missing: set {name} in the environment")
     return value
 
 
@@ -64,11 +60,11 @@ def _build_url() -> URL:
     # so special characters (@ : / # ? % space) need zero escaping.
     return URL.create(
         drivername="postgresql+psycopg2",
-        username=_db_env("POSTGRES_USER", "USER"),
-        password=_db_env("POSTGRES_PASSWORD", "PASSWORD"),
-        host=_db_env("POSTGRES_HOST", "HOST"),
-        database=_db_env("POSTGRES_DB", "DATABASE"),
-        port=int(_db_env("POSTGRES_PORT", "PORT", "5432")),
+        username=_db_env("POSTGRES_USER"),
+        password=_db_env("POSTGRES_PASSWORD"),
+        host=_db_env("POSTGRES_HOST"),
+        database=_db_env("POSTGRES_DB"),
+        port=int(_db_env("POSTGRES_PORT", "5432")),
     )
 
 
@@ -110,8 +106,8 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     connectable = create_engine(
         _build_url(),
-        poolclass=pool.NullPool,          # short-lived migration engine
-        connect_args=_connect_args(),     # search_path=stream_sniper, like the app
+        poolclass=pool.NullPool,  # short-lived migration engine
+        connect_args=_connect_args(),  # search_path=stream_sniper, like the app
     )
 
     # STEP 1 — ensure the schema exists on a SEPARATE, fully-committed transaction,
@@ -125,10 +121,10 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            version_table_schema=SCHEMA,       # alembic_version lives in stream_sniper
-            include_schemas=True,              # harmless now; ready if autogenerate is ever added
-            transaction_per_migration=True,    # each migration in its own tx; keeps
-                                               # autocommit_block() (CONCURRENTLY) clean
+            version_table_schema=SCHEMA,  # alembic_version lives in stream_sniper
+            include_schemas=True,  # harmless now; ready if autogenerate is ever added
+            transaction_per_migration=True,  # each migration in its own tx; keeps
+            # autocommit_block() (CONCURRENTLY) clean
         )
         with context.begin_transaction():
             context.run_migrations()

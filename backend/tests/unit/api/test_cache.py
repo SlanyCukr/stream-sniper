@@ -1,7 +1,16 @@
 """Unit tests for the in-process TTL cache."""
 
-from stream_sniper.api import cache as cache_module
-from stream_sniper.api.cache import InProcessCache
+import pytest
+
+from stream_sniper.api.caching import cache as cache_module
+from stream_sniper.api.caching.cache import InProcessCache
+from stream_sniper.api.observability.monitoring import (
+    CacheMetrics,
+    MetricsCollector,
+    enter_metrics_scope,
+    exit_metrics_scope,
+    record_cache_operation,
+)
 
 
 def make_cache():
@@ -64,7 +73,7 @@ def test_flush_all_clears_namespace():
     c = make_cache()
     c.set("stream_sniper:a:1", 1)
     c.set("stream_sniper:b:2", 2)
-    assert c.flush_all() is True
+    assert c.flush_all() is None
     assert c.get("stream_sniper:a:1") is None
 
 
@@ -96,11 +105,11 @@ def test_get_stats_reports_healthy_and_count():
     assert stats["stream_sniper_keys"] == 1
 
 
-def test_generate_key_deterministic():
+def testgenerate_key_deterministic():
     c = make_cache()
-    k1 = c._generate_key("stream", 1, foo="bar")
-    k2 = c._generate_key("stream", 1, foo="bar")
-    k3 = c._generate_key("stream", 2, foo="bar")
+    k1 = c.generate_key("stream", 1, foo="bar")
+    k2 = c.generate_key("stream", 1, foo="bar")
+    k3 = c.generate_key("stream", 2, foo="bar")
     assert k1 == k2
     assert k1 != k3
     assert k1.startswith("stream_sniper:stream:")
@@ -121,3 +130,26 @@ def test_prune_on_growth(monkeypatch):
     c.set("stream_sniper:fresh", 1, ttl=10)
     assert len(c._store) == 1
     assert c.get("stream_sniper:fresh") == 1
+
+
+def test_empty_cache_metrics_report_zero_hit_and_miss_rates():
+    metrics = CacheMetrics()
+
+    assert metrics.hit_rate == 0.0
+    assert metrics.miss_rate == 0.0
+
+
+def test_cache_operation_facade_rejects_unknown_operations():
+    collector = MetricsCollector()
+    token = enter_metrics_scope(collector)
+    try:
+        record_cache_operation("hit", "streams")
+        record_cache_operation("miss", "streams")
+
+        summary = collector.prune_and_summarize_metrics()["cache"]
+        assert summary["total_operations"]["hits"] == 1
+        assert summary["total_operations"]["misses"] == 1
+        with pytest.raises(ValueError, match="Unsupported cache operation"):
+            record_cache_operation("unknown", "streams")  # type: ignore[arg-type]
+    finally:
+        exit_metrics_scope(token)

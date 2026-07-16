@@ -6,7 +6,8 @@ WINDOW=10, SPIKE_MULTIPLIER=3.0, MIN_ABSOLUTE=15, MIN_GAP_MINUTES=5.
 
 from datetime import datetime, timedelta
 
-from stream_sniper.api.moments import detect_moments
+from stream_sniper.analytics.calculations.moments import detect_moments
+from stream_sniper.database.gateways.analytics.records import StreamBucketRow
 
 _BASE = datetime(2024, 1, 15, 20, 0, 0)
 
@@ -15,8 +16,8 @@ def _iso(minute_offset: int) -> str:
     return (_BASE + timedelta(minutes=minute_offset)).strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def _bucket(minute_offset: int, count: int, unique: int):
-    return (_iso(minute_offset), count, unique)
+def _bucket(minute_offset: int, count: int, unique: int) -> StreamBucketRow:
+    return StreamBucketRow(_iso(minute_offset), count, unique, None, None)
 
 
 class TestSpikeDetection:

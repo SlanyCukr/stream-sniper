@@ -35,51 +35,70 @@ uv run mypy stream_sniper/    # type check (advisory)
 
 - `stream-sniper <username>` → `stream_sniper.cli:main` — data collection CLI
 - `stream-sniper-api` → `stream_sniper.api.server:run` — REST API on :5002
-- `stream-sniper-tracking` → `stream_sniper.tracking_service:run_tracking_service` — automated tracking
-- `stream-sniper-migrate` → `stream_sniper.database.migrate:main` — packaged Alembic wrapper (the prod/container way to run migrations; needs no `alembic.ini` or cwd)
+- `stream-sniper-tracking` → `stream_sniper.tracking.service:run_tracking_service` — automated tracking
+- `stream-sniper-migrate` → `stream_sniper.database.commands.migrate:main` — packaged Alembic wrapper (the prod/container way to run migrations; needs no `alembic.ini` or cwd)
+- `stream-sniper-rollup` → `stream_sniper.analytics.operations.backfill:main` — analytics rollup backfill
+- `stream-sniper-classify-bots` → `stream_sniper.analytics.operations.bot_detection:main` — chatter classification
+- `stream-sniper-digest` → `stream_sniper.analytics.operations.digest:main` — analytics digest generation
+- `stream-sniper-live` → `stream_sniper.collector.live.service:run_live_service` — live-chat service
+- `stream-sniper-live-auth` → `stream_sniper.collector.live.auth_cli:main` — interactive Twitch authorization
 
 ## Architecture
 
 Packages under `stream_sniper/`:
 
-- **`collector/`** — `TwitchCollectorFacade` orchestrates chat download +
-  processing; `twitch_api.py` (twitchAPI OAuth, requires Twitch creds),
-  `chat_processor.py`, `database_buffer.py` (batch inserts). VOD chat via
-  `chat-downloader`.
-- **`database/`** — **table-gateway pattern**: one gateway class per table
-  (`creator_table_gateway.py`, `stream_table_gateway.py`, `user_table_gateway.py`,
-  `tracked_streamers_table_gateway.py`, `processing_jobs_table_gateway.py`, …).
-  `connection_pool.py` holds a `psycopg2` `ThreadedConnectionPool`; `decorators.py`
-  provides `@with_connection`. Schema is versioned with **Alembic** in
+- **`collector/`** — `TwitchCollectorFacade` composes creator lookup, VOD ingestion,
+  and the Twitch adapter. `vod_ingestion.py` owns persistence orchestration,
+  `twitch_vod_chat_downloader.py` selects VODs while `twitch_archived_chat.py` owns
+  the Twitch GraphQL pagination contract, and `live/` contains the
+  loop-native live collector and message sink. `database_buffer.py` batches writes.
+- **`application/`** — typed read/query orchestration spanning multiple gateways.
+  FastAPI handlers own HTTP and caching concerns; application queries assemble the
+  domain result without importing FastAPI. Application-owned Pydantic models are
+  reusable read contracts for those workflows; `api/features/` models are reserved
+  for HTTP-specific request or response shapes.
+- **`analytics/`** — offline rollups, scene/moment enrichment, digests, and bot
+  classification jobs.
+- **`database/`** — **function-based table-gateway pattern**: each `*_table_gateway.py`
+  owns parameterized operations for one table or aggregate. `core/connection_pool.py`
+  owns scoped `psycopg2` `ThreadedConnectionPool` lifecycles; `core/decorators.py` provides
+  `@with_cursor`. Gateways are grouped by capability: `analytics/` for stream-wide
+  rollups, `content/` for moments and scenes, `community/` for audience relationships,
+  and `creators/` for creator-specific analytics. Schema is versioned with **Alembic** in
   `database/migrations/` — hand-written raw SQL (`op.execute` / `op.create_*`, **not**
   autogenerate; there are no ORM models). `database/create_table.sql` is a
   reference-only baseline snapshot mirrored by revision `0001`.
-- **`api/`** — FastAPI app (`api/api.py:app`), auth (`auth.py`;
-  `auth_router.py` mounts self-service `auth_endpoints.py` and admin
-  `user_admin_endpoints.py`, contracts in `user_models.py`), tracking
-  endpoints (`tracking_router.py` mounts `tracking_streamer_endpoints.py`,
-  `tracking_job_endpoints.py`, `tracking_service_endpoints.py`; contracts in
-  `tracking_models.py`), rate limiting
-  (`rate_limiter.py`, slowapi, in-process memory storage), caching (`cache.py`,
-  in-process TTL cache), health/metrics (`health.py`, `monitoring.py`), config
-  (`config.py`).
+- **`api/`** — `api.py:create_app` is the reusable FastAPI composition root and
+  `asgi.py:app` is the environment-loading production ASGI boundary. Platform
+  concerns include auth/policy, runtime startup, caching, error boundaries, health,
+  monitoring, rate limiting, and config. **`api/features/`** groups routers by
+  product domain (`auth/`, `tracking/`, `streams/`, `content/`, `creators/`,
+  `community/`, `chatters/`, and `operations/`) and keeps only HTTP-specific models
+  beside them. Multi-gateway assembly belongs in `application/`;
+  simple single-gateway CRUD and streaming response adapters may remain in handlers.
 - **`tracking/`** — `stream_monitor.py`, `processing_queue.py`,
   `stream_processor.py`, `scheduler.py`. See `/TRACKING_SYSTEM.md`.
 
 ### Database access
 
 ```python
-from stream_sniper.database.decorators import with_connection
+from stream_sniper.database.core.decorators import with_cursor
 
-@with_connection
-def op(connection):
-    ...
+@with_cursor
+def select_example_db(*, cursor):
+    cursor.execute("SELECT value FROM stream_sniper.example")
+    return cursor.fetchone()
 
-from stream_sniper.database.creator_table_gateway import CreatorTableGateway
-creator_id = CreatorTableGateway().get_creator_id_by_nick("streamer")
+from stream_sniper.database.gateways.identity.creator_table_gateway import select_creator_id_db
+creator_id = select_creator_id_db("streamer")
 ```
 
-Use `DatabaseBuffer` (`collector/database_buffer.py`) for bulk message inserts;
+Use `@with_cursor` for standalone reads. CRUD modules may pair `read_cursor()` with
+`write_cursor()` so transaction ownership remains visible beside their mutations;
+modules that mix protocols keep decorated operations read-only and explicit blocks
+for writes.
+
+Use `DatabaseBuffer` (`collector/archived/database_buffer.py`) for bulk message inserts;
 always parameterize queries.
 
 ### Database migrations (Alembic)
@@ -101,7 +120,7 @@ Rules:
 - **Schema creation lives in `env.py`** (a separate committed transaction, before the
   version table), because `version_table_schema="stream_sniper"` makes Alembic create
   `alembic_version` before any migration runs. `env.py` reuses `connection_pool.py`'s
-  env precedence (`POSTGRES_*` → legacy) — no new DB env is introduced.
+  `POSTGRES_*` environment contract — no migration-only aliases are introduced.
 - **Prod is manual:** `docker exec stream-sniper-api stream-sniper-migrate upgrade head`
   (see root `CLAUDE.md` runbook). Migrations are intentionally **not** in `deploy.yml`.
   `uv run alembic` is **dev-only** (no `uv`/source in the prod image; use
@@ -111,13 +130,14 @@ Rules:
 ## Authentication
 
 Stack is **bcrypt** (password hashing, used directly — no passlib) + **PyJWT**
-(HS256 tokens — no python-jose). The signing secret is **fail-fast**: `auth.py`
-reads `JWT_SECRET_KEY` or `SECRET_KEY` at import and raises `RuntimeError` if
-neither is set (so tests/imports need one in the env).
+(HS256 tokens — no python-jose). `load_config()` reads `JWT_SECRET_KEY` or
+`SECRET_KEY` into `AuthConfig`; `create_app()` validates that explicit snapshot at
+the composition boundary. Importing `auth.py` or the application factory does not
+read environment state or require a signing secret.
 
 ```python
 from fastapi import Depends
-from stream_sniper.api.auth import get_current_user, get_current_admin_user
+from stream_sniper.api.security.auth import get_current_user, get_current_admin_user
 
 @router.get("/protected")
 async def protected(user = Depends(get_current_user)): ...
@@ -132,12 +152,11 @@ Roles are `user` / `admin`. Bootstrap an admin: `POST /auth/register`, then
 ## Environment Variables (actually read by the code)
 
 ```bash
-# Database (connection_pool.py) — POSTGRES_* preferred, legacy un-prefixed fallback
+# Database (connection_pool.py and migrations/env.py)
 POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_DB, POSTGRES_PORT
-USER, PASSWORD, HOST, DATABASE, PORT   # legacy .env names, still honored
 DB_POOL_MIN_CONN, DB_POOL_MAX_CONN, DB_CONNECT_TIMEOUT, DB_COMMAND_TIMEOUT
 
-# Auth (auth.py) — one of these is REQUIRED (fail-fast)
+# Auth (load_config at API composition) — one of these is REQUIRED for the API
 JWT_SECRET_KEY   # preferred
 SECRET_KEY       # fallback (prod compose/deploy sets this)
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES   # default 30
@@ -163,8 +182,8 @@ uv run pytest --cov=stream_sniper
 docker-compose run --rm api pytest   # in-container
 ```
 
-`tests/conftest.py` sets a dummy `JWT_SECRET_KEY` so API modules import under the
-fail-fast. Integration/gateway tests need Postgres (`TEST_DB_*` env in CI).
+API tests construct explicit `APIConfig` snapshots; imports do not require auth
+environment state. Integration/gateway tests need Postgres (`TEST_DB_*` env in CI).
 Layout: `tests/unit/`, `tests/integration/`, `tests/fixtures/`.
 
 ## Docker
@@ -186,7 +205,4 @@ TWITCH_USERNAME=someuser docker-compose up collector
 
 ## Code Style
 
-- Match neighboring files; check imports before assuming a library is available.
-- Parameterized SQL only; never log/expose secrets.
-- Type hints; async/await for API I/O; `DatabaseBuffer` for batch writes.
-- Comprehensive logging + graceful degradation.
+- Never log/expose secrets; async/await for API I/O; graceful degradation over crashes.

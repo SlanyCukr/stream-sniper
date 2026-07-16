@@ -172,3 +172,9 @@ testing.py
 # Backend runtime logs (logger fallback during local runs)
 backend/logs/
 .live-refresh-token
+
+# Desloppify tool state (large, machine-local)
+.desloppify/
+# Repowise tool state (machine-local)
+.repowise/
+scorecard.png

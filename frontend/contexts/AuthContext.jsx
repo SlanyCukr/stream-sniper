@@ -1,254 +1,131 @@
 'use client'
-
 import {
-    createContext, useContext, useState, useEffect, useCallback,
+    createContext, useCallback, useContext, useEffect, useState,
 } from 'react'
-import { jwtDecode } from 'jwt-decode'
-import { api, setUnauthorizedHandler } from '@/lib/api'
+import { installUnauthorizedInterceptor } from '@/lib/api/client'
+import {
+    authenticate,
+    fetchUserProfile,
+    registerAndAuthenticate,
+    requestPasswordChange,
+    updateProfile,
+} from '@/lib/auth/service'
+import {
+    isExpiredToken, readStoredToken, removeStoredToken, storeToken,
+} from '@/lib/auth/session'
+import { toUiFailure } from '@/utils/errorUtils'
+import { isAdminRole } from '@/lib/auth/roles'
 
 const AuthContext = createContext()
 
 export const useAuth = () => {
     const context = useContext(AuthContext)
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider')
-    }
+    if (!context) throw new Error('useAuth must be used within an AuthProvider')
     return context
 }
 
 export const AuthProvider = ({ children }) => {
-    const [
-        user,
-        setUser,
-    ] = useState(null)
-    const [
-        token,
-        setToken,
-    ] = useState(null)
-    const [
-        loading,
-        setLoading,
-    ] = useState(true)
-    const [
-        error,
-        setError,
-    ] = useState(null)
+    const [user, setUser] = useState(null)
+    const [token, setToken] = useState(null)
+    const [isInitializing, setIsInitializing] = useState(true)
+    const [sessionError, setSessionError] = useState(
+        /** @type {ReturnType<typeof toUiFailure>|null} */ (null),
+    )
 
-    const fetchUserInfo = useCallback(async authToken => {
+    const clearSession = useCallback(() => {
+        let storageFailure = null
         try {
-            const { data } = await api.get('/auth/me', {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`,
-                },
-            })
-
-            setUser(data)
-            setError(null)
-        } catch (fetchError) {
-            console.error('Error fetching user info:', fetchError)
-            setError('Failed to fetch user information')
-            // Clear invalid token
-            localStorage.removeItem('token')
+            removeStoredToken()
+        } catch (storageError) {
+            storageFailure = toUiFailure(storageError, 'Failed to clear stored session')
+        } finally {
             setToken(null)
             setUser(null)
-        } finally {
-            setLoading(false)
         }
-    }, [
-    ])
+        return storageFailure
+    }, [])
 
     const logout = useCallback(() => {
-        localStorage.removeItem('token')
-        setToken(null)
-        setUser(null)
-        setError(null)
-    }, [
-    ])
+        setSessionError(clearSession())
+    }, [clearSession])
 
-    // Route 401 responses from the shared api client through logout.
-    useEffect(() => {
-        setUnauthorizedHandler(() => {
-            logout()
-        })
-    }, [
-        logout,
-    ])
+    useEffect(() => installUnauthorizedInterceptor(logout), [logout])
 
-    // Check for existing token on mount
     useEffect(() => {
-        const savedToken = localStorage.getItem('token')
-        if (savedToken) {
+        let active = true
+        const restoreSession = async () => {
             try {
-                const decodedToken = jwtDecode(savedToken)
-
-                // Check if token is expired
-                if (decodedToken.exp * 1000 > Date.now()) {
-                    setToken(savedToken)
-                    fetchUserInfo(savedToken)
-                } else {
-                    // Token expired, remove it
-                    localStorage.removeItem('token')
-                    setLoading(false)
+                const savedToken = readStoredToken()
+                if (!savedToken) return
+                if (isExpiredToken(savedToken)) {
+                    setSessionError(clearSession())
+                    return
                 }
-            } catch (tokenError) {
-                console.error('Invalid token:', tokenError)
-                localStorage.removeItem('token')
-                setLoading(false)
+                const profile = await fetchUserProfile(savedToken)
+                if (!active) return
+                setToken(savedToken)
+                setUser(profile)
+                setSessionError(null)
+            } catch (restoreError) {
+                console.error('Unable to restore session')
+                if (active) {
+                    const cleanupFailure = clearSession()
+                    setSessionError(
+                        cleanupFailure ?? toUiFailure(restoreError, 'Failed to restore session'),
+                    )
+                }
+            } finally {
+                if (active) setIsInitializing(false)
             }
-        } else {
-            setLoading(false)
         }
-    }, [
-        fetchUserInfo,
-    ])
+        restoreSession()
+        return () => {
+            active = false
+        }
+    }, [clearSession])
 
-    const login = async (username, password) => {
+    const establishSession = async sessionPromise => {
+        const session = await sessionPromise
+        storeToken(session.token)
+        setToken(session.token)
+        setUser(session.profile)
+        setSessionError(null)
+    }
+
+    const runAuthAction = async (action, onFailure) => {
         try {
-            setLoading(true)
-            setError(null)
-
-            const { data } = await api.post('/auth/login', {
-                username,
-                password,
-            })
-            const { access_token } = data
-
-            // Store token
-            localStorage.setItem('token', access_token)
-            setToken(access_token)
-
-            // Fetch user info
-            await fetchUserInfo(access_token)
-
-            return { success: true }
-        } catch (loginError) {
-            const message = loginError.response?.data?.detail || loginError.message || 'Login failed'
-            console.error('Login error:', loginError)
-            setError(message)
-            return {
-                success: false,
-                error: message,
-            }
-        } finally {
-            setLoading(false)
+            await action()
+        } catch (actionError) {
+            const cleanupFailure = onFailure?.()
+            if (cleanupFailure) setSessionError(cleanupFailure)
+            throw actionError
         }
     }
 
-    const register = async (username, email, password) => {
-        try {
-            setLoading(true)
-            setError(null)
-
-            await api.post('/auth/register', {
-                username,
-                email,
-                password,
-            })
-
-            // After registration, automatically log in
-            return await login(username, password)
-        } catch (registrationError) {
-            const message = registrationError.response?.data?.detail || registrationError.message || 'Registration failed'
-            console.error('Registration error:', registrationError)
-            setError(message)
-            return {
-                success: false,
-                error: message,
-            }
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const updateUser = async userData => {
-        try {
-            setLoading(true)
-            setError(null)
-
-            const { data } = await api.put('/auth/me', userData)
-            setUser(data)
-            return { success: true }
-        } catch (updateError) {
-            const message = updateError.response?.data?.detail || updateError.message || 'Update failed'
-            console.error('Update error:', updateError)
-            setError(message)
-            return {
-                success: false,
-                error: message,
-            }
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const changePassword = async (currentPassword, newPassword) => {
-        try {
-            setLoading(true)
-            setError(null)
-
-            await api.put('/auth/me/password', {
-                current_password: currentPassword,
-                new_password: newPassword,
-            })
-
-            return { success: true }
-        } catch (passwordChangeError) {
-            const message = passwordChangeError.response?.data?.detail || passwordChangeError.message || 'Password change failed'
-            console.error('Password change error:', passwordChangeError)
-            setError(message)
-            return {
-                success: false,
-                error: message,
-            }
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const isTokenExpired = useCallback(() => {
-        if (!token) {
-            return true
-        }
-
-        try {
-            const decodedToken = jwtDecode(token)
-            return decodedToken.exp * 1000 <= Date.now()
-        } catch (tokenDecodeError) {
-            console.error('Token decode error:', tokenDecodeError)
-            return true
-        }
-    }, [
-        token,
-    ])
-
-    const refreshUserInfo = useCallback(async () => {
-        if (token && !isTokenExpired()) {
-            await fetchUserInfo(token)
-        }
-    }, [
-        token,
-        isTokenExpired,
-        fetchUserInfo,
-    ])
-
-    const isAuthenticated = !!(token && user && !isTokenExpired())
-    const isAdmin = user?.role === 'admin'
-
+    const login = (username, password) => runAuthAction(
+        () => establishSession(authenticate(username, password)),
+        clearSession,
+    )
+    const register = (username, email, password) => runAuthAction(
+        () => establishSession(registerAndAuthenticate(username, email, password)),
+    )
+    const updateUser = userData => runAuthAction(
+        async () => setUser(await updateProfile(userData)),
+    )
+    const changePassword = (currentPassword, newPassword) => runAuthAction(
+        () => requestPasswordChange(currentPassword, newPassword),
+    )
     const value = {
         user,
-        token,
-        loading,
-        error,
-        isAuthenticated,
-        isAdmin,
+        isInitializing,
+        sessionError,
+        isAuthenticated: Boolean(token && user && !isExpiredToken(token)),
+        isAdmin: isAdminRole(user?.role),
         login,
         register,
         logout,
         updateUser,
         changePassword,
-        refreshUserInfo,
-        isTokenExpired,
-        clearError: () => setError(null),
     }
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

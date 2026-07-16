@@ -50,6 +50,13 @@ The CI/CD pipeline consists of four main workflows:
 - Security linting with Bandit
 - Security pattern detection with Semgrep
 
+#### `frontend` - Frontend Build & Browser Confidence
+- Installs the locked Node dependencies on Node.js 22
+- Runs TypeScript and the incremental checked-JavaScript boundary gate
+- Enforces the ratcheted Vitest coverage baseline
+- Installs Playwright Chromium and runs the critical browser smoke journeys
+- Builds the Next.js standalone production output
+
 ### 2. Docker Build & Publish (`docker.yml`)
 
 **Triggers:**

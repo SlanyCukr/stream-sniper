@@ -6,7 +6,7 @@ different test files to ensure consistency and reduce duplication.
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any
 
 # Sample creator data
 SAMPLE_CREATORS = [
@@ -32,13 +32,13 @@ SAMPLE_CREATORS = [
 
 
 # Sample stream data
-def get_sample_streams(creator_id: int = 1) -> List[Dict[str, Any]]:
+def get_sample_streams(creator_id: int = 1) -> list[dict[str, Any]]:
     """Generate sample stream data for a given creator."""
     base_time = datetime(2024, 1, 15, 20, 0, 0)
 
     return [
         {
-            "twitch_id": "stream_abc123",
+            "twitch_id": 1001,
             "title": "Epic Gaming Session - Day 1",
             "start_time": base_time,
             "end_time": base_time + timedelta(hours=3, minutes=30),
@@ -47,7 +47,7 @@ def get_sample_streams(creator_id: int = 1) -> List[Dict[str, Any]]:
             "creator_id": creator_id,
         },
         {
-            "twitch_id": "stream_def456",
+            "twitch_id": 1002,
             "title": "Chill Coding Stream",
             "start_time": base_time + timedelta(days=1),
             "end_time": base_time + timedelta(days=1, hours=4),
@@ -56,7 +56,7 @@ def get_sample_streams(creator_id: int = 1) -> List[Dict[str, Any]]:
             "creator_id": creator_id,
         },
         {
-            "twitch_id": "stream_ghi789",
+            "twitch_id": 1003,
             "title": "Community Game Night",
             "start_time": base_time + timedelta(days=2),
             "end_time": base_time + timedelta(days=2, hours=2, minutes=45),
@@ -117,7 +117,7 @@ SAMPLE_MESSAGE_TEXTS = [
 
 
 # Sample chat messages for processing tests
-def get_sample_chat_messages() -> List[Dict[str, Any]]:
+def get_sample_chat_messages() -> list[dict[str, Any]]:
     """Generate realistic chat message data."""
     base_time = 1642287015.0  # Unix timestamp
     messages = []
@@ -220,7 +220,7 @@ UNICODE_TEST_DATA = {
     ],
     "streams": [
         {
-            "twitch_id": "unicode_stream_001",
+            "twitch_id": 2001,
             "title": "游戏直播 Gaming Stream 🎯 مرحبا",
             "start_time": datetime(2024, 1, 20, 19, 0, 0),
             "end_time": datetime(2024, 1, 20, 22, 30, 0),
@@ -255,7 +255,7 @@ def generate_large_dataset(
     num_streams_per_creator: int = 20,
     num_chatters: int = 1000,
     num_messages_per_stream: int = 5000,
-) -> Dict[str, List]:
+) -> dict[str, list]:
     """Generate large dataset for performance testing."""
     creators = []
     streams = []
@@ -269,7 +269,7 @@ def generate_large_dataset(
                 "nick": f"perf_creator_{i}",
                 "display_name": f"Performance Creator {i}",
                 "profile_image_url": f"https://example.com/perf_profile_{i}.jpg",
-                "twitch_id": f"perf_twitch_{i:06d}",
+                "twitch_id": 100_000 + i,
             }
         )
 
@@ -285,7 +285,7 @@ def generate_large_dataset(
             stream_start = base_time + timedelta(days=creator_idx * num_streams_per_creator + stream_idx)
 
             stream = {
-                "twitch_id": f"perf_stream_{creator_idx}_{stream_idx}",
+                "twitch_id": 200_000 + creator_idx * 1_000 + stream_idx,
                 "title": f"Performance Stream {stream_idx} by Creator {creator_idx}",
                 "start_time": stream_start,
                 "end_time": stream_start + timedelta(hours=3),
@@ -320,7 +320,7 @@ ERROR_TEST_DATA = {
     "invalid_stream_data": [
         {"title": "No Twitch ID Stream", "creator_id": 1},  # Missing twitch_id
         {"twitch_id": "", "title": "Empty Twitch ID", "creator_id": 1},  # Empty twitch_id
-        {"twitch_id": "stream_123", "title": "No Creator", "creator_id": 999},  # Non-existent creator
+        {"twitch_id": 999, "title": "No Creator", "creator_id": 999},  # Non-existent creator
     ],
     "invalid_message_data": [
         {"chatter_id": 999, "stream_id": 1, "message_text_id": 1},  # Non-existent chatter
@@ -331,23 +331,23 @@ ERROR_TEST_DATA = {
 
 
 # Test data validation helpers
-def validate_creator_data(creator_data: Dict[str, Any]) -> bool:
+def validate_creator_data(creator_data: dict[str, Any]) -> bool:
     """Validate creator data structure."""
     required_fields = ["nick", "display_name", "twitch_id"]
     return all(field in creator_data for field in required_fields)
 
 
-def validate_stream_data(stream_data: Dict[str, Any]) -> bool:
+def validate_stream_data(stream_data: dict[str, Any]) -> bool:
     """Validate stream data structure."""
     required_fields = ["twitch_id", "title"]
     return all(field in stream_data for field in required_fields)
 
 
-def validate_chatter_data(chatter_data: Dict[str, Any]) -> bool:
+def validate_chatter_data(chatter_data: dict[str, Any]) -> bool:
     """Validate chatter data structure."""
     return "nick" in chatter_data
 
 
-def validate_message_data(message_data: Dict[str, Any]) -> bool:
+def validate_message_data(message_data: dict[str, Any]) -> bool:
     """Validate message data structure."""
     return "text" in message_data

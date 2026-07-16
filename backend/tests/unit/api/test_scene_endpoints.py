@@ -9,13 +9,23 @@ from unittest.mock import Mock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from stream_sniper.api.rate_limiter import setup_rate_limiting
-from stream_sniper.api.scene_endpoints import router
+from stream_sniper.api.error_boundary import UnexpectedExceptionMiddleware
+from stream_sniper.api.features.content.scene_endpoints import router
+from stream_sniper.api.security.rate_limiter import setup_rate_limiting
+from stream_sniper.database.gateways.content.records import (
+    CopypastaContextRow,
+    CopypastaOccurrenceRow,
+    SceneCopypastaRow,
+    SceneLeaderboardRow,
+    ScenePeakViewerRow,
+)
+from stream_sniper.database.gateways.streams.records import LiveNowRow
 
 
 def _build_app():
     app = FastAPI()
     setup_rate_limiting(app)
+    app.add_middleware(UnexpectedExceptionMiddleware)
     app.include_router(router)
     return app
 
@@ -26,7 +36,7 @@ app = _build_app()
 def _miss_cache():
     """A mock cache that always misses, so endpoint tests don't depend on cache state."""
     cache = Mock()
-    cache._generate_key = Mock(side_effect=lambda *args: "-".join(str(a) for a in args))
+    cache.generate_key = Mock(side_effect=lambda *args: "-".join(str(a) for a in args))
     cache.get = Mock(return_value=None)
     cache.set = Mock(return_value=True)
     return cache
@@ -35,7 +45,7 @@ def _miss_cache():
 def _hit_cache(payload):
     """A mock cache that returns `payload` on get (cache HIT)."""
     cache = Mock()
-    cache._generate_key = Mock(side_effect=lambda *args: "-".join(str(a) for a in args))
+    cache.generate_key = Mock(side_effect=lambda *args: "-".join(str(a) for a in args))
     cache.get = Mock(return_value=payload)
     cache.set = Mock(return_value=True)
     return cache
@@ -44,15 +54,15 @@ def _hit_cache(payload):
 class TestSceneLiveEndpoint:
     """GET /scene/live."""
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_latest_sample_time_db")
-    @patch("stream_sniper.api.scene_endpoints.select_live_now_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_latest_sample_time_db")
+    @patch("stream_sniper.application.scenes.scene_query.select_live_now_db")
     def test_live_sorted_by_viewer_count_desc(self, mock_live, mock_latest, mock_get_cache):
         """Live streamers are sorted by viewer_count DESC regardless of gateway order."""
         mock_get_cache.return_value = _miss_cache()
         mock_live.return_value = [
-            (1, "small", "Small", "http://a", 50, "hi", "2024-01-01T18:00:00", "2024-01-01T20:00:00"),
-            (2, "big", "Big", None, 5000, "yo", "2024-01-01T17:00:00", "2024-01-01T20:01:00"),
+            LiveNowRow(1, "small", "Small", "http://a", 50, "hi", "2024-01-01T18:00:00", "2024-01-01T20:00:00"),
+            LiveNowRow(2, "big", "Big", None, 5000, "yo", "2024-01-01T17:00:00", "2024-01-01T20:01:00"),
         ]
         mock_latest.return_value = "2024-01-01T20:01:00"
 
@@ -67,9 +77,9 @@ class TestSceneLiveEndpoint:
         assert data["live"][0]["viewer_count"] == 5000
         assert data["live"][0]["profile_image_url"] is None
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_latest_sample_time_db")
-    @patch("stream_sniper.api.scene_endpoints.select_live_now_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_latest_sample_time_db")
+    @patch("stream_sniper.application.scenes.scene_query.select_live_now_db")
     def test_live_empty_returns_200(self, mock_live, mock_latest, mock_get_cache):
         """Nobody live is a valid 200 with an empty list and null last_sample_at."""
         mock_get_cache.return_value = _miss_cache()
@@ -81,13 +91,11 @@ class TestSceneLiveEndpoint:
         assert response.status_code == 200
         assert response.json() == {"live": [], "live_count": 0, "last_sample_at": None}
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_live_now_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_live_now_db")
     def test_live_cache_hit_skips_gateway(self, mock_live, mock_get_cache):
         """A cache HIT returns the cached payload and never calls the gateway."""
-        mock_get_cache.return_value = _hit_cache(
-            {"live": [], "live_count": 0, "last_sample_at": None}
-        )
+        mock_get_cache.return_value = _hit_cache({"live": [], "live_count": 0, "last_sample_at": None})
 
         response = TestClient(app).get("/scene/live")
 
@@ -95,9 +103,9 @@ class TestSceneLiveEndpoint:
         assert response.headers["X-Cache"] == "HIT"
         mock_live.assert_not_called()
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_latest_sample_time_db")
-    @patch("stream_sniper.api.scene_endpoints.select_live_now_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_latest_sample_time_db")
+    @patch("stream_sniper.application.scenes.scene_query.select_live_now_db")
     def test_live_server_error(self, mock_live, mock_latest, mock_get_cache):
         """A gateway error surfaces as a 500."""
         mock_get_cache.return_value = _miss_cache()
@@ -112,17 +120,17 @@ class TestSceneLiveEndpoint:
 class TestSceneLeaderboardEndpoint:
     """GET /scene/leaderboard."""
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_peak_viewers_db")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_leaderboard_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_peak_viewers_db")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_leaderboard_db")
     def test_leaderboard_rank_and_nulls(self, mock_board, mock_peak, mock_get_cache):
         """Rank is assigned in order; missing msgs_per_min / peak_viewers stay null."""
         mock_get_cache.return_value = _miss_cache()
         mock_board.return_value = [
-            (5, "top", "Top", "http://a", 10, 42.5, 100000, 33.3, 900),
-            (8, "second", "Second", None, 4, 2.0, 5000, None, 120),
+            SceneLeaderboardRow(5, "top", "Top", "http://a", 10, 42.5, 100000, 33.3, 900),
+            SceneLeaderboardRow(8, "second", "Second", None, 4, 2.0, 5000, None, 120),
         ]
-        mock_peak.return_value = [(5, 8000)]
+        mock_peak.return_value = [ScenePeakViewerRow(5, 8000)]
 
         response = TestClient(app).get("/scene/leaderboard?window=30")
 
@@ -139,9 +147,9 @@ class TestSceneLeaderboardEndpoint:
         mock_board.assert_called_once_with(30)
         mock_peak.assert_called_once_with(30)
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_peak_viewers_db")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_leaderboard_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_peak_viewers_db")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_leaderboard_db")
     def test_leaderboard_default_window_7(self, mock_board, mock_peak, mock_get_cache):
         """The default window is 7 days."""
         mock_get_cache.return_value = _miss_cache()
@@ -159,8 +167,8 @@ class TestSceneLeaderboardEndpoint:
         response = TestClient(app).get("/scene/leaderboard?window=5")
         assert response.status_code == 422
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_leaderboard_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_leaderboard_db")
     def test_leaderboard_cache_hit(self, mock_board, mock_get_cache):
         """A cache HIT skips the gateway."""
         mock_get_cache.return_value = _hit_cache({"window_days": 7, "entries": []})
@@ -171,9 +179,9 @@ class TestSceneLeaderboardEndpoint:
         assert response.headers["X-Cache"] == "HIT"
         mock_board.assert_not_called()
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_peak_viewers_db")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_leaderboard_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_peak_viewers_db")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_leaderboard_db")
     def test_leaderboard_server_error(self, mock_board, mock_peak, mock_get_cache):
         """A gateway error surfaces as a 500."""
         mock_get_cache.return_value = _miss_cache()
@@ -188,14 +196,23 @@ class TestSceneLeaderboardEndpoint:
 class TestSceneCopypastasEndpoint:
     """GET /scene/copypastas."""
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_copypastas_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_copypastas_db")
     def test_copypastas_success_shape(self, mock_gw, mock_get_cache):
         """Rows map to the Copypasta contract and total is echoed."""
         mock_get_cache.return_value = _miss_cache()
         mock_gw.return_value = (
             [
-                (7, "same message every time", 120, 45, 9, 4, "2024-01-01T20:00:00", "2024-02-01T20:00:00"),
+                SceneCopypastaRow(
+                    7,
+                    "same message every time",
+                    120,
+                    45,
+                    9,
+                    4,
+                    "2024-01-01T20:00:00",
+                    "2024-02-01T20:00:00",
+                ),
             ],
             1,
         )
@@ -213,8 +230,8 @@ class TestSceneCopypastasEndpoint:
         # default: days=None, creator_id=None, sort=usage, limit=25, offset=0
         mock_gw.assert_called_once_with(None, None, "usage", 25, 0)
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_copypastas_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_copypastas_db")
     def test_copypastas_empty_returns_200(self, mock_gw, mock_get_cache):
         """An empty rollup table yields 200 with total 0 and no items."""
         mock_get_cache.return_value = _miss_cache()
@@ -223,18 +240,16 @@ class TestSceneCopypastasEndpoint:
         response = TestClient(app).get("/scene/copypastas")
 
         assert response.status_code == 200
-        assert response.json() == {"total": 0, "items": []}
+        assert response.json() == {"total": 0, "offset": 0, "limit": 25, "items": []}
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_copypastas_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_copypastas_db")
     def test_copypastas_filters_forwarded(self, mock_gw, mock_get_cache):
         """days / creator_id / sort / limit / offset are forwarded to the gateway."""
         mock_get_cache.return_value = _miss_cache()
         mock_gw.return_value = ([], 0)
 
-        response = TestClient(app).get(
-            "/scene/copypastas?days=30&creator_id=5&sort=spread&limit=10&offset=20"
-        )
+        response = TestClient(app).get("/scene/copypastas?days=30&creator_id=5&sort=spread&limit=10&offset=20")
 
         assert response.status_code == 200
         mock_gw.assert_called_once_with(30, 5, "spread", 10, 20)
@@ -249,11 +264,11 @@ class TestSceneCopypastasEndpoint:
         response = TestClient(app).get("/scene/copypastas?limit=101")
         assert response.status_code == 422
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_copypastas_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_copypastas_db")
     def test_copypastas_cache_hit(self, mock_gw, mock_get_cache):
         """A cache HIT skips the gateway."""
-        mock_get_cache.return_value = _hit_cache({"total": 0, "items": []})
+        mock_get_cache.return_value = _hit_cache({"total": 0, "offset": 0, "limit": 25, "items": []})
 
         response = TestClient(app).get("/scene/copypastas")
 
@@ -261,8 +276,8 @@ class TestSceneCopypastasEndpoint:
         assert response.headers["X-Cache"] == "HIT"
         mock_gw.assert_not_called()
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_scene_copypastas_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_scene_copypastas_db")
     def test_copypastas_server_error(self, mock_gw, mock_get_cache):
         """A gateway error surfaces as a 500."""
         mock_get_cache.return_value = _miss_cache()
@@ -277,23 +292,43 @@ class TestSceneCopypastasEndpoint:
 class TestCopypastaPropagationEndpoint:
     """GET /scene/copypastas/{message_text_id}."""
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_copypasta_context_db")
-    @patch("stream_sniper.api.scene_endpoints.select_copypasta_propagation_db")
-    def test_propagation_maps_occurrences_and_origin_context(
-        self, mock_propagation, mock_context, mock_get_cache
-    ):
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_copypasta_context_db")
+    @patch("stream_sniper.application.scenes.scene_query.select_copypasta_propagation_db")
+    def test_propagation_maps_occurrences_and_origin_context(self, mock_propagation, mock_context, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_propagation.return_value = (
             "a legendary pasta",
             [
-                (1, 5, "alice", "Alice", None, "Origin", "2024-01-01T20:00:00", "2024-01-01T20:05:00", 3, 2),
-                (2, 6, "bob", "Bob", None, "Spread", "2024-01-02T20:00:00", "2024-01-02T20:06:00", 7, 4),
+                CopypastaOccurrenceRow(
+                    1,
+                    5,
+                    "alice",
+                    "Alice",
+                    None,
+                    "Origin",
+                    "2024-01-01T20:00:00",
+                    "2024-01-01T20:05:00",
+                    3,
+                    2,
+                ),
+                CopypastaOccurrenceRow(
+                    2,
+                    6,
+                    "bob",
+                    "Bob",
+                    None,
+                    "Spread",
+                    "2024-01-02T20:00:00",
+                    "2024-01-02T20:06:00",
+                    7,
+                    4,
+                ),
             ],
         )
         mock_context.return_value = [
-            (10, "2024-01-01T20:04:59.000000", 9, "viewer", "what happened"),
-            (11, "2024-01-01T20:05:00.000000", 10, "starter", "a legendary pasta"),
+            CopypastaContextRow(10, "2024-01-01T20:04:59.000000", 9, "viewer", "what happened"),
+            CopypastaContextRow(11, "2024-01-01T20:05:00.000000", 10, "starter", "a legendary pasta"),
         ]
 
         response = TestClient(app).get("/scene/copypastas/42?context_seconds=120")
@@ -310,8 +345,8 @@ class TestCopypastaPropagationEndpoint:
         assert data["origin_context"][1]["text"] == "a legendary pasta"
         mock_context.assert_called_once_with(1, "2024-01-01T20:05:00", 120, 100)
 
-    @patch("stream_sniper.api.scene_endpoints.get_cache")
-    @patch("stream_sniper.api.scene_endpoints.select_copypasta_propagation_db")
+    @patch("stream_sniper.api.features.content.scene_endpoints.get_cache")
+    @patch("stream_sniper.application.scenes.scene_query.select_copypasta_propagation_db")
     def test_missing_text_404(self, mock_propagation, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_propagation.return_value = (None, [])

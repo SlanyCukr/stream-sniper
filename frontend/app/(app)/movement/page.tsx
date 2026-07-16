@@ -1,6 +1,6 @@
 'use client'
 import { use } from 'react'
-import AudienceMovement from '@/views/AudienceMovement'
+import AudienceMovement from '@/views/creator/AudienceMovement'
 
 export default function MovementPage({ searchParams }: { searchParams: Promise<{ creator?: string }> }) {
   const { creator } = use(searchParams)
