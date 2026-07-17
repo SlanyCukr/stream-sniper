@@ -5,8 +5,7 @@ Centralizes all configurable parameters with environment variable support.
 
 import os
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass, field
-from typing import Any
+from dataclasses import dataclass, field
 
 from ..database.core.connection_pool import DatabasePoolConfig, load_database_pool_config
 
@@ -98,17 +97,16 @@ class APIConfig:
     cors_origins: str = "*"
     cors_credentials: bool = True
 
+    # Used only by the Twitch reachability health probe; the collector owns the
+    # full TWITCH_CLIENT_ID/SECRET credential contract (TwitchCredentials.from_env).
+    twitch_client_id: str = ""
+
     cache: CacheConfig = field(default_factory=CacheConfig)
     rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
     compression: CompressionConfig = field(default_factory=CompressionConfig)
     monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
     database: DatabasePoolConfig = field(default_factory=DatabasePoolConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert configuration to dictionary for serialization."""
-
-        return asdict(self)
 
     def validate(self) -> bool:
         """Return whether the configuration satisfies runtime invariants."""
@@ -162,6 +160,7 @@ def load_config(environ: Mapping[str, str] | None = None) -> APIConfig:
         cors_enabled=_bool(env, "CORS_ENABLED", True),
         cors_origins=env.get("CORS_ORIGINS", "*"),
         cors_credentials=_bool(env, "CORS_CREDENTIALS", True),
+        twitch_client_id=env.get("TWITCH_CLIENT_ID", ""),
         cache=CacheConfig(
             enabled=_bool(env, "CACHE_ENABLED", True),
             default_ttl=_int(env, "CACHE_DEFAULT_TTL", 3600),

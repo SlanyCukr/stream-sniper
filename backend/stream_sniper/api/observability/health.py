@@ -441,7 +441,7 @@ class HealthChecker:
     def _probe_twitch_api(self) -> ProbeResult:
         url = TWITCH_USERS_API_URL
         headers = {
-            "Client-ID": os.getenv("TWITCH_CLIENT_ID", "test"),
+            "Client-ID": self.config.twitch_client_id or "test",
             "User-Agent": "StreamSniper/1.0",
         }
         try:

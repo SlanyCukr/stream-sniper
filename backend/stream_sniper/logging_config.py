@@ -9,7 +9,6 @@ import contextvars
 import json
 import logging
 import logging.handlers
-import os
 import sys
 import time
 import uuid
@@ -213,7 +212,9 @@ class LoggingConfig:
         correlation_id_enabled: bool = True,
     ):
 
-        self.environment = environment or os.getenv("ENVIRONMENT", "development")
+        # Executable entry points pass the environment explicitly (asgi/server/cli/
+        # tracking/live/analytics); no implicit environment-variable fallback.
+        self.environment = environment or "development"
         self.log_level = self._parse_log_level(log_level)
         self.log_dir = Path(log_dir) if log_dir else Path.cwd() / "logs"
         self.enable_file_logging = enable_file_logging
