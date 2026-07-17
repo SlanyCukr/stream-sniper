@@ -13,23 +13,29 @@ signals that never scan the raw `message` table:
 Marking is monotonic: an already-marked bot is never un-marked or re-reasoned (the gateway
 UPDATEs guard on ``is_bot IS NOT TRUE``), so the first classification reason sticks.
 
-Bots are excluded only at the cross-channel layer (community overlap, regulars); per-stream
-rollups keep them as the factual record. After a non-dry run this triggers a blocking
+Bots are excluded at the cross-channel layer (community overlap, regulars) and from the
+copypasta rollup; per-stream factual rollups keep them. After a non-dry run this refreshes
+the copypasta rollup + scene events for every stream a newly-marked bot spoke in (so stale
+bot texts drop out of stream_copypasta_stats) and then triggers a blocking
 community-overlap recompute so the exclusion takes effect immediately.
 """
 
 import argparse
 
 from ...database.core.connection_pool import database_entrypoint
+from ...database.gateways.analytics.stream_chatter_stats_table_gateway import (
+    select_stream_ids_for_chatters_db,
+)
 from ...database.gateways.chat.chatter_table_gateway import (
     count_bots_db,
     mark_bots_by_ids_db,
-    mark_bots_by_nick_db,
     select_bot_candidates_rate_db,
     select_bot_candidates_ubiquity_db,
+    select_unmarked_known_bots_db,
 )
 from ...logging_config import get_logger, setup_logging
 from ..rollups.community import recompute_creator_overlap
+from ..rollups.rollup_engine import refresh_stream_copypasta_and_events
 
 # Well-known Twitch service bots (chat bots, viewer bots, alert/soundboard bots). Matched on
 # lower(nick); expand as new ones appear. This is the primary, 100%-precision signal.
@@ -64,6 +70,13 @@ KNOWN_BOTS: frozenset[str] = frozenset(
         "frostytoolsdotcom",
         "dinu",
         "peepostreambot",
+        # CZ-scene additions confirmed by message content on prod (2026-07-17): song-queue /
+        # scene-switch / AFK / relay / ad bots active in tracked Czech channels.
+        "supibot",
+        "restreambot",
+        "botrixoficial",
+        "herbot_",
+        "spajkk_irl_bot",
     }
 )
 
@@ -73,29 +86,50 @@ DEFAULT_MIN_CHANNELS = 20
 def classify_bots(min_channels: int = DEFAULT_MIN_CHANNELS, *, dry_run: bool = False) -> dict[str, int]:
     """Run the three classification passes and return a counts summary.
 
-    Returns a dict with keys ``known``, ``ubiquity``, ``rate`` (rows marked this run, or the
-    candidate count under ``--dry-run``) and ``total_bots`` (chatters currently flagged). With
+    Returns a dict with keys ``known``, ``ubiquity``, ``rate`` (unmarked candidates found by
+    each pass — identical to rows marked on a non-dry run), ``streams_refreshed`` (streams
+    whose copypasta rollup + scene events were recomputed because a newly-marked bot spoke
+    there; always 0 under dry-run), and ``total_bots`` (chatters currently flagged). With
     ``dry_run`` set no UPDATE runs — the candidate passes are still evaluated and reported.
     """
-    # 1. Known-name list.
-    known_count = len(KNOWN_BOTS) if dry_run else mark_bots_by_nick_db(sorted(KNOWN_BOTS), "known_bot")
+    newly_marked: list[int] = []
+
+    # 1. Known-name list (select-then-mark so dry-run reports real candidates, not list size).
+    known_candidates = select_unmarked_known_bots_db(sorted(KNOWN_BOTS))
+    known_count = len(known_candidates)
+    if not dry_run and known_candidates:
+        known_ids = [chatter_id for chatter_id, _nick in known_candidates]
+        mark_bots_by_ids_db(known_ids, "known_bot")
+        newly_marked.extend(known_ids)
 
     # 2. Cross-channel ubiquity (reads the small creator_chatter_stats rollup).
     ubiquity_candidates = select_bot_candidates_ubiquity_db(min_channels)
     ubiquity_count = len(ubiquity_candidates)
     if not dry_run and ubiquity_candidates:
-        mark_bots_by_ids_db([row[0] for row in ubiquity_candidates], f"ubiquity:{min_channels}")
+        ubiquity_ids = [row[0] for row in ubiquity_candidates]
+        mark_bots_by_ids_db(ubiquity_ids, f"ubiquity:{min_channels}")
+        newly_marked.extend(ubiquity_ids)
 
     # 3. Superhuman sustained message rate (reads the stream_chatter_stats rollup).
     rate_candidates = select_bot_candidates_rate_db()
     rate_count = len(rate_candidates)
     if not dry_run and rate_candidates:
-        mark_bots_by_ids_db([row[0] for row in rate_candidates], "rate")
+        rate_ids = [row[0] for row in rate_candidates]
+        mark_bots_by_ids_db(rate_ids, "rate")
+        newly_marked.extend(rate_ids)
+
+    # Newly-marked bots may have contributed texts to stream_copypasta_stats when they were
+    # still unclassified; refresh only the streams they spoke in so the rollup re-applies the
+    # is_bot filter and derived scene events stop referencing their texts.
+    affected_streams = select_stream_ids_for_chatters_db(newly_marked) if newly_marked else []
+    for stream_id in affected_streams:
+        refresh_stream_copypasta_and_events(stream_id)
 
     return {
         "known": known_count,
         "ubiquity": ubiquity_count,
         "rate": rate_count,
+        "streams_refreshed": len(affected_streams),
         "total_bots": count_bots_db(),
     }
 
@@ -138,7 +172,8 @@ def main() -> int:
     logger.info(
         f"{prefix}Bot classification: known={counts['known']}, "
         f"ubiquity={counts['ubiquity']} (>{args.min_channels} channels), "
-        f"rate={counts['rate']}; total bots now {counts['total_bots']}."
+        f"rate={counts['rate']}; copypasta/scene events refreshed for "
+        f"{counts['streams_refreshed']} streams; total bots now {counts['total_bots']}."
     )
 
     if args.dry_run:

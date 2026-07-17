@@ -164,6 +164,18 @@ def compute_stream_rollup(stream_id: int, *, refresh_overlap: bool = True) -> Ro
     )
 
 
+def refresh_stream_copypasta_and_events(stream_id: int) -> None:
+    """Recompute one stream's copypasta rollup and its derived scene events.
+
+    Targeted alternative to a full ``compute_stream_rollup``: used after bot
+    classification so freshly-marked bots drop out of the copypasta source (the
+    SQL re-applies the ``is_bot`` filter) and the copypasta_spread events stop
+    referencing their texts. Per-stream factual rollups are left untouched.
+    """
+    _compute_and_store_copypasta_rollup(stream_id)
+    refresh_stream_events(stream_id)
+
+
 def _compute_and_store_text_rollups(stream_id: int) -> None:
     """TX2: compute phrases + enriched moments in Python, then write both in one transaction."""
     emote_names = {name.lower() for name in select_emote_names_db()}

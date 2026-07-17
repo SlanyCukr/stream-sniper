@@ -1,14 +1,41 @@
 """Unit tests for bot classification (stream_sniper.analytics.operations.bot_detection).
 
-Gateways and the overlap recompute are patched at the bot_detection module path; no
-Postgres is touched. Covers the known-name list, the three-pass orchestrator, dry-run
-behavior, reason strings, and CLI argument handling.
+Gateways, the overlap recompute, and the targeted copypasta/scene-event refresh are
+patched at the bot_detection module path; no Postgres is touched. Covers the known-name
+list, the three-pass orchestrator, dry-run behavior, reason strings, the post-marking
+stream refresh, and CLI argument handling.
 """
 
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from stream_sniper.analytics.operations import bot_detection
 from stream_sniper.analytics.operations.bot_detection import KNOWN_BOTS, classify_bots
+
+_MODULE = "stream_sniper.analytics.operations.bot_detection"
+
+
+def _patch_classify_gateways(**overrides):
+    """Patch every gateway classify_bots touches; returns a dict of started mocks.
+
+    Callers must pair with _stop_patches. Defaults: no candidates anywhere.
+    """
+    defaults = {
+        "select_unmarked_known_bots_db": [],
+        "select_bot_candidates_ubiquity_db": [],
+        "select_bot_candidates_rate_db": [],
+        "mark_bots_by_ids_db": 0,
+        "select_stream_ids_for_chatters_db": [],
+        "refresh_stream_copypasta_and_events": None,
+        "count_bots_db": 0,
+    }
+    defaults.update(overrides)
+    patchers = {name: patch(f"{_MODULE}.{name}", return_value=value) for name, value in defaults.items()}
+    return {name: p.start() for name, p in patchers.items()}, list(patchers.values())
+
+
+def _stop_patches(patchers):
+    for p in patchers:
+        p.stop()
 
 
 class TestKnownBots:
@@ -25,72 +52,93 @@ class TestKnownBots:
         for expected in ("nightbot", "streamelements", "streamlabs", "moobot", "fossabot"):
             assert expected in KNOWN_BOTS
 
+    def test_contains_cz_scene_bots(self):
+        """Content-confirmed bots active in tracked Czech channels (2026-07-17 audit)."""
+        for expected in ("supibot", "restreambot", "botrixoficial", "herbot_", "spajkk_irl_bot"):
+            assert expected in KNOWN_BOTS
+
 
 class TestClassifyBots:
     """The three-pass orchestrator classify_bots()."""
 
-    @patch("stream_sniper.analytics.operations.bot_detection.count_bots_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.select_bot_candidates_rate_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.select_bot_candidates_ubiquity_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.mark_bots_by_ids_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.mark_bots_by_nick_db")
-    def test_marks_all_three_layers(self, mock_nick, mock_ids, mock_ubiq, mock_rate, mock_count):
-        mock_nick.return_value = 3
-        mock_ubiq.return_value = [(101, 25), (102, 30)]
-        mock_rate.return_value = [(201, 5)]
-        mock_count.return_value = 6
+    def test_marks_all_three_layers_and_refreshes_streams(self):
+        mocks, patchers = _patch_classify_gateways(
+            select_unmarked_known_bots_db=[(11, "nightbot"), (12, "blerp"), (13, "supibot")],
+            select_bot_candidates_ubiquity_db=[(101, 25), (102, 30)],
+            select_bot_candidates_rate_db=[(201, 5)],
+            select_stream_ids_for_chatters_db=[7, 9],
+            count_bots_db=6,
+        )
+        try:
+            counts = classify_bots(20)
+        finally:
+            _stop_patches(patchers)
 
-        counts = classify_bots(20)
+        assert counts == {"known": 3, "ubiquity": 2, "rate": 1, "streams_refreshed": 2, "total_bots": 6}
+        mocks["select_unmarked_known_bots_db"].assert_called_once_with(sorted(KNOWN_BOTS))
+        mocks["select_bot_candidates_ubiquity_db"].assert_called_once_with(20)
+        mocks["mark_bots_by_ids_db"].assert_any_call([11, 12, 13], "known_bot")
+        mocks["mark_bots_by_ids_db"].assert_any_call([101, 102], "ubiquity:20")
+        mocks["mark_bots_by_ids_db"].assert_any_call([201], "rate")
+        # The stream refresh targets every newly-marked chatter, across all three passes.
+        mocks["select_stream_ids_for_chatters_db"].assert_called_once_with([11, 12, 13, 101, 102, 201])
+        assert mocks["refresh_stream_copypasta_and_events"].call_args_list == [call(7), call(9)]
 
-        assert counts == {"known": 3, "ubiquity": 2, "rate": 1, "total_bots": 6}
-        mock_nick.assert_called_once_with(sorted(KNOWN_BOTS), "known_bot")
-        mock_ubiq.assert_called_once_with(20)
-        mock_ids.assert_any_call([101, 102], "ubiquity:20")
-        mock_ids.assert_any_call([201], "rate")
-
-    @patch("stream_sniper.analytics.operations.bot_detection.count_bots_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.select_bot_candidates_rate_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.select_bot_candidates_ubiquity_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.mark_bots_by_ids_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.mark_bots_by_nick_db")
-    def test_min_channels_in_reason(self, mock_nick, mock_ids, mock_ubiq, mock_rate, mock_count):
+    def test_min_channels_in_reason(self):
         """The ubiquity reason string carries the configured threshold."""
-        mock_nick.return_value = 0
-        mock_ubiq.return_value = [(101, 40)]
-        mock_rate.return_value = []
-        mock_count.return_value = 1
+        mocks, patchers = _patch_classify_gateways(
+            select_bot_candidates_ubiquity_db=[(101, 40)],
+            count_bots_db=1,
+        )
+        try:
+            classify_bots(35)
+        finally:
+            _stop_patches(patchers)
 
-        classify_bots(35)
+        mocks["select_bot_candidates_ubiquity_db"].assert_called_once_with(35)
+        mocks["mark_bots_by_ids_db"].assert_called_once_with([101], "ubiquity:35")
 
-        mock_ubiq.assert_called_once_with(35)
-        mock_ids.assert_called_once_with([101], "ubiquity:35")
+    def test_no_candidates_skips_marking_and_refresh(self):
+        mocks, patchers = _patch_classify_gateways()
+        try:
+            counts = classify_bots(20)
+        finally:
+            _stop_patches(patchers)
 
-    @patch("stream_sniper.analytics.operations.bot_detection.count_bots_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.select_bot_candidates_rate_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.select_bot_candidates_ubiquity_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.mark_bots_by_ids_db")
-    @patch("stream_sniper.analytics.operations.bot_detection.mark_bots_by_nick_db")
-    def test_dry_run_writes_nothing(self, mock_nick, mock_ids, mock_ubiq, mock_rate, mock_count):
-        mock_ubiq.return_value = [(101, 25), (102, 30)]
-        mock_rate.return_value = [(201, 5)]
-        mock_count.return_value = 0
+        assert counts == {"known": 0, "ubiquity": 0, "rate": 0, "streams_refreshed": 0, "total_bots": 0}
+        mocks["mark_bots_by_ids_db"].assert_not_called()
+        mocks["select_stream_ids_for_chatters_db"].assert_not_called()
+        mocks["refresh_stream_copypasta_and_events"].assert_not_called()
 
-        counts = classify_bots(20, dry_run=True)
+    def test_dry_run_writes_nothing_and_reports_real_candidates(self):
+        """Dry-run counts actual unmarked matches — not the size of the curated list."""
+        mocks, patchers = _patch_classify_gateways(
+            select_unmarked_known_bots_db=[(11, "nightbot")],
+            select_bot_candidates_ubiquity_db=[(101, 25), (102, 30)],
+            select_bot_candidates_rate_db=[(201, 5)],
+        )
+        try:
+            counts = classify_bots(20, dry_run=True)
+        finally:
+            _stop_patches(patchers)
 
-        mock_nick.assert_not_called()
-        mock_ids.assert_not_called()
-        assert counts["known"] == len(KNOWN_BOTS)
+        mocks["mark_bots_by_ids_db"].assert_not_called()
+        mocks["refresh_stream_copypasta_and_events"].assert_not_called()
+        assert counts["known"] == 1
         assert counts["ubiquity"] == 2
         assert counts["rate"] == 1
+        assert counts["streams_refreshed"] == 0
 
 
 class TestMainCli:
     """CLI argument handling in main()."""
 
-    @patch("stream_sniper.analytics.operations.bot_detection.recompute_creator_overlap")
-    @patch("stream_sniper.analytics.operations.bot_detection.classify_bots")
+    _COUNTS_ZERO = {"known": 0, "ubiquity": 0, "rate": 0, "streams_refreshed": 0, "total_bots": 0}
+
+    @patch(f"{_MODULE}.recompute_creator_overlap")
+    @patch(f"{_MODULE}.classify_bots")
     def test_default_run_recomputes_overlap(self, mock_classify, mock_recompute):
-        mock_classify.return_value = {"known": 1, "ubiquity": 0, "rate": 0, "total_bots": 1}
+        mock_classify.return_value = {"known": 1, "ubiquity": 0, "rate": 0, "streams_refreshed": 2, "total_bots": 1}
 
         with patch("sys.argv", ["stream-sniper-classify-bots"]):
             assert bot_detection.main.__wrapped__() == 0
@@ -98,10 +146,10 @@ class TestMainCli:
         mock_classify.assert_called_once_with(20, dry_run=False)
         mock_recompute.assert_called_once_with(blocking=True)
 
-    @patch("stream_sniper.analytics.operations.bot_detection.recompute_creator_overlap")
-    @patch("stream_sniper.analytics.operations.bot_detection.classify_bots")
+    @patch(f"{_MODULE}.recompute_creator_overlap")
+    @patch(f"{_MODULE}.classify_bots")
     def test_dry_run_skips_recompute(self, mock_classify, mock_recompute):
-        mock_classify.return_value = {"known": 0, "ubiquity": 0, "rate": 0, "total_bots": 0}
+        mock_classify.return_value = self._COUNTS_ZERO
 
         with patch("sys.argv", ["stream-sniper-classify-bots", "--dry-run"]):
             assert bot_detection.main.__wrapped__() == 0
@@ -109,10 +157,10 @@ class TestMainCli:
         mock_classify.assert_called_once_with(20, dry_run=True)
         mock_recompute.assert_not_called()
 
-    @patch("stream_sniper.analytics.operations.bot_detection.recompute_creator_overlap")
-    @patch("stream_sniper.analytics.operations.bot_detection.classify_bots")
+    @patch(f"{_MODULE}.recompute_creator_overlap")
+    @patch(f"{_MODULE}.classify_bots")
     def test_min_channels_and_skip_flag(self, mock_classify, mock_recompute):
-        mock_classify.return_value = {"known": 0, "ubiquity": 0, "rate": 0, "total_bots": 0}
+        mock_classify.return_value = self._COUNTS_ZERO
 
         with patch(
             "sys.argv",
