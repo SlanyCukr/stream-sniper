@@ -120,11 +120,18 @@ def test_missing_rollup_target_is_an_explicit_skip(monkeypatch, row, reason):
 
 def test_sql_rollup_phases_share_one_cursor_and_commit(monkeypatch):
     calls: list[str] = []
+    monkeypatch.setattr(
+        gateway,
+        "_select_stream_chatter_ids",
+        lambda cursor, params: calls.append(f"_select_stream_chatter_ids:{id(cursor)}:{params['sid']}:{params['cid']}")
+        or [],
+    )
     for name in (
         "_replace_time_buckets",
         "_replace_stream_chatter_stats",
         "_replace_stream_metrics",
         "_upsert_creator_chatter_stats",
+        "_delete_orphaned_creator_chatter_stats",
         "_replace_stream_emote_stats",
     ):
         monkeypatch.setattr(
@@ -139,9 +146,11 @@ def test_sql_rollup_phases_share_one_cursor_and_commit(monkeypatch):
 
     assert [call.split(":", 1)[0] for call in calls] == [
         "_replace_time_buckets",
+        "_select_stream_chatter_ids",
         "_replace_stream_chatter_stats",
         "_replace_stream_metrics",
         "_upsert_creator_chatter_stats",
+        "_delete_orphaned_creator_chatter_stats",
         "_replace_stream_emote_stats",
     ]
     assert {call.split(":")[1] for call in calls} == {str(id(cursor))}
@@ -150,6 +159,7 @@ def test_sql_rollup_phases_share_one_cursor_and_commit(monkeypatch):
 
 def test_sql_rollup_does_not_commit_after_a_phase_failure(monkeypatch):
     monkeypatch.setattr(gateway, "_replace_time_buckets", lambda _cursor, _params: None)
+    monkeypatch.setattr(gateway, "_select_stream_chatter_ids", lambda _cursor, _params: [])
 
     def fail_phase(_cursor, _params) -> None:
         raise RuntimeError("phase failed")
