@@ -10,7 +10,6 @@ from ....application.streams.compare_query import (
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
-from ...composition import STREAM_COMPARISON_SOURCES
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import ErrorOrValidationResponse, ErrorResponse, RateLimitErrorResponse
@@ -45,7 +44,7 @@ def compare_streams(
             return cached
 
         try:
-            result = get_stream_comparison(stream_ids, STREAM_COMPARISON_SOURCES)
+            result = get_stream_comparison(stream_ids)
         except StreamComparisonNotFoundError:
             raise HTTPException(status_code=404, detail="One or more streams not found")
         _STREAM_COMPARE_CACHE.store(cache, response, key, result)

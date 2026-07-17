@@ -1,16 +1,16 @@
 """Cross-gateway stream comparison assembly."""
 
 from collections import defaultdict
-from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from collections.abc import Sequence
 from datetime import datetime
 
-from stream_sniper.database.gateways.analytics.records import (
-    StreamCompareBucketRow,
-    StreamCompareHeaderRow,
-    StreamPairRetentionRow,
+from stream_sniper.database.gateways.analytics.records import StreamCompareBucketRow
+from stream_sniper.database.gateways.analytics.stream_compare_table_gateway import (
+    select_stream_compare_buckets_db,
+    select_stream_compare_headers_db,
+    select_stream_pair_retention_db,
 )
-from stream_sniper.database.gateways.streams.records import ViewerSampleRow
+from stream_sniper.database.gateways.streams.stream_viewer_sample_table_gateway import select_stream_viewer_samples_db
 
 from .compare_models import CompareCurvePoint, ComparedStream, PairRetention, StreamComparison
 
@@ -19,14 +19,6 @@ _TIMELINE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 class StreamComparisonNotFoundError(LookupError):
     """Raised when any requested stream is missing."""
-
-
-@dataclass(frozen=True)
-class StreamComparisonSources:
-    headers: Callable[[list[int]], list[StreamCompareHeaderRow]]
-    buckets: Callable[[list[int]], list[StreamCompareBucketRow]]
-    viewer_samples: Callable[[int], list[ViewerSampleRow]]
-    retention: Callable[[list[int]], list[StreamPairRetentionRow]]
 
 
 def _share(part: int | None, total: int | None) -> float | None:
@@ -58,19 +50,19 @@ def normalize_curve(
     ]
 
 
-def get_stream_comparison(stream_ids: list[int], sources: StreamComparisonSources) -> StreamComparison:
-    headers = sources.headers(stream_ids)
+def get_stream_comparison(stream_ids: list[int]) -> StreamComparison:
+    headers = select_stream_compare_headers_db(stream_ids)
     if len(headers) != len(stream_ids):
         raise StreamComparisonNotFoundError
     header_by_id = {row.stream_id: row for row in headers}
     bucket_map: defaultdict[int, list[StreamCompareBucketRow]] = defaultdict(list)
-    for row in sources.buckets(stream_ids):
+    for row in select_stream_compare_buckets_db(stream_ids):
         bucket_map[row.stream_id].append(row)
 
     streams: list[ComparedStream] = []
     for stream_id in stream_ids:
         header = header_by_id[stream_id]
-        samples = sources.viewer_samples(stream_id)
+        samples = select_stream_viewer_samples_db(stream_id)
         streams.append(
             ComparedStream(
                 stream_id=header.stream_id,
@@ -103,6 +95,6 @@ def get_stream_comparison(stream_ids: list[int], sources: StreamComparisonSource
             retained=row.retained,
             retention_rate=round(row.retained / row.from_audience, 4) if row.from_audience else None,
         )
-        for row in sources.retention(stream_ids)
+        for row in select_stream_pair_retention_db(stream_ids)
     ]
     return StreamComparison(streams=streams, retention=retention)

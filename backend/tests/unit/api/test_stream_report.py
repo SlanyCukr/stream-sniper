@@ -34,7 +34,7 @@ from stream_sniper.database.gateways.streams.records import (
 )
 
 _EP = "stream_sniper.api.features.streams.stream_report_endpoints"
-_COMPOSITION = "stream_sniper.api.composition"
+_REPORT_QUERY = "stream_sniper.application.streams.report_query"
 _EXPORT_QUERY = "stream_sniper.application.streams.export_query"
 
 
@@ -116,13 +116,13 @@ def _report_mocks(
 ):
     with (
         patch(f"{_EP}.get_cache", return_value=cache if cache is not None else _miss_cache()),
-        patch(f"{_COMPOSITION}.select_stream_comprehensive_db", return_value=comprehensive) as mock_comp,
-        patch(f"{_COMPOSITION}.select_stream_metrics_db", return_value=metrics) as mock_metrics,
-        patch(f"{_COMPOSITION}.select_stream_viewer_samples_db", return_value=list(samples)) as mock_samples,
-        patch(f"{_COMPOSITION}.select_stream_emotes_db", return_value=list(emotes)) as mock_emotes,
-        patch(f"{_COMPOSITION}.select_stream_phrases_db", return_value=list(phrases)) as mock_phrases,
-        patch(f"{_COMPOSITION}.select_stream_moments_db", return_value=list(moments)) as mock_moments,
-        patch(f"{_COMPOSITION}.select_creator_report_series_db", return_value=list(series)) as mock_series,
+        patch(f"{_REPORT_QUERY}.select_stream_comprehensive_db", return_value=comprehensive) as mock_comp,
+        patch(f"{_REPORT_QUERY}.select_stream_metrics_db", return_value=metrics) as mock_metrics,
+        patch(f"{_REPORT_QUERY}.select_stream_viewer_samples_db", return_value=list(samples)) as mock_samples,
+        patch(f"{_REPORT_QUERY}.select_stream_emotes_db", return_value=list(emotes)) as mock_emotes,
+        patch(f"{_REPORT_QUERY}.select_stream_phrases_db", return_value=list(phrases)) as mock_phrases,
+        patch(f"{_REPORT_QUERY}.select_stream_moments_db", return_value=list(moments)) as mock_moments,
+        patch(f"{_REPORT_QUERY}.select_creator_report_series_db", return_value=list(series)) as mock_series,
     ):
         yield SimpleNamespace(
             comprehensive=mock_comp,

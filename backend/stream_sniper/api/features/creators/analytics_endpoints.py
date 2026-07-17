@@ -17,7 +17,6 @@ from ....application.creators.regulars_query import get_creator_regulars as quer
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
-from ...composition import CREATOR_REGULARS_SOURCES
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import ErrorResponse, RateLimitErrorResponse
@@ -121,7 +120,6 @@ def get_creator_regulars(
             creator_id,
             min_streams,
             limit,
-            CREATOR_REGULARS_SOURCES,
             sort=sort,
             direction=dir,
             include_bots=include_bots,

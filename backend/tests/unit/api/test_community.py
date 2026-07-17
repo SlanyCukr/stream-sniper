@@ -52,7 +52,7 @@ class TestJaccard:
 
 class TestCommunityOverlapEndpoint:
     @patch("stream_sniper.api.features.community.community_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_overlap_db")
+    @patch("stream_sniper.application.community.community_query.select_overlap_db")
     def test_success_maps_creators_pairs_and_jaccard(self, mock_overlap, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         creators = [
@@ -84,7 +84,7 @@ class TestCommunityOverlapEndpoint:
         mock_overlap.assert_called_once_with(40)
 
     @patch("stream_sniper.api.features.community.community_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_overlap_db")
+    @patch("stream_sniper.application.community.community_query.select_overlap_db")
     def test_zero_union_pair_yields_null_jaccard(self, mock_overlap, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         creators = [
@@ -102,7 +102,7 @@ class TestCommunityOverlapEndpoint:
         assert pair["jaccard_regulars"] is None
 
     @patch("stream_sniper.api.features.community.community_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_overlap_db")
+    @patch("stream_sniper.application.community.community_query.select_overlap_db")
     def test_empty_overlap_returns_null_computed_at(self, mock_overlap, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_overlap.return_value = ([], [])
@@ -122,7 +122,7 @@ class TestCommunityOverlapEndpoint:
 
 class TestCreatorNeighborsEndpoint:
     @patch("stream_sniper.api.features.community.community_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_creator_neighbors_db")
+    @patch("stream_sniper.application.community.community_query.select_creator_neighbors_db")
     def test_success_maps_metric_to_column(self, mock_neighbors, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_neighbors.return_value = [
@@ -147,7 +147,7 @@ class TestCreatorNeighborsEndpoint:
         mock_neighbors.assert_called_once_with(5, "shared_regulars", 10)
 
     @patch("stream_sniper.api.features.community.community_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_creator_neighbors_db")
+    @patch("stream_sniper.application.community.community_query.select_creator_neighbors_db")
     def test_chatters_metric_maps_to_shared_chatters(self, mock_neighbors, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_neighbors.return_value = []

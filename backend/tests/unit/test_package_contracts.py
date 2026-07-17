@@ -45,7 +45,6 @@ def test_api_root_is_a_small_composition_boundary() -> None:
         "api.py",
         "asgi.py",
         "config.py",
-        "composition.py",
         "dependencies.py",
         "error_boundary.py",
         "middleware.py",

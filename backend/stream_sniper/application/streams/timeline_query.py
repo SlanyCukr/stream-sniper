@@ -1,19 +1,21 @@
 """Application query for per-stream timeline analytics."""
 
-from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from stream_sniper.database.gateways.analytics.records import (
     StreamBucketRow,
-    StreamHeaderRow,
     StreamMetricsRow,
 )
-from stream_sniper.database.gateways.content.records import StreamMomentRow
-from stream_sniper.database.gateways.streams.records import (
-    StreamContextChangeRow,
-    ViewerSampleRow,
+from stream_sniper.database.gateways.analytics.stream_metrics_table_gateway import (
+    select_stream_header_db,
+    select_stream_metrics_db,
 )
+from stream_sniper.database.gateways.analytics.stream_time_bucket_table_gateway import select_stream_buckets_db
+from stream_sniper.database.gateways.content.records import StreamMomentRow
+from stream_sniper.database.gateways.content.stream_moment_table_gateway import select_stream_moments_db
+from stream_sniper.database.gateways.streams.records import StreamContextChangeRow
+from stream_sniper.database.gateways.streams.stream_context_table_gateway import select_stream_context_changes_db
+from stream_sniper.database.gateways.streams.stream_viewer_sample_table_gateway import select_stream_viewer_samples_db
 
 from ...analytics.calculations.moments import DetectedMoment, detect_moments
 from .timeline_models import (
@@ -28,26 +30,14 @@ from .timeline_models import (
 _FMT = "%Y-%m-%dT%H:%M:%S"
 
 
-@dataclass(frozen=True)
-class StreamTimelineSources:
-    """Persistence dependencies for building a stream timeline."""
-
-    select_buckets: Callable[[int], list[StreamBucketRow]]
-    select_metrics: Callable[[int], StreamMetricsRow | None]
-    select_header: Callable[[int], StreamHeaderRow | None]
-    select_moments: Callable[[int], list[StreamMomentRow]]
-    select_viewer_samples: Callable[[int], list[ViewerSampleRow]]
-    select_context_changes: Callable[[int], list[StreamContextChangeRow]]
-
-
-def get_stream_timeline(stream_id: int, sources: StreamTimelineSources) -> StreamTimeline:
+def get_stream_timeline(stream_id: int) -> StreamTimeline:
     """Coordinate timeline gateways and construct the typed timeline read model."""
-    bucket_rows = sources.select_buckets(stream_id)
-    metrics_row = sources.select_metrics(stream_id)
-    header_row = sources.select_header(stream_id)
-    moment_rows = sources.select_moments(stream_id)
-    sample_rows = sources.select_viewer_samples(stream_id)
-    context_rows = sources.select_context_changes(stream_id)
+    bucket_rows = select_stream_buckets_db(stream_id)
+    metrics_row = select_stream_metrics_db(stream_id)
+    header_row = select_stream_header_db(stream_id)
+    moment_rows = select_stream_moments_db(stream_id)
+    sample_rows = select_stream_viewer_samples_db(stream_id)
+    context_rows = select_stream_context_changes_db(stream_id)
 
     stream_start = header_row.start if header_row else None
     twitch_vod_id = header_row.twitch_vod_id if header_row else None

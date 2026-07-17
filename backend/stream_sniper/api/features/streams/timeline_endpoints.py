@@ -7,7 +7,6 @@ from ....application.streams.timeline_query import get_stream_timeline as query_
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
-from ...composition import STREAM_TIMELINE_SOURCES
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import RateLimitErrorResponse
@@ -48,6 +47,6 @@ def get_stream_timeline(
         if cached_result is not None:
             return cached_result
 
-        result = query_stream_timeline(stream_id, STREAM_TIMELINE_SOURCES)
+        result = query_stream_timeline(stream_id)
         _TIMELINE_CACHE.store(cache, response, cache_key, result)
         return result

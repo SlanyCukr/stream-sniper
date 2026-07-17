@@ -1,12 +1,10 @@
 """Application queries for community overlap read models."""
 
-from collections.abc import Callable
-
-from stream_sniper.database.gateways.community.records import (
-    CommunityCreatorRow,
-    CommunityPairRow,
-    CreatorNeighborRow,
+from stream_sniper.database.gateways.community.creator_overlap_table_gateway import (
+    select_creator_neighbors_db,
+    select_overlap_db,
 )
+from stream_sniper.database.gateways.community.records import CommunityPairRow
 
 from .models import (
     CommunityOverlap,
@@ -47,12 +45,9 @@ def _pair(row: CommunityPairRow, sizes: dict[int, tuple[int, int]]) -> OverlapPa
     )
 
 
-def get_community_overlap(
-    limit: int,
-    select_overlap: Callable[[int], tuple[list[CommunityCreatorRow], list[CommunityPairRow]]],
-) -> CommunityOverlap:
+def get_community_overlap(limit: int) -> CommunityOverlap:
     """Load creator audiences and calculate typed pair overlap metrics."""
-    creator_rows, pair_rows = select_overlap(limit)
+    creator_rows, pair_rows = select_overlap_db(limit)
     creators = [
         OverlapCreator(
             creator_id=row.creator_id,
@@ -73,11 +68,10 @@ def get_creator_neighbors(
     creator_id: int,
     metric: str,
     limit: int,
-    select_neighbors: Callable[[int, str, int], list[CreatorNeighborRow]],
 ) -> CreatorNeighbors:
     """Load the creators with the largest audience overlap."""
     column = _NEIGHBOR_METRIC_COLUMN[metric]
-    rows = select_neighbors(creator_id, column, limit)
+    rows = select_creator_neighbors_db(creator_id, column, limit)
     neighbors = [
         CreatorNeighbor(
             creator_id=row.creator_id,
