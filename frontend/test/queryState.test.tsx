@@ -35,16 +35,41 @@ describe('QueryState', () => {
         expect(screen.queryByTestId('content')).toBeNull()
     })
 
-    it('keeps rendering stale data when a refetch error arrives (data wins over transient error)', () => {
+    it('keeps rendering stale NON-EMPTY data when a refetch error arrives (real content wins)', () => {
         const error = new Error('background refetch failed')
 
         render(
-            <QueryState query={{ data: [1, 2, 3], error }}>
+            <QueryState query={{ data: [1, 2, 3], error }} isEmpty={(rows: unknown[]) => rows.length === 0}>
                 {content}
             </QueryState>,
         )
 
         expect(screen.getByTestId('content').textContent).toBe('[1,2,3]')
+    })
+
+    it('surfaces the error (not the empty state) when a refetch fails on a previously-empty result', () => {
+        // Regression: an empty last-success payload is not content worth protecting,
+        // so a later error must show ErrorAlert + retry, never a quiet empty placeholder.
+        const refetch = vi.fn()
+        const error = Object.assign(new Error('scene api down'), {
+            response: { status: 502, data: { detail: 'bad gateway' } },
+        })
+
+        render(
+            <QueryState
+                query={{ data: { live: [] }, error, refetch }}
+                errorTitle="Failed to load live scene"
+                isEmpty={(value: { live: unknown[] }) => value.live.length === 0}
+                emptyTitle="Nobody live right now"
+            >
+                {content}
+            </QueryState>,
+        )
+
+        expect(screen.getByText('Failed to load live scene')).toBeTruthy()
+        expect(screen.queryByText('Nobody live right now')).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: /retry/i }))
+        expect(refetch).toHaveBeenCalledTimes(1)
     })
 
     it('renders the empty slot when the empty predicate matches resolved data', () => {

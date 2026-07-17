@@ -1,5 +1,4 @@
 'use client'
-import React from 'react'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
 import EmptyState from '@/components/common/EmptyState'
@@ -8,15 +7,18 @@ import EmptyState from '@/components/common/EmptyState'
  * Owns the loading / error / empty / content decision for a React Query result so
  * views stop hand-rolling (and subtly diverging on) that branching.
  *
- * Policy (single source of truth for every view):
- *   1. error present AND no usable data  → <ErrorAlert> (retry wired to refetch)
- *   2. still loading with no data yet     → <LoadingSpinner>
- *   3. data resolved but empty            → empty slot (emptyState node or title/hint)
- *   4. otherwise                          → children(data)
+ * Policy (single source of truth for every view). Let "empty" mean no data yet OR
+ * a resolved payload the `isEmpty` predicate rejects:
+ *   1. error present AND result is empty  → <ErrorAlert> (retry wired to refetch)
+ *   2. still loading with no data yet      → <LoadingSpinner>
+ *   3. result empty, no error              → empty slot (emptyState node or title/hint)
+ *   4. otherwise (real, non-empty data)    → children(data)
  *
- * Stale data wins over a transient refetch error (case 1 requires "no usable
- * data"), so a background refetch failure never blanks out already-rendered
- * content — the view keeps showing the last good data.
+ * Stale data wins over a transient refetch error ONLY when there is real content
+ * to protect: a background refetch failure never blanks out already-rendered
+ * non-empty data (case 4). But when the last success was empty there is nothing
+ * worth preserving, so an error surfaces as an <ErrorAlert> with retry (case 1)
+ * rather than an indistinguishable-from-quiet empty placeholder.
  *
  * Render-prop `children` receives the resolved (non-null) data, so call sites
  * never re-null-check. Works both as a whole-view gate (return <QueryState>…) and
@@ -58,12 +60,20 @@ const QueryState = ({
     // RQ v5 exposes both; isLoading == isPending && isFetching (no data yet).
     const isLoading = query?.isLoading ?? query?.isPending ?? false
     const hasData = data !== undefined && data !== null
+    const isEmptyResult = !hasData || (isEmpty ? isEmpty(data) : false)
     const retry = onRetry === undefined ? query?.refetch : onRetry
     const detailsVisible = showErrorDetails === undefined
         ? process.env.NODE_ENV === 'development'
         : showErrorDetails
 
-    if (error && !hasData) {
+    const emptySlot = () => (emptyState !== undefined
+        ? emptyState
+        : <EmptyState title={emptyTitle}>{emptyHint}</EmptyState>)
+
+    // Error wins whenever there is no real content to protect (no data, or a
+    // resolved-but-empty payload). Real non-empty data survives a transient
+    // refetch error and falls through to children() below.
+    if (error && isEmptyResult) {
         return (
             <ErrorAlert
                 error={error}
@@ -84,20 +94,11 @@ const QueryState = ({
         )
     }
 
-    if (!hasData) {
-        // No data, not loading, no error (e.g. query disabled / idle) — treat as empty.
-        return emptyState !== undefined
-            ? emptyState
-            : <EmptyState title={emptyTitle}>{emptyHint}</EmptyState>
-    }
-
-    if (isEmpty && isEmpty(data)) {
-        return emptyState !== undefined
-            ? emptyState
-            : <EmptyState title={emptyTitle}>{emptyHint}</EmptyState>
+    if (isEmptyResult) {
+        return emptySlot()
     }
 
     return children(data)
 }
 
-export default React.memo(QueryState)
+export default QueryState
