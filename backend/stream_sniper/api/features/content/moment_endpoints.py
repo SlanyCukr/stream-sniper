@@ -16,6 +16,7 @@ from ....database.gateways.content.stream_moment_table_gateway import (
 from ....logging_config import get_logger, sanitize_log_value
 from ...caching.cache import CacheTTL, InProcessCache, invalidate_cache_pattern
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import scene_rollup_version
 from ...dependencies import get_cache
 from ...security.auth import get_current_admin_user
 from ...security.auth_models import UserInDB
@@ -67,7 +68,9 @@ def get_moment_queue(
     """
     with _MOMENT_QUEUE_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _MOMENT_QUEUE_CACHE.lookup(cache, response, status, creator_id, limit, offset)
+        cache_key, cached_result = _MOMENT_QUEUE_CACHE.lookup(
+            cache, response, status, creator_id, limit, offset, scene_rollup_version()
+        )
         if cached_result is not None:
             return cached_result
 

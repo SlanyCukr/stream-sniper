@@ -7,6 +7,7 @@ from ....database.gateways.identity.creator_table_gateway import select_creator_
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import creator_rollup_version
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import RateLimitErrorResponse
@@ -71,7 +72,9 @@ def get_creator_top_chatters(
     """Get the most active chatters across a creator's streams."""
     with _TOP_CHATTERS_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _TOP_CHATTERS_CACHE.lookup(cache, response, creator_id, limit)
+        cache_key, cached_result = _TOP_CHATTERS_CACHE.lookup(
+            cache, response, creator_id, limit, creator_rollup_version(creator_id)
+        )
         if cached_result is not None:
             return cached_result.root
 

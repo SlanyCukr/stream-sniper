@@ -28,6 +28,7 @@ from ....database.gateways.streams.stream_table_gateway import (
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL, InProcessCache
 from ...caching.model_cache import ModelCachePolicy, record_cache_failures
+from ...caching.rollup_version import stream_rollup_version
 from ...dependencies import get_cache
 from ...observability.monitoring import record_cache_operation
 from ...security.rate_limiter import limiter, rate_limits
@@ -204,7 +205,9 @@ def get_stream_chatters(
     """Get all chatters who participated in a stream."""
     with _STREAM_CHATTERS_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _STREAM_CHATTERS_CACHE.lookup(cache, response, stream_id)
+        cache_key, cached_result = _STREAM_CHATTERS_CACHE.lookup(
+            cache, response, stream_id, stream_rollup_version(stream_id)
+        )
         if cached_result is not None:
             return cached_result.root
 
@@ -236,7 +239,9 @@ def get_stream(
     """Get comprehensive analytics for a stream."""
     with _STREAM_DETAILS_CACHE.record_failures():
         cache = get_cache(request)
-        analytics_cache_key, cached_analytics = _STREAM_DETAILS_CACHE.lookup(cache, response, stream_id)
+        analytics_cache_key, cached_analytics = _STREAM_DETAILS_CACHE.lookup(
+            cache, response, stream_id, stream_rollup_version(stream_id)
+        )
         if cached_analytics is not None:
             return cached_analytics
 

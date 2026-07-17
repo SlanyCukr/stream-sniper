@@ -7,6 +7,7 @@ from ....application.community.audience_query import get_audience_movement as qu
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import creator_rollup_version
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import RateLimitErrorResponse
@@ -32,7 +33,9 @@ def get_audience_movement(
     """Compare distinct participating chatters across adjacent equal windows."""
     with _AUDIENCE_MOVEMENT_CACHE.record_failures():
         cache = get_cache(request)
-        key, cached = _AUDIENCE_MOVEMENT_CACHE.lookup(cache, response, creator_id, days, limit)
+        key, cached = _AUDIENCE_MOVEMENT_CACHE.lookup(
+            cache, response, creator_id, days, limit, creator_rollup_version(creator_id)
+        )
         if cached is not None:
             return cached
         result = query_audience_movement(creator_id, days, limit)

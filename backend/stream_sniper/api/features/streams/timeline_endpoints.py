@@ -7,6 +7,7 @@ from ....application.streams.timeline_query import get_stream_timeline as query_
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import stream_rollup_version
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import RateLimitErrorResponse
@@ -43,7 +44,7 @@ def get_stream_timeline(
     """
     with _TIMELINE_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _TIMELINE_CACHE.lookup(cache, response, stream_id)
+        cache_key, cached_result = _TIMELINE_CACHE.lookup(cache, response, stream_id, stream_rollup_version(stream_id))
         if cached_result is not None:
             return cached_result
 

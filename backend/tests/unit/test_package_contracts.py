@@ -57,7 +57,7 @@ def test_api_infrastructure_has_explicit_package_ownership() -> None:
     backend_root = Path(__file__).parents[2]
     api_root = backend_root / "stream_sniper/api"
     expected_modules = {
-        "caching": {"__init__.py", "cache.py", "cache_warmup.py", "model_cache.py"},
+        "caching": {"__init__.py", "cache.py", "cache_warmup.py", "model_cache.py", "rollup_version.py"},
         "observability": {"__init__.py", "health.py", "monitoring.py"},
         "security": {"__init__.py", "auth.py", "auth_models.py", "rate_limiter.py"},
         "transport": {"__init__.py", "export_utils.py", "models.py"},

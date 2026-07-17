@@ -15,6 +15,7 @@ from ....application.community.models import (
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import scene_rollup_version
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import RateLimitErrorResponse
@@ -48,7 +49,7 @@ def get_community_overlap(
     """
     with _OVERLAP_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _OVERLAP_CACHE.lookup(cache, response, limit)
+        cache_key, cached_result = _OVERLAP_CACHE.lookup(cache, response, limit, scene_rollup_version())
         if cached_result is not None:
             return cached_result
 
@@ -77,7 +78,9 @@ def get_creator_neighbors(
     """Get the creators whose audiences most overlap with this creator's."""
     with _NEIGHBORS_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _NEIGHBORS_CACHE.lookup(cache, response, creator_id, metric, limit)
+        cache_key, cached_result = _NEIGHBORS_CACHE.lookup(
+            cache, response, creator_id, metric, limit, scene_rollup_version()
+        )
         if cached_result is not None:
             return cached_result
 

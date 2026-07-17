@@ -314,9 +314,10 @@ class TestCreatorRegularsEndpoint:
 
         assert response.status_code == 200
         mock_regulars.assert_called_once_with(5, 2, 50, sort="attendance", direction="desc", include_bots=True)
-        # include_bots participates in the regulars cache key (True suffix).
+        # include_bots participates in the regulars cache key (before the
+        # trailing rollup-version part).
         assert any(
-            call.args and call.args[0] == "creator_regulars" and call.args[-1] is True
+            call.args and call.args[0] == "creator_regulars" and call.args[-2] is True
             for call in cache.generate_key.call_args_list
         )
 
@@ -336,7 +337,7 @@ class TestCreatorRegularsEndpoint:
         assert response.status_code == 200
         mock_regulars.assert_called_once_with(5, 2, 50, sort="attendance", direction="desc", include_bots=False)
         assert any(
-            call.args and call.args[0] == "creator_regulars" and call.args[-1] is False
+            call.args and call.args[0] == "creator_regulars" and call.args[-2] is False
             for call in cache.generate_key.call_args_list
         )
 
