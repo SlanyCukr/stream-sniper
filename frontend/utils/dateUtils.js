@@ -74,6 +74,10 @@ export const formatDurationBetween = (startDate, endDate) => {
  * the input is falsy. Distinct from formatDate (fixed date-fns pattern):
  * this defers to the browser/runtime locale, matching admin table cells
  * that previously called `toLocaleString()` directly.
+ *
+ * Strict on input types: truthy values that are not a Date/string/number throw
+ * (via parseDate) rather than being coerced the way a bare `new Date(x)` would —
+ * a deliberate tightening so shape bugs surface instead of rendering garbage.
  * @param {Date|string|number|null|undefined} date
  * @param {string} [fallback]
  */

@@ -69,6 +69,15 @@ describe('formatInteger', () => {
   it('accepts a custom fallback', () => {
     expect(formatInteger(null, 'n/a')).toBe('n/a')
   })
+
+  it('rounds non-integer input to a whole number (documented clamp for count tiles)', () => {
+    expect(formatInteger(1234.5)).toBe('1,235')
+    expect(formatInteger(1234.4)).toBe('1,234')
+  })
+
+  it('formats negative values', () => {
+    expect(formatInteger(-12345)).toBe('-12,345')
+  })
 })
 
 describe('formatDecimal', () => {
@@ -83,5 +92,10 @@ describe('formatDecimal', () => {
 
   it('accepts a custom fallback', () => {
     expect(formatDecimal(undefined, 'n/a')).toBe('n/a')
+  })
+
+  it('rounds half away from zero at the .5 boundary (Intl halfExpand)', () => {
+    expect(formatDecimal(1.25)).toBe('1.3')
+    expect(formatDecimal(-1.25)).toBe('-1.3')
   })
 })

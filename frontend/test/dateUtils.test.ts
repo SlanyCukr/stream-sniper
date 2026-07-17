@@ -48,6 +48,13 @@ describe('formatDurationSeconds', () => {
   it('accepts a custom fallback', () => {
     expect(formatDurationSeconds(null, null, 'Pending')).toBe('Pending')
   })
+
+  it('documents current negative-duration behavior for out-of-order timestamps', () => {
+    // end < start (clock skew / bad job data) floors toward -Infinity — identical
+    // to the pre-consolidation ProcessingJobsTable formatter. Pinned so any future
+    // guard is a deliberate change.
+    expect(formatDurationSeconds('2026-07-14T10:00:45Z', '2026-07-14T10:00:40.8Z')).toBe('-5s')
+  })
 })
 
 describe('parseNaiveUtcEpoch', () => {

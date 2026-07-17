@@ -34,6 +34,11 @@ export const formatDurationDaysHoursMinutes = seconds => {
 /**
  * Locale-formatted integer (thousands separators, no decimals), or a
  * fallback when the value is null/undefined.
+ *
+ * Non-integer input is deliberately rounded to a whole number: this helper is
+ * for count tiles (messages, chatters), where '1,234.5' would be wrong. (The
+ * pre-consolidation streamMetricTiles `number()` left fractions visible; the
+ * clamp here is the intended behavior, matching the report card's `integer()`.)
  * @param {number|string|null|undefined} value
  * @param {string} [fallback]
  */
