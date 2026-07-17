@@ -25,19 +25,7 @@ def get_creator_regulars(
         direction=direction,
         include_bots=include_bots,
     )
-    regulars = [
-        Regular(
-            chatter_id=row.chatter_id,
-            nick=row.nick,
-            streams_attended=row.streams_attended,
-            attendance_rate=round(row.streams_attended / total_streams, 4) if total_streams else 0.0,
-            first_seen=row.first_seen,
-            last_seen=row.last_seen,
-            last_stream_attended=row.last_stream_attended,
-            message_count=row.message_count,
-        )
-        for row in rows
-    ]
+    regulars = [Regular.from_row(row, total_streams=total_streams) for row in rows]
     return CreatorRegulars(
         creator_id=creator_id,
         total_streams=total_streams,

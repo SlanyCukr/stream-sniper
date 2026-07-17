@@ -1,21 +1,7 @@
 """Application query for chronological message replay pages."""
 
-from stream_sniper.database.gateways.chat.records import MessageReplayRow
-
 from ...database.gateways.chat.message_replay_gateway import select_stream_messages_db
 from .message_models import Cursor, MessageItem, MessagePage
-
-
-def _message(row: MessageReplayRow) -> MessageItem:
-    return MessageItem(
-        id=row.id,
-        time=row.time,
-        chatter_id=row.chatter_id,
-        nick=row.nick,
-        text=row.text,
-        is_subscriber=row.is_subscriber,
-        badges=row.badges.split(",") if row.badges else [],
-    )
 
 
 def get_message_page(
@@ -39,7 +25,7 @@ def get_message_page(
         sub_only=sub_only,
     )
     has_more = len(rows) > limit
-    messages = [_message(row) for row in rows[:limit]]
+    messages = [MessageItem.from_row(row) for row in rows[:limit]]
     next_cursor = None
     if has_more:
         last = messages[-1]

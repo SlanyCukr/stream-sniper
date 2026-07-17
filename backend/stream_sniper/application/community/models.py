@@ -1,6 +1,16 @@
 """Canonical community-overlap read models shared with the API."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from stream_sniper.database.gateways.community.records import (
+        CommunityCreatorRow,
+        CreatorNeighborRow,
+    )
 
 
 class OverlapCreator(BaseModel):
@@ -9,6 +19,16 @@ class OverlapCreator(BaseModel):
     display_name: str
     chatters: int
     regulars: int
+
+    @classmethod
+    def from_row(cls, row: CommunityCreatorRow) -> OverlapCreator:
+        return cls(
+            creator_id=row.creator_id,
+            nick=row.nick,
+            display_name=row.display_name,
+            chatters=row.chatters,
+            regulars=row.regulars,
+        )
 
 
 class OverlapPair(BaseModel):
@@ -32,6 +52,16 @@ class CreatorNeighbor(BaseModel):
     display_name: str
     shared_chatters: int
     shared_regulars: int
+
+    @classmethod
+    def from_row(cls, row: CreatorNeighborRow) -> CreatorNeighbor:
+        return cls(
+            creator_id=row.creator_id,
+            nick=row.nick,
+            display_name=row.display_name,
+            shared_chatters=row.shared_chatters,
+            shared_regulars=row.shared_regulars,
+        )
 
 
 class CreatorNeighbors(BaseModel):

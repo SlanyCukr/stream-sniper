@@ -1,6 +1,14 @@
 """Canonical read models for creator-level analytics."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pydantic import AliasChoices, BaseModel, Field
+
+if TYPE_CHECKING:
+    from stream_sniper.database.gateways.analytics.records import CreatorTrendRow
+    from stream_sniper.database.gateways.identity.records import CreatorSummaryRow
 
 
 class TrendPoint(BaseModel):
@@ -16,6 +24,20 @@ class TrendPoint(BaseModel):
     new_chatters: int = Field(..., description="First-time chatters for this creator")
     returning_chatters: int = Field(..., description="Chatters seen in an earlier stream")
 
+    @classmethod
+    def from_row(cls, row: CreatorTrendRow) -> TrendPoint:
+        return cls(
+            stream_id=row.stream_id,
+            title=row.title,
+            start=row.start,
+            duration_seconds=row.duration_seconds,
+            message_count=row.message_count,
+            messages_per_minute=row.messages_per_minute,
+            unique_chatters=row.unique_chatters,
+            new_chatters=row.new_chatters,
+            returning_chatters=row.returning_chatters,
+        )
+
 
 class CreatorTrends(BaseModel):
     """A creator's recent streams as a trend series (ascending by start)."""
@@ -30,6 +52,17 @@ class LatestCreatorStream(BaseModel):
     stream_id: int
     title: str
     start: str | None = None
+
+    @classmethod
+    def from_summary_row(cls, row: CreatorSummaryRow) -> LatestCreatorStream | None:
+        """Project the latest-stream columns of a summary row, or None when absent."""
+        if row.latest_stream_id is None:
+            return None
+        return cls(
+            stream_id=row.latest_stream_id,
+            title=row.latest_stream_title or "",
+            start=row.latest_stream_start,
+        )
 
 
 class CreatorSummary(BaseModel):
@@ -53,3 +86,22 @@ class CreatorSummary(BaseModel):
     audience_size: int
     regulars: int
     latest_stream: LatestCreatorStream | None = None
+
+    @classmethod
+    def from_row(cls, row: CreatorSummaryRow) -> CreatorSummary:
+        return cls(
+            creator_id=row.creator_id,
+            nick=row.nick,
+            display_name=row.display_name,
+            profile_image_url=row.profile_image_url,
+            twitch_user_id=str(row.twitch_user_id) if row.twitch_user_id is not None else None,
+            total_streams=row.total_streams,
+            first_stream_at=row.first_stream_at,
+            last_stream_at=row.last_stream_at,
+            total_messages=row.total_messages,
+            duration_seconds=row.duration_seconds,
+            messages_per_minute=row.messages_per_minute,
+            audience_size=row.audience_size,
+            regulars=row.regulars,
+            latest_stream=LatestCreatorStream.from_summary_row(row),
+        )

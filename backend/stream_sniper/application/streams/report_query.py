@@ -6,8 +6,6 @@ from stream_sniper.database.core.wire_format import WIRE_TS_FORMAT
 from stream_sniper.database.gateways.analytics.records import (
     CreatorReportRow,
     StreamMetricsRow,
-    TopEmoteRow,
-    TopPhraseRow,
 )
 from stream_sniper.database.gateways.analytics.stream_emote_stats_table_gateway import select_stream_emotes_db
 from stream_sniper.database.gateways.analytics.stream_metrics_table_gateway import (
@@ -69,8 +67,8 @@ def get_stream_report(stream_id: int, lookback: int) -> StreamReport:
         lookback=lookback,
         metrics=_build_metrics(report_values, survivors, avg_viewers, peak_viewers),
         peak_bucket_minute=report_values.peak_bucket_minute,
-        top_emote=_top_emote(emote_rows),
-        top_phrase=_top_phrase(phrase_rows),
+        top_emote=TopEmote.from_row(emote_rows[0]) if emote_rows else None,
+        top_phrase=TopPhrase.from_row(phrase_rows[0]) if phrase_rows else None,
         top_moments=_top_moments(moment_rows),
     )
 
@@ -130,36 +128,7 @@ def _previous_rows(
     return previous[-lookback:]
 
 
-def _top_emote(rows: list[TopEmoteRow]) -> TopEmote | None:
-    if not rows:
-        return None
-    row = rows[0]
-    return TopEmote(
-        name=row.name,
-        source=row.source,
-        provider_id=row.provider_id,
-        usage_count=row.usage_count,
-        chatter_count=row.chatter_count,
-    )
-
-
-def _top_phrase(rows: list[TopPhraseRow]) -> TopPhrase | None:
-    if not rows:
-        return None
-    row = rows[0]
-    return TopPhrase(phrase=row.phrase, usage_count=row.usage_count, chatter_count=row.chatter_count)
-
-
 def _top_moments(rows: list[StreamMomentRow]) -> list[ReportMoment]:
     accepted = [row for row in rows if row.status != "rejected"]
     ranked = sorted(accepted, key=lambda row: (row.ratio is not None, row.ratio or 0.0), reverse=True)
-    return [
-        ReportMoment(
-            bucket_minute=row.bucket_minute,
-            offset_seconds=row.offset_seconds,
-            message_count=row.message_count,
-            ratio=row.ratio,
-            status=row.status,
-        )
-        for row in ranked[:3]
-    ]
+    return [ReportMoment.from_row(row) for row in ranked[:3]]

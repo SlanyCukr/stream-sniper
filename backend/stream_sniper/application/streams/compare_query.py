@@ -20,12 +20,6 @@ class StreamComparisonNotFoundError(LookupError):
     """Raised when any requested stream is missing."""
 
 
-def _share(part: int | None, total: int | None) -> float | None:
-    if part is None or total is None or total == 0:
-        return None
-    return round(part / total, 4)
-
-
 def normalize_curve(
     rows: Sequence[StreamCompareBucketRow], start: str | None, duration: int | None
 ) -> list[CompareCurvePoint]:
@@ -63,37 +57,12 @@ def get_stream_comparison(stream_ids: list[int]) -> StreamComparison:
         header = header_by_id[stream_id]
         samples = select_stream_viewer_samples_db(stream_id)
         streams.append(
-            ComparedStream(
-                stream_id=header.stream_id,
-                creator_id=header.creator_id,
-                creator_nick=header.creator_nick,
-                creator_display_name=header.creator_display_name,
-                title=header.title,
-                start=header.start,
-                duration_seconds=header.duration_seconds,
-                total_messages=header.total_messages,
-                messages_per_minute=header.messages_per_minute,
-                unique_chatters=header.unique_chatters,
-                new_chatters=header.new_chatters,
-                returning_chatters=header.returning_chatters,
-                sub_share=_share(header.sub_messages, header.total_messages),
-                emote_share=_share(header.emote_messages, header.total_messages),
-                peak_messages=header.peak_messages,
-                peak_bucket_minute=header.peak_bucket_minute,
+            ComparedStream.from_row(
+                header,
                 peak_viewers=max((sample.viewer_count for sample in samples), default=None),
                 curve=normalize_curve(bucket_map[stream_id], header.start, header.duration_seconds),
             )
         )
 
-    retention = [
-        PairRetention(
-            from_stream_id=row.from_stream_id,
-            to_stream_id=row.to_stream_id,
-            from_audience=row.from_audience,
-            to_audience=row.to_audience,
-            retained=row.retained,
-            retention_rate=round(row.retained / row.from_audience, 4) if row.from_audience else None,
-        )
-        for row in select_stream_pair_retention_db(stream_ids)
-    ]
+    retention = [PairRetention.from_row(row) for row in select_stream_pair_retention_db(stream_ids)]
     return StreamComparison(streams=streams, retention=retention)

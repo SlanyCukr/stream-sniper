@@ -39,17 +39,7 @@ def list_streams(
         date_to=date_to,
         min_messages=min_messages,
     )
-    return [
-        StreamListItem(
-            stream_id=row.stream_id,
-            creator_name=row.creator_name,
-            start=row.start,
-            end=row.end,
-            thumbnail_url=row.thumbnail_url,
-            message_count=row.message_count,
-        )
-        for row in rows
-    ]
+    return [StreamListItem.from_row(row) for row in rows]
 
 
 def count_streams(
@@ -74,31 +64,11 @@ def stream_details(stream_id: int) -> StreamDetails | None:
     if info is None:
         return None
     return StreamDetails(
-        info=StreamInfo(
-            title=info.title,
-            start=str(info.start),
-            end=str(info.end) if info.end is not None else None,
-            thumbnail_url=info.thumbnail_url,
-            message_count=info.message_count,
-            creator_nick=info.creator_nick,
-            creator_display_name=info.creator_display_name,
-            profile_image_url=info.profile_image_url,
-            creator_id=info.creator_id,
-        ),
-        most_active_chatters=[
-            RankedChatter(chatter_id=row.chatter_id, nick=row.nick, count=row.rank_count)
-            for row in select_most_active_chatters_db(stream_id)
-        ],
-        most_tagged_chatters=[
-            RankedChatter(chatter_id=row.chatter_id, nick=row.nick, count=row.rank_count)
-            for row in select_most_tagged_chatters_db(stream_id)
-        ],
+        info=StreamInfo.from_row(info),
+        most_active_chatters=[RankedChatter.from_row(row) for row in select_most_active_chatters_db(stream_id)],
+        most_tagged_chatters=[RankedChatter.from_row(row) for row in select_most_tagged_chatters_db(stream_id)],
         other_creators=[
-            OtherCreator(creator_id=row.creator_id, nick=row.nick)
-            for row in select_creators_that_wrote_in_stream_db(stream_id, info.creator_id)
+            OtherCreator.from_row(row) for row in select_creators_that_wrote_in_stream_db(stream_id, info.creator_id)
         ],
-        chatters=[
-            StreamParticipant(chatter_id=row.chatter_id, nick=row.nick)
-            for row in select_chatters_in_stream_db(stream_id)
-        ],
+        chatters=[StreamParticipant.from_row(row) for row in select_chatters_in_stream_db(stream_id)],
     )

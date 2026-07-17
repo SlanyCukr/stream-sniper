@@ -48,16 +48,7 @@ def _pair(row: CommunityPairRow, sizes: dict[int, tuple[int, int]]) -> OverlapPa
 def get_community_overlap(limit: int) -> CommunityOverlap:
     """Load creator audiences and calculate typed pair overlap metrics."""
     creator_rows, pair_rows = select_overlap_db(limit)
-    creators = [
-        OverlapCreator(
-            creator_id=row.creator_id,
-            nick=row.nick,
-            display_name=row.display_name,
-            chatters=row.chatters,
-            regulars=row.regulars,
-        )
-        for row in creator_rows
-    ]
+    creators = [OverlapCreator.from_row(row) for row in creator_rows]
     sizes = {row.creator_id: (row.chatters, row.regulars) for row in creator_rows}
     pairs = [_pair(row, sizes) for row in pair_rows]
     computed_at = creator_rows[0].computed_at if creator_rows else None
@@ -72,14 +63,5 @@ def get_creator_neighbors(
     """Load the creators with the largest audience overlap."""
     column = _NEIGHBOR_METRIC_COLUMN[metric]
     rows = select_creator_neighbors_db(creator_id, column, limit)
-    neighbors = [
-        CreatorNeighbor(
-            creator_id=row.creator_id,
-            nick=row.nick,
-            display_name=row.display_name,
-            shared_chatters=row.shared_chatters,
-            shared_regulars=row.shared_regulars,
-        )
-        for row in rows
-    ]
+    neighbors = [CreatorNeighbor.from_row(row) for row in rows]
     return CreatorNeighbors(creator_id=creator_id, metric=metric, neighbors=neighbors)

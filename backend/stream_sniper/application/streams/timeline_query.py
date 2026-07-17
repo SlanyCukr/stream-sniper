@@ -3,22 +3,17 @@
 from datetime import datetime, timedelta
 
 from stream_sniper.database.core.wire_format import WIRE_TS_FORMAT
-from stream_sniper.database.gateways.analytics.records import (
-    StreamBucketRow,
-    StreamMetricsRow,
-)
+from stream_sniper.database.gateways.analytics.records import StreamBucketRow
 from stream_sniper.database.gateways.analytics.stream_metrics_table_gateway import (
     select_stream_header_db,
     select_stream_metrics_db,
 )
 from stream_sniper.database.gateways.analytics.stream_time_bucket_table_gateway import select_stream_buckets_db
-from stream_sniper.database.gateways.content.records import StreamMomentRow
 from stream_sniper.database.gateways.content.stream_moment_table_gateway import select_stream_moments_db
-from stream_sniper.database.gateways.streams.records import StreamContextChangeRow
 from stream_sniper.database.gateways.streams.stream_context_table_gateway import select_stream_context_changes_db
 from stream_sniper.database.gateways.streams.stream_viewer_sample_table_gateway import select_stream_viewer_samples_db
 
-from ...analytics.calculations.moments import DetectedMoment, detect_moments
+from ...analytics.calculations.moments import detect_moments
 from .timeline_models import (
     StreamContextChange,
     StreamTimeline,
@@ -42,7 +37,9 @@ def get_stream_timeline(stream_id: int) -> StreamTimeline:
     twitch_vod_id = header_row.twitch_vod_id if header_row else None
     viewer_samples = [ViewerSample(t=row.sampled_at, viewer_count=row.viewer_count) for row in sample_rows]
     moments = (
-        _persisted_moments(moment_rows) if moment_rows else _detected_moments(detect_moments(bucket_rows, stream_start))
+        [TimelineMoment.from_row(row) for row in moment_rows]
+        if moment_rows
+        else [TimelineMoment.from_detected(moment) for moment in detect_moments(bucket_rows, stream_start)]
     )
     return StreamTimeline(
         stream_id=stream_id,
@@ -50,26 +47,17 @@ def get_stream_timeline(stream_id: int) -> StreamTimeline:
         twitch_vod_id=twitch_vod_id,
         buckets=_zero_filled_buckets(bucket_rows),
         moments=moments,
-        metrics=_metrics(metrics_row),
+        metrics=TimelineMetrics.from_row(metrics_row) if metrics_row is not None else None,
         viewer_samples=viewer_samples,
         peak_viewers=max((sample.viewer_count for sample in viewer_samples), default=None),
-        context_changes=_context_changes(context_rows),
+        context_changes=[StreamContextChange.from_row(row) for row in context_rows],
     )
 
 
 def _zero_filled_buckets(rows: list[StreamBucketRow]) -> list[TimelineBucket]:
     if not rows:
         return []
-    observed = {
-        row.bucket_minute: TimelineBucket(
-            bucket_minute=row.bucket_minute,
-            message_count=row.message_count,
-            unique_chatters=row.unique_chatters,
-            sub_messages=row.sub_messages,
-            emote_messages=row.emote_messages,
-        )
-        for row in rows
-    }
+    observed = {row.bucket_minute: TimelineBucket.from_row(row) for row in rows}
     first = datetime.strptime(rows[0].bucket_minute, WIRE_TS_FORMAT)
     last = datetime.strptime(rows[-1].bucket_minute, WIRE_TS_FORMAT)
     result: list[TimelineBucket] = []
@@ -84,69 +72,3 @@ def _zero_filled_buckets(rows: list[StreamBucketRow]) -> list[TimelineBucket]:
         )
         cursor += timedelta(minutes=1)
     return result
-
-
-def _persisted_moments(rows: list[StreamMomentRow]) -> list[TimelineMoment]:
-    return [
-        TimelineMoment(
-            bucket_minute=row.bucket_minute,
-            offset_seconds=row.offset_seconds,
-            message_count=row.message_count,
-            baseline=row.baseline,
-            ratio=row.ratio,
-            unique_chatters=row.unique_chatters,
-            sub_share=row.sub_share,
-            emote_share=row.emote_share,
-            top_phrases=row.top_phrases,
-            sample_messages=row.sample_messages,
-            status=row.status,
-            persisted=True,
-        )
-        for row in rows
-    ]
-
-
-def _detected_moments(rows: list[DetectedMoment]) -> list[TimelineMoment]:
-    return [
-        TimelineMoment(
-            bucket_minute=row.bucket_minute,
-            offset_seconds=row.offset_seconds,
-            message_count=row.message_count,
-            baseline=row.baseline,
-            ratio=row.ratio,
-            unique_chatters=row.unique_chatters,
-        )
-        for row in rows
-    ]
-
-
-def _metrics(row: StreamMetricsRow | None) -> TimelineMetrics | None:
-    if row is None:
-        return None
-    return TimelineMetrics(
-        total_messages=row.total_messages or 0,
-        unique_chatters=row.unique_chatters or 0,
-        duration_seconds=row.duration_seconds,
-        messages_per_minute=row.messages_per_minute,
-        peak_messages=row.peak_messages or 0,
-        peak_bucket_minute=row.peak_bucket_minute,
-        new_chatters=row.new_chatters or 0,
-        returning_chatters=row.returning_chatters or 0,
-        sub_messages=row.sub_messages,
-        emote_messages=row.emote_messages,
-    )
-
-
-def _context_changes(rows: list[StreamContextChangeRow]) -> list[StreamContextChange]:
-    return [
-        StreamContextChange(
-            t=row.sampled_at,
-            title=row.title,
-            category_id=row.category_id,
-            category_name=row.category_name,
-            language=row.language,
-            tags=row.tags or [],
-            is_mature=row.is_mature,
-        )
-        for row in rows
-    ]
