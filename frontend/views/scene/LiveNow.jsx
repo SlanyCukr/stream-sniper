@@ -4,27 +4,15 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Card } from 'react-bootstrap'
 import { useSceneLive } from '@/hooks/scene/useSceneLiveQueries'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
+import QueryState from '@/components/common/QueryState'
+import StatusChip from '@/components/common/StatusChip'
+import { parseNaiveUtcEpoch } from '@/utils/dateUtils'
+import { formatDurationHoursMinutes } from '@/utils/numberUtils'
 
 // Freshness horizon for the "tracker stale" warning. Samples land every ~5 min;
 // if the newest sample overall is older than this, the tracker is likely down,
 // which reads as "nobody live" — surface that instead of a false empty state.
 const STALE_MS = 15 * 60 * 1000
-
-/**
- * Parse a naive UTC timestamp ("YYYY-MM-DDTHH:MM:SS", no zone) as UTC by
- * appending 'Z' — the backend formats AT TIME ZONE 'UTC' without an offset.
- * @param {string|null} ts
- * @returns {number|null} epoch ms, or null when unparseable
- */
-const utcEpoch = ts => {
-    if (typeof ts !== 'string' || ts.length < 16) {
-        return null
-    }
-    const ms = new Date(`${ts}Z`).getTime()
-    return Number.isNaN(ms) ? null : ms
-}
 
 /**
  * Human uptime "2h 14m" / "43m" from a live session start, or null when unknown
@@ -33,17 +21,15 @@ const utcEpoch = ts => {
  * @returns {string|null}
  */
 const uptimeLabel = startedAt => {
-    const start = utcEpoch(startedAt)
+    const start = parseNaiveUtcEpoch(startedAt)
     if (start === null) {
         return null
     }
-    const totalMin = Math.floor((Date.now() - start) / 60000)
-    if (totalMin < 0) {
+    const elapsedMs = Date.now() - start
+    if (elapsedMs < 0) {
         return null
     }
-    const hours = Math.floor(totalMin / 60)
-    const minutes = totalMin % 60
-    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+    return formatDurationHoursMinutes(elapsedMs / 1000)
 }
 
 /**
@@ -89,11 +75,12 @@ const LiveCard = ({ streamer }) => {
                         )}
                     <div className="live-identity">
                         <Link className="live-name" href={`/creator/${creatorId}`}>{name}</Link>
-                        <span
-                            className="status-chip is-ok live-chip"
+                        <StatusChip
+                            variant="ok"
+                            className="live-chip"
                             aria-label="Live now">
                             LIVE
-                        </span>
+                        </StatusChip>
                     </div>
                 </div>
 
@@ -143,7 +130,7 @@ const LiveNow = () => {
     const lastSampleAt = data?.lastSampleAt ?? null
 
     const isStale = useMemo(() => {
-        const last = utcEpoch(lastSampleAt)
+        const last = parseNaiveUtcEpoch(lastSampleAt)
         // A freshness warning intentionally compares the newest sample with the
         // wall clock; the query's 30-second polling supplies bounded rerenders.
         // eslint-disable-next-line react-hooks/purity
@@ -166,56 +153,55 @@ const LiveNow = () => {
                 )}
             </div>
 
-            {error ? (
-                <ErrorAlert
-                    error={error}
-                    title="Failed to load live streamers"
-                    onRetry={refetch}
-                    showDetails={process.env.NODE_ENV === 'development'}
-                />
-            ) : isLoading ? (
-                <LoadingSpinner
-                    text="Checking who's live..."
-                    centered
-                />
-            ) : live.length === 0 ? (
-                <div className="empty-state">
-                    <span
-                        className="empty-scope"
-                        aria-hidden="true" />
-                    <p className="empty-title">Nobody live right now</p>
-                    {isStale ? (
-                        <p className="empty-hint text-warning">
-                            Tracking data is stale — the newest viewer sample is over 15 minutes old,
-                            so the tracker may be down rather than the scene being quiet.
-                        </p>
-                    ) : (
-                        <p className="empty-hint">
-                            No tracked streamer is broadcasting. This refreshes automatically every 30 seconds.
-                        </p>
-                    )}
-                </div>
-            ) : (
-                <>
-                    {isStale && (
-                        <p className="live-stale-note text-warning mono">
-                            <i
-                                className="bi bi-exclamation-triangle"
-                                aria-hidden="true" />
-                            {' '}
-                            Latest sample is over 15 minutes old — this list may be incomplete.
-                        </p>
-                    )}
-                    <div className="live-grid">
-                        {live.map(streamer => (
-                            <LiveCard
-                                key={streamer.creatorId}
-                                streamer={streamer}
-                            />
-                        ))}
+            <QueryState
+                query={{
+                    data, isLoading, error, refetch,
+                }}
+                errorTitle="Failed to load live streamers"
+                loadingText="Checking who's live..."
+                loadingSize="md"
+                isEmpty={value => (value?.live || []).length === 0}
+                emptyState={(
+                    <div className="empty-state">
+                        <span
+                            className="empty-scope"
+                            aria-hidden="true" />
+                        <p className="empty-title">Nobody live right now</p>
+                        {isStale ? (
+                            <p className="empty-hint text-warning">
+                                Tracking data is stale — the newest viewer sample is over 15 minutes old,
+                                so the tracker may be down rather than the scene being quiet.
+                            </p>
+                        ) : (
+                            <p className="empty-hint">
+                                No tracked streamer is broadcasting. This refreshes automatically every 30 seconds.
+                            </p>
+                        )}
                     </div>
-                </>
-            )}
+                )}
+            >
+                {value => (
+                    <>
+                        {isStale && (
+                            <p className="live-stale-note text-warning mono">
+                                <i
+                                    className="bi bi-exclamation-triangle"
+                                    aria-hidden="true" />
+                                {' '}
+                                Latest sample is over 15 minutes old — this list may be incomplete.
+                            </p>
+                        )}
+                        <div className="live-grid">
+                            {(value.live || []).map(streamer => (
+                                <LiveCard
+                                    key={streamer.creatorId}
+                                    streamer={streamer}
+                                />
+                            ))}
+                        </div>
+                    </>
+                )}
+            </QueryState>
         </>
     )
 }

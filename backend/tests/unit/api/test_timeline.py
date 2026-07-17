@@ -34,7 +34,7 @@ _BASE = datetime(2024, 1, 15, 20, 0, 0)
 @pytest.fixture(autouse=True)
 def _empty_context_changes(monkeypatch):
     monkeypatch.setattr(
-        "stream_sniper.api.composition.select_stream_context_changes_db",
+        "stream_sniper.application.streams.timeline_query.select_stream_context_changes_db",
         lambda _stream_id: [],
     )
 
@@ -61,11 +61,11 @@ def _miss_cache():
 
 class TestTimelineEndpoint:
     @patch("stream_sniper.api.features.streams.timeline_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
-    @patch("stream_sniper.api.composition.select_stream_moments_db")
-    @patch("stream_sniper.api.composition.select_stream_header_db")
-    @patch("stream_sniper.api.composition.select_stream_metrics_db")
-    @patch("stream_sniper.api.composition.select_stream_buckets_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_viewer_samples_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_moments_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_header_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_metrics_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_buckets_db")
     def test_success_with_buckets_metrics_and_moments(
         self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
@@ -119,11 +119,11 @@ class TestTimelineEndpoint:
         mock_samples.assert_called_once_with(7)
 
     @patch("stream_sniper.api.features.streams.timeline_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
-    @patch("stream_sniper.api.composition.select_stream_moments_db")
-    @patch("stream_sniper.api.composition.select_stream_header_db")
-    @patch("stream_sniper.api.composition.select_stream_metrics_db")
-    @patch("stream_sniper.api.composition.select_stream_buckets_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_viewer_samples_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_moments_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_header_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_metrics_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_buckets_db")
     def test_empty_rollup_returns_200_with_null_metrics(
         self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
@@ -149,11 +149,11 @@ class TestTimelineEndpoint:
         assert data["peak_viewers"] is None
 
     @patch("stream_sniper.api.features.streams.timeline_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
-    @patch("stream_sniper.api.composition.select_stream_moments_db")
-    @patch("stream_sniper.api.composition.select_stream_header_db")
-    @patch("stream_sniper.api.composition.select_stream_metrics_db")
-    @patch("stream_sniper.api.composition.select_stream_buckets_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_viewer_samples_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_moments_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_header_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_metrics_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_buckets_db")
     def test_header_present_but_metrics_absent(
         self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
@@ -177,11 +177,11 @@ class TestTimelineEndpoint:
         assert len(data["buckets"]) == 2
 
     @patch("stream_sniper.api.features.streams.timeline_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
-    @patch("stream_sniper.api.composition.select_stream_moments_db")
-    @patch("stream_sniper.api.composition.select_stream_header_db")
-    @patch("stream_sniper.api.composition.select_stream_metrics_db")
-    @patch("stream_sniper.api.composition.select_stream_buckets_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_viewer_samples_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_moments_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_header_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_metrics_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_buckets_db")
     def test_gateway_raise_returns_500(
         self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
@@ -194,11 +194,11 @@ class TestTimelineEndpoint:
         assert response.json()["detail"] == "Internal server error"
 
     @patch("stream_sniper.api.features.streams.timeline_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
-    @patch("stream_sniper.api.composition.select_stream_moments_db")
-    @patch("stream_sniper.api.composition.select_stream_header_db")
-    @patch("stream_sniper.api.composition.select_stream_metrics_db")
-    @patch("stream_sniper.api.composition.select_stream_buckets_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_viewer_samples_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_moments_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_header_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_metrics_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_buckets_db")
     def test_zero_fill_synthesizes_missing_minutes(
         self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
@@ -234,11 +234,11 @@ class TestTimelineEndpoint:
         assert buckets[3]["message_count"] == 7
 
     @patch("stream_sniper.api.features.streams.timeline_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
-    @patch("stream_sniper.api.composition.select_stream_moments_db")
-    @patch("stream_sniper.api.composition.select_stream_header_db")
-    @patch("stream_sniper.api.composition.select_stream_metrics_db")
-    @patch("stream_sniper.api.composition.select_stream_buckets_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_viewer_samples_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_moments_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_header_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_metrics_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_buckets_db")
     def test_persisted_moments_used_when_present(
         self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
@@ -285,11 +285,11 @@ class TestTimelineEndpoint:
         assert m["persisted"] is True  # read from persisted stream_moment
 
     @patch("stream_sniper.api.features.streams.timeline_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
-    @patch("stream_sniper.api.composition.select_stream_moments_db")
-    @patch("stream_sniper.api.composition.select_stream_header_db")
-    @patch("stream_sniper.api.composition.select_stream_metrics_db")
-    @patch("stream_sniper.api.composition.select_stream_buckets_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_viewer_samples_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_moments_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_header_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_metrics_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_buckets_db")
     def test_viewer_samples_and_peak(
         self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
@@ -316,11 +316,11 @@ class TestTimelineEndpoint:
         assert data["peak_viewers"] == 3400
 
     @patch("stream_sniper.api.features.streams.timeline_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
-    @patch("stream_sniper.api.composition.select_stream_moments_db")
-    @patch("stream_sniper.api.composition.select_stream_header_db")
-    @patch("stream_sniper.api.composition.select_stream_metrics_db")
-    @patch("stream_sniper.api.composition.select_stream_buckets_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_viewer_samples_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_moments_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_header_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_metrics_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_buckets_db")
     def test_metrics_sub_emote_null_passthrough(
         self, mock_buckets, mock_metrics, mock_header, mock_moments, mock_samples, mock_get_cache
     ):
@@ -343,11 +343,11 @@ class TestTimelineEndpoint:
         assert data["buckets"][0]["emote_messages"] is None
 
     @patch("stream_sniper.api.features.streams.timeline_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
-    @patch("stream_sniper.api.composition.select_stream_moments_db")
-    @patch("stream_sniper.api.composition.select_stream_header_db")
-    @patch("stream_sniper.api.composition.select_stream_metrics_db")
-    @patch("stream_sniper.api.composition.select_stream_buckets_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_viewer_samples_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_moments_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_header_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_metrics_db")
+    @patch("stream_sniper.application.streams.timeline_query.select_stream_buckets_db")
     def test_context_changes_are_exposed(
         self,
         mock_buckets,
@@ -365,7 +365,7 @@ class TestTimelineEndpoint:
         mock_moments.return_value = []
         mock_samples.return_value = []
         monkeypatch.setattr(
-            "stream_sniper.api.composition.select_stream_context_changes_db",
+            "stream_sniper.application.streams.timeline_query.select_stream_context_changes_db",
             lambda _stream_id: [
                 StreamContextChangeRow(_iso(0), "Opening", "509658", "Just Chatting", "en", ["English"], False),
             ],

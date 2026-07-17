@@ -7,7 +7,6 @@ from inspect import isawaitable
 from ..collector.twitch_api import TwitchAPI
 from ..database.core.connection_pool import (
     DatabaseConnectionPool,
-    DatabasePoolConfig,
     enter_pool_scope,
     exit_pool_scope,
 )
@@ -39,20 +38,7 @@ class Runtime:
         self.metrics = metrics or MetricsCollector(config.monitoring.metrics_retention_hours)
         self.health = health or HealthChecker(config=config, cache=self.cache)
         self.twitch = twitch or TwitchAPI()
-        self.database = database or DatabaseConnectionPool(
-            DatabasePoolConfig(
-                user=config.database.user,
-                password=config.database.password,
-                host=config.database.host,
-                database=config.database.database,
-                port=config.database.port,
-                options=config.database.options,
-                minconn=config.database.pool_min_conn,
-                maxconn=config.database.pool_max_conn,
-                connect_timeout=config.database.connect_timeout,
-                command_timeout=config.database.command_timeout,
-            )
-        )
+        self.database = database or DatabaseConnectionPool(config.database)
 
     async def startup(self) -> None:
         """Warm configured caches after the event loop is ready."""

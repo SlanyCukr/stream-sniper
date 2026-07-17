@@ -12,6 +12,15 @@ from ....application.streams.catalog_models import (
     StreamParticipant,
     StreamsResponse,
 )
+from ....application.streams.catalog_query import (
+    count_streams as query_count_streams,
+)
+from ....application.streams.catalog_query import (
+    list_streams as query_list_streams,
+)
+from ....application.streams.catalog_query import (
+    stream_details as query_stream_details,
+)
 from ....database.gateways.chat.chatter_table_gateway import select_all_chatters_on_stream_db
 from ....database.gateways.streams.stream_table_gateway import (
     select_chatter_messages_on_stream_db,
@@ -19,7 +28,6 @@ from ....database.gateways.streams.stream_table_gateway import (
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL, InProcessCache
 from ...caching.model_cache import ModelCachePolicy, record_cache_failures
-from ...composition import STREAM_CATALOG_QUERY
 from ...dependencies import get_cache
 from ...observability.monitoring import record_cache_operation
 from ...security.rate_limiter import limiter, rate_limits
@@ -59,7 +67,7 @@ def _load_stream_page(
         return [StreamListItem.model_validate(row) for row in rows], True
 
     record_cache_operation("miss", "streams")
-    streams = STREAM_CATALOG_QUERY.list_streams(
+    streams = query_list_streams(
         creator_id,
         offset,
         limit,
@@ -91,7 +99,7 @@ def _load_stream_count(
         return int(cached), True
 
     record_cache_operation("miss", "stream_count")
-    total = STREAM_CATALOG_QUERY.count_streams(
+    total = query_count_streams(
         creator_id,
         title=title,
         date_from=date_from,
@@ -232,7 +240,7 @@ def get_stream(
         if cached_analytics is not None:
             return cached_analytics
 
-        analytics_data = STREAM_CATALOG_QUERY.stream_details(stream_id)
+        analytics_data = query_stream_details(stream_id)
         if analytics_data is None:
             raise HTTPException(status_code=404, detail="Stream not found")
         _STREAM_DETAILS_CACHE.store(cache, response, analytics_cache_key, analytics_data)

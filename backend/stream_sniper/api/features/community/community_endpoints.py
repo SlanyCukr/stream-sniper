@@ -15,7 +15,6 @@ from ....application.community.models import (
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
-from ...composition import SELECT_COMMUNITY_OVERLAP, SELECT_CREATOR_NEIGHBORS
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import RateLimitErrorResponse
@@ -53,7 +52,7 @@ def get_community_overlap(
         if cached_result is not None:
             return cached_result
 
-        result = query_community_overlap(limit, SELECT_COMMUNITY_OVERLAP)
+        result = query_community_overlap(limit)
         _OVERLAP_CACHE.store(cache, response, cache_key, result)
         return result
 
@@ -82,6 +81,6 @@ def get_creator_neighbors(
         if cached_result is not None:
             return cached_result
 
-        result = query_creator_neighbors(creator_id, metric, limit, SELECT_CREATOR_NEIGHBORS)
+        result = query_creator_neighbors(creator_id, metric, limit)
         _NEIGHBORS_CACHE.store(cache, response, cache_key, result)
         return result

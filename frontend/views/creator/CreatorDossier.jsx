@@ -7,7 +7,7 @@ import { useSceneCopypastas } from '@/hooks/scene/useSceneCopypastaQueries'
 import CreatorDossierOverview from '@/components/creator/CreatorDossierOverview'
 import CreatorSignatureCards from '@/components/creator/CreatorSignatureCards'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
+import QueryState from '@/components/common/QueryState'
 import RegularsPanel from '@/components/creator/RegularsPanel'
 import TrendsPanel from '@/components/creator/TrendsPanel'
 
@@ -20,28 +20,33 @@ const CreatorDossier = ({ creatorId }) => {
     if (!Number.isInteger(creatorId) || creatorId <= 0) {
         return <ErrorAlert title="Invalid creator" error={new Error('Creator ID must be a positive integer.')} />
     }
-    if (summaryQuery.isLoading) return <LoadingSpinner size="lg" text="Building creator dossier..." />
-    if (summaryQuery.error) {
-        return <ErrorAlert title="Failed to load creator" error={summaryQuery.error} onRetry={summaryQuery.refetch} />
-    }
 
     return (
-        <>
-            <CreatorDossierOverview creator={summaryQuery.data} creatorId={creatorId} />
-            <section className="dossier-section">
-                <div className="section-label">Recent trajectory</div>
-                <TrendsPanel creatorId={creatorId} />
-            </section>
-            <CreatorSignatureCards
-                emotesQuery={emotesQuery}
-                neighborsQuery={neighborsQuery}
-                copypastasQuery={copypastasQuery}
-            />
-            <section className="dossier-section">
-                <div className="section-label">Core regulars</div>
-                <RegularsPanel creatorId={creatorId} />
-            </section>
-        </>
+        <QueryState
+            query={summaryQuery}
+            errorTitle="Failed to load creator"
+            loadingText="Building creator dossier..."
+            showErrorDetails={false}
+        >
+            {creator => (
+                <>
+                    <CreatorDossierOverview creator={creator} creatorId={creatorId} />
+                    <section className="dossier-section">
+                        <div className="section-label">Recent trajectory</div>
+                        <TrendsPanel creatorId={creatorId} />
+                    </section>
+                    <CreatorSignatureCards
+                        emotesQuery={emotesQuery}
+                        neighborsQuery={neighborsQuery}
+                        copypastasQuery={copypastasQuery}
+                    />
+                    <section className="dossier-section">
+                        <div className="section-label">Core regulars</div>
+                        <RegularsPanel creatorId={creatorId} />
+                    </section>
+                </>
+            )}
+        </QueryState>
     )
 }
 

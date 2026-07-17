@@ -78,8 +78,10 @@ def _include_routers(app: FastAPI) -> None:
     for router in (
         auth_router,
         chatter_router,
-        stream_router,
+        # compare_router must precede stream_router: /streams/compare is a static
+        # path that /streams/{stream_id} would otherwise capture (422 int_parsing).
         compare_router,
+        stream_router,
         creator_router,
         tracking_router,
         operations_router,

@@ -20,6 +20,24 @@ describe('SystemInfo partial telemetry', () => {
     hooks.useFlushCache.mockReturnValue({ mutateAsync: flushCache })
   })
 
+  it('shows a loading spinner before any telemetry has arrived', () => {
+    const pendingQuery = {
+      data: undefined,
+      error: null,
+      isPending: true,
+      isFetching: true,
+      refetch: vi.fn(),
+    }
+    hooks.useDetailedHealth.mockReturnValue(pendingQuery)
+    hooks.useSystemMetrics.mockReturnValue(pendingQuery)
+    hooks.useCacheStats.mockReturnValue(pendingQuery)
+
+    render(<SystemInfo />)
+
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.getAllByText('Loading system telemetry...').length).toBeGreaterThan(0)
+  })
+
   it('keeps successful panels visible while reporting and retrying a failed endpoint', () => {
     const refetchHealth = vi.fn()
     const refetchMetrics = vi.fn()

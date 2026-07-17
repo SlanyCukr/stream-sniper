@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useAdminSystemStats } from '@/hooks/admin/users/useUserAdminQueries'
 import AdminQuickActions from '@/components/admin/dashboard/AdminQuickActions'
 import AdminStatsGrid from '@/components/admin/dashboard/AdminStatsGrid'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
+import QueryState from '@/components/common/QueryState'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 
 const AdminDashboard = () => {
@@ -21,13 +21,13 @@ const AdminDashboard = () => {
                     <p className="page-sub">Welcome back, {user?.username}</p>
                 </div>
             </div>
-            <ErrorAlert
-                error={query.error}
-                title="Admin statistics unavailable"
-                onRetry={query.refetch}
-                className="mb-4"
-            />
-            {query.data ? <AdminStatsGrid stats={query.data} /> : null}
+            <QueryState
+                query={query}
+                errorTitle="Admin statistics unavailable"
+                showErrorDetails={false}
+            >
+                {data => <AdminStatsGrid stats={data} />}
+            </QueryState>
             <AdminQuickActions />
         </>
     )

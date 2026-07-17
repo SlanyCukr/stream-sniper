@@ -6,8 +6,7 @@ import Select from 'react-select'
 import { Card, Table } from 'react-bootstrap'
 import { useStreamComparison } from '@/hooks/stream/useStreamComparisonQuery'
 import { useStreams } from '@/hooks/stream/list/useStreamsQuery'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
+import QueryState from '@/components/common/QueryState'
 
 const COLORS = ['#69f0ae', '#ffb74d', '#64b5f6', '#ef9a9a']
 const metrics = [
@@ -94,7 +93,6 @@ const StreamCompare = ({ initialIds = [] }) => {
     )
     const selected = options.filter(option => selectedIds.includes(option.value))
     const comparison = useStreamComparison(selectedIds)
-    const streams = comparison.data?.streams || []
 
     return (
         <>
@@ -137,87 +135,83 @@ const StreamCompare = ({ initialIds = [] }) => {
                     </p>
                 </div>
             ) : null}
-            {comparison.isLoading ? (
-                <LoadingSpinner
-                    size="lg"
-                    text="Comparing streams..."
-                />
-            ) : null}
-            {comparison.error ? (
-                <ErrorAlert
-                    title="Comparison failed"
-                    error={comparison.error}
-                    onRetry={comparison.refetch}
-                />
-            ) : null}
-            {streams.length >= 2 ? (
-                <>
-                    <Card>
-                        <Card.Body>
-                            <div className="section-label">
-                                Chat activity by stream progress
-                            </div>
-                            <CurveChart streams={streams} />
-                        </Card.Body>
-                    </Card>
-                    <Card className="mt-3">
-                        <Card.Body className="p-0">
-                            <Table
-                                responsive
-                                hover
-                                className="mb-0 compare-table"
-                            >
-                                <thead>
-                                    <tr>
-                                        <th>Metric</th>
-                                        {streams.map(stream => (
-                                            <th key={stream.streamId}>
-                                                <Link href={`/stream/${stream.streamId}`}>
-                                                    {stream.creatorDisplayName}
-                                                    <br />
-                                                    <small>{stream.title}</small>
-                                                </Link>
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {metrics.map(([label, key, format]) => (
-                                        <tr key={key}>
-                                            <th>{label}</th>
-                                            {streams.map(stream => (
-                                                <td
-                                                    className="mono"
-                                                    key={stream.streamId}
-                                                >
-                                                    {format(stream[key])}
-                                                </td>
+            <QueryState
+                query={comparison}
+                errorTitle="Comparison failed"
+                loadingText="Comparing streams..."
+                isEmpty={value => (value?.streams || []).length < 2}
+                emptyState={null}
+                showErrorDetails={false}
+            >
+                {value => (
+                    <>
+                        <Card>
+                            <Card.Body>
+                                <div className="section-label">
+                                    Chat activity by stream progress
+                                </div>
+                                <CurveChart streams={value.streams} />
+                            </Card.Body>
+                        </Card>
+                        <Card className="mt-3">
+                            <Card.Body className="p-0">
+                                <Table
+                                    responsive
+                                    hover
+                                    className="mb-0 compare-table"
+                                >
+                                    <thead>
+                                        <tr>
+                                            <th>Metric</th>
+                                            {value.streams.map(stream => (
+                                                <th key={stream.streamId}>
+                                                    <Link href={`/stream/${stream.streamId}`}>
+                                                        {stream.creatorDisplayName}
+                                                        <br />
+                                                        <small>{stream.title}</small>
+                                                    </Link>
+                                                </th>
                                             ))}
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </Table>
-                        </Card.Body>
-                    </Card>
-                    <div className="retention-strip">
-                        {(comparison.data?.retention || []).map(item => (
-                            <Card key={`${item.fromStreamId}-${item.toStreamId}`}>
-                                <Card.Body>
-                                    <div className="section-label">
-                                        {`#${item.fromStreamId} → #${item.toStreamId}`}
-                                    </div>
-                                    <div className="stat-value">
-                                        {item.retentionRate == null ? '--' : `${Math.round(item.retentionRate * 100)}%`}
-                                    </div>
-                                    <div className="stat-hint">
-                                        {`${item.retained} of ${item.fromAudience} chatters returned`}
-                                    </div>
-                                </Card.Body>
-                            </Card>
-                        ))}
-                    </div>
-                </>
-            ) : null}
+                                    </thead>
+                                    <tbody>
+                                        {metrics.map(([label, key, format]) => (
+                                            <tr key={key}>
+                                                <th>{label}</th>
+                                                {value.streams.map(stream => (
+                                                    <td
+                                                        className="mono"
+                                                        key={stream.streamId}
+                                                    >
+                                                        {format(stream[key])}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </Table>
+                            </Card.Body>
+                        </Card>
+                        <div className="retention-strip">
+                            {(value.retention || []).map(item => (
+                                <Card key={`${item.fromStreamId}-${item.toStreamId}`}>
+                                    <Card.Body>
+                                        <div className="section-label">
+                                            {`#${item.fromStreamId} → #${item.toStreamId}`}
+                                        </div>
+                                        <div className="stat-value">
+                                            {item.retentionRate == null ? '--' : `${Math.round(item.retentionRate * 100)}%`}
+                                        </div>
+                                        <div className="stat-hint">
+                                            {`${item.retained} of ${item.fromAudience} chatters returned`}
+                                        </div>
+                                    </Card.Body>
+                                </Card>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </QueryState>
         </>
     )
 }

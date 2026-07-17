@@ -4,8 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Card } from 'react-bootstrap'
 import { useSceneDigest, useScenePulse } from '@/hooks/scene/useScenePulseQueries'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
+import QueryState from '@/components/common/QueryState'
 import { formatTimeAgo } from '@/utils/dateUtils'
 
 const FILTERS = [
@@ -86,70 +85,67 @@ const ScenePulse = () => {
                     <option value="90">90 days</option>
                 </select>
             </div>
-            {pulse.isLoading ? (
-                <LoadingSpinner
-                    size="lg"
-                    text="Reading the scene..."
-                />
-            ) : null}
-            {pulse.error ? (
-                <ErrorAlert
-                    title="Scene pulse failed"
-                    error={pulse.error}
-                    onRetry={pulse.refetch}
-                />
-            ) : null}
-            {!pulse.isLoading && !pulse.error && !pulse.data?.items.length ? (
-                <div className="empty-state">
-                    <p className="empty-title">
-                        No events yet
-                    </p>
-                    <p className="empty-hint">
-                        Re-run stream rollups to populate deterministic scene events.
-                    </p>
-                </div>
-            ) : null}
-            <div className="pulse-feed">
-                {(pulse.data?.items || []).map(event => (
-                    <Card
-                        key={event.id}
-                        className={`pulse-event pulse-${event.eventType}`}
-                    >
-                        <Card.Body>
-                            <div className="pulse-icon">
-                                <i
-                                    className={`bi ${icon(event.eventType)}`}
-                                    aria-hidden="true"
-                                />
-                            </div>
-                            <div className="pulse-content">
-                                <div className="mono text-muted">
-                                    {`${formatTimeAgo(event.occurredAt)} · ${event.eventType.replaceAll('_', ' ')}`}
-                                </div>
-                                <h2>{event.title}</h2>
-                                <p>{event.summary}</p>
-                                <div className="pulse-links">
-                                    {event.creatorId ? (
-                                        <Link href={`/creator/${event.creatorId}`}>
-                                            Creator dossier
-                                        </Link>
-                                    ) : null}
-                                    {event.streamId ? (
-                                        <Link href={`/stream/${event.streamId}`}>
-                                            Stream
-                                        </Link>
-                                    ) : null}
-                                    {event.messageTextId ? (
-                                        <Link href={`/copypasta/${event.messageTextId}`}>
-                                            Trace copypasta
-                                        </Link>
-                                    ) : null}
-                                </div>
-                            </div>
-                        </Card.Body>
-                    </Card>
-                ))}
-            </div>
+            <QueryState
+                query={pulse}
+                errorTitle="Scene pulse failed"
+                loadingText="Reading the scene..."
+                isEmpty={value => !(value?.items?.length)}
+                emptyState={(
+                    <div className="empty-state">
+                        <p className="empty-title">
+                            No events yet
+                        </p>
+                        <p className="empty-hint">
+                            Re-run stream rollups to populate deterministic scene events.
+                        </p>
+                    </div>
+                )}
+                showErrorDetails={false}
+            >
+                {value => (
+                    <div className="pulse-feed">
+                        {(value.items || []).map(event => (
+                            <Card
+                                key={event.id}
+                                className={`pulse-event pulse-${event.eventType}`}
+                            >
+                                <Card.Body>
+                                    <div className="pulse-icon">
+                                        <i
+                                            className={`bi ${icon(event.eventType)}`}
+                                            aria-hidden="true"
+                                        />
+                                    </div>
+                                    <div className="pulse-content">
+                                        <div className="mono text-muted">
+                                            {`${formatTimeAgo(event.occurredAt)} · ${event.eventType.replaceAll('_', ' ')}`}
+                                        </div>
+                                        <h2>{event.title}</h2>
+                                        <p>{event.summary}</p>
+                                        <div className="pulse-links">
+                                            {event.creatorId ? (
+                                                <Link href={`/creator/${event.creatorId}`}>
+                                                    Creator dossier
+                                                </Link>
+                                            ) : null}
+                                            {event.streamId ? (
+                                                <Link href={`/stream/${event.streamId}`}>
+                                                    Stream
+                                                </Link>
+                                            ) : null}
+                                            {event.messageTextId ? (
+                                                <Link href={`/copypasta/${event.messageTextId}`}>
+                                                    Trace copypasta
+                                                </Link>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                </Card.Body>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </QueryState>
         </>
     )
 }

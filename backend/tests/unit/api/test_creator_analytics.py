@@ -233,8 +233,8 @@ class TestCreatorRegularsEndpoint:
     """Test suite for GET /creator/{creator_id}/regulars."""
 
     @patch("stream_sniper.api.features.creators.analytics_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.count_streams_db")
-    @patch("stream_sniper.api.composition.select_creator_regulars_db")
+    @patch("stream_sniper.application.creators.regulars_query.count_streams_db")
+    @patch("stream_sniper.application.creators.regulars_query.select_creator_regulars_db")
     def test_regulars_attendance_rate_computed(self, mock_regulars, mock_count, mock_get_cache):
         """attendance_rate == round(streams_attended / total_streams, 4)."""
         mock_get_cache.return_value = _miss_cache()
@@ -266,8 +266,8 @@ class TestCreatorRegularsEndpoint:
         mock_regulars.assert_called_once_with(5, 1, 50, sort="attendance", direction="desc", include_bots=False)
 
     @patch("stream_sniper.api.features.creators.analytics_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.count_streams_db")
-    @patch("stream_sniper.api.composition.select_creator_regulars_db")
+    @patch("stream_sniper.application.creators.regulars_query.count_streams_db")
+    @patch("stream_sniper.application.creators.regulars_query.select_creator_regulars_db")
     def test_regulars_zero_total_streams_no_zero_division(self, mock_regulars, mock_count, mock_get_cache):
         """total_streams == 0 yields attendance_rate 0.0 with no ZeroDivisionError."""
         mock_get_cache.return_value = _miss_cache()
@@ -285,8 +285,8 @@ class TestCreatorRegularsEndpoint:
         assert data["regulars"][0]["attendance_rate"] == 0.0
 
     @patch("stream_sniper.api.features.creators.analytics_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.count_streams_db")
-    @patch("stream_sniper.api.composition.select_creator_regulars_db")
+    @patch("stream_sniper.application.creators.regulars_query.count_streams_db")
+    @patch("stream_sniper.application.creators.regulars_query.select_creator_regulars_db")
     def test_regulars_sort_and_dir_forwarded(self, mock_regulars, mock_count, mock_get_cache):
         """Whitelisted sort/dir are forwarded to the gateway as keyword args."""
         mock_get_cache.return_value = _miss_cache()
@@ -300,8 +300,8 @@ class TestCreatorRegularsEndpoint:
         mock_regulars.assert_called_once_with(5, 4, 25, sort="last_seen", direction="asc", include_bots=False)
 
     @patch("stream_sniper.api.features.creators.analytics_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.count_streams_db")
-    @patch("stream_sniper.api.composition.select_creator_regulars_db")
+    @patch("stream_sniper.application.creators.regulars_query.count_streams_db")
+    @patch("stream_sniper.application.creators.regulars_query.select_creator_regulars_db")
     def test_regulars_include_bots_forwarded(self, mock_regulars, mock_count, mock_get_cache):
         """include_bots=true is forwarded to the gateway and folded into the cache key."""
         cache = _miss_cache()
@@ -321,8 +321,8 @@ class TestCreatorRegularsEndpoint:
         )
 
     @patch("stream_sniper.api.features.creators.analytics_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.count_streams_db")
-    @patch("stream_sniper.api.composition.select_creator_regulars_db")
+    @patch("stream_sniper.application.creators.regulars_query.count_streams_db")
+    @patch("stream_sniper.application.creators.regulars_query.select_creator_regulars_db")
     def test_regulars_include_bots_defaults_false(self, mock_regulars, mock_count, mock_get_cache):
         """The default forwards include_bots=False and keys the cache with False."""
         cache = _miss_cache()
@@ -369,8 +369,8 @@ class TestCreatorRegularsEndpoint:
         assert response.status_code == 422
 
     @patch("stream_sniper.api.features.creators.analytics_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.count_streams_db")
-    @patch("stream_sniper.api.composition.select_creator_regulars_db")
+    @patch("stream_sniper.application.creators.regulars_query.count_streams_db")
+    @patch("stream_sniper.application.creators.regulars_query.select_creator_regulars_db")
     def test_regulars_empty_returns_200(self, mock_regulars, mock_count, mock_get_cache):
         """No regulars is a valid 200 with an empty list."""
         mock_get_cache.return_value = _miss_cache()
@@ -384,8 +384,8 @@ class TestCreatorRegularsEndpoint:
         assert response.json() == {"creator_id": 5, "total_streams": 5, "regulars": []}
 
     @patch("stream_sniper.api.features.creators.analytics_endpoints.get_cache")
-    @patch("stream_sniper.api.composition.count_streams_db")
-    @patch("stream_sniper.api.composition.select_creator_regulars_db")
+    @patch("stream_sniper.application.creators.regulars_query.count_streams_db")
+    @patch("stream_sniper.application.creators.regulars_query.select_creator_regulars_db")
     def test_regulars_server_error(self, mock_regulars, mock_count, mock_get_cache):
         """A gateway error surfaces as a 500."""
         mock_get_cache.return_value = _miss_cache()

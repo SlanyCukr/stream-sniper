@@ -1,6 +1,13 @@
 """Contracts for windowed audience participation movement."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from stream_sniper.database.gateways.community.records import AudienceAssociationRow
 
 
 class AudienceAssociation(BaseModel):
@@ -8,6 +15,15 @@ class AudienceAssociation(BaseModel):
     nick: str
     display_name: str
     chatter_count: int
+
+    @classmethod
+    def from_row(cls, row: AudienceAssociationRow) -> AudienceAssociation:
+        return cls(
+            creator_id=row.creator_id,
+            nick=row.nick,
+            display_name=row.display_name,
+            chatter_count=row.chatter_count,
+        )
 
 
 class AudienceMovement(BaseModel):

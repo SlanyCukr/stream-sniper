@@ -4,10 +4,8 @@ import {
 } from 'react-bootstrap'
 import PaginatedResultsFooter from '@/components/common/pagination/PaginatedResultsFooter'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
-
-const formatDateTime = dateString => dateString
-    ? new Date(dateString).toLocaleString()
-    : 'Never'
+import StatusChip from '@/components/common/StatusChip'
+import { formatDateTime } from '@/utils/dateUtils'
 
 const TrackedStreamerTable = ({
     streamers,
@@ -54,17 +52,17 @@ const TrackedStreamerTable = ({
                                     <td><strong>{streamer.twitchUsername}</strong></td>
                                     <td>{streamer.displayName}</td>
                                     <td>
-                                        <span className={`status-chip ${streamer.isActive ? 'is-ok' : 'is-err'}`}>
+                                        <StatusChip variant={streamer.isActive ? 'ok' : 'err'}>
                                             {streamer.isActive ? 'Active' : 'Inactive'}
-                                        </span>
+                                        </StatusChip>
                                     </td>
                                     <td>
-                                        <span className={`status-chip ${streamer.processingEnabled ? 'is-ok' : 'is-warn'}`}>
+                                        <StatusChip variant={streamer.processingEnabled ? 'ok' : 'warn'}>
                                             {streamer.processingEnabled ? 'Enabled' : 'Disabled'}
-                                        </span>
+                                        </StatusChip>
                                     </td>
-                                    <td className="mono">{formatDateTime(streamer.lastStreamCheck)}</td>
-                                    <td className="mono">{formatDateTime(streamer.createdAt)}</td>
+                                    <td className="mono">{formatDateTime(streamer.lastStreamCheck, 'Never')}</td>
+                                    <td className="mono">{formatDateTime(streamer.createdAt, 'Never')}</td>
                                     <td>
                                         <Button
                                             variant="outline-primary"

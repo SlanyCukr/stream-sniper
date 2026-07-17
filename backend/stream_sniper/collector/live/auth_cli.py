@@ -2,7 +2,6 @@
 
 import argparse
 import asyncio
-import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -10,6 +9,7 @@ from twitchAPI.oauth import UserAuthenticator
 from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthScope
 
+from ..twitch_api import TwitchCredentials
 from .secure_files import write_private_text
 
 
@@ -22,11 +22,8 @@ def _report_success() -> None:
 
 
 async def authenticate(output: Path) -> None:
-    client_id = os.environ.get("TWITCH_CLIENT_ID")
-    client_secret = os.environ.get("TWITCH_CLIENT_SECRET")
-    if not client_id or not client_secret:
-        raise RuntimeError("TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET must be set")
-    twitch = await Twitch(client_id, client_secret)
+    credentials = TwitchCredentials.from_env()
+    twitch = await Twitch(credentials.client_id, credentials.client_secret)
     try:
         authenticator = UserAuthenticator(twitch, [AuthScope.CHAT_READ])
         _, refresh_token = await authenticator.authenticate()

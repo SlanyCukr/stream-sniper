@@ -2,7 +2,7 @@
 import { Form } from 'react-bootstrap'
 import Select from 'react-select'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
+import QueryState from '@/components/common/QueryState'
 import ProcessingJobsStatistics from '@/components/admin/tracking/jobs/ProcessingJobsStatistics'
 import ProcessingJobsTable from '@/components/admin/tracking/jobs/ProcessingJobsTable'
 import { useProcessingJobsController } from '@/hooks/admin/tracking/useProcessingJobsController'
@@ -96,20 +96,21 @@ const ProcessingJobs = () => {
                 onRetry={jobsQueryState.refetch}
                 className="mb-4" />
 
-            {statisticsState.error ? (
-                <ErrorAlert
-                    error={statisticsState.error}
-                    title="Processing statistics unavailable"
-                    onRetry={statisticsState.refetch}
-                    className="mb-4" />
-            ) : statisticsState.isLoading ? (
-                <LoadingSpinner text="Loading processing statistics..." />
-            ) : statisticsState.data ? (
-                <ProcessingJobsStatistics
-                    processingStats={statisticsState.data}
-                    card={false}
-                    heading="" />
-            ) : null}
+            <QueryState
+                query={statisticsState}
+                errorTitle="Processing statistics unavailable"
+                loadingText="Loading processing statistics..."
+                loadingSize="md"
+                emptyState={null}
+                showErrorDetails={false}
+            >
+                {data => (
+                    <ProcessingJobsStatistics
+                        processingStats={data}
+                        card={false}
+                        heading="" />
+                )}
+            </QueryState>
 
             <ErrorAlert
                 error={streamerOptionsState.error}

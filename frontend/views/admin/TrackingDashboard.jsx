@@ -2,7 +2,7 @@
 
 import TrackingDashboardContent from '@/components/admin/tracking/dashboard/TrackingDashboardContent'
 import { useTrackingStats } from '@/hooks/admin/tracking/useTrackingQueries'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
+import QueryState from '@/components/common/QueryState'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 
 const TrackingDashboard = () => {
@@ -27,18 +27,19 @@ const TrackingDashboard = () => {
                     </div>
                 ) : null}
             </div>
-            <ErrorAlert
-                error={query.error}
-                title="Tracking statistics unavailable"
-                onRetry={query.refetch}
-                className="mb-4" />
-            {query.data ? (
-                <TrackingDashboardContent
-                    stats={query.data}
-                    onRefresh={query.refetch}
-                    loading={query.isPending}
-                />
-            ) : null}
+            <QueryState
+                query={query}
+                errorTitle="Tracking statistics unavailable"
+                showErrorDetails={false}
+            >
+                {data => (
+                    <TrackingDashboardContent
+                        stats={data}
+                        onRefresh={query.refetch}
+                        loading={query.isPending}
+                    />
+                )}
+            </QueryState>
         </>
     )
 }

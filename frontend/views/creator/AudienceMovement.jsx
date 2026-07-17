@@ -8,8 +8,7 @@ import { useAudienceMovement } from '@/hooks/creator/useAudienceMovementQuery'
 import {
     mapCreatorOption, useCreators,
 } from '@/hooks/creator/useCreatorsQuery'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
+import QueryState from '@/components/common/QueryState'
 
 const WINDOWS = [7, 30, 90]
 
@@ -58,7 +57,6 @@ const AudienceMovement = ({ initialCreatorId = null }) => {
     )
     const selected = options.find(option => option.value === creatorId) || null
     const query = useAudienceMovement(creatorId, { days })
-    const data = query.data
 
     return (
         <>
@@ -110,64 +108,59 @@ const AudienceMovement = ({ initialCreatorId = null }) => {
                     </p>
                 </div>
             ) : null}
-            {query.isLoading ? (
-                <LoadingSpinner
-                    size="lg"
-                    text="Following audience participation..."
-                />
-            ) : null}
-            {query.error ? (
-                <ErrorAlert
-                    title="Movement report failed"
-                    error={query.error}
-                    onRetry={query.refetch}
-                />
-            ) : null}
-            {data ? (
-                <>
-                    <div
-                        className="stats-strip"
-                        role="list"
-                    >
-                        {[
-                            ['Current audience', data.currentAudience],
-                            ['Previous audience', data.previousAudience],
-                            ['Retained', data.retained],
-                            ['Gained', data.gained],
-                            ['Lapsed', data.lapsed],
-                            ['Retention', data.retentionRate == null ? '--' : `${Math.round(data.retentionRate * 100)}%`],
-                        ].map(([label, value]) => (
-                            <div
-                                className="stat-tile"
-                                role="listitem"
-                                key={label}
-                            >
-                                <div className="stat-label">
-                                    {label}
+            <QueryState
+                query={query}
+                errorTitle="Movement report failed"
+                loadingText="Following audience participation..."
+                emptyState={null}
+                showErrorDetails={false}
+            >
+                {data => (
+                    <>
+                        <div
+                            className="stats-strip"
+                            role="list"
+                        >
+                            {[
+                                ['Current audience', data.currentAudience],
+                                ['Previous audience', data.previousAudience],
+                                ['Retained', data.retained],
+                                ['Gained', data.gained],
+                                ['Lapsed', data.lapsed],
+                                ['Retention', data.retentionRate == null ? '--' : `${Math.round(data.retentionRate * 100)}%`],
+                            ].map(([label, value]) => (
+                                <div
+                                    className="stat-tile"
+                                    role="listitem"
+                                    key={label}
+                                >
+                                    <div className="stat-label">
+                                        {label}
+                                    </div>
+                                    <div className="stat-value">
+                                        {typeof value === 'number' ? value.toLocaleString() : value}
+                                    </div>
                                 </div>
-                                <div className="stat-value">
-                                    {typeof value === 'number' ? value.toLocaleString() : value}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <p className="movement-caveat">
-                        Associations below mean the same chatters participated in those channels during the adjacent window. They do not prove that viewers moved because of a creator.
-                    </p>
-                    <div className="dossier-grid">
-                        <AssociationList
-                            title="Earlier channels for gained chatters"
-                            items={data.priorChannelsForGained}
-                            empty="No earlier cross-channel activity found."
-                        />
-                        <AssociationList
-                            title="Current channels for lapsed chatters"
-                            items={data.currentChannelsForLapsed}
-                            empty="No current cross-channel activity found."
-                        />
-                    </div>
-                </>
-            ) : null}
+                            ))}
+                        </div>
+                        <p className="movement-caveat">
+                            Associations below mean the same chatters participated in those channels during the adjacent window. They do not prove that viewers moved because of a creator.
+                        </p>
+                        <div className="dossier-grid">
+                            <AssociationList
+                                title="Earlier channels for gained chatters"
+                                items={data.priorChannelsForGained}
+                                empty="No earlier cross-channel activity found."
+                            />
+                            <AssociationList
+                                title="Current channels for lapsed chatters"
+                                items={data.currentChannelsForLapsed}
+                                empty="No current cross-channel activity found."
+                            />
+                        </div>
+                    </>
+                )}
+            </QueryState>
         </>
     )
 }

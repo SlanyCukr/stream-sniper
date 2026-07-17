@@ -18,7 +18,6 @@ from ....application.streams.report_query import (
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
-from ...composition import STREAM_REPORT_SOURCES
 from ...dependencies import get_cache
 from ...security.auth import get_current_user
 from ...security.auth_models import UserInDB
@@ -67,7 +66,7 @@ def get_stream_report(
             return cached_result
 
         try:
-            result = query_stream_report(stream_id, lookback, STREAM_REPORT_SOURCES)
+            result = query_stream_report(stream_id, lookback)
         except StreamNotFoundError as error:
             raise HTTPException(status_code=404, detail="Stream not found") from error
         _REPORT_CACHE.store(cache, response, cache_key, result)

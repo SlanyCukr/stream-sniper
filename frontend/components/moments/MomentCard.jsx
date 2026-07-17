@@ -4,6 +4,7 @@ import { vodDeepLink } from '@/utils/chatRender'
 import { formatTimeAgo } from '@/utils/dateUtils'
 import MomentReviewControls from './MomentReviewControls'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
+import StatusChip from '@/components/common/StatusChip'
 
 const clock = timestamp => (
     typeof timestamp === 'string' && timestamp.length >= 16
@@ -15,14 +16,15 @@ const sharePct = value => (
     value == null ? null : `${Math.round(value * 100)}%`
 )
 
-const statusClass = status => {
+/** @returns {import('@/components/common/StatusChip').StatusChipVariant} */
+const statusVariant = status => {
     if (status === 'bookmarked' || status === 'clipped' || status === 'published') {
-        return 'status-chip is-ok'
+        return 'ok'
     }
     if (status === 'rejected') {
-        return 'status-chip is-warn'
+        return 'warn'
     }
-    return 'status-chip'
+    return 'neutral'
 }
 
 const MomentCard = ({
@@ -66,9 +68,9 @@ const MomentCard = ({
                     <span className="moment-clock mono">{clock(t)}</span>
                     <span className="moment-ago">{formatTimeAgo(streamStart)}</span>
                 </div>
-                <span className={statusClass(status)} aria-label={`Review status: ${reviewStatus}`}>
+                <StatusChip variant={statusVariant(status)} aria-label={`Review status: ${reviewStatus}`}>
                     {reviewStatus}
-                </span>
+                </StatusChip>
             </header>
 
             <div className="moment-meta">

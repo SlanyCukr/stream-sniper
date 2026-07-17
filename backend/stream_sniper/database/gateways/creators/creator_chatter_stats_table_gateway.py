@@ -4,6 +4,7 @@ from stream_sniper.database.gateways.creators.records import CreatorRegularRow
 
 from ...core.decorators import with_cursor
 from ...core.query_ordering import sql_direction
+from ...core.wire_format import to_char_wire
 
 # Hardcoded sort whitelist: user-supplied ordering values map through these dicts to a
 # fixed SQL fragment, so no user string is ever interpolated into the query.
@@ -36,8 +37,8 @@ def select_creator_regulars_db(
             ccs.chatter_id,
             c.nick,
             ccs.streams_attended,
-            TO_CHAR(ccs.first_seen_at, 'YYYY-MM-DD"T"HH24:MI:SS'),
-            TO_CHAR(ccs.last_seen_at, 'YYYY-MM-DD"T"HH24:MI:SS'),
+            {to_char_wire("ccs.first_seen_at")},
+            {to_char_wire("ccs.last_seen_at")},
             ccs.last_seen_stream_id,
             ccs.total_messages
         FROM creator_chatter_stats ccs

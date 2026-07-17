@@ -39,10 +39,17 @@ class PoolStatusPayload(TypedDict):
 
 @dataclass(frozen=True)
 class DatabasePoolConfig:
-    user: str
-    password: str
-    host: str
-    database: str
+    """Single owner of the POSTGRES_* / DB_* database-connection contract.
+
+    Every runtime (API, CLI commands, services) composes this type; nothing else
+    re-declares these fields or their defaults. Credentials default to empty and
+    are validated by ``DatabaseConnectionPool.open()``.
+    """
+
+    user: str = ""
+    password: str = ""
+    host: str = "localhost"
+    database: str = ""
     port: int = 5432
     options: str = "-c search_path=stream_sniper"
     minconn: int = 2
@@ -51,21 +58,30 @@ class DatabasePoolConfig:
     command_timeout: int = 60
 
 
-def load_database_pool_config(environ: Mapping[str, str] | None = None) -> DatabasePoolConfig:
-    """Build a pool configuration at an executable composition boundary."""
+def load_database_pool_config(
+    environ: Mapping[str, str] | None = None, *, require: bool = True
+) -> DatabasePoolConfig:
+    """Build a pool configuration at an executable composition boundary.
+
+    With ``require=True`` (CLI/service entry points) missing credentials raise
+    immediately. With ``require=False`` (API config snapshot) they stay empty
+    and are validated later by ``DatabaseConnectionPool.open()``.
+    """
     env = os.environ if environ is None else environ
 
-    def required(name: str) -> str:
-        value = env.get(name)
-        if not value:
+    def credential(name: str) -> str:
+        value = env.get(name, "")
+        if require and not value:
             raise RuntimeError(f"Database configuration missing: set {name} in the environment")
         return value
 
     return DatabasePoolConfig(
-        user=required("POSTGRES_USER"),
-        password=required("POSTGRES_PASSWORD"),
-        host=required("POSTGRES_HOST"),
-        database=required("POSTGRES_DB"),
+        user=credential("POSTGRES_USER"),
+        password=credential("POSTGRES_PASSWORD"),
+        # With require=True, credential() raises before the fallback can fire; the
+        # "localhost" default only applies on the lenient (require=False) path.
+        host=credential("POSTGRES_HOST") or "localhost",
+        database=credential("POSTGRES_DB"),
         port=int(env.get("POSTGRES_PORT", "5432")),
         minconn=int(env.get("DB_POOL_MIN_CONN", "2")),
         maxconn=int(env.get("DB_POOL_MAX_CONN", "20")),

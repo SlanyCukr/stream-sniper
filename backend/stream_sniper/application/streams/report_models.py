@@ -1,8 +1,16 @@
 """Canonical stream-report read models shared with the API."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel, Field
 
 from stream_sniper.database.gateways.content.records import MomentReviewStatus
+
+if TYPE_CHECKING:
+    from stream_sniper.database.gateways.analytics.records import TopEmoteRow, TopPhraseRow
+    from stream_sniper.database.gateways.content.records import StreamMomentRow
 
 
 class ReportMetric(BaseModel):
@@ -19,11 +27,25 @@ class TopEmote(BaseModel):
     usage_count: int
     chatter_count: int
 
+    @classmethod
+    def from_row(cls, row: TopEmoteRow) -> TopEmote:
+        return cls(
+            name=row.name,
+            source=row.source,
+            provider_id=row.provider_id,
+            usage_count=row.usage_count,
+            chatter_count=row.chatter_count,
+        )
+
 
 class TopPhrase(BaseModel):
     phrase: str
     usage_count: int
     chatter_count: int
+
+    @classmethod
+    def from_row(cls, row: TopPhraseRow) -> TopPhrase:
+        return cls(phrase=row.phrase, usage_count=row.usage_count, chatter_count=row.chatter_count)
 
 
 class ReportMoment(BaseModel):
@@ -32,6 +54,16 @@ class ReportMoment(BaseModel):
     message_count: int
     ratio: float | None = None
     status: MomentReviewStatus | None = None
+
+    @classmethod
+    def from_row(cls, row: StreamMomentRow) -> ReportMoment:
+        return cls(
+            bucket_minute=row.bucket_minute,
+            offset_seconds=row.offset_seconds,
+            message_count=row.message_count,
+            ratio=row.ratio,
+            status=row.status,
+        )
 
 
 class ReportMetrics(BaseModel):

@@ -15,6 +15,7 @@ from stream_sniper.database.gateways.content.records import (
 )
 
 from ...core.decorators import with_cursor, with_cursor_connection
+from ...core.wire_format import to_char_wire
 
 
 @with_cursor
@@ -23,9 +24,9 @@ def select_stream_event_signals_db(
     stream_id: int,
 ) -> tuple[SceneSignalHeaderRow | None, SceneMomentSignalRow | None, list[SceneCopypastaSignalRow]]:
     cursor.execute(
-        """
+        f"""
         SELECT s.id, s.creator_id, c.display_name, s.title,
-               TO_CHAR(COALESCE(s."end", s.start), 'YYYY-MM-DD"T"HH24:MI:SS'),
+               {to_char_wire('COALESCE(s."end", s.start)')},
                sm.total_messages, sm.unique_chatters, sm.messages_per_minute,
                (SELECT max(pm.total_messages)
                 FROM stream_metrics pm JOIN stream ps ON ps.id = pm.stream_id
@@ -47,8 +48,8 @@ def select_stream_event_signals_db(
     header = SceneSignalHeaderRow(*header_raw) if header_raw else None
 
     cursor.execute(
-        """
-        SELECT TO_CHAR(sm.bucket_minute, 'YYYY-MM-DD"T"HH24:MI:SS'),
+        f"""
+        SELECT {to_char_wire("sm.bucket_minute")},
                sm.ratio::double precision, sm.message_count
         FROM stream_moment sm
         LEFT JOIN moment_review mr
@@ -154,7 +155,7 @@ def select_scene_events_db(
     cursor.execute(
         f"""
         SELECT se.id, se.event_type,
-               TO_CHAR(se.occurred_at, 'YYYY-MM-DD"T"HH24:MI:SS'),
+               {to_char_wire("se.occurred_at")},
                se.creator_id, c.nick, c.display_name, se.stream_id, se.message_text_id,
                se.title, se.summary, se.metadata
         FROM scene_event se

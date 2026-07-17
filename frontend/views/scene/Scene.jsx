@@ -1,8 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useSceneLeaderboard } from '@/hooks/scene/useSceneLiveQueries'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
+import QueryState from '@/components/common/QueryState'
 import SceneLeaderboardTable from '@/components/scene/SceneLeaderboardTable'
 
 const WINDOW_TABS = [
@@ -18,7 +17,6 @@ const Scene = () => {
         error,
         refetch,
     } = useSceneLeaderboard({ windowDays })
-    const entries = data?.entries || []
 
     return (
         <>
@@ -48,26 +46,19 @@ const Scene = () => {
                 </div>
             </div>
 
-            {error ? (
-                <ErrorAlert
-                    error={error}
-                    title="Failed to load leaderboard"
-                    onRetry={refetch}
-                    showDetails={process.env.NODE_ENV === 'development'}
-                />
-            ) : isLoading ? (
-                <LoadingSpinner text="Ranking the scene..." centered />
-            ) : entries.length === 0 ? (
-                <div className="empty-state">
-                    <span className="empty-scope" aria-hidden="true" />
-                    <p className="empty-title">No streams in window</p>
-                    <p className="empty-hint">
-                        No captured streams fall inside the last {windowDays} days.
-                    </p>
-                </div>
-            ) : (
-                <SceneLeaderboardTable entries={entries} />
-            )}
+            <QueryState
+                query={{
+                    data, isLoading, error, refetch,
+                }}
+                errorTitle="Failed to load leaderboard"
+                loadingText="Ranking the scene..."
+                loadingSize="md"
+                isEmpty={value => (value?.entries || []).length === 0}
+                emptyTitle="No streams in window"
+                emptyHint={`No captured streams fall inside the last ${windowDays} days.`}
+            >
+                {value => <SceneLeaderboardTable entries={value.entries} />}
+            </QueryState>
         </>
     )
 }

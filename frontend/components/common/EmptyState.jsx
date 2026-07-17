@@ -1,3 +1,6 @@
+/** @typedef {{title:import('react').ReactNode, children?:import('react').ReactNode}} EmptyStateProps */
+
+/** @param {EmptyStateProps} props */
 const EmptyState = ({
     title,
     children,

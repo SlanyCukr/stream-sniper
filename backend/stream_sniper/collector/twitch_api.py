@@ -33,6 +33,29 @@ EXPECTED_TWITCH_ERRORS = (TwitchAPIException, ClientError, TimeoutError, OSError
 
 
 @dataclass(frozen=True)
+class TwitchCredentials:
+    """Single owner of the TWITCH_CLIENT_ID/TWITCH_CLIENT_SECRET env contract.
+
+    Every Twitch auth flow (app-token client here, user-token live collector,
+    interactive auth CLI) loads credentials through :meth:`from_env` so the
+    variable names and the missing-credential error live in exactly one place.
+    """
+
+    client_id: str
+    client_secret: str
+
+    @classmethod
+    def from_env(cls) -> Self:
+        client_id = os.environ.get("TWITCH_CLIENT_ID")
+        client_secret = os.environ.get("TWITCH_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            raise TwitchConfigurationError(
+                "TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET environment variables must be set"
+            )
+        return cls(client_id=client_id, client_secret=client_secret)
+
+
+@dataclass(frozen=True)
 class ArchivedVideo:
     twitch_vod_id: int
     twitch_stream_session_id: int | None
@@ -66,14 +89,9 @@ class TwitchAPI:
         self.twitch: Twitch | None = None
 
     async def _initialize_client(self) -> None:
-        client_id = os.environ.get("TWITCH_CLIENT_ID")
-        client_secret = os.environ.get("TWITCH_CLIENT_SECRET")
-        if not client_id or not client_secret:
-            raise TwitchConfigurationError(
-                "TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET environment variables must be set"
-            )
+        credentials = TwitchCredentials.from_env()
         try:
-            self.twitch = await Twitch(client_id, client_secret)
+            self.twitch = await Twitch(credentials.client_id, credentials.client_secret)
         except EXPECTED_TWITCH_ERRORS as error:
             raise TwitchUpstreamError("Failed to initialize Twitch client") from error
 

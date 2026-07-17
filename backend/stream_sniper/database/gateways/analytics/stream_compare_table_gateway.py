@@ -11,6 +11,7 @@ from stream_sniper.database.gateways.analytics.records import (
 )
 
 from ...core.decorators import with_cursor
+from ...core.wire_format import to_char_wire
 
 
 @with_cursor
@@ -19,14 +20,14 @@ def select_stream_compare_headers_db(
     stream_ids: Sequence[int],
 ) -> list[StreamCompareHeaderRow]:
     cursor.execute(
-        """
+        f"""
         SELECT
             s.id, s.creator_id, c.nick, c.display_name, s.title,
-            TO_CHAR(s.start, 'YYYY-MM-DD"T"HH24:MI:SS'),
+            {to_char_wire("s.start")},
             sm.duration_seconds, sm.total_messages, sm.messages_per_minute,
             sm.unique_chatters, sm.new_chatters, sm.returning_chatters,
             sm.sub_messages, sm.emote_messages, sm.peak_messages,
-            TO_CHAR(sm.peak_bucket_minute, 'YYYY-MM-DD"T"HH24:MI:SS')
+            {to_char_wire("sm.peak_bucket_minute")}
         FROM stream s
         JOIN creator c ON c.id = s.creator_id
         LEFT JOIN stream_metrics sm ON sm.stream_id = s.id
@@ -43,9 +44,9 @@ def select_stream_compare_buckets_db(
     stream_ids: Sequence[int],
 ) -> list[StreamCompareBucketRow]:
     cursor.execute(
-        """
+        f"""
         SELECT stb.stream_id,
-               TO_CHAR(stb.bucket_minute, 'YYYY-MM-DD"T"HH24:MI:SS'),
+               {to_char_wire("stb.bucket_minute")},
                stb.message_count, stb.unique_chatters
         FROM stream_time_bucket stb
         WHERE stb.stream_id = ANY(%s)

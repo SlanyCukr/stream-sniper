@@ -201,8 +201,8 @@ class TestChattersEndpoints:
 class TestStreamsEndpoints:
     """Test suite for stream-related API endpoints."""
 
-    @patch("stream_sniper.api.composition.count_streams_db")
-    @patch("stream_sniper.api.composition.select_stream_page_db")
+    @patch("stream_sniper.application.streams.catalog_query.count_streams_db")
+    @patch("stream_sniper.application.streams.catalog_query.select_stream_page_db")
     def test_get_streams_success(self, mock_streams, mock_count):
         """Test successful retrieval of streams."""
         mock_streams.return_value = [
@@ -235,8 +235,8 @@ class TestStreamsEndpoints:
         )
         mock_count.assert_called_once_with(5, title=None, date_from=None, date_to=None, min_messages=None)
 
-    @patch("stream_sniper.api.composition.count_streams_db")
-    @patch("stream_sniper.api.composition.select_stream_page_db")
+    @patch("stream_sniper.application.streams.catalog_query.count_streams_db")
+    @patch("stream_sniper.application.streams.catalog_query.select_stream_page_db")
     def test_get_streams_all_creators(self, mock_streams, mock_count):
         """Test retrieving streams for all creators."""
         mock_streams.return_value = []
@@ -279,11 +279,11 @@ class TestStreamsEndpoints:
 
         assert response.status_code == 404
 
-    @patch("stream_sniper.api.composition.select_chatters_in_stream_db")
-    @patch("stream_sniper.api.composition.select_creators_that_wrote_in_stream_db")
-    @patch("stream_sniper.api.composition.select_most_tagged_chatters_db")
-    @patch("stream_sniper.api.composition.select_most_active_chatters_db")
-    @patch("stream_sniper.api.composition.select_stream_comprehensive_db")
+    @patch("stream_sniper.application.streams.catalog_query.select_chatters_in_stream_db")
+    @patch("stream_sniper.application.streams.catalog_query.select_creators_that_wrote_in_stream_db")
+    @patch("stream_sniper.application.streams.catalog_query.select_most_tagged_chatters_db")
+    @patch("stream_sniper.application.streams.catalog_query.select_most_active_chatters_db")
+    @patch("stream_sniper.application.streams.catalog_query.select_stream_comprehensive_db")
     def test_get_stream_comprehensive_success(
         self, mock_comprehensive, mock_active, mock_tagged, mock_creators, mock_chatters
     ):
@@ -344,7 +344,7 @@ class TestStreamsEndpoints:
         mock_creators.assert_called_once_with(1, 5)  # stream_id, creator_id
         mock_chatters.assert_called_once_with(1)
 
-    @patch("stream_sniper.api.composition.select_stream_comprehensive_db")
+    @patch("stream_sniper.application.streams.catalog_query.select_stream_comprehensive_db")
     def test_get_stream_comprehensive_not_found(self, mock_comprehensive):
         """Test comprehensive stream endpoint when stream not found."""
         mock_comprehensive.return_value = None

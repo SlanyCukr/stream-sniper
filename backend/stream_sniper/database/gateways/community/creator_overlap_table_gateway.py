@@ -17,6 +17,7 @@ from stream_sniper.database.gateways.community.records import (
 )
 
 from ...core.decorators import with_cursor, with_cursor_connection
+from ...core.wire_format import to_char_wire
 
 # Constant advisory-lock key shared by every overlap recompute (blueprint).
 _OVERLAP_LOCK_KEY = 730001
@@ -100,9 +101,9 @@ def select_overlap_db(
     pairs rows:    (creator_a, creator_b, shared_chatters, shared_regulars).
     """
     cursor.execute(
-        """
+        f"""
         SELECT ca.creator_id, c.nick, c.display_name, ca.chatters, ca.regulars,
-               TO_CHAR(ca.computed_at, 'YYYY-MM-DD"T"HH24:MI:SS')
+               {to_char_wire("ca.computed_at")}
         FROM creator_audience ca
         JOIN creator c ON c.id = ca.creator_id
         ORDER BY ca.chatters DESC, ca.creator_id ASC

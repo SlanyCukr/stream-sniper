@@ -3,6 +3,7 @@ import {
     Card, Row, Col,
 } from 'react-bootstrap'
 import ChatterSmallInfo from './ChatterSmallInfo'
+import StatusChip from '@/components/common/StatusChip'
 
 const RankColumn = ({
     headingId, label, chatters, noun,
@@ -49,12 +50,11 @@ const OtherCreatorsInChat = ({ creators }) => (
                 role="list"
                 aria-label="Other creators who participated in this stream">
                 {creators.map(creator => (
-                    <span
+                    <StatusChip
                         key={creator.creatorId}
-                        role="listitem"
-                        className="status-chip">
+                        role="listitem">
                         {creator.nick}
-                    </span>
+                    </StatusChip>
                 ))}
             </div>
         </section>

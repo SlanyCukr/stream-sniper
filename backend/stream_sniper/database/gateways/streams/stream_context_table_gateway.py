@@ -10,6 +10,7 @@ from stream_sniper.database.gateways.streams.records import (
 
 from ...core.connection_pool import get_active_pool
 from ...core.decorators import log_database_operation, with_cursor
+from ...core.wire_format import to_char_wire
 
 
 @log_database_operation
@@ -49,7 +50,7 @@ def select_stream_context_changes_db(
 ) -> list[StreamContextChangeRow]:
     """Return only changed context states linked to a stored VOD by creator/time."""
     cursor.execute(
-        """
+        f"""
         WITH tgt AS (
             SELECT s.creator_id, s.start AS s_start,
                    s.start - interval '10 minutes' AS win_start,
@@ -83,7 +84,7 @@ def select_stream_context_changes_db(
                    lag(tags) OVER (ORDER BY sampled_at, id) AS previous_tags
             FROM selected s
         )
-        SELECT TO_CHAR(sampled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS'),
+        SELECT {to_char_wire("sampled_at AT TIME ZONE 'UTC'")},
                title, category_id, category_name, language, tags, is_mature
         FROM states
         WHERE rn = 1
