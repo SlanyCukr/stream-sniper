@@ -25,7 +25,7 @@ from stream_sniper.application.tracking.models import (
 )
 from stream_sniper.collector.twitch_api import TwitchConfigurationError, TwitchUpstreamError
 
-from ....logging_config import get_logger
+from ....logging_config import get_logger, sanitize_log_value
 from ...dependencies import get_twitch_client
 from ...security.auth import get_current_admin_user
 from ...security.auth_models import UserInDB
@@ -107,7 +107,7 @@ async def trigger_processing(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Twitch integration unavailable"
         ) from error
     except TwitchUpstreamError as error:
-        logger.exception("Failed to list VODs for %s", twitch_username)
+        logger.exception("Failed to list VODs for %s", sanitize_log_value(twitch_username))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to list VODs from Twitch",
@@ -132,8 +132,11 @@ async def trigger_processing(
         )
 
     logger.info(
-        f"Manual processing queued by admin {current_user.username}: "
-        f"streamer_id={streamer_id}, job_id={outcome.job_id}, vod={twitch_vod_id}"
+        "Manual processing queued by admin %s: streamer_id=%s, job_id=%s, vod=%s",
+        sanitize_log_value(current_user.username),
+        streamer_id,
+        outcome.job_id,
+        twitch_vod_id,
     )
     return ProcessingTriggerResponse(
         outcome="queued",
@@ -169,7 +172,7 @@ async def cancel_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
     except ProcessingJobConflictError as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
-    logger.info(f"Job {job_id} cancellation requested by admin {current_user.username}")
+    logger.info("Job %s cancellation requested by admin %s", job_id, sanitize_log_value(current_user.username))
     return MessageResponse(message="Job cancellation requested")
 
 
@@ -198,5 +201,5 @@ async def retry_job(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
     except ProcessingJobConflictError as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
-    logger.info(f"Job {job_id} queued for retry by admin {current_user.username}")
+    logger.info("Job %s queued for retry by admin %s", job_id, sanitize_log_value(current_user.username))
     return MessageResponse(message="Job queued for retry")

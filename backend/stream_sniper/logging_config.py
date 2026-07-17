@@ -368,6 +368,15 @@ def setup_logging(environment: str | None = None, **kwargs: Unpack[LoggingOption
     return _logging_config.configure_logging()
 
 
+def sanitize_log_value(value: object) -> str:
+    """Flatten a user-supplied value for safe log interpolation.
+
+    Escapes CR/LF so request-controlled strings (usernames, search queries,
+    titles) cannot forge additional log lines (CodeQL py/log-injection).
+    """
+    return str(value).replace("\r", "\\r").replace("\n", "\\n")
+
+
 def get_logger(name: str | None = None) -> logging.Logger:
     """Get a logger without mutating process logging state."""
     if name is None:

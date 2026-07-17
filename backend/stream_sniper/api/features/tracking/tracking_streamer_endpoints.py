@@ -24,7 +24,7 @@ from ....database.gateways.tracking.tracked_streamers_table_gateway import (
     select_tracked_streamers_db,
     update_tracked_streamer_db,
 )
-from ....logging_config import get_logger
+from ....logging_config import get_logger, sanitize_log_value
 from ...caching.cache import CacheTTL
 from ...dependencies import get_cache, get_twitch_client
 from ...security.auth import get_current_admin_user
@@ -136,13 +136,17 @@ async def add_tracked_streamer(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Twitch integration unavailable"
         ) from error
     except (TwitchProfileLookupError, TwitchUpstreamError) as error:
-        logger.exception("Twitch profile lookup failed for %s", streamer_data.twitch_username)
+        logger.exception("Twitch profile lookup failed for %s", sanitize_log_value(streamer_data.twitch_username))
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to contact Twitch") from error
     except TrackedStreamerCreationError as error:
-        logger.exception("Tracked streamer creation failed for %s", streamer_data.twitch_username)
+        logger.exception("Tracked streamer creation failed for %s", sanitize_log_value(streamer_data.twitch_username))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(error)) from error
 
-    logger.info(f"Tracked streamer created by admin {current_user.username}: {streamer_data.twitch_username}")
+    logger.info(
+        "Tracked streamer created by admin %s: %s",
+        sanitize_log_value(current_user.username),
+        sanitize_log_value(streamer_data.twitch_username),
+    )
     return convert_tracked_streamer_to_response(streamer)
 
 
@@ -196,7 +200,7 @@ async def search_twitch_channels(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Twitch integration unavailable"
         ) from error
     except TwitchUpstreamError as error:
-        logger.exception("Error searching Twitch channels for '%s'", query)
+        logger.exception("Error searching Twitch channels for '%s'", sanitize_log_value(query))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Failed to search Twitch channels",
@@ -304,7 +308,9 @@ def update_tracked_streamer(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated streamer"
         )
 
-    logger.info(f"Tracked streamer updated by admin {current_user.username}: streamer_id={streamer_id}")
+    logger.info(
+        "Tracked streamer updated by admin %s: streamer_id=%s", sanitize_log_value(current_user.username), streamer_id
+    )
     return convert_tracked_streamer_to_response(updated_streamer)
 
 
@@ -342,5 +348,7 @@ def remove_tracked_streamer(
     if not success:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to remove streamer")
 
-    logger.info(f"Tracked streamer removed by admin {current_user.username}: streamer_id={streamer_id}")
+    logger.info(
+        "Tracked streamer removed by admin %s: streamer_id=%s", sanitize_log_value(current_user.username), streamer_id
+    )
     return None

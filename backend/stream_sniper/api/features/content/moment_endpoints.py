@@ -13,7 +13,7 @@ from ....database.gateways.content.stream_moment_table_gateway import (
     moment_exists_db,
     select_moment_queue_db,
 )
-from ....logging_config import get_logger
+from ....logging_config import get_logger, sanitize_log_value
 from ...caching.cache import CacheTTL, InProcessCache, invalidate_cache_pattern
 from ...caching.model_cache import ModelCachePolicy
 from ...dependencies import get_cache
@@ -139,8 +139,11 @@ def set_moment_review(
     )
     _invalidate_moment_caches(get_cache(request))
     logger.info(
-        f"Moment review set by admin {current_user.username}: "
-        f"stream={stream_id} bucket={bucket_minute} status={body.status}"
+        "Moment review set by admin %s: stream=%s bucket=%s status=%s",
+        sanitize_log_value(current_user.username),
+        stream_id,
+        sanitize_log_value(bucket_minute),
+        sanitize_log_value(body.status),
     )
     return MomentReviewResponse(
         status=body.status,
@@ -176,5 +179,10 @@ def clear_moment_review(
 
     delete_moment_review_db(stream_id, bucket_minute)
     _invalidate_moment_caches(get_cache(request))
-    logger.info(f"Moment review cleared by admin {current_user.username}: stream={stream_id} bucket={bucket_minute}")
+    logger.info(
+        "Moment review cleared by admin %s: stream=%s bucket=%s",
+        sanitize_log_value(current_user.username),
+        stream_id,
+        sanitize_log_value(bucket_minute),
+    )
     return None
