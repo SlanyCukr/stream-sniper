@@ -29,7 +29,9 @@
     "views/admin/ProcessingJobs.jsx",
     "utils/dateUtils.js",
     "utils/errorUtils.js",
-    "components/stream/list/thumbnailUrl.js"
+    "components/stream/list/thumbnailUrl.js",
+    "components/common/QueryState.jsx",
+    "components/common/StatusChip.jsx"
   ],
   "exclude": [
     "node_modules",
