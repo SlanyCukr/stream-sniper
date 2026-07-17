@@ -27,6 +27,7 @@ from ....application.scenes.scene_query import (
 )
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import scene_rollup_version
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import ErrorOrValidationResponse, ErrorResponse, RateLimitErrorResponse
@@ -63,7 +64,9 @@ def get_copypasta_propagation(
     """Return the complete bounded-rollup propagation path for one message text."""
     with _PROPAGATION_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached = _PROPAGATION_CACHE.lookup(cache, response, message_text_id, context_seconds)
+        cache_key, cached = _PROPAGATION_CACHE.lookup(
+            cache, response, message_text_id, context_seconds, scene_rollup_version()
+        )
         if cached is not None:
             return cached
         try:
@@ -118,7 +121,7 @@ def get_scene_leaderboard(
         raise HTTPException(status_code=422, detail="window must be 7 or 30")
     with _LEADERBOARD_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _LEADERBOARD_CACHE.lookup(cache, response, window)
+        cache_key, cached_result = _LEADERBOARD_CACHE.lookup(cache, response, window, scene_rollup_version())
         if cached_result is not None:
             return cached_result
 
@@ -147,7 +150,9 @@ def get_scene_copypastas(
     """Get a page of scene-wide copypastas, sorted by usage, channel spread, or recency."""
     with _COPYPASTAS_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _COPYPASTAS_CACHE.lookup(cache, response, days, creator_id, sort, limit, offset)
+        cache_key, cached_result = _COPYPASTAS_CACHE.lookup(
+            cache, response, days, creator_id, sort, limit, offset, scene_rollup_version()
+        )
         if cached_result is not None:
             return cached_result
 

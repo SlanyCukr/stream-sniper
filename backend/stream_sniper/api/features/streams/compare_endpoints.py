@@ -10,6 +10,7 @@ from ....application.streams.compare_query import (
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import stream_rollup_version
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import ErrorOrValidationResponse, ErrorResponse, RateLimitErrorResponse
@@ -39,7 +40,9 @@ def compare_streams(
         raise HTTPException(status_code=422, detail="stream_ids must be unique")
     with _STREAM_COMPARE_CACHE.record_failures():
         cache = get_cache(request)
-        key, cached = _STREAM_COMPARE_CACHE.lookup(cache, response, *stream_ids)
+        key, cached = _STREAM_COMPARE_CACHE.lookup(
+            cache, response, *stream_ids, *(stream_rollup_version(stream_id) for stream_id in stream_ids)
+        )
         if cached is not None:
             return cached
 

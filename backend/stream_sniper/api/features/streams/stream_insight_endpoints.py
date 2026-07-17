@@ -11,6 +11,7 @@ from ....database.gateways.streams.stream_table_gateway import select_stream_men
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import creator_rollup_version, stream_rollup_version
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.export_utils import csv_response
@@ -39,7 +40,9 @@ _CREATOR_EMOTES_CACHE = ModelCachePolicy("creator_emotes", CacheTTL.STREAM_ANALY
 
 def _load_stream_mentions(request: Request, response: Response, stream_id: int, limit: int) -> StreamMentions:
     cache = get_cache(request)
-    cache_key, cached_result = _MENTIONS_CACHE.lookup(cache, response, stream_id, limit)
+    cache_key, cached_result = _MENTIONS_CACHE.lookup(
+        cache, response, stream_id, limit, stream_rollup_version(stream_id)
+    )
     if cached_result is not None:
         return cached_result
 
@@ -85,7 +88,9 @@ def get_stream_mentions(
 
 def _load_stream_emotes(request: Request, response: Response, stream_id: int, limit: int) -> StreamEmotes:
     cache = get_cache(request)
-    cache_key, cached_result = _STREAM_EMOTES_CACHE.lookup(cache, response, stream_id, limit)
+    cache_key, cached_result = _STREAM_EMOTES_CACHE.lookup(
+        cache, response, stream_id, limit, stream_rollup_version(stream_id)
+    )
     if cached_result is not None:
         return cached_result
 
@@ -127,7 +132,9 @@ def get_stream_emotes(
 
 def _load_stream_phrases(request: Request, response: Response, stream_id: int, limit: int) -> StreamPhrases:
     cache = get_cache(request)
-    cache_key, cached_result = _PHRASES_CACHE.lookup(cache, response, stream_id, limit)
+    cache_key, cached_result = _PHRASES_CACHE.lookup(
+        cache, response, stream_id, limit, stream_rollup_version(stream_id)
+    )
     if cached_result is not None:
         return cached_result
 
@@ -228,7 +235,9 @@ def get_creator_emotes(
     """Empty when the creator has no emote rollups yet — always 200, never 404."""
     with _CREATOR_EMOTES_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _CREATOR_EMOTES_CACHE.lookup(cache, response, creator_id, limit)
+        cache_key, cached_result = _CREATOR_EMOTES_CACHE.lookup(
+            cache, response, creator_id, limit, creator_rollup_version(creator_id)
+        )
         if cached_result is not None:
             return cached_result
 

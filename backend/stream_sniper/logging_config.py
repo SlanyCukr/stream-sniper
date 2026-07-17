@@ -9,7 +9,6 @@ import contextvars
 import json
 import logging
 import logging.handlers
-import os
 import sys
 import time
 import uuid
@@ -213,7 +212,9 @@ class LoggingConfig:
         correlation_id_enabled: bool = True,
     ):
 
-        self.environment = environment or os.getenv("ENVIRONMENT", "development")
+        # Executable entry points pass the environment explicitly (asgi/server/cli/
+        # tracking/live/analytics); no implicit environment-variable fallback.
+        self.environment = environment or "development"
         self.log_level = self._parse_log_level(log_level)
         self.log_dir = Path(log_dir) if log_dir else Path.cwd() / "logs"
         self.enable_file_logging = enable_file_logging
@@ -365,6 +366,15 @@ def setup_logging(environment: str | None = None, **kwargs: Unpack[LoggingOption
 
     _logging_config = LoggingConfig(environment=environment, **kwargs)
     return _logging_config.configure_logging()
+
+
+def sanitize_log_value(value: object) -> str:
+    """Flatten a user-supplied value for safe log interpolation.
+
+    Escapes CR/LF so request-controlled strings (usernames, search queries,
+    titles) cannot forge additional log lines (CodeQL py/log-injection).
+    """
+    return str(value).replace("\r", "\\r").replace("\n", "\\n")
 
 
 def get_logger(name: str | None = None) -> logging.Logger:

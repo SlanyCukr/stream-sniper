@@ -7,14 +7,16 @@ import pytest
 
 from stream_sniper.api.caching.cache import InProcessCache
 from stream_sniper.api.config import APIConfig
-from stream_sniper.api.observability.health import (
-    HealthChecker,
+from stream_sniper.api.observability.health import HealthChecker
+from stream_sniper.api.observability.health_contracts import (
     HealthProbe,
     HealthStatus,
     ProbeResult,
     SystemResources,
-    detailed_health_payload,
     overall_health_status,
+)
+from stream_sniper.api.observability.health_renderers import (
+    detailed_health_payload,
     render_prometheus,
 )
 

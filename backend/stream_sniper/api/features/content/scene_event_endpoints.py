@@ -7,6 +7,7 @@ from ....database.gateways.content.scene_event_table_gateway import select_scene
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import scene_rollup_version
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import RateLimitErrorResponse
@@ -34,7 +35,9 @@ def get_scene_pulse(
 ) -> ScenePulse:
     with _SCENE_PULSE_CACHE.record_failures():
         cache = get_cache(request)
-        key, cached = _SCENE_PULSE_CACHE.lookup(cache, response, days, event_type, creator_id, limit, offset)
+        key, cached = _SCENE_PULSE_CACHE.lookup(
+            cache, response, days, event_type, creator_id, limit, offset, scene_rollup_version()
+        )
         if cached is not None:
             return cached
         rows, total = select_scene_events_db(days, event_type or None, creator_id, limit, offset)

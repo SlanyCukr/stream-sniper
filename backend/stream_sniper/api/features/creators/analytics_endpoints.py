@@ -17,6 +17,7 @@ from ....application.creators.regulars_query import get_creator_regulars as quer
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import creator_rollup_version
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import ErrorResponse, RateLimitErrorResponse
@@ -48,7 +49,9 @@ def get_creator_summary(
     """Get the stable header and lifetime totals for a permanent creator page."""
     with _SUMMARY_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _SUMMARY_CACHE.lookup(cache, response, creator_id)
+        cache_key, cached_result = _SUMMARY_CACHE.lookup(
+            cache, response, creator_id, creator_rollup_version(creator_id)
+        )
         if cached_result is not None:
             return cached_result
         try:
@@ -78,7 +81,9 @@ def get_creator_trends(
     """Get per-stream trend points for a creator's recent streams."""
     with _TRENDS_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _TRENDS_CACHE.lookup(cache, response, creator_id, limit)
+        cache_key, cached_result = _TRENDS_CACHE.lookup(
+            cache, response, creator_id, limit, creator_rollup_version(creator_id)
+        )
         if cached_result is not None:
             return cached_result
 
@@ -111,7 +116,7 @@ def get_creator_regulars(
     with _REGULARS_CACHE.record_failures():
         cache = get_cache(request)
         cache_key, cached_result = _REGULARS_CACHE.lookup(
-            cache, response, creator_id, sort, dir, min_streams, limit, include_bots
+            cache, response, creator_id, sort, dir, min_streams, limit, include_bots, creator_rollup_version(creator_id)
         )
         if cached_result is not None:
             return cached_result

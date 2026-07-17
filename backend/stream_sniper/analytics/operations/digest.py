@@ -38,17 +38,24 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Preview or deliver the Stream Sniper scene digest")
     parser.add_argument("--days", type=int, default=7, choices=range(1, 31))
     parser.add_argument("--limit", type=int, default=20)
-    parser.add_argument("--send", action="store_true", help="Deliver to SCENE_DIGEST_WEBHOOK_URL")
+    parser.add_argument("--send", action="store_true", help="Deliver to the configured Discord webhook")
+    # The webhook contract is declared once at this CLI boundary: an explicit
+    # flag wins, with the SCENE_DIGEST_WEBHOOK_URL environment variable as the
+    # deployment default.
+    parser.add_argument(
+        "--webhook-url",
+        default=os.getenv("SCENE_DIGEST_WEBHOOK_URL"),
+        help="Discord webhook destination (default: $SCENE_DIGEST_WEBHOOK_URL)",
+    )
     args = parser.parse_args()
     digest = build_digest(args.days, max(1, min(args.limit, 50)))
     if not args.send:
         print(digest)
         return
-    webhook = os.getenv("SCENE_DIGEST_WEBHOOK_URL")
-    if not webhook:
-        print("SCENE_DIGEST_WEBHOOK_URL is required with --send", file=sys.stderr)
+    if not args.webhook_url:
+        print("--webhook-url (or SCENE_DIGEST_WEBHOOK_URL) is required with --send", file=sys.stderr)
         raise SystemExit(2)
-    deliver_discord(digest, webhook)
+    deliver_discord(digest, args.webhook_url)
     print("Scene digest delivered.")
 
 

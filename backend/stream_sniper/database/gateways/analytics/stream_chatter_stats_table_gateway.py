@@ -71,7 +71,7 @@ def select_stream_ids_for_chatters_db(
     return [int(row[0]) for row in cursor.fetchall()]
 
 
-def _replace_time_buckets(cursor: Cursor, params: dict[str, int]) -> None:
+def _replace_time_buckets(cursor: Cursor, params: dict[str, int | list[int]]) -> None:
     """Replace per-minute message, chatter, subscriber, and emote buckets."""
     cursor.execute("DELETE FROM stream_time_bucket WHERE stream_id = %(sid)s", params)
     cursor.execute(
@@ -95,7 +95,13 @@ def _replace_time_buckets(cursor: Cursor, params: dict[str, int]) -> None:
     )
 
 
-def _replace_stream_chatter_stats(cursor: Cursor, params: dict[str, int]) -> None:
+def _select_stream_chatter_ids(cursor: Cursor, params: dict[str, int | list[int]]) -> list[int]:
+    """Chatters currently recorded for the stream (before a rollup replace)."""
+    cursor.execute("SELECT chatter_id FROM stream_chatter_stats WHERE stream_id = %(sid)s", params)
+    return [int(row[0]) for row in cursor.fetchall()]
+
+
+def _replace_stream_chatter_stats(cursor: Cursor, params: dict[str, int | list[int]]) -> None:
     """Replace per-chatter aggregates for the stream."""
     cursor.execute("DELETE FROM stream_chatter_stats WHERE stream_id = %(sid)s", params)
     cursor.execute(
@@ -111,7 +117,7 @@ def _replace_stream_chatter_stats(cursor: Cursor, params: dict[str, int]) -> Non
     )
 
 
-def _replace_stream_metrics(cursor: Cursor, params: dict[str, int]) -> None:
+def _replace_stream_metrics(cursor: Cursor, params: dict[str, int | list[int]]) -> None:
     """Replace the single stream summary row from the preceding phase tables."""
     cursor.execute("DELETE FROM stream_metrics WHERE stream_id = %(sid)s", params)
     cursor.execute(
@@ -174,8 +180,17 @@ def _replace_stream_metrics(cursor: Cursor, params: dict[str, int]) -> None:
     )
 
 
-def _upsert_creator_chatter_stats(cursor: Cursor, params: dict[str, int]) -> None:
-    """Refresh creator aggregates for chatters touched by the stream."""
+def _upsert_creator_chatter_stats(cursor: Cursor, params: dict[str, int | list[int]]) -> None:
+    """Refresh creator aggregates for chatters touched by the stream.
+
+    The refresh set is the union of the stream's current chatters and the
+    chatters recorded before the replace (``%(prev)s``): if a re-collection or
+    cleanup removed a chatter from this stream, their creator-level aggregates
+    are recomputed from the remaining streams instead of staying stale forever.
+    Chatters with no remaining rows for the creator produce no INSERT row (the
+    LATERAL first/last-seen lookups are empty); those are handled by
+    ``_delete_orphaned_creator_chatter_stats``.
+    """
     cursor.execute(
         """
         INSERT INTO creator_chatter_stats (
@@ -189,7 +204,11 @@ def _upsert_creator_chatter_stats(cursor: Cursor, params: dict[str, int]) -> Non
             fs.stream_id, fs.start,
             ls.stream_id, ls.start,
             now()
-        FROM (SELECT DISTINCT chatter_id FROM stream_chatter_stats WHERE stream_id = %(sid)s) t
+        FROM (
+            SELECT chatter_id FROM stream_chatter_stats WHERE stream_id = %(sid)s
+            UNION
+            SELECT unnest(%(prev)s::int[])
+        ) t
         CROSS JOIN LATERAL (
             SELECT count(*)::int AS streams_attended,
                    COALESCE(sum(scs.message_count), 0)::bigint AS total_messages
@@ -224,7 +243,30 @@ def _upsert_creator_chatter_stats(cursor: Cursor, params: dict[str, int]) -> Non
     )
 
 
-def _replace_stream_emote_stats(cursor: Cursor, params: dict[str, int]) -> None:
+def _delete_orphaned_creator_chatter_stats(cursor: Cursor, params: dict[str, int | list[int]]) -> None:
+    """Drop creator aggregates for previous chatters with no remaining streams.
+
+    Complements ``_upsert_creator_chatter_stats``: a chatter removed from this
+    stream by a re-collection who attended no other stream of the creator would
+    otherwise keep a stale creator_chatter_stats row forever.
+    """
+    cursor.execute(
+        """
+        DELETE FROM creator_chatter_stats ccs
+        WHERE ccs.creator_id = %(cid)s
+          AND ccs.chatter_id = ANY(%(prev)s::int[])
+          AND NOT EXISTS (
+              SELECT 1
+              FROM stream_chatter_stats scs
+              JOIN stream s ON s.id = scs.stream_id
+              WHERE scs.chatter_id = ccs.chatter_id AND s.creator_id = %(cid)s
+          )
+        """,
+        params,
+    )
+
+
+def _replace_stream_emote_stats(cursor: Cursor, params: dict[str, int | list[int]]) -> None:
     """Replace case-sensitive, name-deduplicated per-stream emote usage."""
     cursor.execute("DELETE FROM stream_emote_stats WHERE stream_id = %(sid)s", params)
     cursor.execute(
@@ -257,10 +299,12 @@ def recompute_stream_rollup_db(
     creator_id: int,
 ) -> None:
     """Recompute the SQL rollup phases atomically and idempotently."""
-    params = {"sid": stream_id, "cid": creator_id}
+    params: dict[str, int | list[int]] = {"sid": stream_id, "cid": creator_id}
     _replace_time_buckets(cursor, params)
+    params["prev"] = _select_stream_chatter_ids(cursor, params)
     _replace_stream_chatter_stats(cursor, params)
     _replace_stream_metrics(cursor, params)
     _upsert_creator_chatter_stats(cursor, params)
+    _delete_orphaned_creator_chatter_stats(cursor, params)
     _replace_stream_emote_stats(cursor, params)
     connection.commit()

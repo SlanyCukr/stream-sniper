@@ -18,7 +18,7 @@ from ....database.gateways.identity.user_table_gateway import (
     update_user_role_db,
 )
 from ....identity import ADMIN_ROLE, UserRole
-from ....logging_config import get_logger
+from ....logging_config import get_logger, sanitize_log_value
 from ...security.auth import get_current_admin_user
 from ...security.auth_models import UserInDB
 from ...security.rate_limiter import limiter
@@ -112,7 +112,12 @@ def update_user_role(
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    logger.info(f"User role updated by admin {current_user.username}: user_id={user_id}, new_role={new_role}")
+    logger.info(
+        "User role updated by admin %s: user_id=%s, new_role=%s",
+        sanitize_log_value(current_user.username),
+        user_id,
+        sanitize_log_value(new_role),
+    )
     return _load_user_response(user_id)
 
 
@@ -138,7 +143,7 @@ def activate_user(
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    logger.info(f"User activated by admin {current_user.username}: user_id={user_id}")
+    logger.info("User activated by admin %s: user_id=%s", sanitize_log_value(current_user.username), user_id)
     return _load_user_response(user_id)
 
 
@@ -165,7 +170,7 @@ def deactivate_user(
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    logger.info(f"User deactivated by admin {current_user.username}: user_id={user_id}")
+    logger.info("User deactivated by admin %s: user_id=%s", sanitize_log_value(current_user.username), user_id)
     return _load_user_response(user_id)
 
 
@@ -195,7 +200,7 @@ def delete_user(
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    logger.info(f"User deleted by admin {current_user.username}: user_id={user_id}")
+    logger.info("User deleted by admin %s: user_id=%s", sanitize_log_value(current_user.username), user_id)
     return None
 
 
@@ -268,7 +273,7 @@ def update_user_by_id(
     if not success:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update user")
 
-    logger.info(f"User updated by admin {current_user.username}: user_id={user_id}")
+    logger.info("User updated by admin %s: user_id=%s", sanitize_log_value(current_user.username), user_id)
     return _load_user_response(user_id)
 
 
@@ -352,8 +357,12 @@ def create_user_admin(
             status_code=status.HTTP_400_BAD_REQUEST, detail="User with this username or email already exists"
         ) from None
     except UserCreationError:
-        logger.exception("Admin user creation failed for username %s", user_data.username)
+        logger.exception("Admin user creation failed for username %s", sanitize_log_value(user_data.username))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user") from None
 
-    logger.info(f"User created by admin {current_user.username}: {user_data.username}")
+    logger.info(
+        "User created by admin %s: %s",
+        sanitize_log_value(current_user.username),
+        sanitize_log_value(user_data.username),
+    )
     return convert_user_to_response(user)

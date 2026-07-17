@@ -18,7 +18,7 @@ from ....database.gateways.identity.user_table_gateway import (
     update_user_password_db,
 )
 from ....identity import USER_ROLE
-from ....logging_config import get_logger
+from ....logging_config import get_logger, sanitize_log_value
 from ...security.auth import (
     authenticate_user,
     create_access_token,
@@ -70,10 +70,10 @@ def register_user(user_data: UserCreateExtended, request: Request, response: Res
             status_code=status.HTTP_400_BAD_REQUEST, detail="User with this username or email already exists"
         ) from None
     except UserCreationError:
-        logger.exception("Self-service registration failed for username %s", user_data.username)
+        logger.exception("Self-service registration failed for username %s", sanitize_log_value(user_data.username))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user") from None
 
-    logger.info(f"User registered successfully: {user_data.username}")
+    logger.info("User registered successfully: %s", sanitize_log_value(user_data.username))
     return convert_user_to_response(user)
 
 
@@ -106,7 +106,7 @@ def login(user_credentials: UserLogin, request: Request, response: Response) -> 
         expires_delta=access_token_expires,
     )
 
-    logger.info(f"User logged in successfully: {user.username}")
+    logger.info("User logged in successfully: %s", sanitize_log_value(user.username))
     return Token(access_token=access_token, token_type="bearer")
 
 
@@ -170,7 +170,7 @@ def update_current_user(
     if not updated_user:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated user")
 
-    logger.info(f"User updated successfully: {current_user.username}")
+    logger.info("User updated successfully: %s", sanitize_log_value(current_user.username))
     return convert_user_to_response(updated_user)
 
 
@@ -203,5 +203,5 @@ def change_password(
     if not success:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update password")
 
-    logger.info("Account access updated successfully for user id %s", current_user.id)
+    logger.info("Account access updated successfully for user id %s", sanitize_log_value(current_user.id))
     return MessageResponse(message="Password changed successfully")

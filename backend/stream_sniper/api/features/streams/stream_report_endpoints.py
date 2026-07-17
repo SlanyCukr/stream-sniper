@@ -18,6 +18,7 @@ from ....application.streams.report_query import (
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy
+from ...caching.rollup_version import stream_creator_rollup_version
 from ...dependencies import get_cache
 from ...security.auth import get_current_user
 from ...security.auth_models import UserInDB
@@ -61,7 +62,9 @@ def get_stream_report(
     """
     with _REPORT_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached_result = _REPORT_CACHE.lookup(cache, response, stream_id, lookback)
+        cache_key, cached_result = _REPORT_CACHE.lookup(
+            cache, response, stream_id, lookback, stream_creator_rollup_version(stream_id)
+        )
         if cached_result is not None:
             return cached_result
 

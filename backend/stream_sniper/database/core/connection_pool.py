@@ -58,9 +58,7 @@ class DatabasePoolConfig:
     command_timeout: int = 60
 
 
-def load_database_pool_config(
-    environ: Mapping[str, str] | None = None, *, require: bool = True
-) -> DatabasePoolConfig:
+def load_database_pool_config(environ: Mapping[str, str] | None = None, *, require: bool = True) -> DatabasePoolConfig:
     """Build a pool configuration at an executable composition boundary.
 
     With ``require=True`` (CLI/service entry points) missing credentials raise

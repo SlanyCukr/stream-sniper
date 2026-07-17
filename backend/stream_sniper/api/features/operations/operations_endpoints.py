@@ -5,12 +5,12 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Request, Response
 
-from ....logging_config import get_logger
+from ....logging_config import get_logger, sanitize_log_value
 from ...caching.cache import InProcessCache
 from ...config import APIConfig
 from ...dependencies import get_cache, get_config, get_health_checker, get_metrics_collector
 from ...observability.health import HealthChecker
-from ...observability.health import HealthStatus as HealthStatusEnum
+from ...observability.health_contracts import HealthStatus as HealthStatusEnum
 from ...observability.monitoring import MetricsCollector, collect_monitoring_snapshot
 from ...security.auth import get_current_admin_user
 from ...security.auth_models import UserInDB
@@ -202,7 +202,7 @@ def flush_cache(
     current_user: UserInDB = Depends(get_current_admin_user),
 ) -> CacheFlushResponse:
     cache.flush_all()
-    logger.info("Cache flushed by admin user id %s", current_user.id)
+    logger.info("Cache flushed by admin user id %s", sanitize_log_value(current_user.id))
     return CacheFlushResponse(message="Cache flushed successfully", timestamp=datetime.now().isoformat() + "Z")
 
 

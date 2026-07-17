@@ -1,14 +1,16 @@
-"""Dependency probes, health snapshots, and monitoring renderers."""
+"""Dependency probing: collect health snapshots from live system dependencies.
+
+Contracts live in ``health_contracts``; JSON/Prometheus rendering lives in
+``health_renderers``. This module owns the I/O: database, cache, rate-limiter,
+and Twitch probes plus system-resource sampling.
+"""
 
 import logging
 import os
 import platform
 import time
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Sequence
 from datetime import datetime
-from enum import Enum
-from typing import Any, NotRequired, TypedDict
 
 import psutil  # type: ignore[import-untyped]
 import requests
@@ -19,294 +21,28 @@ from ...database.core.connection_pool import get_active_pool
 from ..caching.cache import InProcessCache
 from ..config import APIConfig
 from ..security.rate_limiter import get_rate_limit_stats
+from .health_contracts import (
+    BasicHealthPayload,
+    ComponentHealth,
+    DetailedHealthPayload,
+    HealthProbe,
+    HealthSnapshot,
+    HealthStatus,
+    ProbeResult,
+    SystemResources,
+    iso_z,
+    overall_health_status,
+)
+from .health_renderers import (
+    MILLISECONDS_PER_SECOND,
+    detailed_health_payload,
+    render_prometheus,
+)
 
 logger = logging.getLogger(__name__)
-MILLISECONDS_PER_SECOND = 1_000
 BYTES_PER_MEBIBYTE = 1_024 * 1_024
 BYTES_PER_GIBIBYTE = 1_024**3
 TWITCH_USERS_API_URL = "https://api.twitch.tv/helix/users"
-
-
-class ComponentHealthPayload(TypedDict):
-    status: str
-    message: str
-    response_time_ms: float
-    details: dict[str, Any]
-    last_check: str
-
-
-class ExternalApisPayload(TypedDict):
-    twitch: ComponentHealthPayload
-
-
-class MemoryResourcePayload(TypedDict):
-    percent: float
-    available_mb: float
-    used_mb: float
-    total_mb: float
-
-
-class DiskResourcePayload(TypedDict):
-    percent: float
-    free_gb: float
-    total_gb: float
-
-
-class SystemResourcesPayload(TypedDict):
-    cpu_percent: float
-    memory: MemoryResourcePayload
-    disk: DiskResourcePayload
-    load_average: list[float] | None
-    uptime_seconds: float
-
-
-class DetailedSystemPayload(TypedDict):
-    platform: str
-    python_version: str
-    cpu_count: int | None
-    resources: SystemResourcesPayload
-
-
-class DetailedHealthPayload(TypedDict):
-    status: str
-    timestamp: str
-    version: str
-    uptime_seconds: float
-    components: dict[str, ComponentHealthPayload | ExternalApisPayload]
-    system: DetailedSystemPayload
-    error: NotRequired[str]
-
-
-class BasicDatabaseHealthPayload(TypedDict):
-    status: str
-    healthy: bool
-    response_time_ms: float
-
-
-class BasicHealthPayload(TypedDict):
-    status: str
-    timestamp: str
-    version: str
-    uptime_seconds: float
-    database: BasicDatabaseHealthPayload
-    error: NotRequired[str]
-
-
-class HealthStatus(Enum):
-    """Health status levels for components and the aggregate system."""
-
-    HEALTHY = "healthy"
-    DEGRADED = "degraded"
-    UNHEALTHY = "unhealthy"
-    CRITICAL = "critical"
-    UNKNOWN = "unknown"
-
-
-@dataclass(frozen=True)
-class ProbeResult:
-    """Dependency-specific classification before timing metadata is attached."""
-
-    status: HealthStatus
-    message: str
-    details: Mapping[str, Any]
-
-
-@dataclass(frozen=True)
-class HealthProbe:
-    """A named dependency check and its status when the check raises."""
-
-    name: str
-    check: Callable[[], ProbeResult]
-    failure_status: HealthStatus = HealthStatus.UNHEALTHY
-
-
-@dataclass(frozen=True)
-class ComponentHealth:
-    """Timed health result for one registered component."""
-
-    name: str
-    status: HealthStatus
-    message: str
-    details: Mapping[str, Any]
-    response_time_ms: float
-    last_check: datetime
-
-    def to_dict(self) -> ComponentHealthPayload:
-        """Serialize the component once for every JSON consumer."""
-        return {
-            "status": self.status.value,
-            "message": self.message,
-            "response_time_ms": self.response_time_ms,
-            "details": dict(self.details),
-            "last_check": _iso_z(self.last_check),
-        }
-
-
-@dataclass(frozen=True)
-class SystemResources:
-    """System resource utilization captured with a health snapshot."""
-
-    cpu_percent: float
-    memory_percent: float
-    memory_available_mb: float
-    memory_used_mb: float
-    memory_total_mb: float
-    disk_percent: float
-    disk_free_gb: float
-    disk_total_gb: float
-    load_average: tuple[float, float, float] | None
-    uptime_seconds: float
-
-    def to_dict(self) -> SystemResourcesPayload:
-        return {
-            "cpu_percent": self.cpu_percent,
-            "memory": {
-                "percent": self.memory_percent,
-                "available_mb": self.memory_available_mb,
-                "used_mb": self.memory_used_mb,
-                "total_mb": self.memory_total_mb,
-            },
-            "disk": {
-                "percent": self.disk_percent,
-                "free_gb": self.disk_free_gb,
-                "total_gb": self.disk_total_gb,
-            },
-            "load_average": list(self.load_average) if self.load_average else None,
-            "uptime_seconds": self.uptime_seconds,
-        }
-
-
-@dataclass(frozen=True)
-class HealthSnapshot:
-    """One policy-neutral observation shared by every detailed renderer."""
-
-    checked_at: datetime
-    version: str
-    application_uptime_seconds: float
-    components: Mapping[str, ComponentHealth]
-    resources: SystemResources
-    platform_name: str
-    python_version: str
-    cpu_count: int | None
-
-
-_STATUS_PRIORITY = {
-    HealthStatus.HEALTHY: 0,
-    HealthStatus.UNKNOWN: 1,
-    HealthStatus.DEGRADED: 2,
-    HealthStatus.UNHEALTHY: 3,
-    HealthStatus.CRITICAL: 4,
-}
-
-_PROMETHEUS_STATUS = {
-    HealthStatus.HEALTHY: 1,
-    HealthStatus.DEGRADED: 0.75,
-    HealthStatus.UNHEALTHY: 0.5,
-    HealthStatus.CRITICAL: 0,
-    HealthStatus.UNKNOWN: -1,
-}
-
-
-def overall_health_status(components: Mapping[str, ComponentHealth]) -> HealthStatus:
-    """Reduce component statuses without coupling probes to endpoint policy."""
-    if not components:
-        return HealthStatus.UNKNOWN
-    return max(
-        (component.status for component in components.values()),
-        key=_STATUS_PRIORITY.__getitem__,
-    )
-
-
-def detailed_health_payload(snapshot: HealthSnapshot) -> DetailedHealthPayload:
-    """Render the detailed JSON contract from an already-collected snapshot."""
-    component_payloads = {name: component.to_dict() for name, component in snapshot.components.items()}
-    twitch = component_payloads.pop("twitch_api", None)
-    serialized: dict[str, ComponentHealthPayload | ExternalApisPayload] = dict(component_payloads)
-    if twitch is not None:
-        serialized["external_apis"] = {"twitch": twitch}
-    return {
-        "status": overall_health_status(snapshot.components).value,
-        "timestamp": _iso_z(snapshot.checked_at),
-        "version": snapshot.version,
-        "uptime_seconds": snapshot.application_uptime_seconds,
-        "components": serialized,
-        "system": {
-            "platform": snapshot.platform_name,
-            "python_version": snapshot.python_version,
-            "cpu_count": snapshot.cpu_count,
-            "resources": snapshot.resources.to_dict(),
-        },
-    }
-
-
-def render_prometheus(snapshot: HealthSnapshot) -> str:
-    """Render one snapshot in Prometheus text exposition format."""
-    timestamp_ms = int(snapshot.checked_at.timestamp() * MILLISECONDS_PER_SECOND)
-    lines = [
-        "# HELP stream_sniper_component_health Health status of system components",
-        "# TYPE stream_sniper_component_health gauge",
-    ]
-    for name, component in snapshot.components.items():
-        lines.append(
-            f'stream_sniper_component_health{{component="{name}"}} '
-            f"{_PROMETHEUS_STATUS[component.status]} {timestamp_ms}"
-        )
-    lines.extend(
-        [
-            "",
-            "# HELP stream_sniper_component_response_time_ms Component health-check duration",
-            "# TYPE stream_sniper_component_response_time_ms gauge",
-        ]
-    )
-    for name, component in snapshot.components.items():
-        lines.append(
-            f'stream_sniper_component_response_time_ms{{component="{name}"}} '
-            f"{component.response_time_ms} {timestamp_ms}"
-        )
-    resources = snapshot.resources
-    lines.extend(
-        [
-            "",
-            "# HELP stream_sniper_system_cpu_percent Current CPU usage percentage",
-            "# TYPE stream_sniper_system_cpu_percent gauge",
-            f"stream_sniper_system_cpu_percent {resources.cpu_percent} {timestamp_ms}",
-            "",
-            "# HELP stream_sniper_system_memory_percent Current memory usage percentage",
-            "# TYPE stream_sniper_system_memory_percent gauge",
-            f"stream_sniper_system_memory_percent {resources.memory_percent} {timestamp_ms}",
-            "",
-            "# HELP stream_sniper_system_memory_mb Memory usage in megabytes",
-            "# TYPE stream_sniper_system_memory_mb gauge",
-            f'stream_sniper_system_memory_mb{{type="available"}} {resources.memory_available_mb} {timestamp_ms}',
-            f'stream_sniper_system_memory_mb{{type="used"}} {resources.memory_used_mb} {timestamp_ms}',
-            f'stream_sniper_system_memory_mb{{type="total"}} {resources.memory_total_mb} {timestamp_ms}',
-            "",
-            "# HELP stream_sniper_system_disk_percent Current disk usage percentage",
-            "# TYPE stream_sniper_system_disk_percent gauge",
-            f"stream_sniper_system_disk_percent {resources.disk_percent} {timestamp_ms}",
-            "",
-            "# HELP stream_sniper_system_disk_gb Disk usage in gigabytes",
-            "# TYPE stream_sniper_system_disk_gb gauge",
-            f'stream_sniper_system_disk_gb{{type="free"}} {resources.disk_free_gb} {timestamp_ms}',
-            f'stream_sniper_system_disk_gb{{type="total"}} {resources.disk_total_gb} {timestamp_ms}',
-            "",
-            "# HELP stream_sniper_uptime_seconds Application uptime in seconds",
-            "# TYPE stream_sniper_uptime_seconds gauge",
-            f"stream_sniper_uptime_seconds {snapshot.application_uptime_seconds} {timestamp_ms}",
-        ]
-    )
-    if resources.load_average is not None:
-        lines.extend(
-            [
-                "",
-                "# HELP stream_sniper_system_load_average System load average",
-                "# TYPE stream_sniper_system_load_average gauge",
-                f'stream_sniper_system_load_average{{period="1m"}} {resources.load_average[0]} {timestamp_ms}',
-                f'stream_sniper_system_load_average{{period="5m"}} {resources.load_average[1]} {timestamp_ms}',
-                f'stream_sniper_system_load_average{{period="15m"}} {resources.load_average[2]} {timestamp_ms}',
-            ]
-        )
-    return "\n".join(lines) + "\n"
 
 
 class HealthChecker:
@@ -441,7 +177,7 @@ class HealthChecker:
     def _probe_twitch_api(self) -> ProbeResult:
         url = TWITCH_USERS_API_URL
         headers = {
-            "Client-ID": os.getenv("TWITCH_CLIENT_ID", "test"),
+            "Client-ID": self.config.twitch_client_id or "test",
             "User-Agent": "StreamSniper/1.0",
         }
         try:
@@ -490,7 +226,7 @@ class HealthChecker:
         checked_at = self._now()
         return database.status, {
             "status": database.status.value,
-            "timestamp": _iso_z(checked_at),
+            "timestamp": iso_z(checked_at),
             "version": self.config.version,
             "uptime_seconds": round((checked_at - self.start_time).total_seconds(), 0),
             "database": {
@@ -515,7 +251,3 @@ class HealthChecker:
                 "# TYPE stream_sniper_metrics_error gauge\n"
                 f"stream_sniper_metrics_error 1 {error_time}\n"
             )
-
-
-def _iso_z(value: datetime) -> str:
-    return value.isoformat() + "Z"

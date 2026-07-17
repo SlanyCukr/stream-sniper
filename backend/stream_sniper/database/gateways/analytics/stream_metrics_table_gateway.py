@@ -39,6 +39,76 @@ def select_stream_metrics_db(
 
 
 @with_cursor
+def select_stream_rollup_version_db(
+    cursor: Cursor,
+    stream_id: int,
+) -> str | None:
+    """Opaque rollup version for one stream (``None`` until first rollup).
+
+    Used as a cache-key part so API responses derived from this stream's
+    rollup tables invalidate when the collector/tracking process recomputes
+    them. Epoch text keeps full precision; the value is never rendered.
+    """
+    cursor.execute(
+        "SELECT EXTRACT(EPOCH FROM computed_at)::text FROM stream_metrics WHERE stream_id = %s",
+        (stream_id,),
+    )
+    row = cursor.fetchone()
+    return row[0] if row else None
+
+
+@with_cursor
+def select_stream_creator_rollup_version_db(
+    cursor: Cursor,
+    stream_id: int,
+) -> str | None:
+    """Latest rollup version across all streams of the given stream's creator.
+
+    Covers responses that mix one stream with a creator-wide baseline
+    (e.g. the stream report card): a rollup of ANY sibling stream changes
+    the baseline, so the version must move with the whole creator.
+    """
+    cursor.execute(
+        """
+        SELECT EXTRACT(EPOCH FROM max(sm.computed_at))::text
+        FROM stream_metrics sm
+        JOIN stream s ON s.id = sm.stream_id
+        WHERE s.creator_id = (SELECT creator_id FROM stream WHERE id = %s)
+        """,
+        (stream_id,),
+    )
+    row = cursor.fetchone()
+    return row[0] if row else None
+
+
+@with_cursor
+def select_creator_rollup_version_db(
+    cursor: Cursor,
+    creator_id: int,
+) -> str | None:
+    """Latest rollup version across all streams of one creator."""
+    cursor.execute(
+        """
+        SELECT EXTRACT(EPOCH FROM max(sm.computed_at))::text
+        FROM stream_metrics sm
+        JOIN stream s ON s.id = sm.stream_id
+        WHERE s.creator_id = %s
+        """,
+        (creator_id,),
+    )
+    row = cursor.fetchone()
+    return row[0] if row else None
+
+
+@with_cursor
+def select_scene_rollup_version_db(cursor: Cursor) -> str | None:
+    """Latest rollup version across the whole scene (all streams)."""
+    cursor.execute("SELECT EXTRACT(EPOCH FROM max(computed_at))::text FROM stream_metrics")
+    row = cursor.fetchone()
+    return row[0] if row else None
+
+
+@with_cursor
 def select_stream_header_db(
     cursor: Cursor,
     stream_id: int,
