@@ -16,6 +16,21 @@ paths-ignore:
   - "*.log"
   - "backend/tests/fixtures/**"
 
+# Known false-positive generators in this codebase (query-filters cannot be
+# scoped per-path, so the rules are excluded outright):
+# - py/uninitialized-local-variable: the Python extractor does not model
+#   PEP 695 type-parameter scoping (`def f[**P, R](...)`), so every generic
+#   decorator in database/core/ and the API composition root raises a bogus
+#   "uninitialized local" error.
+# - py/ineffectual-statement: fires on `...` (Ellipsis) bodies of
+#   typing.Protocol method stubs, the standard spelling for structural ports
+#   in application/.
+query-filters:
+  - exclude:
+      id: py/uninitialized-local-variable
+  - exclude:
+      id: py/ineffectual-statement
+
 # The Python package lives under backend/, not the repo root — a bare
 # "stream_sniper/**" filter matches nothing and CodeQL fails with
 # "could not process any of it".
