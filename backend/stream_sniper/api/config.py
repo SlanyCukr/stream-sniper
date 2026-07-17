@@ -8,6 +8,8 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from ..database.core.connection_pool import DatabasePoolConfig, load_database_pool_config
+
 
 @dataclass
 class CacheConfig:
@@ -72,25 +74,6 @@ class MonitoringConfig:
 
 
 @dataclass
-class DatabaseConfig:
-    """Database configuration settings."""
-
-    user: str = ""
-    password: str = ""
-    host: str = "localhost"
-    database: str = ""
-    port: int = 5432
-    options: str = "-c search_path=stream_sniper"
-
-    pool_min_conn: int = 2
-    pool_max_conn: int = 20
-    connect_timeout: int = 10
-    command_timeout: int = 60
-
-    health_check_interval: int = 30
-
-
-@dataclass
 class AuthConfig:
     """JWT configuration resolved at an executable boundary."""
 
@@ -119,7 +102,7 @@ class APIConfig:
     rate_limit: RateLimitConfig = field(default_factory=RateLimitConfig)
     compression: CompressionConfig = field(default_factory=CompressionConfig)
     monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
-    database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    database: DatabasePoolConfig = field(default_factory=DatabasePoolConfig)
     auth: AuthConfig = field(default_factory=AuthConfig)
 
     def to_dict(self) -> dict[str, Any]:
@@ -136,10 +119,10 @@ class APIConfig:
             if self.database.connect_timeout <= 0:
                 raise ValueError(f"Invalid database connect timeout: {self.database.connect_timeout}")
 
-            if self.database.pool_min_conn < 1:
-                raise ValueError(f"Invalid database min connections: {self.database.pool_min_conn}")
+            if self.database.minconn < 1:
+                raise ValueError(f"Invalid database min connections: {self.database.minconn}")
 
-            if self.database.pool_max_conn < self.database.pool_min_conn:
+            if self.database.maxconn < self.database.minconn:
                 raise ValueError("Database max connections must be >= min connections")
 
             if self.cache.default_ttl < 1:
@@ -222,18 +205,7 @@ def load_config(environ: Mapping[str, str] | None = None) -> APIConfig:
             collect_rate_limit_metrics=_bool(env, "MONITORING_RATE_LIMIT_METRICS", True),
             metrics_retention_hours=_int(env, "MONITORING_RETENTION_HOURS", 24),
         ),
-        database=DatabaseConfig(
-            user=env.get("POSTGRES_USER", ""),
-            password=env.get("POSTGRES_PASSWORD", ""),
-            host=env.get("POSTGRES_HOST", "localhost"),
-            database=env.get("POSTGRES_DB", ""),
-            port=_int(env, "POSTGRES_PORT", 5432),
-            pool_min_conn=_int(env, "DB_POOL_MIN_CONN", 2),
-            pool_max_conn=_int(env, "DB_POOL_MAX_CONN", 20),
-            connect_timeout=_int(env, "DB_CONNECT_TIMEOUT", 10),
-            command_timeout=_int(env, "DB_COMMAND_TIMEOUT", 60),
-            health_check_interval=_int(env, "DB_HEALTH_CHECK_INTERVAL", 30),
-        ),
+        database=load_database_pool_config(env, require=False),
         auth=AuthConfig(
             secret_key=env.get("JWT_SECRET_KEY") or env.get("SECRET_KEY", ""),
             algorithm=env.get("JWT_ALGORITHM", "HS256"),
@@ -259,7 +231,7 @@ def log_config_summary(config: APIConfig) -> None:
     logger.info(f"Rate Limiting: {'enabled' if config.rate_limit.enabled else 'disabled'}")
     logger.info(f"Compression: {'enabled' if config.compression.enabled else 'disabled'}")
     logger.info(f"Monitoring: {'enabled' if config.monitoring.enabled else 'disabled'}")
-    logger.info(f"Database Pool: {config.database.pool_min_conn}-{config.database.pool_max_conn} connections")
+    logger.info(f"Database Pool: {config.database.minconn}-{config.database.maxconn} connections")
     logger.info("=" * 40)
 
 
@@ -289,7 +261,6 @@ DB_POOL_MIN_CONN=2
 DB_POOL_MAX_CONN=20
 DB_CONNECT_TIMEOUT=10
 DB_COMMAND_TIMEOUT=60
-DB_HEALTH_CHECK_INTERVAL=30
 
 # Cache Behavior (in-process cache — no external store)
 CACHE_ENABLED=true
