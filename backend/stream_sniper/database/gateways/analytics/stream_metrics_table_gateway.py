@@ -8,6 +8,7 @@ from stream_sniper.database.gateways.analytics.records import (
 )
 
 from ...core.decorators import with_cursor
+from ...core.wire_format import to_char_wire
 
 
 @with_cursor
@@ -16,14 +17,14 @@ def select_stream_metrics_db(
     stream_id: int,
 ) -> StreamMetricsRow | None:
     cursor.execute(
-        """
+        f"""
         SELECT
             total_messages,
             unique_chatters,
             duration_seconds,
             messages_per_minute::double precision,
             peak_messages,
-            TO_CHAR(peak_bucket_minute, 'YYYY-MM-DD"T"HH24:MI:SS'),
+            {to_char_wire("peak_bucket_minute")},
             new_chatters,
             returning_chatters,
             sub_messages,
@@ -43,8 +44,8 @@ def select_stream_header_db(
     stream_id: int,
 ) -> StreamHeaderRow | None:
     cursor.execute(
-        """
-        SELECT TO_CHAR(start, 'YYYY-MM-DD"T"HH24:MI:SS'), twitch_id::text AS twitch_vod_id
+        f"""
+        SELECT {to_char_wire("start")}, twitch_id::text AS twitch_vod_id
         FROM stream
         WHERE id = %s
         """,
@@ -64,14 +65,14 @@ def select_creator_metrics_series_db(
     # from stream.message_count (always populated at ingest) — NOT
     # stream_metrics.total_messages, which is NULL for streams not yet rolled up.
     cursor.execute(
-        """
+        f"""
         SELECT stream_id, title, start_str, duration_seconds, message_count,
                messages_per_minute, unique_chatters, new_chatters, returning_chatters
         FROM (
             SELECT
                 s.id AS stream_id,
                 s.title AS title,
-                TO_CHAR(s.start, 'YYYY-MM-DD"T"HH24:MI:SS') AS start_str,
+                {to_char_wire("s.start")} AS start_str,
                 s.start AS start_raw,
                 sm.duration_seconds AS duration_seconds,
                 s.message_count AS message_count,
@@ -103,13 +104,13 @@ def select_creator_report_series_db(
     # come back with NULL stream_metrics columns so report baseline math can
     # exclude them (nullable = unknown, never 0).
     cursor.execute(
-        """
+        f"""
         SELECT stream_id, start_str, duration_seconds, total_messages, messages_per_minute,
                unique_chatters, new_chatters, returning_chatters, sub_messages, peak_messages
         FROM (
             SELECT
                 s.id AS stream_id,
-                TO_CHAR(s.start, 'YYYY-MM-DD"T"HH24:MI:SS') AS start_str,
+                {to_char_wire("s.start")} AS start_str,
                 s.start AS start_raw,
                 sm.duration_seconds AS duration_seconds,
                 sm.total_messages AS total_messages,

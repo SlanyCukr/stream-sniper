@@ -4,6 +4,7 @@ from psycopg2.extensions import cursor as Cursor
 from stream_sniper.database.gateways.identity.records import CreatorListRow, CreatorSummaryRow, CreatorTopChatterRow
 
 from ...core.decorators import with_cursor, with_cursor_connection
+from ...core.wire_format import to_char_wire
 
 
 @with_cursor
@@ -86,7 +87,7 @@ def select_creator_summary_db(
     creator/chatter table, so the endpoint remains suitable for the Pi deployment.
     """
     cursor.execute(
-        """
+        f"""
         WITH stream_summary AS (
             SELECT
                 COUNT(s.id)::int AS total_streams,
@@ -122,11 +123,11 @@ def select_creator_summary_db(
             c.id, c.nick, c.display_name, c.profile_image_url,
             c.twitch_id AS twitch_user_id,
             ss.total_streams,
-            TO_CHAR(ss.first_stream_at, 'YYYY-MM-DD"T"HH24:MI:SS'),
-            TO_CHAR(ss.last_stream_at, 'YYYY-MM-DD"T"HH24:MI:SS'),
+            {to_char_wire("ss.first_stream_at")},
+            {to_char_wire("ss.last_stream_at")},
             ss.total_messages, ss.duration_seconds, ss.messages_per_minute,
             COALESCE(a.audience_size, 0), COALESCE(a.regulars, 0),
-            ls.id, ls.title, TO_CHAR(ls.start, 'YYYY-MM-DD"T"HH24:MI:SS')
+            ls.id, ls.title, {to_char_wire("ls.start")}
         FROM creator c
         CROSS JOIN stream_summary ss
         CROSS JOIN audience_summary a

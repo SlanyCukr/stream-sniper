@@ -21,6 +21,7 @@ from stream_sniper.database.gateways.content.records import (
 )
 
 from ...core.decorators import with_cursor, with_cursor_connection
+from ...core.wire_format import to_char_wire
 
 # Whitelisted sort: the caller-supplied `sort` maps through this dict to a fixed ORDER BY
 # fragment, so no user string is ever interpolated into the query.
@@ -147,8 +148,8 @@ def select_scene_copypastas_db(
                SUM(scs.chatter_count) AS chatter_appearances,
                COUNT(DISTINCT scs.stream_id) AS stream_count,
                COUNT(DISTINCT s.creator_id) AS creator_count,
-               TO_CHAR(MIN(scs.first_seen), 'YYYY-MM-DD"T"HH24:MI:SS') AS first_seen,
-               TO_CHAR(MAX(s.start), 'YYYY-MM-DD"T"HH24:MI:SS') AS last_stream_start
+               {to_char_wire("MIN(scs.first_seen)")} AS first_seen,
+               {to_char_wire("MAX(s.start)")} AS last_stream_start
         FROM stream_copypasta_stats scs
         JOIN stream s ON s.id = scs.stream_id
         JOIN message_text mt ON mt.id = scs.message_text_id
@@ -175,11 +176,11 @@ def select_copypasta_propagation_db(
         return None, []
 
     cursor.execute(
-        """
+        f"""
         SELECT
             scs.stream_id, s.creator_id, c.nick, c.display_name, c.profile_image_url,
-            s.title, TO_CHAR(s.start, 'YYYY-MM-DD"T"HH24:MI:SS'),
-            TO_CHAR(scs.first_seen, 'YYYY-MM-DD"T"HH24:MI:SS'),
+            s.title, {to_char_wire("s.start")},
+            {to_char_wire("scs.first_seen")},
             scs.usage_count, scs.chatter_count
         FROM stream_copypasta_stats scs
         JOIN stream s ON s.id = scs.stream_id

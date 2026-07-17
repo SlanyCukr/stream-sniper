@@ -20,6 +20,7 @@ from stream_sniper.database.gateways.content.records import (
 )
 
 from ...core.decorators import with_cursor, with_cursor_connection
+from ...core.wire_format import to_char_wire
 
 # Hardcoded status whitelist: the caller-supplied status maps through this dict to a fixed
 # SQL predicate, so no user string is ever interpolated into the query. "pending" means no
@@ -39,9 +40,9 @@ def select_stream_moments_db(
     stream_id: int,
 ) -> list[StreamMomentRow]:
     cursor.execute(
-        """
+        f"""
         SELECT
-            TO_CHAR(sm.bucket_minute, 'YYYY-MM-DD"T"HH24:MI:SS'),
+            {to_char_wire("sm.bucket_minute")},
             sm.offset_seconds,
             sm.message_count,
             sm.baseline::double precision,
@@ -117,11 +118,11 @@ def select_moment_queue_db(
         SELECT
             sm.stream_id,
             s.title,
-            TO_CHAR(s.start, 'YYYY-MM-DD"T"HH24:MI:SS'),
+            {to_char_wire("s.start")},
             s.twitch_id::text AS twitch_vod_id,
             c.id,
             c.display_name,
-            TO_CHAR(sm.bucket_minute, 'YYYY-MM-DD"T"HH24:MI:SS'),
+            {to_char_wire("sm.bucket_minute")},
             sm.offset_seconds,
             sm.message_count,
             sm.baseline::double precision,

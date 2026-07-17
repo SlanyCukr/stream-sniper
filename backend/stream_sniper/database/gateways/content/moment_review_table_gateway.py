@@ -10,6 +10,7 @@ from psycopg2.extensions import cursor as Cursor
 from stream_sniper.database.gateways.content.records import MomentReviewStatus
 
 from ...core.decorators import with_cursor_connection
+from ...core.wire_format import to_char_wire
 
 
 @with_cursor_connection
@@ -25,7 +26,7 @@ def upsert_moment_review_db(
 ) -> str:
     """Set workflow status and optional clip metadata; returns the new updated_at."""
     cursor.execute(
-        """
+        f"""
         INSERT INTO moment_review (stream_id, bucket_minute, status, clip_url, note, updated_at)
         VALUES (%s, %s, %s, %s, %s, now())
         ON CONFLICT (stream_id, bucket_minute) DO UPDATE SET
@@ -33,7 +34,7 @@ def upsert_moment_review_db(
             clip_url = EXCLUDED.clip_url,
             note = EXCLUDED.note,
             updated_at = EXCLUDED.updated_at
-        RETURNING TO_CHAR(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS')
+        RETURNING {to_char_wire("updated_at")}
         """,
         (stream_id, bucket_minute, status, clip_url, note),
     )

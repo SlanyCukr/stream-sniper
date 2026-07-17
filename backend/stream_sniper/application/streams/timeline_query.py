@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 
+from stream_sniper.database.core.wire_format import WIRE_TS_FORMAT
 from stream_sniper.database.gateways.analytics.records import (
     StreamBucketRow,
     StreamMetricsRow,
@@ -26,8 +27,6 @@ from .timeline_models import (
     TimelineMoment,
     ViewerSample,
 )
-
-_FMT = "%Y-%m-%dT%H:%M:%S"
 
 
 def get_stream_timeline(stream_id: int) -> StreamTimeline:
@@ -71,12 +70,12 @@ def _zero_filled_buckets(rows: list[StreamBucketRow]) -> list[TimelineBucket]:
         )
         for row in rows
     }
-    first = datetime.strptime(rows[0].bucket_minute, _FMT)
-    last = datetime.strptime(rows[-1].bucket_minute, _FMT)
+    first = datetime.strptime(rows[0].bucket_minute, WIRE_TS_FORMAT)
+    last = datetime.strptime(rows[-1].bucket_minute, WIRE_TS_FORMAT)
     result: list[TimelineBucket] = []
     cursor = first
     while cursor <= last:
-        key = cursor.strftime(_FMT)
+        key = cursor.strftime(WIRE_TS_FORMAT)
         result.append(
             observed.get(
                 key,

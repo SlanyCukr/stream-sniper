@@ -2,6 +2,7 @@
 
 from datetime import datetime
 
+from stream_sniper.database.core.wire_format import WIRE_TS_FORMAT
 from stream_sniper.database.gateways.analytics.records import (
     CreatorReportRow,
     StreamMetricsRow,
@@ -28,8 +29,6 @@ from .report_models import (
     TopEmote,
     TopPhrase,
 )
-
-_ISO_FMT = "%Y-%m-%dT%H:%M:%S"
 
 
 class StreamNotFoundError(LookupError):
@@ -110,7 +109,7 @@ def _build_metrics(
 def _iso(value: str | datetime | None) -> str | None:
     if value is None or isinstance(value, str):
         return value
-    return value.strftime(_ISO_FMT)
+    return value.strftime(WIRE_TS_FORMAT)
 
 
 def _sub_share(sub_messages: int | None, total_messages: int | None) -> float | None:

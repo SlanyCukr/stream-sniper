@@ -20,6 +20,7 @@ from stream_sniper.database.gateways.streams.records import (
 )
 
 from ...core.decorators import with_cursor, write_cursor
+from ...core.wire_format import to_char_wire
 
 
 def insert_stream_viewer_sample_db(
@@ -141,12 +142,12 @@ def select_live_now_db(
     Timestamps come out UTC-naive ISO strings. Caller sorts by viewer_count DESC.
     """
     cursor.execute(
-        """
+        f"""
         SELECT DISTINCT ON (svs.tracked_streamer_id)
                ts.creator_id, c.nick, c.display_name, c.profile_image_url,
                svs.viewer_count, svs.title,
-               TO_CHAR(svs.session_started_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS'),
-               TO_CHAR(svs.sampled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS')
+               {to_char_wire("svs.session_started_at AT TIME ZONE 'UTC'")},
+               {to_char_wire("svs.sampled_at AT TIME ZONE 'UTC'")}
         FROM stream_viewer_sample svs
         JOIN tracked_streamers ts ON ts.id = svs.tracked_streamer_id
         JOIN creator c ON c.id = ts.creator_id
@@ -167,8 +168,8 @@ def select_latest_sample_time_db(
     can distinguish "nobody live" from "tracking data is stale".
     """
     cursor.execute(
-        """
-        SELECT TO_CHAR(MAX(sampled_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS')
+        f"""
+        SELECT {to_char_wire("MAX(sampled_at) AT TIME ZONE 'UTC'")}
         FROM stream_viewer_sample
         """
     )
@@ -194,7 +195,7 @@ def select_stream_viewer_samples_db(
     windowed samples are returned. Timestamps come out UTC-naive to match the bucket grid.
     """
     cursor.execute(
-        """
+        f"""
         WITH tgt AS (
             SELECT s.creator_id AS creator_id,
                    s.start AS s_start,
@@ -227,7 +228,7 @@ def select_stream_viewer_samples_db(
                     (w.session_started_at AT TIME ZONE 'UTC' - t.s_start))))
             LIMIT 1
         )
-        SELECT TO_CHAR(w.sampled_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS'),
+        SELECT {to_char_wire("w.sampled_at AT TIME ZONE 'UTC'")},
                w.viewer_count
         FROM windowed w
         WHERE NOT EXISTS (SELECT 1 FROM best_session)

@@ -1,4 +1,12 @@
-"""Application boundary for streaming a stream's chat rows."""
+"""Application boundary for the chat-export endpoint's gateway access.
+
+These two helpers are deliberately thin, but they are NOT dead pass-throughs: the
+package-contract test ``test_cross_gateway_http_handlers_delegate_to_application``
+forbids ``database.gateways`` imports in ``stream_report_endpoints.py`` (which owns the
+export route). This module is where that endpoint's gateway calls legitimately live --
+existence check and the ``_asdict()`` projection of raw export rows -- so the handler
+stays inside the layering contract without a gateway import.
+"""
 
 from collections.abc import Iterator
 from typing import Any

@@ -3,6 +3,7 @@ from psycopg2.extensions import cursor as Cursor
 from stream_sniper.database.gateways.analytics.records import StreamBucketRow
 
 from ...core.decorators import with_cursor
+from ...core.wire_format import to_char_wire
 
 
 @with_cursor
@@ -11,8 +12,8 @@ def select_stream_buckets_db(
     stream_id: int,
 ) -> list[StreamBucketRow]:
     cursor.execute(
-        """
-        SELECT TO_CHAR(bucket_minute, 'YYYY-MM-DD"T"HH24:MI:SS'), message_count, unique_chatters,
+        f"""
+        SELECT {to_char_wire("bucket_minute")}, message_count, unique_chatters,
                sub_messages, emote_messages
         FROM stream_time_bucket
         WHERE stream_id = %s

@@ -4,6 +4,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime
 
+from stream_sniper.database.core.wire_format import WIRE_TS_FORMAT
 from stream_sniper.database.gateways.analytics.records import StreamCompareBucketRow
 from stream_sniper.database.gateways.analytics.stream_compare_table_gateway import (
     select_stream_compare_buckets_db,
@@ -13,8 +14,6 @@ from stream_sniper.database.gateways.analytics.stream_compare_table_gateway impo
 from stream_sniper.database.gateways.streams.stream_viewer_sample_table_gateway import select_stream_viewer_samples_db
 
 from .compare_models import CompareCurvePoint, ComparedStream, PairRetention, StreamComparison
-
-_TIMELINE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 
 class StreamComparisonNotFoundError(LookupError):
@@ -33,11 +32,11 @@ def normalize_curve(
     """Collapse an arbitrary stream timeline into at most 101 percentage slots."""
     if not rows:
         return []
-    start_dt = datetime.strptime(start, _TIMELINE_DATETIME_FORMAT) if start else None
+    start_dt = datetime.strptime(start, WIRE_TS_FORMAT) if start else None
     result: dict[int, list[int]] = {}
     for index, row in enumerate(rows):
         if start_dt is not None and duration and duration > 0:
-            elapsed = (datetime.strptime(row.bucket_minute, _TIMELINE_DATETIME_FORMAT) - start_dt).total_seconds()
+            elapsed = (datetime.strptime(row.bucket_minute, WIRE_TS_FORMAT) - start_dt).total_seconds()
             percent = min(100, max(0, round(elapsed * 100 / duration)))
         else:
             percent = round(index * 100 / max(1, len(rows) - 1))
