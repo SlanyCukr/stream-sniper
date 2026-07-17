@@ -1,8 +1,7 @@
 'use client'
 import MomentFilters from '@/components/moments/MomentFilters'
 import MomentQueue from '@/components/moments/MomentQueue'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
+import QueryState from '@/components/common/QueryState'
 import CreatorLoadError from '@/components/creator/CreatorLoadError'
 import { useMomentsController } from '@/hooks/moments/useMomentsController'
 
@@ -27,18 +26,19 @@ const Moments = () => {
 
             <MomentFilters {...filterProps} />
 
-            {queueState.error ? (
-                <ErrorAlert
-                    error={queueState.error}
-                    title="Failed to load highlight queue"
-                    onRetry={queueState.refetch}
-                    showDetails={process.env.NODE_ENV === 'development'}
-                />
-            ) : queueState.isLoading ? (
-                <LoadingSpinner text="Loading highlight queue..." centered />
-            ) : (
-                <MomentQueue {...queueProps} />
-            )}
+            <QueryState
+                query={{
+                    error: queueState.error,
+                    isLoading: queueState.isLoading,
+                    refetch: queueState.refetch,
+                    data: !queueState.isLoading && !queueState.error ? queueProps.items : undefined,
+                }}
+                errorTitle="Failed to load highlight queue"
+                loadingText="Loading highlight queue..."
+                loadingSize="md"
+            >
+                {() => <MomentQueue {...queueProps} />}
+            </QueryState>
         </>
     )
 }

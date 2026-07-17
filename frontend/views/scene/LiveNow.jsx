@@ -4,8 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Card } from 'react-bootstrap'
 import { useSceneLive } from '@/hooks/scene/useSceneLiveQueries'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
+import QueryState from '@/components/common/QueryState'
 
 // Freshness horizon for the "tracker stale" warning. Samples land every ~5 min;
 // if the newest sample overall is older than this, the tracker is likely down,
@@ -166,56 +165,55 @@ const LiveNow = () => {
                 )}
             </div>
 
-            {error ? (
-                <ErrorAlert
-                    error={error}
-                    title="Failed to load live streamers"
-                    onRetry={refetch}
-                    showDetails={process.env.NODE_ENV === 'development'}
-                />
-            ) : isLoading ? (
-                <LoadingSpinner
-                    text="Checking who's live..."
-                    centered
-                />
-            ) : live.length === 0 ? (
-                <div className="empty-state">
-                    <span
-                        className="empty-scope"
-                        aria-hidden="true" />
-                    <p className="empty-title">Nobody live right now</p>
-                    {isStale ? (
-                        <p className="empty-hint text-warning">
-                            Tracking data is stale — the newest viewer sample is over 15 minutes old,
-                            so the tracker may be down rather than the scene being quiet.
-                        </p>
-                    ) : (
-                        <p className="empty-hint">
-                            No tracked streamer is broadcasting. This refreshes automatically every 30 seconds.
-                        </p>
-                    )}
-                </div>
-            ) : (
-                <>
-                    {isStale && (
-                        <p className="live-stale-note text-warning mono">
-                            <i
-                                className="bi bi-exclamation-triangle"
-                                aria-hidden="true" />
-                            {' '}
-                            Latest sample is over 15 minutes old — this list may be incomplete.
-                        </p>
-                    )}
-                    <div className="live-grid">
-                        {live.map(streamer => (
-                            <LiveCard
-                                key={streamer.creatorId}
-                                streamer={streamer}
-                            />
-                        ))}
+            <QueryState
+                query={{
+                    data, isLoading, error, refetch,
+                }}
+                errorTitle="Failed to load live streamers"
+                loadingText="Checking who's live..."
+                loadingSize="md"
+                isEmpty={value => (value?.live || []).length === 0}
+                emptyState={(
+                    <div className="empty-state">
+                        <span
+                            className="empty-scope"
+                            aria-hidden="true" />
+                        <p className="empty-title">Nobody live right now</p>
+                        {isStale ? (
+                            <p className="empty-hint text-warning">
+                                Tracking data is stale — the newest viewer sample is over 15 minutes old,
+                                so the tracker may be down rather than the scene being quiet.
+                            </p>
+                        ) : (
+                            <p className="empty-hint">
+                                No tracked streamer is broadcasting. This refreshes automatically every 30 seconds.
+                            </p>
+                        )}
                     </div>
-                </>
-            )}
+                )}
+            >
+                {value => (
+                    <>
+                        {isStale && (
+                            <p className="live-stale-note text-warning mono">
+                                <i
+                                    className="bi bi-exclamation-triangle"
+                                    aria-hidden="true" />
+                                {' '}
+                                Latest sample is over 15 minutes old — this list may be incomplete.
+                            </p>
+                        )}
+                        <div className="live-grid">
+                            {(value.live || []).map(streamer => (
+                                <LiveCard
+                                    key={streamer.creatorId}
+                                    streamer={streamer}
+                                />
+                            ))}
+                        </div>
+                    </>
+                )}
+            </QueryState>
         </>
     )
 }

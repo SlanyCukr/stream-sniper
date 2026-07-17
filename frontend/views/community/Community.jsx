@@ -1,8 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useCommunityOverlap } from '@/hooks/community/useCommunityQuery'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
+import QueryState from '@/components/common/QueryState'
 import CommunityOverlapPanels from '@/components/community/CommunityOverlapPanels'
 
 const METRIC_TABS = [
@@ -18,8 +17,6 @@ const Community = () => {
         { placeholderData: previous => previous },
     )
     const creators = query.data?.creators || []
-    const pairs = query.data?.pairs || []
-    const hasData = creators.length > 0 && pairs.length > 0
 
     return (
         <>
@@ -57,37 +54,30 @@ const Community = () => {
                 ) : null}
             </div>
 
-            {query.error ? (
-                <ErrorAlert
-                    error={query.error}
-                    title="Failed to load community overlap"
-                    onRetry={query.refetch}
-                    showDetails={process.env.NODE_ENV === 'development'}
-                />
-            ) : null}
-            {query.isLoading && !query.data ? (
-                <LoadingSpinner size="lg" text="Loading community overlap..." />
-            ) : null}
-            {!query.isLoading && !query.error && !hasData ? (
-                <div className="empty-state">
-                    <div className="empty-scope" aria-hidden="true" />
-                    <p className="empty-title">No overlap computed yet</p>
-                    <p className="empty-hint">
+            <QueryState
+                query={query}
+                errorTitle="Failed to load community overlap"
+                loadingText="Loading community overlap..."
+                isEmpty={value => !((value?.creators?.length > 0) && (value?.pairs?.length > 0))}
+                emptyTitle="No overlap computed yet"
+                emptyHint={(
+                    <>
                         Run the rollup backfill (<span className="mono">stream-sniper-rollup --all --force</span>)
                         to populate cross-creator audience overlap.
-                    </p>
-                </div>
-            ) : null}
-            {hasData ? (
-                <CommunityOverlapPanels
-                    creators={creators}
-                    pairs={pairs}
-                    metric={metric}
-                    selectedPair={selectedPair}
-                    onSelectPair={setSelectedPair}
-                    isRefetching={query.isRefetching}
-                />
-            ) : null}
+                    </>
+                )}
+            >
+                {value => (
+                    <CommunityOverlapPanels
+                        creators={value.creators}
+                        pairs={value.pairs}
+                        metric={metric}
+                        selectedPair={selectedPair}
+                        onSelectPair={setSelectedPair}
+                        isRefetching={query.isRefetching}
+                    />
+                )}
+            </QueryState>
         </>
     )
 }
