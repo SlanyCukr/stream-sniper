@@ -14,6 +14,7 @@ from ...analytics.rollups.rollup_engine import compute_stream_rollup
 from ...database.gateways.identity.creator_table_gateway import find_or_insert_creator_id_db, select_creator_id_db
 from ...database.gateways.tracking.tracked_streamers_table_gateway import select_active_tracked_streamers_db
 from ...logging_config import get_logger
+from ..twitch_api import TwitchCredentials
 from .contracts import ChatMessage, LiveStream
 from .live_message_sink import LiveMessageFlushError, LiveMessageSink
 from .secure_files import write_private_text
@@ -58,8 +59,9 @@ class LiveChatCollector:
         self._stop_lock = asyncio.Lock()
 
     async def initialize(self) -> None:
-        client_id = os.environ["TWITCH_CLIENT_ID"]
-        client_secret = os.environ["TWITCH_CLIENT_SECRET"]
+        credentials = TwitchCredentials.from_env()
+        client_id = credentials.client_id
+        client_secret = credentials.client_secret
         token_file = os.getenv("TWITCH_BOT_TOKEN_FILE")
         refresh_token = os.getenv("TWITCH_BOT_REFRESH_TOKEN", "")
         token_path = Path(token_file) if token_file else None
