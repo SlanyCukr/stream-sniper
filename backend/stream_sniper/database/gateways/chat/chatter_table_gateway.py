@@ -135,30 +135,30 @@ def select_all_chatters_db(
     return {str(row[1]): int(row[0]) for row in cursor.fetchall()}
 
 
-@with_cursor_connection
-def mark_bots_by_nick_db(
+@with_cursor
+def select_unmarked_known_bots_db(
     cursor: Cursor,
-    connection: Connection,
     nicks: Sequence[str],
-    reason: str,
-) -> int:
-    """Mark chatters whose lowercased nick is in `nicks` as bots. Returns rows updated.
+) -> list[tuple[int, str]]:
+    """Chatters whose lowercased nick is in `nicks` and who are not yet marked as bots.
 
-    Never un-marks or re-reasons an already-marked bot (is_bot IS NOT TRUE guard),
-    so the first classification reason sticks.
+    Feeds the known-name classification pass: the caller marks the returned ids (so it
+    knows exactly which chatters were newly flagged) and dry-run reports the real
+    candidate count instead of the size of the curated list.
+    :return: List of (chatter_id, nick) tuples ordered by nick.
     """
     if not nicks:
-        return 0
+        return []
     cursor.execute(
         """
-        UPDATE chatter
-        SET is_bot = TRUE, bot_reason = %s
+        SELECT id, nick
+        FROM chatter
         WHERE lower(nick) = ANY(%s) AND is_bot IS NOT TRUE
+        ORDER BY nick ASC
         """,
-        (reason, [nick.lower() for nick in nicks]),
+        ([nick.lower() for nick in nicks],),
     )
-    connection.commit()
-    return int(cursor.rowcount)
+    return cursor.fetchall()
 
 
 @with_cursor_connection

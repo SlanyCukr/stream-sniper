@@ -47,6 +47,30 @@ def select_rollup_stream_ids_db(
     return cast(list[tuple[int, int]], cursor.fetchall())
 
 
+@with_cursor
+def select_stream_ids_for_chatters_db(
+    cursor: Cursor,
+    chatter_ids: list[int],
+) -> list[int]:
+    """Distinct streams where any of the given chatters spoke, from the rollup (no message scan).
+
+    Used after bot classification to target the copypasta/scene-event refresh at only
+    the streams a newly-marked bot participated in.
+    """
+    if not chatter_ids:
+        return []
+    cursor.execute(
+        """
+        SELECT DISTINCT stream_id
+        FROM stream_chatter_stats
+        WHERE chatter_id = ANY(%s)
+        ORDER BY stream_id ASC
+        """,
+        (chatter_ids,),
+    )
+    return [int(row[0]) for row in cursor.fetchall()]
+
+
 def _replace_time_buckets(cursor: Cursor, params: dict[str, int]) -> None:
     """Replace per-minute message, chatter, subscriber, and emote buckets."""
     cursor.execute("DELETE FROM stream_time_bucket WHERE stream_id = %(sid)s", params)
