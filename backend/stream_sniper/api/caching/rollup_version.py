@@ -15,6 +15,8 @@ with a proper error right after). The sentinel keys behave exactly like the
 pre-versioning cache.
 """
 
+from collections.abc import Callable
+
 from ...database.gateways.analytics.stream_metrics_table_gateway import (
     select_creator_rollup_version_db,
     select_scene_rollup_version_db,
@@ -28,7 +30,7 @@ logger = get_logger(__name__)
 _UNVERSIONED = "unversioned"
 
 
-def _resolve(probe_name: str, probe) -> str:
+def _resolve(probe_name: str, probe: Callable[[], str | None]) -> str:
     try:
         return probe() or _UNVERSIONED
     except Exception:
