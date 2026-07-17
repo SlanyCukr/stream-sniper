@@ -10,7 +10,7 @@ from ...caching.cache import InProcessCache
 from ...config import APIConfig
 from ...dependencies import get_cache, get_config, get_health_checker, get_metrics_collector
 from ...observability.health import HealthChecker
-from ...observability.health import HealthStatus as HealthStatusEnum
+from ...observability.health_contracts import HealthStatus as HealthStatusEnum
 from ...observability.monitoring import MetricsCollector, collect_monitoring_snapshot
 from ...security.auth import get_current_admin_user
 from ...security.auth_models import UserInDB
