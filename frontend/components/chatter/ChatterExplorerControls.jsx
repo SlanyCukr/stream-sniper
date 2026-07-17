@@ -1,5 +1,6 @@
 import AsyncSearchSelect from '@/components/common/search/AsyncSearchSelect'
 import TabList from '@/components/common/TabList'
+import StatusChip from '@/components/common/StatusChip'
 import { CHATTER_VIEWS } from '@/lib/models/chatterExplorer'
 
 const ChatterExplorerControls = ({
@@ -30,7 +31,7 @@ const ChatterExplorerControls = ({
                 />
             </div>
             {selectedChatter?.isBot === true ? (
-                <span className="status-chip is-warn" aria-label="This chatter is flagged as a bot">BOT</span>
+                <StatusChip variant="warn" aria-label="This chatter is flagged as a bot">BOT</StatusChip>
             ) : null}
         </div>
         <TabList

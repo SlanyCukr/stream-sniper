@@ -1,22 +1,24 @@
 import { Card, Table } from 'react-bootstrap'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import PaginatedResultsFooter from '@/components/common/pagination/PaginatedResultsFooter'
+import StatusChip from '@/components/common/StatusChip'
 import { formatDateTime, formatDurationSeconds } from '@/utils/dateUtils'
 
 /** @typedef {ReturnType<typeof import('@/hooks/admin/tracking/useTrackingQueries').mapProcessingJob>} ProcessingJob */
 
-const STATUS_MODIFIERS = {
-    pending: ' is-warn',
-    in_progress: ' is-warn',
-    completed: ' is-ok',
-    failed: ' is-err',
+/** @type {Record<string, import('@/components/common/StatusChip').StatusChipVariant>} */
+const STATUS_VARIANTS = {
+    pending: 'warn',
+    in_progress: 'warn',
+    completed: 'ok',
+    failed: 'err',
 }
 
 /** @param {{status:string}} props */
-const StatusChip = ({ status }) => (
-    <span className={`status-chip${STATUS_MODIFIERS[/** @type {keyof typeof STATUS_MODIFIERS} */ (status)] || ''}`}>
+const JobStatusChip = ({ status }) => (
+    <StatusChip variant={STATUS_VARIANTS[status] || 'neutral'}>
         {status === 'in_progress' ? 'in progress' : status}
-    </span>
+    </StatusChip>
 )
 
 /**
@@ -71,14 +73,14 @@ const ProcessingJobsTable = ({
                                         )}
                                     </td>
                                     <td className="mono">{job.twitchVodId}</td>
-                                    <td><StatusChip status={job.status} /></td>
+                                    <td><JobStatusChip status={job.status} /></td>
                                     <td className="mono">{formatDateTime(job.createdAt)}</td>
                                     <td className="mono">{formatDateTime(job.startedAt)}</td>
                                     <td className="mono">{formatDateTime(job.completedAt)}</td>
                                     <td className="mono">{formatDurationSeconds(job.startedAt, job.completedAt)}</td>
                                     <td className="mono">
                                         {job.retryCount > 0 && (
-                                            <span className="status-chip is-warn">{job.retryCount}</span>
+                                            <StatusChip variant="warn">{job.retryCount}</StatusChip>
                                         )}
                                     </td>
                                 </tr>

@@ -4,6 +4,7 @@ import {
     Form, Row, Col,
 } from 'react-bootstrap'
 import { isAdminRole, USER_ROLES } from '@/lib/auth/roles'
+import StatusChip from '@/components/common/StatusChip'
 import AuthFormField from '../shared/AuthFormField'
 
 const ProfileInfo = ({
@@ -26,9 +27,9 @@ const ProfileInfo = ({
                 <Form.Group className="mb-3">
                     <Form.Label>Role</Form.Label>
                     <div>
-                        <span className={isAdminRole(user?.role) ? 'status-chip is-warn' : 'status-chip is-ok'}>
+                        <StatusChip variant={isAdminRole(user?.role) ? 'warn' : 'ok'}>
                             {user?.role || USER_ROLES.USER}
-                        </span>
+                        </StatusChip>
                     </div>
                 </Form.Group>
             </Col>
@@ -49,9 +50,9 @@ const ProfileInfo = ({
                 <Form.Group className="mb-3">
                     <Form.Label>Account Status</Form.Label>
                     <div>
-                        <span className={user?.is_active ? 'status-chip is-ok' : 'status-chip is-err'}>
+                        <StatusChip variant={user?.is_active ? 'ok' : 'err'}>
                             {user?.is_active ? 'Active' : 'Inactive'}
-                        </span>
+                        </StatusChip>
                     </div>
                 </Form.Group>
             </Col>

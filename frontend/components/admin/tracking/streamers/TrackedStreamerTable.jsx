@@ -4,6 +4,7 @@ import {
 } from 'react-bootstrap'
 import PaginatedResultsFooter from '@/components/common/pagination/PaginatedResultsFooter'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
+import StatusChip from '@/components/common/StatusChip'
 import { formatDateTime } from '@/utils/dateUtils'
 
 const TrackedStreamerTable = ({
@@ -51,14 +52,14 @@ const TrackedStreamerTable = ({
                                     <td><strong>{streamer.twitchUsername}</strong></td>
                                     <td>{streamer.displayName}</td>
                                     <td>
-                                        <span className={`status-chip ${streamer.isActive ? 'is-ok' : 'is-err'}`}>
+                                        <StatusChip variant={streamer.isActive ? 'ok' : 'err'}>
                                             {streamer.isActive ? 'Active' : 'Inactive'}
-                                        </span>
+                                        </StatusChip>
                                     </td>
                                     <td>
-                                        <span className={`status-chip ${streamer.processingEnabled ? 'is-ok' : 'is-warn'}`}>
+                                        <StatusChip variant={streamer.processingEnabled ? 'ok' : 'warn'}>
                                             {streamer.processingEnabled ? 'Enabled' : 'Disabled'}
-                                        </span>
+                                        </StatusChip>
                                     </td>
                                     <td className="mono">{formatDateTime(streamer.lastStreamCheck, 'Never')}</td>
                                     <td className="mono">{formatDateTime(streamer.createdAt, 'Never')}</td>

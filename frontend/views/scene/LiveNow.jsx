@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Card } from 'react-bootstrap'
 import { useSceneLive } from '@/hooks/scene/useSceneLiveQueries'
 import QueryState from '@/components/common/QueryState'
+import StatusChip from '@/components/common/StatusChip'
 import { parseNaiveUtcEpoch } from '@/utils/dateUtils'
 import { formatDurationHoursMinutes } from '@/utils/numberUtils'
 
@@ -74,11 +75,12 @@ const LiveCard = ({ streamer }) => {
                         )}
                     <div className="live-identity">
                         <Link className="live-name" href={`/creator/${creatorId}`}>{name}</Link>
-                        <span
-                            className="status-chip is-ok live-chip"
+                        <StatusChip
+                            variant="ok"
+                            className="live-chip"
                             aria-label="Live now">
                             LIVE
-                        </span>
+                        </StatusChip>
                     </div>
                 </div>
 

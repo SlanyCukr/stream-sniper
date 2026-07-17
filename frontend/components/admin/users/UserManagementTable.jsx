@@ -3,6 +3,7 @@ import {
     Table, ButtonGroup, Button, Dropdown,
 } from 'react-bootstrap'
 import { USER_ROLE_OPTIONS } from '@/lib/auth/roles'
+import StatusChip from '@/components/common/StatusChip'
 
 const UserManagementTable = ({
     users,
@@ -68,9 +69,9 @@ const UserManagementTable = ({
                             </Dropdown>
                         </td>
                         <td>
-                            <span className={userItem.isActive ? 'status-chip is-ok' : 'status-chip is-err'}>
+                            <StatusChip variant={userItem.isActive ? 'ok' : 'err'}>
                                 {userItem.isActive ? 'Active' : 'Inactive'}
-                            </span>
+                            </StatusChip>
                         </td>
                         <td className="mono">{new Date(userItem.createdAt).toLocaleDateString()}</td>
                         <td>

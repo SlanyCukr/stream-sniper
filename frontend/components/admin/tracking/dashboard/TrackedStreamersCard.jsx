@@ -1,5 +1,6 @@
 'use client'
 import { Card } from 'react-bootstrap'
+import StatusChip from '@/components/common/StatusChip'
 
 /** @typedef {ReturnType<typeof import('@/hooks/admin/tracking/useTrackingQueries').mapTrackingStats>} TrackingStats */
 
@@ -17,7 +18,7 @@ const TrackedStreamersCard = ({ stats }) => (
             <div className="mb-3">
                 <div className="d-flex justify-content-between align-items-center">
                     <span>Active</span>
-                    <span className="status-chip is-ok">{stats.trackedStreamers.active}</span>
+                    <StatusChip variant="ok">{stats.trackedStreamers.active}</StatusChip>
                 </div>
             </div>
             <div className="mb-3">
@@ -29,7 +30,7 @@ const TrackedStreamersCard = ({ stats }) => (
             <div className="mb-3">
                 <div className="d-flex justify-content-between align-items-center">
                     <span>Inactive</span>
-                    <span className="status-chip">{stats.trackedStreamers.inactive}</span>
+                    <StatusChip>{stats.trackedStreamers.inactive}</StatusChip>
                 </div>
             </div>
         </Card.Body>

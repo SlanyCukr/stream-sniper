@@ -3,14 +3,15 @@ import {
     Row, Col, Card,
 } from 'react-bootstrap'
 import Link from 'next/link'
+import StatusChip from '@/components/common/StatusChip'
 
 /** @typedef {ReturnType<typeof import('@/hooks/admin/tracking/useTrackingQueries').mapTrackingStats>} TrackingStats */
 
 /** @param {boolean} isHealthy */
 const healthBadge = isHealthy => (
     isHealthy
-        ? <span className="status-chip is-ok">Healthy</span>
-        : <span className="status-chip is-err">Unhealthy</span>
+        ? <StatusChip variant="ok">Healthy</StatusChip>
+        : <StatusChip variant="err">Unhealthy</StatusChip>
 )
 
 /** @param {{stats:TrackingStats, fetchStats:()=>unknown, loading:boolean}} props */

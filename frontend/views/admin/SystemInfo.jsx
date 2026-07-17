@@ -10,6 +10,7 @@ import RateLimitingMetrics from '@/components/admin/system/RateLimitingMetrics'
 import CacheDetails from '@/components/admin/system/CacheDetails'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
+import StatusChip from '@/components/common/StatusChip'
 import { useActionFeedback } from '@/hooks/admin/shared/useActionFeedback'
 import { formatDurationDaysHoursMinutes } from '@/utils/numberUtils'
 import {
@@ -45,17 +46,16 @@ const SystemInfo = () => {
     }
 
     const renderStatusBadge = status => {
-        const statusMap = {
-            'healthy': 'is-ok',
-            'degraded': 'is-warn',
-            'unhealthy': 'is-err',
-            'critical': 'is-err',
+        const statusVariants = {
+            'healthy': 'ok',
+            'degraded': 'warn',
+            'unhealthy': 'err',
+            'critical': 'err',
         }
-        const modifier = statusMap[status]
         return (
-            <span className={modifier ? `status-chip ${modifier}` : 'status-chip'}>
+            <StatusChip variant={statusVariants[status] || 'neutral'}>
                 {status}
-            </span>
+            </StatusChip>
         )
     }
 

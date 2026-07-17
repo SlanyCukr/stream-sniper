@@ -1,5 +1,6 @@
 'use client'
 import { normalizeApiError } from '@/utils/errorUtils'
+import StatusChip from '@/components/common/StatusChip'
 
 const clock = timestamp => typeof timestamp === 'string' && timestamp.length >= 16
     ? timestamp.slice(11, 16)
@@ -85,7 +86,7 @@ const TimelineSelection = ({
                     Jumped replay to {clock(activeMoment.t)}
                     {activeMoment.score ? ` · ${activeMoment.score}x baseline` : ''}
                 </span>
-                {activeMoment.status ? <span className={`status-chip ${activeMoment.status === 'rejected' ? 'is-err' : 'is-ok'}`}>{activeMoment.status}</span> : null}
+                {activeMoment.status ? <StatusChip variant={activeMoment.status === 'rejected' ? 'err' : 'ok'}>{activeMoment.status}</StatusChip> : null}
                 {vodHref ? <a className="timeline-vod-link" href={vodHref} target="_blank" rel="noopener noreferrer">Open on Twitch</a> : null}
             </div>
             <TimelineShares moment={activeMoment} />
