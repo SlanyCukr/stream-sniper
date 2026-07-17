@@ -11,6 +11,7 @@ import CacheDetails from '@/components/admin/system/CacheDetails'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import { useActionFeedback } from '@/hooks/admin/shared/useActionFeedback'
+import { formatDurationDaysHoursMinutes } from '@/utils/numberUtils'
 import {
     useCacheStats,
     useDetailedHealth,
@@ -41,20 +42,6 @@ const SystemInfo = () => {
             metricsQuery.refetch(),
             cacheStatsQuery.refetch(),
         ])
-    }
-
-    const formatUptime = seconds => {
-        const days = Math.floor(seconds / 86400)
-        const hours = Math.floor((seconds % 86400) / 3600)
-        const minutes = Math.floor((seconds % 3600) / 60)
-
-        if (days > 0) {
-            return `${days}d ${hours}h ${minutes}m`
-        } else if (hours > 0) {
-            return `${hours}h ${minutes}m`
-        } else {
-            return `${minutes}m`
-        }
     }
 
     const renderStatusBadge = status => {
@@ -127,7 +114,7 @@ const SystemInfo = () => {
             {healthData && (
                 <SystemHealthOverview
                     healthData={healthData}
-                    formatUptime={formatUptime}
+                    formatUptime={formatDurationDaysHoursMinutes}
                     renderStatusBadge={renderStatusBadge}
                 />
             )}

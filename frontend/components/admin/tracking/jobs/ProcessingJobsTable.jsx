@@ -1,22 +1,9 @@
 import { Card, Table } from 'react-bootstrap'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 import PaginatedResultsFooter from '@/components/common/pagination/PaginatedResultsFooter'
+import { formatDateTime, formatDurationSeconds } from '@/utils/dateUtils'
 
 /** @typedef {ReturnType<typeof import('@/hooks/admin/tracking/useTrackingQueries').mapProcessingJob>} ProcessingJob */
-
-/** @param {string|null} dateString */
-const formatDateTime = dateString => dateString
-    ? new Date(dateString).toLocaleString()
-    : 'N/A'
-
-/** @param {string|null} startTime @param {string|null} endTime */
-const formatDuration = (startTime, endTime) => {
-    if (!startTime || !endTime) return 'N/A'
-    const durationSeconds = Math.floor(
-        (new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000,
-    )
-    return `${durationSeconds}s`
-}
 
 const STATUS_MODIFIERS = {
     pending: ' is-warn',
@@ -88,7 +75,7 @@ const ProcessingJobsTable = ({
                                     <td className="mono">{formatDateTime(job.createdAt)}</td>
                                     <td className="mono">{formatDateTime(job.startedAt)}</td>
                                     <td className="mono">{formatDateTime(job.completedAt)}</td>
-                                    <td className="mono">{formatDuration(job.startedAt, job.completedAt)}</td>
+                                    <td className="mono">{formatDurationSeconds(job.startedAt, job.completedAt)}</td>
                                     <td className="mono">
                                         {job.retryCount > 0 && (
                                             <span className="status-chip is-warn">{job.retryCount}</span>

@@ -4,10 +4,7 @@ import {
 } from 'react-bootstrap'
 import PaginatedResultsFooter from '@/components/common/pagination/PaginatedResultsFooter'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
-
-const formatDateTime = dateString => dateString
-    ? new Date(dateString).toLocaleString()
-    : 'Never'
+import { formatDateTime } from '@/utils/dateUtils'
 
 const TrackedStreamerTable = ({
     streamers,
@@ -63,8 +60,8 @@ const TrackedStreamerTable = ({
                                             {streamer.processingEnabled ? 'Enabled' : 'Disabled'}
                                         </span>
                                     </td>
-                                    <td className="mono">{formatDateTime(streamer.lastStreamCheck)}</td>
-                                    <td className="mono">{formatDateTime(streamer.createdAt)}</td>
+                                    <td className="mono">{formatDateTime(streamer.lastStreamCheck, 'Never')}</td>
+                                    <td className="mono">{formatDateTime(streamer.createdAt, 'Never')}</td>
                                     <td>
                                         <Button
                                             variant="outline-primary"

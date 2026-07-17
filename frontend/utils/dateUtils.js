@@ -69,8 +69,62 @@ export const formatDurationBetween = (startDate, endDate) => {
     return buildDurationParts(intervalToDuration({ start, end })).join(' ')
 }
 
+/**
+ * Locale-formatted date+time via `Date#toLocaleString`, or a fallback when
+ * the input is falsy. Distinct from formatDate (fixed date-fns pattern):
+ * this defers to the browser/runtime locale, matching admin table cells
+ * that previously called `toLocaleString()` directly.
+ * @param {Date|string|number|null|undefined} date
+ * @param {string} [fallback]
+ */
+export const formatDateTime = (date, fallback = 'N/A') => (
+    date ? parseDate(date).toLocaleString() : fallback
+)
+
+/**
+ * Whole-second duration "Ns" between two dates, or a fallback when either
+ * is missing. Distinct from formatDurationBetween: no unit breakdown, just
+ * whole seconds — used for short-lived processing-job durations.
+ * @param {Date|string|number|null|undefined} startDate
+ * @param {Date|string|number|null|undefined} endDate
+ * @param {string} [fallback]
+ */
+export const formatDurationSeconds = (startDate, endDate, fallback = 'N/A') => {
+    if (!startDate || !endDate) return fallback
+    const seconds = Math.floor(
+        (parseDate(endDate).getTime() - parseDate(startDate).getTime()) / 1000,
+    )
+    return `${seconds}s`
+}
+
 /** @param {Date|string|number} date */
 export const formatStreamTimestamp = date => formatDate(date, DATE_FORMATS.STREAM_TIMESTAMP)
 
 /** @param {Date|string|number} date */
 export const isValidDate = date => validDateOrNull(date) !== null
+
+/**
+ * Epoch ms for a naive UTC timestamp ("YYYY-MM-DDTHH:MM:SS", no zone) by
+ * appending 'Z' before parsing — the backend formats timestamps
+ * `AT TIME ZONE 'UTC'` without an offset, so the default (local-time) Date
+ * parse would be wrong. Returns null when unparseable.
+ * @param {string|null|undefined} timestamp
+ * @returns {number|null}
+ */
+export const parseNaiveUtcEpoch = timestamp => {
+    if (typeof timestamp !== 'string' || timestamp.length < 16) {
+        return null
+    }
+    const ms = new Date(`${timestamp}Z`).getTime()
+    return Number.isNaN(ms) ? null : ms
+}
+
+/**
+ * HH:MM slice of an ISO-ish timestamp string, or '--' when too short or not
+ * a string. Used for compact per-minute chart/report labels where a full
+ * date parse is unnecessary.
+ * @param {unknown} timestamp
+ */
+export const formatClockTime = timestamp => (
+    typeof timestamp === 'string' && timestamp.length >= 16 ? timestamp.slice(11, 16) : '--'
+)
