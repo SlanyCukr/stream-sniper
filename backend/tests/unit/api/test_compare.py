@@ -30,6 +30,26 @@ def _cache():
     return cache
 
 
+def test_compare_route_is_not_shadowed_by_stream_id_route():
+    """Regression: /streams/compare must be registered before /streams/{stream_id}.
+
+    With the wrong registration order the dynamic route captures the literal
+    path segment "compare" and fails int path-param validation (422) before the
+    comparison endpoint is ever reached — on the full app, not the router alone.
+    """
+    from stream_sniper.api.api import create_app
+    from stream_sniper.api.config import APIConfig, AuthConfig
+
+    app = create_app(APIConfig(auth=AuthConfig(secret_key="routing-test-secret")))
+    response = TestClient(app).get("/streams/compare?stream_ids=1&stream_ids=2")
+
+    assert not any(
+        detail.get("loc") == ["path", "stream_id"]
+        for detail in (response.json().get("detail") or [])
+        if isinstance(detail, dict)
+    ), f"/streams/compare was captured by /streams/{{stream_id}}: {response.text}"
+
+
 def test_normalize_curve_uses_percentage_slots():
     rows = [
         StreamCompareBucketRow(1, "2024-01-01T20:00:00", 10, 5),
@@ -41,10 +61,10 @@ def test_normalize_curve_uses_percentage_slots():
 
 
 @patch("stream_sniper.api.features.streams.compare_endpoints.get_cache")
-@patch("stream_sniper.api.composition.select_stream_pair_retention_db")
-@patch("stream_sniper.api.composition.select_stream_viewer_samples_db")
-@patch("stream_sniper.api.composition.select_stream_compare_buckets_db")
-@patch("stream_sniper.api.composition.select_stream_compare_headers_db")
+@patch("stream_sniper.application.streams.compare_query.select_stream_pair_retention_db")
+@patch("stream_sniper.application.streams.compare_query.select_stream_viewer_samples_db")
+@patch("stream_sniper.application.streams.compare_query.select_stream_compare_buckets_db")
+@patch("stream_sniper.application.streams.compare_query.select_stream_compare_headers_db")
 def test_compare_maps_metrics_curve_and_retention(headers, buckets, samples, retention, get_cache):
     get_cache.return_value = _cache()
     headers.return_value = [
