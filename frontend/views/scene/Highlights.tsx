@@ -104,7 +104,10 @@ const Highlights = () => {
                 query={{
                     data: isFirstPageLoading ? undefined : accumulated,
                     error: query.error,
-                    isLoading: query.isLoading,
+                    // isFirstPageLoading, not query.isLoading: with keepPreviousData a
+                    // filter switch keeps status success (isLoading false), which would
+                    // flash the empty state instead of the spinner while data is hidden.
+                    isLoading: isFirstPageLoading,
                     refetch: query.refetch,
                 }}
                 errorTitle="Failed to load highlights"

@@ -88,7 +88,16 @@ const Rankings = () => {
                 />
             ) : (
                 <QueryState
-                    query={query}
+                    query={{
+                        // Mask keepPreviousData during a window switch: the raw query
+                        // still holds the OLD window's page (rows + hasMore), which
+                        // would render stale rows with a live Load more that fires the
+                        // new window at the old offset. Show the spinner instead.
+                        data: query.isPlaceholderData ? undefined : query.data,
+                        error: query.error,
+                        isLoading: query.isLoading || query.isPlaceholderData,
+                        refetch: query.refetch,
+                    }}
                     errorTitle="Failed to load power rankings"
                     loadingText="Ranking the scene..."
                     isEmpty={(value: SceneRankings) => value.items.length === 0}

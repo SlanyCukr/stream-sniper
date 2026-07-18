@@ -34,6 +34,11 @@ const highlightItem = (id: number, title: string, creator: string) => ({
 
 test('highlights: paginates, then window and sort pills re-query and reset the wall', async ({ page }) => {
   const calls: Array<{ window: string, sort: string, offset: number }> = []
+  // The window-switch response is gated so the test can observe the in-flight
+  // state: the wall must show the loading spinner, not the empty state and not
+  // the previous window's cards.
+  let releaseWindowSwitch = () => {}
+  const windowSwitchGate = new Promise<void>((resolve) => { releaseWindowSwitch = resolve })
 
   await page.route('**/api/**', async (route) => {
     const { pathname, searchParams } = new URL(route.request().url())
@@ -61,6 +66,7 @@ test('highlights: paginates, then window and sort pills re-query and reset the w
       })
     }
     if (windowKey === '7' && sort === 'hype' && offset === 0) {
+      await windowSwitchGate
       return json(route, {
         window: windowKey,
         sort,
@@ -93,6 +99,15 @@ test('highlights: paginates, then window and sort pills re-query and reset the w
   await expect(sevenDays).toHaveAttribute('aria-pressed', 'false')
   await sevenDays.click()
   await expect(sevenDays).toHaveAttribute('aria-pressed', 'true')
+
+  // While the new window is in flight: spinner, not the empty state, and none
+  // of the previous window's cards or its Load more control.
+  await expect(page.getByText('Surfacing the best moments…').first()).toBeVisible()
+  await expect(page.getByText('No highlights yet')).not.toBeVisible()
+  await expect(page.getByText('PixelKobra plays ranked')).not.toBeVisible()
+  await expect(page.getByRole('button', { name: 'Load more' })).not.toBeVisible()
+  releaseWindowSwitch()
+
   await expect(page.getByText('Weekly window hype moment')).toBeVisible()
   await expect(page.getByText('PixelKobra plays ranked')).not.toBeVisible()
   await expect(page.getByText('NightOwlCZ late night just chatting')).not.toBeVisible()
@@ -130,6 +145,11 @@ const rankingRow = (rank: number, chatterId: number, nick: string) => ({
 
 test('rankings: paginates, then the window pill re-queries and resets the table', async ({ page }) => {
   const calls: Array<{ window: string, offset: number }> = []
+  // The window-switch response is gated: keepPreviousData means a slow switch
+  // must NOT keep the old window's rows (or their Load more, which would fire
+  // the new window at the stale offset) on screen while the fetch is in flight.
+  let releaseWindowSwitch = () => {}
+  const windowSwitchGate = new Promise<void>((resolve) => { releaseWindowSwitch = resolve })
 
   await page.route('**/api/**', async (route) => {
     const { pathname, searchParams } = new URL(route.request().url())
@@ -154,6 +174,7 @@ test('rankings: paginates, then the window pill re-queries and resets the table'
       })
     }
     if (windowKey === '30' && offset === 0) {
+      await windowSwitchGate
       return json(route, {
         window: windowKey,
         has_more: false,
@@ -176,6 +197,14 @@ test('rankings: paginates, then the window pill re-queries and resets the table'
   await expect(thirtyDays).toHaveAttribute('aria-pressed', 'false')
   await thirtyDays.click()
   await expect(thirtyDays).toHaveAttribute('aria-pressed', 'true')
+
+  // While the new window is in flight: spinner only — no stale rows, and no
+  // Load more that could fire window=30 at the old offset.
+  await expect(page.getByText('Ranking the scene...').first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'chatterOne' })).not.toBeVisible()
+  await expect(page.getByRole('button', { name: 'Load more' })).not.toBeVisible()
+  releaseWindowSwitch()
+
   await expect(page.getByRole('link', { name: 'monthlyChampion' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'chatterOne' })).not.toBeVisible()
   await expect(page.getByRole('link', { name: 'chatterTwo' })).not.toBeVisible()
