@@ -152,10 +152,21 @@ def create_app(
 
     if resolved.cors_enabled:
         origins = resolved.cors_origins.split(",") if resolved.cors_origins != "*" else ["*"]
+        # Wildcard + credentials makes Starlette REFLECT any request Origin with
+        # Access-Control-Allow-Credentials: true — i.e. any site can make credentialed
+        # cross-origin requests and read the responses. Never allow that combination:
+        # credentials require an explicit origin allowlist (CORS_ORIGINS=https://...).
+        allow_credentials = resolved.cors_credentials and origins != ["*"]
+        if resolved.cors_credentials and not allow_credentials:
+            logger.warning(
+                "CORS_ORIGINS is a wildcard; disabling allow_credentials to prevent "
+                "credentialed reflection. Set an explicit CORS_ORIGINS allowlist to "
+                "re-enable credentials."
+            )
         app.add_middleware(
             CORSMiddleware,
             allow_origins=origins,
-            allow_credentials=resolved.cors_credentials,
+            allow_credentials=allow_credentials,
             allow_methods=["*"],
             allow_headers=["*"],
         )

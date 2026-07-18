@@ -8,6 +8,7 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from functools import wraps
 from inspect import iscoroutinefunction, signature
+from ipaddress import ip_address
 from typing import Any, TypedDict
 from weakref import WeakSet
 
@@ -108,13 +109,55 @@ class AppLimiterRegistry:
             instance.reset()
 
 
+def _client_key(request: Request) -> str:
+    """Resolve the end-client IP for rate limiting, proxy-aware.
+
+    In production the API is never reached directly: every browser request arrives through
+    the Next.js server-side proxy (and the VPS reverse proxy in front of it), so
+    ``request.client.host`` is always the proxy's address — keying on it collapses ALL
+    users into one shared bucket, letting a single user exhaust everyone's limit while
+    making per-user limits meaningless.
+
+    Preference order (first present wins):
+      1. ``CF-Connecting-IP`` — set by Cloudflare when it fronts the chain; the true client.
+      2. ``X-Real-IP`` — set (overwritten) by the reverse proxy; the address it saw.
+      3. Rightmost PUBLIC entry in ``X-Forwarded-For`` — the last hop appended by our own
+         infrastructure; entries left of it are client-supplied and spoofable, private
+         entries are our own proxies.
+      4. ``request.client.host`` — direct access (local dev, tests).
+
+    A syntactically invalid header value falls through to the next source rather than
+    being trusted as a key (spoofed garbage must not mint fresh buckets).
+    """
+    cf_ip = request.headers.get("cf-connecting-ip", "").strip()
+    if cf_ip and _is_ip(cf_ip):
+        return cf_ip
+    real_ip = request.headers.get("x-real-ip", "").strip()
+    if real_ip and _is_ip(real_ip):
+        return real_ip
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        entries = [entry.strip() for entry in forwarded.split(",") if entry.strip()]
+        for entry in reversed(entries):
+            if _is_ip(entry) and ip_address(entry).is_global:
+                return entry
+    return get_remote_address(request)
+
+
+def _is_ip(value: str) -> bool:
+    try:
+        ip_address(value)
+    except ValueError:
+        return False
+    return True
+
+
 def bind_rate_config_and_get_identifier(request: Request) -> str:
     """Bind the app-owned request policy and return the client IP key."""
     app = request.scope.get("app")
     if app is not None and hasattr(app.state, "rate_limit_config"):
         _request_rate_config.set(app.state.rate_limit_config)
-    client_ip = get_remote_address(request)
-    return f"ip:{client_ip}"
+    return f"ip:{_client_key(request)}"
 
 
 def create_limiter(config: AppRateLimitConfig | None = None) -> Limiter:
