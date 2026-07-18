@@ -38,10 +38,9 @@ def test_completed_live_capture_reconciles_and_skips_vod(monkeypatch):
 
     def record_reconcile(*args):
         reconciled.append(args)
-        return (77, False)  # end already accurate -> no rollup recompute
+        return (77, False)  # rollup consistent with the recorded end -> no recompute
 
     monkeypatch.setattr(downloader_module, "reconcile_live_stream_vod_db", record_reconcile)
-    rollup = SimpleNamespace(called=False)
     monkeypatch.setattr(
         downloader_module,
         "compute_stream_rollup",
@@ -53,12 +52,11 @@ def test_completed_live_capture_reconciles_and_skips_vod(monkeypatch):
     assert result is None
     # The VOD's authoritative end (created_at + duration) rides along for end repair.
     assert reconciled == [(123, 987, "thumb", datetime(2024, 1, 15, 21))]
-    assert rollup.called is False
 
 
-def test_repaired_end_triggers_rollup_recompute(monkeypatch):
-    # A swept zombie's provisional end got extended by the VOD metadata -> duration-derived
-    # rollups are stale and must be recomputed.
+def test_stale_rollup_triggers_recompute(monkeypatch):
+    # A swept zombie's provisional end got repaired from VOD metadata -> stream_metrics
+    # disagrees with the stream row and must be recomputed.
     video = ArchivedVideo(
         twitch_vod_id=987,
         twitch_stream_session_id=123,
@@ -80,6 +78,39 @@ def test_repaired_end_triggers_rollup_recompute(monkeypatch):
 
     assert result is None
     assert recomputed == [77]
+
+
+def test_failed_recompute_is_retried_on_rediscovery(monkeypatch):
+    # The staleness flag is durable (stream_metrics vs the stream row), so when the first
+    # recompute fails transiently, the next discovery of the same VOD sees stale again and
+    # retries — the failure is never lost to a one-shot signal.
+    def make_video():
+        return ArchivedVideo(
+            twitch_vod_id=987,
+            twitch_stream_session_id=123,
+            thumbnail_url="thumb",
+            title="title",
+            created_at=datetime(2024, 1, 15, 20),
+            duration="3h",
+        )
+
+    monkeypatch.setattr(downloader_module, "select_live_stream_by_session_db", lambda session: (77, True))
+    monkeypatch.setattr(downloader_module, "reconcile_live_stream_vod_db", lambda *args: (77, True))
+    attempts = []
+
+    def rollup(stream_id):
+        attempts.append(stream_id)
+        if len(attempts) == 1:
+            raise RuntimeError("transient db failure")
+        return SimpleNamespace(require_success=lambda: None)
+
+    monkeypatch.setattr(downloader_module, "compute_stream_rollup", rollup)
+
+    # First discovery: recompute fails, VOD is still skipped (never downloaded).
+    assert _skipping_downloader(make_video()).open_chat_stream() is None
+    # Second discovery: reconcile reports stale again -> retried and succeeds.
+    assert _skipping_downloader(make_video()).open_chat_stream() is None
+    assert attempts == [77, 77]
 
 
 def test_unparseable_vod_duration_reconciles_without_end(monkeypatch):

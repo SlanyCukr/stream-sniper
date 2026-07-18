@@ -197,6 +197,12 @@ def select_live_stream_by_session_db(
     return cursor.fetchone()
 
 
+# A VOD end only repairs the recorded end when it extends it by more than this. Normal
+# live-finalized ends differ from VOD metadata by trailing seconds; repairing those would
+# flag every stream's rollup stale for no analytical gain. Swept zombies are off by hours.
+_END_REPAIR_MIN_SECONDS = 300
+
+
 @with_cursor_connection
 def reconcile_live_stream_vod_db(
     cursor: Cursor,
@@ -209,26 +215,43 @@ def reconcile_live_stream_vod_db(
     """Attach the later VOD id to its live row and repair a provisional ``"end"``.
 
     ``vod_ended_at`` (VOD created_at + duration) is the authoritative session end. It only
-    ever EXTENDS the recorded end (``GREATEST``): a swept zombie's provisional last-message
-    estimate is corrected forward, while an accurately live-finalized end is left alone
-    (Postgres ``GREATEST`` ignores a NULL argument). Returns ``(stream_id, end_changed)``
-    so the caller can recompute duration-derived rollups when the end moved, or ``None``
-    when no completed live capture exists for the session.
+    ever EXTENDS the recorded end, and only when the gap exceeds ``_END_REPAIR_MIN_SECONDS``
+    (a swept zombie's provisional last-message estimate is hours short; a normal live
+    finalize is seconds off and left alone).
+
+    Returns ``(stream_id, rollup_stale)`` — or ``None`` when no completed live capture
+    exists for the session. ``rollup_stale`` is DURABLE, not an end-moved flag: it is true
+    whenever ``stream_metrics`` is missing or its ``duration_seconds`` disagrees with the
+    (post-repair) ``"end" - start`` — mirroring the rollup's own formula — so a rollup
+    recompute that fails transiently is retried on every later VOD rediscovery until one
+    succeeds, instead of being lost to a one-shot end-changed signal.
     """
     cursor.execute(
         """
         UPDATE stream_sniper.stream s
-        SET twitch_id = %s,
-            thumbnail_url = COALESCE(%s, thumbnail_url),
-            "end" = GREATEST(s."end", %s)
-        FROM (
-            SELECT id, "end" AS previous_end FROM stream_sniper.stream
-            WHERE twitch_stream_session_id = %s AND live_capture_complete
-        ) previous
-        WHERE s.id = previous.id
-        RETURNING s.id, s."end" IS DISTINCT FROM previous.previous_end
+        SET twitch_id = %(vod_id)s,
+            thumbnail_url = COALESCE(%(thumb)s, thumbnail_url),
+            "end" = CASE
+                WHEN %(vod_end)s::timestamp > s."end" + (%(min_gap)s * interval '1 second')
+                THEN %(vod_end)s::timestamp
+                ELSE s."end"
+            END
+        WHERE s.twitch_stream_session_id = %(session_id)s AND s.live_capture_complete
+        RETURNING s.id,
+            NOT EXISTS (
+                SELECT 1 FROM stream_sniper.stream_metrics sm
+                WHERE sm.stream_id = s.id
+                  AND sm.duration_seconds IS NOT DISTINCT FROM
+                      GREATEST(EXTRACT(EPOCH FROM (s."end" - s.start))::int, 0)
+            )
         """,
-        (twitch_vod_id, thumbnail_url, vod_ended_at, twitch_stream_session_id),
+        {
+            "vod_id": twitch_vod_id,
+            "thumb": thumbnail_url,
+            "vod_end": vod_ended_at,
+            "min_gap": _END_REPAIR_MIN_SECONDS,
+            "session_id": twitch_stream_session_id,
+        },
     )
     row = cursor.fetchone()
     connection.commit()

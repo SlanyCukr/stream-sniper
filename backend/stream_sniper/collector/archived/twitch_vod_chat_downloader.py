@@ -90,14 +90,16 @@ class TwitchVodChatDownloader:
                         video.twitch_stream_session_id,
                     )
                     if reconciled is not None and reconciled[1]:
-                        # The VOD's end extended a provisional (swept-zombie) end, so every
-                        # duration-derived rollup metric is stale — recompute in place.
+                        # The stream's rollup disagrees with its (possibly just-repaired)
+                        # end — recompute. The staleness flag is durable (metrics vs the
+                        # stream row), so a failure here is retried the next time this VOD
+                        # is discovered; log and move on.
                         stream_id = reconciled[0]
-                        self.logger.info("VOD %s repaired stream %s end; recomputing rollup", video.twitch_vod_id, stream_id)
+                        self.logger.info("VOD %s: stream %s rollup is stale; recomputing", video.twitch_vod_id, stream_id)
                         try:
                             compute_stream_rollup(stream_id).require_success()
                         except Exception:
-                            self.logger.exception("Rollup recompute failed for repaired stream %s", stream_id)
+                            self.logger.exception("Rollup recompute failed for stream %s; will retry on rediscovery", stream_id)
                     continue
 
             discovery_mode = getattr(self, "_requested_vod_id", None) is None
