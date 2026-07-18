@@ -94,6 +94,13 @@ test('highlights: paginates, then window and sort pills re-query and reset the w
   await expect(page.getByText('NightOwlCZ late night just chatting')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Load more' })).not.toBeVisible()
 
+  // Re-clicking the ACTIVE pills is a no-op: loaded pages survive, no request fires.
+  await page.getByRole('button', { name: 'All time' }).click()
+  await page.getByRole('button', { name: 'Top hype' }).click()
+  await expect(page.getByText('PixelKobra plays ranked')).toBeVisible()
+  await expect(page.getByText('NightOwlCZ late night just chatting')).toBeVisible()
+  expect(calls).toHaveLength(2)
+
   // Window pill: re-queries with window=7 at offset 0 and resets the accumulated wall.
   const sevenDays = page.getByRole('button', { name: '7 days' })
   await expect(sevenDays).toHaveAttribute('aria-pressed', 'false')
@@ -191,6 +198,12 @@ test('rankings: paginates, then the window pill re-queries and resets the table'
   await page.getByRole('button', { name: 'Load more' }).click()
   await expect(page.getByRole('link', { name: 'chatterTwo' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Load more' })).not.toBeVisible()
+
+  // Re-clicking the ACTIVE pill is a no-op: loaded pages survive, no request fires.
+  await page.getByRole('button', { name: 'All time' }).click()
+  await expect(page.getByRole('link', { name: 'chatterOne' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'chatterTwo' })).toBeVisible()
+  expect(calls).toHaveLength(2)
 
   // Window pill: re-queries with window=30 at offset 0 and drops the accumulated pages.
   const thirtyDays = page.getByRole('button', { name: '30 days' })

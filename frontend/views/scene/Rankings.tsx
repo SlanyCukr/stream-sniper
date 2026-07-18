@@ -34,6 +34,7 @@ const Rankings = () => {
     // resetting in a useEffect instead fires a wasted query for the new window at
     // the old offset before the reset lands.
     const changeWindow = (key: RankingsWindow) => {
+        if (key === activeWindow) return // re-clicking the active pill must not collapse loaded pages
         setActiveWindow(key)
         setOffset(0)
         setAccumulated([])

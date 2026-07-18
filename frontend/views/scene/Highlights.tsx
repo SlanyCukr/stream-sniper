@@ -46,10 +46,12 @@ const Highlights = () => {
         appendedOffsetRef.current = -1
     }
     const changeWindow = (key: HighlightsWindow) => {
+        if (key === windowKey) return // re-clicking the active pill must not collapse loaded pages
         setWindowKey(key)
         resetPagination()
     }
     const changeSort = (key: HighlightsSort) => {
+        if (key === sort) return
         setSort(key)
         resetPagination()
     }
