@@ -27,9 +27,13 @@ from ...core.wire_format import to_char_wire
 # dropped by the assembly, which keys strictly on the 15 completed display minutes).
 _TRAILING_MINUTES = 16
 
-# Safety bound: a live-captured stream whose row never got closed (``"end"`` stuck NULL) would
-# otherwise sit on the radar forever. A real live stream started within the last day.
-_LIVE_MAX_AGE_HOURS = 24
+# Liveness freshness bound, matching ``select_live_now_db``'s definition of "currently live":
+# viewer samples are only written while a stream is live, on a ~5-minute cadence, so a sample
+# (or, as a fallback, any chat message) within this window proves the session is still alive.
+# This is deliberately NOT a stream-start age bound — a marathon stream stays on the radar for
+# as long as it keeps producing samples/chat, while a zombie row (``"end"`` stuck NULL) drops
+# off within minutes of the session actually ending instead of lingering for hours.
+_LIVENESS_WINDOW_MINUTES = 10
 
 
 class LiveStreamRow(NamedTuple):
@@ -57,9 +61,14 @@ class MinuteCountRow(NamedTuple):
 def select_live_chat_velocity_db(cursor: Cursor) -> tuple[list[LiveStreamRow], list[MinuteCountRow]]:
     """Return (live-stream metadata, trailing per-minute counts) for currently-live streams.
 
-    A stream is "live" when ``"end" IS NULL`` and it carries a ``twitch_stream_session_id``
-    (set only for live-captured streams), started within the last ``_LIVE_MAX_AGE_HOURS`` hours
-    (a bound against zombie rows). Per-minute counts cover the trailing ``_TRAILING_MINUTES``
+    A stream is "live" when ``"end" IS NULL``, it carries a ``twitch_stream_session_id``
+    (set only for live-captured streams), and the session shows signs of life within the last
+    ``_LIVENESS_WINDOW_MINUTES`` minutes: a viewer sample for the same Twitch session (the
+    tracking service samples every live tracked streamer on a ~5-minute cadence — the same
+    freshness signal ``select_live_now_db`` uses) or, as a fallback for tracking-service
+    downtime, a chat message. Stream-start age is deliberately NOT a criterion: marathon
+    streams stay visible indefinitely, while zombie rows (``"end"`` stuck NULL after the
+    session died) disappear within minutes. Per-minute counts cover the trailing ``_TRAILING_MINUTES``
     minutes and are grouped on ``date_trunc('minute', time)``; the caller keeps only the 15
     completed display minutes and excludes the current in-progress minute. Two live streams with
     no chat in the window simply produce no per-minute rows (the assembly zero-fills them).
@@ -78,9 +87,22 @@ def select_live_chat_velocity_db(cursor: Cursor) -> tuple[list[LiveStreamRow], l
         JOIN creator c ON c.id = s.creator_id
         WHERE s."end" IS NULL
           AND s.twitch_stream_session_id IS NOT NULL
-          AND s.start >= (now() AT TIME ZONE 'UTC') - (%(max_age)s * interval '1 hour')
+          AND (
+            EXISTS (
+                SELECT 1
+                FROM stream_viewer_sample svs
+                WHERE svs.twitch_stream_session_id = s.twitch_stream_session_id
+                  AND svs.sampled_at >= now() - (%(liveness)s * interval '1 minute')
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM message m
+                WHERE m.stream_id = s.id
+                  AND m.time >= (now() AT TIME ZONE 'UTC') - (%(liveness)s * interval '1 minute')
+            )
+          )
         """,
-        {"max_age": _LIVE_MAX_AGE_HOURS},
+        {"liveness": _LIVENESS_WINDOW_MINUTES},
     )
     live_rows = [LiveStreamRow(*row) for row in cursor.fetchall()]
     if not live_rows:
