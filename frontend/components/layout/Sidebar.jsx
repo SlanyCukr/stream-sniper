@@ -25,6 +25,11 @@ const navigation = [
         icon: 'bi bi-fingerprint',
     },
     {
+        title: 'Search',
+        href: '/search',
+        icon: 'bi bi-search',
+    },
+    {
         title: 'Creators',
         href: '/regulars',
         icon: 'bi bi-people',

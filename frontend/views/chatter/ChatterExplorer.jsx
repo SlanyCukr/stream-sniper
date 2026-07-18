@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useChatterExplorer } from '@/hooks/chatter/useChatterExplorer'
 import ChatterExplorerControls from '@/components/chatter/ChatterExplorerControls'
 import ChatterFootprintPanel from '@/components/chatter/ChatterFootprintPanel'
@@ -15,6 +16,13 @@ const ChatterExplorer = ({ initialView = 'footprint' }) => {
                     <h1 className="page-title">Chatter explorer</h1>
                     <p className="page-sub">Trace a single chatter across every captured stream</p>
                 </div>
+                {explorer.chatterId ? (
+                    <div className="page-actions">
+                        <Link className="btn btn-outline-primary btn-sm" href={`/chatter/${explorer.chatterId}`}>
+                            View passport
+                        </Link>
+                    </div>
+                ) : null}
             </div>
             <ChatterExplorerControls
                 selectedChatter={explorer.selectedChatter}

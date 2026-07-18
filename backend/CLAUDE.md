@@ -78,6 +78,9 @@ Packages under `stream_sniper/`:
   simple single-gateway CRUD and streaming response adapters may remain in handlers.
 - **`tracking/`** — `stream_monitor.py`, `processing_queue.py`,
   `stream_processor.py`, `scheduler.py`. See `/TRACKING_SYSTEM.md`.
+- **`utils/`** — cross-cutting helpers with no domain dependencies
+  (`discord.py` owns Discord webhook delivery, shared by the scene digest CLI
+  and the tracking went-live alerts).
 
 ### Database access
 

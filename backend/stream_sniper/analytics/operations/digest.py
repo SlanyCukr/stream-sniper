@@ -5,12 +5,11 @@ import os
 import sys
 from collections.abc import Sequence
 
-import requests
-
 from stream_sniper.database.gateways.content.records import SceneEventRow
 
 from ...database.core.connection_pool import database_entrypoint
 from ...database.gateways.content.scene_event_table_gateway import select_scene_events_db
+from ...utils.discord import deliver_discord
 
 
 def format_digest(rows: Sequence[SceneEventRow], days: int) -> str:
@@ -26,11 +25,6 @@ def format_digest(rows: Sequence[SceneEventRow], days: int) -> str:
 def build_digest(days: int = 7, limit: int = 20) -> str:
     rows, _ = select_scene_events_db(days, None, None, limit, 0)
     return format_digest(rows, days)
-
-
-def deliver_discord(markdown: str, webhook_url: str) -> None:
-    response = requests.post(webhook_url, json={"content": markdown[:2000]}, timeout=15)
-    response.raise_for_status()
 
 
 @database_entrypoint

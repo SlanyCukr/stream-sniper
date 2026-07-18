@@ -12,7 +12,8 @@ from ..database.gateways.tracking.tracked_streamers_table_gateway import (
     select_active_tracked_streamers_db,
     update_tracked_streamer_check_time_db,
 )
-from ..logging_config import get_logger
+from ..logging_config import get_logger, sanitize_log_value
+from ..utils.discord import deliver_discord
 from .status import StreamMonitorStatus, StreamObservation
 
 logger = get_logger(__name__)
@@ -40,12 +41,18 @@ class StreamStatus:
 
 
 class StreamMonitor:
-    def __init__(self, check_interval: int = 300):  # 5 minutes default
+    def __init__(self, check_interval: int = 300, *, discord_webhook_url: str | None = None):  # 5 minutes default
         self.check_interval = check_interval
         self.twitch_api = TwitchAPI()
         self.logger = get_logger(__name__)
         self._running = False
         self._last_stream_states: dict[str, StreamObservation] = {}
+        # "Went live" Discord alerting: opt-in webhook plus per-session dedup so a
+        # single live session never announces twice. Sessions are forgotten when a
+        # stream ends, bounding the set to concurrently-live streamers.
+        self._discord_webhook_url = discord_webhook_url
+        self._alerted_sessions: set[int] = set()
+        self._streamer_session_ids: dict[str, int] = {}
         self._successful_checks = 0
         self._failed_checks = 0
         self._unknown_checks = 0
@@ -130,18 +137,72 @@ class StreamMonitor:
 
         previous_state = self._last_stream_states.get(row.twitch_username, StreamObservation.UNKNOWN)
         current_state = stream_status.state
+        # First non-unknown observation this process lifetime (fresh dict on restart):
+        # a stream already live at first poll must not be announced as a new transition.
+        is_first_observation = row.twitch_username not in self._last_stream_states
 
         self.logger.debug(f"Stream check for {row.twitch_username}: Previous={previous_state}, Current={current_state}")
 
         if previous_state is StreamObservation.LIVE and current_state is StreamObservation.OFFLINE:
             self.logger.info(f"Stream ended for {row.twitch_username}, queuing for processing")
+            self._forget_alerted_session(row.twitch_username)
             await self._queue_stream_for_processing(row.id, row.twitch_username)
         elif previous_state is not StreamObservation.LIVE and current_state is StreamObservation.LIVE:
             self.logger.info(f"Stream started for {row.twitch_username}")
+            await self._maybe_alert_went_live(row, stream_status, is_first_observation=is_first_observation)
 
         # Commit the observed state only after any ended-stream scheduling succeeds.
         self._last_stream_states[row.twitch_username] = current_state
         return current_state
+
+    async def _maybe_alert_went_live(
+        self, row: TrackedStreamer, status: StreamStatus, *, is_first_observation: bool
+    ) -> None:
+        """Fire a best-effort Discord "went live" alert; never affect monitoring."""
+        if not self._discord_webhook_url:
+            return
+        # Suppress alerts for streams already live at the first poll after startup so
+        # a service restart does not re-announce ongoing streams.
+        if is_first_observation:
+            return
+        session_id = status.twitch_stream_session_id
+        if session_id is None or session_id in self._alerted_sessions:
+            return
+        # Record before dispatch: a single session must never announce twice, even if
+        # delivery fails (the offline->live edge is not revisited within a session).
+        self._alerted_sessions.add(session_id)
+        self._streamer_session_ids[row.twitch_username] = session_id
+        try:
+            await asyncio.to_thread(
+                deliver_discord, self._format_live_alert(row, status), self._discord_webhook_url
+            )
+        except Exception as error:
+            self.logger.warning(
+                "Discord live alert failed for %s: %s",
+                sanitize_log_value(row.twitch_username),
+                sanitize_log_value(error),
+            )
+
+    @staticmethod
+    def _format_live_alert(row: TrackedStreamer, status: StreamStatus) -> str:
+        """Render the alert markdown, omitting missing title/category/viewer fields."""
+        display_name = row.display_name or row.twitch_username
+        header = f"🔴 **{display_name} is live**"
+        if status.title:
+            header = f"{header} — {status.title}"
+        details: list[str] = []
+        if status.category_name:
+            details.append(status.category_name)
+        if status.viewer_count is not None:
+            details.append(f"{status.viewer_count} viewers")
+        details.append(f"https://twitch.tv/{row.twitch_username}")
+        return f"{header}\n{' · '.join(details)}"
+
+    def _forget_alerted_session(self, twitch_username: str) -> None:
+        """Drop a streamer's alerted session so the dedup set stays bounded."""
+        session_id = self._streamer_session_ids.pop(twitch_username, None)
+        if session_id is not None:
+            self._alerted_sessions.discard(session_id)
 
     async def _get_stream_status(self, twitch_username: str) -> StreamStatus:
         try:

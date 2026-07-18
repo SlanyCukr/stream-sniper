@@ -60,6 +60,8 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+      # Optional Discord "went live" alerts (unset = disabled).
+      - TRACKING_DISCORD_WEBHOOK_URL=${TRACKING_DISCORD_WEBHOOK_URL:-}
     restart: unless-stopped
     container_name: stream-sniper-tracking
     networks:

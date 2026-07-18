@@ -5,6 +5,8 @@ from typing import Any, cast
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 from pydantic import RootModel
 
+from ....application.chatters.passport_models import ChatterPassport
+from ....application.chatters.passport_query import get_chatter_passport as query_chatter_passport
 from ....database.gateways.chat.chatter_table_gateway import select_chatters_by_prefix_db
 from ....database.gateways.chat.message_table_gateway import (
     select_chatter_identity_db,
@@ -15,6 +17,7 @@ from ....database.gateways.chat.message_table_gateway import (
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
 from ...caching.model_cache import ModelCachePolicy, record_cache_failures
+from ...caching.rollup_version import scene_rollup_version
 from ...dependencies import get_cache
 from ...observability.monitoring import record_cache_operation
 from ...security.rate_limiter import limiter, rate_limits
@@ -43,6 +46,7 @@ class _ChatterActivityCache(RootModel[list[ChatterActivity]]):
 _CHATTER_ID_CACHE = ModelCachePolicy("chatter_id", CacheTTL.CHATTER_MESSAGES, ChatterIdentity)
 _CHATTER_SEARCH_CACHE = ModelCachePolicy("chatter_search", CacheTTL.CHATTER_SEARCH, _ChatterSearchCache)
 _CHATTER_ACTIVITY_CACHE = ModelCachePolicy("chatter_stream_activity", CacheTTL.STREAM_DETAILS, _ChatterActivityCache)
+_CHATTER_PASSPORT_CACHE = ModelCachePolicy("chatter_passport", CacheTTL.STREAM_ANALYTICS, ChatterPassport)
 
 
 @router.get(
@@ -215,4 +219,38 @@ def get_chatter_stream_activity(
             for row in select_chatter_stream_activity_db(chatter_id)
         ]
         _CHATTER_ACTIVITY_CACHE.store(cache, response, cache_key, _ChatterActivityCache(result))
+        return result
+
+
+@router.get(
+    "/chatters/{chatter_id}/passport",
+    response_model=ChatterPassport,
+    summary="Get a chatter's identity passport",
+    description=(
+        "A public per-chatter profile: totals across the whole corpus, their debut message, "
+        "home channel, per-creator loyalty (ranked by messages), and their most-active stream."
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "Chatter not found"},
+        429: {"model": RateLimitErrorResponse, "description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit(rate_limits.ANALYTICS)
+def get_chatter_passport(
+    request: Request,
+    response: Response,
+    chatter_id: int = Path(..., description="Unique chatter ID", json_schema_extra={"example": 42}),
+) -> ChatterPassport:
+    """Assemble a chatter's cross-corpus identity passport."""
+    with _CHATTER_PASSPORT_CACHE.record_failures():
+        cache = get_cache(request)
+        cache_key, cached_result = _CHATTER_PASSPORT_CACHE.lookup(cache, response, chatter_id, scene_rollup_version())
+        if cached_result is not None:
+            return cached_result
+
+        result = query_chatter_passport(chatter_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Chatter not found")
+
+        _CHATTER_PASSPORT_CACHE.store(cache, response, cache_key, result)
         return result

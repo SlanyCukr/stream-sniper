@@ -1,6 +1,6 @@
 from psycopg2.extensions import cursor as Cursor
 
-from stream_sniper.database.gateways.creators.records import CreatorRegularRow
+from stream_sniper.database.gateways.creators.records import ChatterLoyaltyRow, CreatorRegularRow
 
 from ...core.decorators import with_cursor
 from ...core.query_ordering import sql_direction
@@ -50,3 +50,34 @@ def select_creator_regulars_db(
         (creator_id, min_streams, limit),
     )
     return [CreatorRegularRow(*row) for row in cursor.fetchall()]
+
+
+@with_cursor
+def select_chatter_loyalty_db(
+    cursor: Cursor,
+    chatter_id: int,
+) -> list[ChatterLoyaltyRow]:
+    """Every creator a chatter has chatted in, most messages first.
+
+    Reads only the small creator_chatter_stats rollup (no message scan); one row per
+    creator the chatter appears in, carrying the per-creator message and attendance
+    aggregates plus the first/last-seen wire timestamps (NULL = unknown era).
+    """
+    cursor.execute(
+        f"""
+        SELECT
+            ccs.creator_id,
+            cr.nick,
+            cr.display_name,
+            ccs.total_messages,
+            ccs.streams_attended,
+            {to_char_wire("ccs.first_seen_at")},
+            {to_char_wire("ccs.last_seen_at")}
+        FROM creator_chatter_stats ccs
+        JOIN creator cr ON cr.id = ccs.creator_id
+        WHERE ccs.chatter_id = %s
+        ORDER BY ccs.total_messages DESC, ccs.creator_id ASC
+        """,
+        (chatter_id,),
+    )
+    return [ChatterLoyaltyRow(*row) for row in cursor.fetchall()]

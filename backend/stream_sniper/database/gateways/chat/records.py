@@ -47,6 +47,13 @@ class ChatterSearchRow(NamedTuple):
     is_bot: bool | None
 
 
+class ChatterProfileRow(NamedTuple):
+    id: int
+    nick: str
+    is_bot: bool | None
+    bot_reason: str | None
+
+
 class ChatterStreamActivityRow(NamedTuple):
     stream_id: int
     stream_title: str

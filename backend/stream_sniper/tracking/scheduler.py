@@ -1,4 +1,5 @@
 import asyncio
+import os
 from datetime import datetime
 
 from psycopg2 import Error as DatabaseError
@@ -30,7 +31,12 @@ class TrackingScheduler:
         self._start_time: datetime | None = None
         self._tasks: list[asyncio.Task] = []
 
-        self.stream_monitor = StreamMonitor(check_interval=monitor_interval)
+        # Optional "went live" Discord alerts: the webhook is read once here, at the
+        # single tracking config seam, and passed down to the monitor.
+        self.stream_monitor = StreamMonitor(
+            check_interval=monitor_interval,
+            discord_webhook_url=os.getenv("TRACKING_DISCORD_WEBHOOK_URL"),
+        )
         self.processing_queue = ProcessingQueue(max_concurrent_jobs=max_concurrent_jobs, max_retries=max_retries)
 
     async def start(self) -> None:

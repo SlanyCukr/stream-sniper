@@ -214,7 +214,7 @@ def test_architecture_runbooks_match_packages_and_dev_compose_services() -> None
     backend_runbook = (backend_root / "CLAUDE.md").read_text()
     compose = (repository_root / "docker-compose.yml").read_text()
 
-    expected_packages = {"analytics", "api", "application", "collector", "database", "tracking"}
+    expected_packages = {"analytics", "api", "application", "collector", "database", "tracking", "utils"}
     package_directories = {
         path.name
         for path in (backend_root / "stream_sniper").iterdir()

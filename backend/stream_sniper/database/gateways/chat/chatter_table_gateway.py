@@ -7,7 +7,7 @@ from psycopg2.extras import execute_values
 from stream_sniper.database.gateways.streams.records import StreamParticipantRow
 
 from ...core.decorators import with_cursor, with_cursor_connection
-from .records import ChatterSearchRow
+from .records import ChatterProfileRow, ChatterSearchRow
 
 
 @with_cursor
@@ -117,6 +117,28 @@ def select_chatters_by_prefix_db(
     """
     cursor.execute(sql, (prefix, limit))
     return [ChatterSearchRow(*row) for row in cursor.fetchall()]
+
+
+@with_cursor
+def select_chatter_profile_db(
+    cursor: Cursor,
+    chatter_id: int,
+) -> ChatterProfileRow | None:
+    """Named identity for one chatter, with the nullable bot classification.
+
+    NULL is_bot/bot_reason means "not yet classified" (nullable-means-unknown).
+    :return: A ChatterProfileRow, or None if the chatter id is unknown.
+    """
+    cursor.execute(
+        """
+        SELECT id, nick, is_bot, bot_reason
+        FROM chatter
+        WHERE id = %s
+        """,
+        (chatter_id,),
+    )
+    row = cursor.fetchone()
+    return ChatterProfileRow(*row) if row is not None else None
 
 
 @with_cursor

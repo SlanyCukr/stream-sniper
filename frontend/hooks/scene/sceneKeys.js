@@ -26,4 +26,8 @@ export const sceneKeys = {
     ],
     pulse: (/** @type {ScenePulseFilters} */ filters) => [...sceneKeys.all, 'pulse', filters],
     digest: (/** @type {number} */ days) => [...sceneKeys.all, 'digest', { days }],
+    searchMessages: (/** @type {object} */ filters) => [...sceneKeys.all, 'search', 'messages', filters],
+    searchFirst: (/** @type {object} */ filters) => [...sceneKeys.all, 'search', 'first', filters],
+    searchFrequency: (/** @type {object} */ filters) => [...sceneKeys.all, 'search', 'frequency', filters],
+    searchContext: (/** @type {object} */ params) => [...sceneKeys.all, 'search', 'context', params],
 }
