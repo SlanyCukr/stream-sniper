@@ -43,10 +43,15 @@ def _chatter(chatter_id):
         total_messages=100,
         streams_attended=2,
         creators_visited=1,
+        first_seen=None,
         home_creator_id=1,
         home_creator_nick="c1",
         home_creator_display_name="C1",
         home_messages=50,
+        lifetime_messages=100,
+        lifetime_streams=2,
+        lifetime_creators=1,
+        lifetime_home_messages=50,
     )
 
 

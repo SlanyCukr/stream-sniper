@@ -91,6 +91,11 @@ def compute_stream_rollup(stream_id: int, *, refresh_overlap: bool = True) -> Ro
       4. Copypasta rollup replacement.
       5. Scene-event derivation and replacement.
       6. Community overlap refresh (non-blocking) when ``refresh_overlap`` is set.
+      7. Rollup-version touch — bumps ``stream_metrics.computed_at`` LAST. TX1 already
+         wrote ``computed_at``, so a cache entry keyed on the new version but stored
+         while phases 3–5 were still writing would pin pre-rollup moments/copypastas
+         for its full TTL; the final touch rolls the key again once every source is
+         current, so any mixed-generation entry is superseded immediately.
 
     NOTE: new_chatters / returning_chatters are only correct when streams are rolled up in
     chronological order (oldest first). The bulk/CLI ingest path processes VODs newest-first, so it
@@ -159,6 +164,15 @@ def compute_stream_rollup(stream_id: int, *, refresh_overlap: bool = True) -> Ro
             completed,
             failures,
         )
+    # Always last (even after phase failures): rolling the version key makes any
+    # cache entry stored mid-rollup age out instead of serving a mixed generation.
+    _run_phase(
+        stream_id,
+        "rollup_version_touch",
+        lambda: touch_stream_rollup_version_db(stream_id),
+        completed,
+        failures,
+    )
 
     return RollupOutcome(
         stream_id=stream_id,

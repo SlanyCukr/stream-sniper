@@ -5,6 +5,8 @@ handler (psycopg2 blocks), `request: Request` + `response: Response` for slowapi
 in-process TTL cache keyed on the query params plus the scene rollup version.
 """
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from ....database.gateways.creators.scene_chatter_rankings_gateway import (
@@ -63,7 +65,8 @@ def get_scene_chatter_rankings(
             return cached
 
         rows, has_more = select_scene_chatter_rankings_db(_WINDOWS[window], limit, offset)
-        items = [RankItem.from_row(row, rank=offset + index + 1) for index, row in enumerate(rows)]
+        now = datetime.now(UTC)
+        items = [RankItem.from_row(row, rank=offset + index + 1, now=now) for index, row in enumerate(rows)]
         result = SceneChatterRankings(window=window, items=items, has_more=has_more)
         _RANKINGS_CACHE.store(cache, response, cache_key, result)
         return result

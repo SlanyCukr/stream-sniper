@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
+
+from ....application.chatters.archetypes import compute_archetypes
+from ....application.chatters.passport_models import PassportArchetype
 
 if TYPE_CHECKING:
     from ....database.gateways.creators.scene_chatter_rankings_gateway import SceneChatterRankRow
@@ -33,9 +37,16 @@ class RankItem(BaseModel):
     home_channel: RankHomeChannel | None = Field(
         None, description="The creator the chatter chats in most within the window"
     )
+    archetypes: list[PassportArchetype] = Field(
+        default_factory=list,
+        description=(
+            "Rule-based identity badges derived from ACCOUNT-WIDE aggregates "
+            "(never the window slice — badges must not flip with the ranking window)"
+        ),
+    )
 
     @classmethod
-    def from_row(cls, row: SceneChatterRankRow, *, rank: int) -> RankItem:
+    def from_row(cls, row: SceneChatterRankRow, *, rank: int, now: datetime | None = None) -> RankItem:
         home = None
         if row.home_creator_id is not None:
             home = RankHomeChannel(
@@ -45,6 +56,22 @@ class RankItem(BaseModel):
                 messages=row.home_messages or 0,
                 share=_share(row.home_messages or 0, row.total_messages),
             )
+        # Identity badges read the lifetime aggregates, NOT the window slice above:
+        # a lifetime loyalist who spread out for one week must not badge as Wanderer
+        # on the 7-day tab (the gateway carries lifetime_* account-wide in both paths).
+        lifetime_home_share = (
+            _share(row.lifetime_home_messages, row.lifetime_messages)
+            if row.lifetime_home_messages is not None
+            else None
+        )
+        archetypes = compute_archetypes(
+            total_messages=row.lifetime_messages,
+            streams_attended=row.lifetime_streams,
+            creators_visited=row.lifetime_creators,
+            home_share=lifetime_home_share,
+            first_seen=row.first_seen,
+            now=now if now is not None else datetime.now(UTC),
+        )
         return cls(
             rank=rank,
             chatter_id=row.chatter_id,
@@ -53,6 +80,7 @@ class RankItem(BaseModel):
             streams_attended=row.streams_attended,
             creators_visited=row.creators_visited,
             home_channel=home,
+            archetypes=archetypes,
         )
 
 

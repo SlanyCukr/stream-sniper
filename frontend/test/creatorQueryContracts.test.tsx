@@ -8,6 +8,7 @@ const api = vi.hoisted(() => ({
   retrieveCreatorRegulars: vi.fn(),
   retrieveCreatorSummary: vi.fn(),
   retrieveCreatorTrends: vi.fn(),
+  retrieveCreatorWrapped: vi.fn(),
 }))
 
 vi.mock('@/lib/api/creators', () => api)
@@ -25,6 +26,9 @@ import {
 import {
   creatorTrendsKeys, useCreatorTrends,
 } from '@/hooks/creator/useCreatorTrendsQuery'
+import {
+  creatorWrappedKeys, useCreatorWrapped,
+} from '@/hooks/creator/useCreatorWrappedQuery'
 import { createTestQueryClient, renderWithQueryClient } from './render'
 
 const createWrapper = () => {
@@ -44,12 +48,14 @@ describe('creator query contracts', () => {
       'creator-regulars', 'list', { creatorId: 7, minStreams: 3 },
     ])
     expect(creatorTrendsKeys.detail(7)).toEqual(['creator-trends', 'detail', 7])
+    expect(creatorWrappedKeys.detail(7, 30)).toEqual(['creator-wrapped', { creatorId: 7, days: 30 }])
 
     const hooks = renderHook(() => ({
       movement: useAudienceMovement(0),
       summary: useCreatorSummary(0),
       regulars: useCreatorRegulars(0),
       trends: useCreatorTrends(0),
+      wrapped: useCreatorWrapped(0, 30),
     }), { wrapper: createWrapper() })
 
     await waitFor(() => {
@@ -60,6 +66,7 @@ describe('creator query contracts', () => {
     expect(api.retrieveCreatorSummary).not.toHaveBeenCalled()
     expect(api.retrieveCreatorRegulars).not.toHaveBeenCalled()
     expect(api.retrieveCreatorTrends).not.toHaveBeenCalled()
+    expect(api.retrieveCreatorWrapped).not.toHaveBeenCalled()
   })
 
   it('maps audience movement associations and intentional nullable rates', async () => {
@@ -172,5 +179,69 @@ describe('creator query contracts', () => {
     expect(surface).toHaveTextContent('Messages / min0')
     expect(surface).toHaveTextContent('Duration1h 30m')
     expect(screen.getAllByRole('link', { name: /Launch/ })).toHaveLength(4)
+  })
+
+  it('maps creator wrapped totals and top lists without losing nulls', async () => {
+    api.retrieveCreatorWrapped.mockResolvedValue({ data: {
+      creator_id: 7,
+      days: 30,
+      totals: {
+        streams: 3,
+        hours_streamed: null,
+        messages: 900,
+        active_chatters: 42,
+      },
+      top_chatters: [{
+        rank: 1, chatter_id: 5, nick: 'viewer', total_messages: 300, streams_attended: 2,
+      }],
+      top_moments: [{
+        stream_id: 10,
+        stream_title: 'Launch',
+        twitch_id: null,
+        bucket_minute: '2026-07-14T10:00:00',
+        offset_seconds: 120,
+        ratio: null,
+        message_count: 80,
+      }],
+      top_copypastas: [{
+        message_text_id: 2, text: 'copypasta', usage_count: 40, stream_count: 3,
+      }],
+      top_emotes: [{
+        emote_id: 1, name: 'PogChamp', source: 'twitch', usage: 300, chatter_reach: 60,
+      }],
+    } })
+
+    const hook = renderHook(() => useCreatorWrapped(7, 30), { wrapper: createWrapper() })
+    await waitFor(() => expect(hook.result.current.isSuccess).toBe(true))
+
+    expect(api.retrieveCreatorWrapped).toHaveBeenCalledWith(7, 30)
+    expect(hook.result.current.data).toEqual({
+      creatorId: 7,
+      days: 30,
+      totals: {
+        streams: 3,
+        hoursStreamed: null,
+        messages: 900,
+        activeChatters: 42,
+      },
+      topChatters: [{
+        rank: 1, chatterId: 5, nick: 'viewer', totalMessages: 300, streamsAttended: 2,
+      }],
+      topMoments: [{
+        streamId: 10,
+        streamTitle: 'Launch',
+        twitchId: null,
+        bucketMinute: '2026-07-14T10:00:00',
+        offsetSeconds: 120,
+        ratio: null,
+        messageCount: 80,
+      }],
+      topCopypastas: [{
+        messageTextId: 2, text: 'copypasta', usageCount: 40, streamCount: 3,
+      }],
+      topEmotes: [{
+        emoteId: 1, name: 'PogChamp', source: 'twitch', usage: 300, chatterReach: 60,
+      }],
+    })
   })
 })

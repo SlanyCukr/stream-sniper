@@ -16,10 +16,14 @@ from ...core.wire_format import to_char_wire
 def touch_stream_rollup_version_db(cursor: Cursor, connection: Connection, stream_id: int) -> None:
     """Bump one stream's rollup version (``computed_at``) without recomputing its metrics.
 
-    Targeted refreshes (e.g. the post-bot-classification copypasta/scene-event refresh)
-    rewrite rollup-derived data that the API's rollup-versioned cache keys guard. Touching
-    ``computed_at`` rolls every scene/stream cache key derived from it, so superseded
-    entries age out instead of being served for their full TTL. ``now()`` matches the
+    Two callers, one contract — "the version rolls only after every rollup source is
+    current": targeted refreshes (e.g. the post-bot-classification copypasta/scene-event
+    refresh) rewrite rollup-derived data that the API's rollup-versioned cache keys
+    guard, and ``compute_stream_rollup`` runs this as its FINAL phase because TX1
+    already wrote ``computed_at`` before the moment/copypasta phases finished (a cache
+    entry stored in that gap would otherwise pin a mixed generation for its full TTL).
+    Touching ``computed_at`` rolls every scene/stream cache key derived from it, so
+    superseded entries age out instead of being served. ``now()`` matches the
     expression the metrics upsert itself writes.
     """
     cursor.execute(

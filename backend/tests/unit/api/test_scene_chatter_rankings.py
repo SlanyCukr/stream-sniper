@@ -45,17 +45,37 @@ def _hit_cache(payload):
     return cache
 
 
-def _row(chatter_id, nick, total, streams, creators, *, home_id=5, home_msgs=None):
+def _row(
+    chatter_id,
+    nick,
+    total,
+    streams,
+    creators,
+    *,
+    home_id=5,
+    home_msgs=None,
+    first_seen=None,
+    lifetime=None,
+):
+    """``lifetime`` overrides the account-wide archetype aggregates; by default they
+    mirror the window aggregates (the all-time path's real behavior)."""
+    home_messages = home_msgs if home_msgs is not None else total
+    lifetime = lifetime or {}
     return SceneChatterRankRow(
         chatter_id=chatter_id,
         nick=nick,
         total_messages=total,
         streams_attended=streams,
         creators_visited=creators,
+        first_seen=first_seen,
         home_creator_id=home_id,
         home_creator_nick="homie",
         home_creator_display_name="Homie",
-        home_messages=home_msgs if home_msgs is not None else total,
+        home_messages=home_messages,
+        lifetime_messages=lifetime.get("messages", total),
+        lifetime_streams=lifetime.get("streams", streams),
+        lifetime_creators=lifetime.get("creators", creators),
+        lifetime_home_messages=lifetime.get("home_messages", home_messages),
     )
 
 
@@ -155,10 +175,15 @@ class TestChatterRankingsEndpoint:
                     total_messages=0,
                     streams_attended=0,
                     creators_visited=0,
+                    first_seen=None,
                     home_creator_id=None,
                     home_creator_nick=None,
                     home_creator_display_name=None,
                     home_messages=None,
+                    lifetime_messages=0,
+                    lifetime_streams=0,
+                    lifetime_creators=0,
+                    lifetime_home_messages=None,
                 )
             ],
             False,
@@ -219,3 +244,106 @@ class TestChatterRankingsEndpoint:
 
         assert response.status_code == 500
         assert response.json()["detail"] == "Internal server error"
+
+    @patch(_VERSION, return_value="v1")
+    @patch(_CACHE)
+    @patch(_GATEWAY)
+    def test_archetypes_present_for_crafted_row(self, mock_gw, mock_get_cache, _v):
+        # home_share=5000/6000≈0.83 (>=0.70) with streams_attended=40 (>=3) -> loyalist.
+        # 6000/40=150 msgs/stream (>=100) with streams_attended>=3 -> marathoner.
+        # total_messages=6000 (>=5000) -> chatterbox.
+        # first_seen far in the past (>180 days ago, always true) -> veteran.
+        # creators_visited=2 (<5) -> not wanderer.
+        mock_get_cache.return_value = _miss_cache()
+        mock_gw.return_value = (
+            [
+                _row(
+                    1,
+                    "grinder",
+                    6000,
+                    40,
+                    2,
+                    home_msgs=5000,
+                    first_seen="2020-01-01T00:00:00",
+                )
+            ],
+            False,
+        )
+
+        response = TestClient(app).get("/scene/chatter-rankings")
+
+        assert response.status_code == 200
+        keys = [badge["key"] for badge in response.json()["items"][0]["archetypes"]]
+        assert keys == ["loyalist", "marathoner", "chatterbox", "veteran"]
+
+    @patch(_VERSION, return_value="v1")
+    @patch(_CACHE)
+    @patch(_GATEWAY)
+    def test_archetypes_empty_without_home_channel(self, mock_gw, mock_get_cache, _v):
+        mock_get_cache.return_value = _miss_cache()
+        mock_gw.return_value = (
+            [
+                SceneChatterRankRow(
+                    chatter_id=2,
+                    nick="quiet",
+                    total_messages=10,
+                    streams_attended=1,
+                    creators_visited=0,
+                    first_seen=None,
+                    home_creator_id=None,
+                    home_creator_nick=None,
+                    home_creator_display_name=None,
+                    home_messages=None,
+                    lifetime_messages=10,
+                    lifetime_streams=1,
+                    lifetime_creators=0,
+                    lifetime_home_messages=None,
+                )
+            ],
+            False,
+        )
+
+        response = TestClient(app).get("/scene/chatter-rankings")
+
+        assert response.status_code == 200
+        item = response.json()["items"][0]
+        assert item["home_channel"] is None
+        assert item["archetypes"] == []
+
+    @patch(_VERSION, return_value="v1")
+    @patch(_CACHE)
+    @patch(_GATEWAY)
+    def test_archetypes_use_lifetime_not_window_aggregates(self, mock_gw, mock_get_cache, _v):
+        # In-window this chatter binged one channel (900/1000 = 0.90 share, which
+        # would badge loyalist if the window slice fed the computation). Lifetime
+        # they are the opposite: 10k messages spread over 8 creators with a top
+        # channel at 3000/10000 = 0.30 -> wanderer (plus marathoner 10000/80=125,
+        # chatterbox >= 5000, veteran). Badges must follow the lifetime identity.
+        mock_get_cache.return_value = _miss_cache()
+        mock_gw.return_value = (
+            [
+                _row(
+                    7,
+                    "binger",
+                    1000,
+                    5,
+                    1,
+                    home_msgs=900,
+                    first_seen="2020-01-01T00:00:00",
+                    lifetime={"messages": 10000, "streams": 80, "creators": 8, "home_messages": 3000},
+                )
+            ],
+            False,
+        )
+
+        response = TestClient(app).get("/scene/chatter-rankings?window=7")
+
+        assert response.status_code == 200
+        item = response.json()["items"][0]
+        # The displayed metrics stay window-scoped...
+        assert item["total_messages"] == 1000
+        assert item["home_channel"]["share"] == 0.9
+        # ...but the badges are the account-wide identity.
+        keys = [badge["key"] for badge in item["archetypes"]]
+        assert keys == ["wanderer", "marathoner", "chatterbox", "veteran"]
+        assert "loyalist" not in keys

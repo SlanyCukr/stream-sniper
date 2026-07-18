@@ -17,6 +17,7 @@ if TYPE_CHECKING:
         ChatterDebutRow,
     )
     from stream_sniper.database.gateways.chat.records import ChatterProfileRow
+    from stream_sniper.database.gateways.community.records import ChatCompanionRow
     from stream_sniper.database.gateways.creators.records import ChatterLoyaltyRow
 
 
@@ -120,6 +121,16 @@ class PassportMilestones(BaseModel):
     )
 
 
+class PassportCompanion(BaseModel):
+    chatter_id: int = Field(..., description="Co-chatter's chatter ID")
+    nick: str = Field(..., description="Co-chatter's nickname")
+    shared_streams: int = Field(..., description="Streams both chatters attended")
+
+    @classmethod
+    def from_row(cls, row: ChatCompanionRow) -> PassportCompanion:
+        return cls(chatter_id=row.chatter_id, nick=row.nick, shared_streams=row.shared_streams)
+
+
 class PassportArchetype(BaseModel):
     key: str = Field(..., description="Stable archetype identifier (e.g. 'loyalist')")
     label: str = Field(..., description="Human-readable badge label")
@@ -135,4 +146,7 @@ class ChatterPassport(BaseModel):
     milestones: PassportMilestones
     archetypes: list[PassportArchetype] = Field(
         default_factory=list, description="Rule-based identity badges derived from the passport's own data"
+    )
+    companions: list[PassportCompanion] = Field(
+        default_factory=list, description="Top co-chatters ranked by shared-stream count, bots excluded"
     )

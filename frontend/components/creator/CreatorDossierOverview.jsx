@@ -30,6 +30,9 @@ const CreatorDossierOverview = ({ creator, creatorId }) => {
                     </div>
                 </div>
                 <div className="d-flex gap-2">
+                    <Link className="btn btn-outline-primary btn-sm" href={`/creator/${creatorId}/wrapped`}>
+                        Wrapped
+                    </Link>
                     <Link className="btn btn-outline-primary btn-sm" href={`/movement?creator=${creatorId}`}>
                         Audience movement
                     </Link>

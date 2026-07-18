@@ -4,12 +4,19 @@ import Link from 'next/link'
 import { Card, Table } from 'react-bootstrap'
 import { formatCompactNumber, magnitudeBarWidth } from '@/utils/numberUtils'
 import type { RankingsRow } from '@/hooks/scene/useSceneRankingsQueries'
+import ArchetypeBadges from '@/components/chatter/ArchetypeBadges'
 
 interface RankingsTableProps {
     rows: RankingsRow[]
     hasMore: boolean
     isFetchingMore: boolean
     onLoadMore: () => void
+    /**
+     * Shown as a single message row instead of the (empty) row list when
+     * client-side archetype filters have hidden every loaded row. Load more
+     * still renders below so more rows remain reachable.
+     */
+    filterEmptyMessage?: string
 }
 
 /**
@@ -18,7 +25,7 @@ interface RankingsTableProps {
  * leading row so relative volume reads at a glance.
  */
 const RankingsTable = ({
-    rows, hasMore, isFetchingMore, onLoadMore,
+    rows, hasMore, isFetchingMore, onLoadMore, filterEmptyMessage,
 }: RankingsTableProps) => {
     const topMessages = rows.reduce((max, row) => Math.max(max, row.totalMessages), 0)
 
@@ -39,13 +46,24 @@ const RankingsTable = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                {rows.map(row => (
+                                {rows.length === 0 && filterEmptyMessage ? (
+                                    <tr>
+                                        <td colSpan={6} className="rankings-filter-empty text-center">
+                                            {filterEmptyMessage}
+                                        </td>
+                                    </tr>
+                                ) : rows.map(row => (
                                     <tr key={row.chatterId}>
                                         <td className="rank-num">{String(row.rank).padStart(2, '0')}</td>
                                         <td>
                                             <Link className="rankings-nick" href={`/chatter/${row.chatterId}`}>
                                                 {row.nick}
                                             </Link>
+                                            {row.archetypes.length > 0 ? (
+                                                <div className="rankings-archetypes">
+                                                    <ArchetypeBadges archetypes={row.archetypes} />
+                                                </div>
+                                            ) : null}
                                         </td>
                                         <td className="rankings-messages text-end">
                                             <span className="rankings-messages-value mono">

@@ -30,6 +30,7 @@ from .features.content.scene_trending_endpoints import router as scene_trending_
 from .features.content.scene_wrapped_endpoints import router as scene_wrapped_router
 from .features.creators.analytics_endpoints import router as analytics_router
 from .features.creators.creator_endpoints import router as creator_router
+from .features.creators.creator_wrapped_endpoints import router as creator_wrapped_router
 from .features.operations.operations_endpoints import router as operations_router
 from .features.search.search_endpoints import router as search_router
 from .features.streams.compare_endpoints import router as compare_router
@@ -90,6 +91,7 @@ def _include_routers(app: FastAPI) -> None:
         compare_router,
         stream_router,
         creator_router,
+        creator_wrapped_router,
         tracking_router,
         operations_router,
         message_router,

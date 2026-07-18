@@ -68,6 +68,16 @@ def find_or_insert_creator_id_db(
 
 
 @with_cursor
+def select_creator_exists_db(
+    cursor: Cursor,
+    creator_id: int,
+) -> bool:
+    """Cheap existence check for a creator id, used by 404-on-unknown-creator endpoints."""
+    cursor.execute("SELECT 1 FROM creator WHERE id = %s", (creator_id,))
+    return cursor.fetchone() is not None
+
+
+@with_cursor
 def select_creators_db(
     cursor: Cursor,
 ) -> list[CreatorListRow]:

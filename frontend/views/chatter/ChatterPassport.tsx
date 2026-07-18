@@ -47,7 +47,7 @@ const CopyLinkButton = () => {
 
 const PassportBody = ({ passport }: { passport: ChatterPassportModel }) => {
     const {
-        totals, debut, homeChannel, loyalty, milestones,
+        totals, debut, homeChannel, loyalty, milestones, companions,
     } = passport
     const mostActive = milestones.mostActiveStream
 
@@ -171,6 +171,38 @@ const PassportBody = ({ passport }: { passport: ChatterPassportModel }) => {
                     </EmptyState>
                 )}
             </section>
+
+            {companions.length ? (
+                <section className="mt-4">
+                    <div className="section-label">Chat companions</div>
+                    <Card className="card-hud">
+                        <Card.Body>
+                            <Table hover responsive className="mb-0">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Chatter</th>
+                                        <th scope="col" className="text-end">Shared streams</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {companions.map(companion => (
+                                        <tr key={companion.chatterId}>
+                                            <td>
+                                                <Link href={`/chatter/${companion.chatterId}`}>
+                                                    {companion.nick}
+                                                </Link>
+                                            </td>
+                                            <td className="mono text-end">
+                                                {companion.sharedStreams.toLocaleString()}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </Table>
+                        </Card.Body>
+                    </Card>
+                </section>
+            ) : null}
         </>
     )
 }

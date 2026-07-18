@@ -42,6 +42,12 @@ export interface PassportMostActiveStream {
     messages: number
 }
 
+export interface PassportCompanion {
+    chatterId: number
+    nick: string
+    sharedStreams: number
+}
+
 export interface ChatterPassport {
     chatter: {
         id: number
@@ -63,6 +69,7 @@ export interface ChatterPassport {
         mostActiveStream: PassportMostActiveStream | null
     }
     archetypes: Array<{ key: string, label: string, description: string }>
+    companions: PassportCompanion[]
 }
 
 /**
@@ -116,6 +123,16 @@ const mapLoyaltyRow = (raw: unknown, index: number): PassportLoyaltyRow => {
     }
 }
 
+const mapCompanion = (raw: unknown, index: number): PassportCompanion => {
+    const label = `chatter passport.companions[${index}]`
+    const companion = requireRecord(raw, label)
+    return {
+        chatterId: requireFiniteNumberField(companion, 'chatter_id', label),
+        nick: requireStringField(companion, 'nick', label),
+        sharedStreams: requireFiniteNumberField(companion, 'shared_streams', label),
+    }
+}
+
 const mapMostActiveStream = (raw: unknown): PassportMostActiveStream | null => {
     if (raw === null) return null
     const label = 'chatter passport.milestones.most_active_stream'
@@ -163,6 +180,7 @@ export const mapChatterPassport = (value: unknown): ChatterPassport => {
                 description: requireStringField(badge, 'description', label),
             }
         }),
+        companions: requireArrayField(root, 'companions', 'chatter passport').map(mapCompanion),
     }
 }
 

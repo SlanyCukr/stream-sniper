@@ -71,10 +71,15 @@ def _chatter_row(chatter_id=1, messages=500):
         total_messages=messages,
         streams_attended=4,
         creators_visited=2,
+        first_seen=None,
         home_creator_id=1,
         home_creator_nick="creator1",
         home_creator_display_name="Creator 1",
         home_messages=300,
+        lifetime_messages=messages,
+        lifetime_streams=4,
+        lifetime_creators=2,
+        lifetime_home_messages=300,
     )
 
 

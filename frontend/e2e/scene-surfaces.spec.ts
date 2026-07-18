@@ -134,7 +134,12 @@ test('highlights: paginates, then window and sort pills re-query and reset the w
   ])
 })
 
-const rankingRow = (rank: number, chatterId: number, nick: string) => ({
+const rankingRow = (
+  rank: number,
+  chatterId: number,
+  nick: string,
+  archetypes: Array<{ key: string, label: string }> = [],
+) => ({
   rank,
   chatter_id: chatterId,
   nick,
@@ -148,6 +153,11 @@ const rankingRow = (rank: number, chatterId: number, nick: string) => ({
     messages: 3000,
     share: 0.6,
   },
+  archetypes: archetypes.map(({ key, label }) => ({
+    key,
+    label,
+    description: `${label} badge`,
+  })),
 })
 
 test('rankings: paginates, then the window pill re-queries and resets the table', async ({ page }) => {
@@ -170,7 +180,7 @@ test('rankings: paginates, then the window pill re-queries and resets the table'
       return json(route, {
         window: windowKey,
         has_more: true,
-        items: [rankingRow(1, 301, 'chatterOne')],
+        items: [rankingRow(1, 301, 'chatterOne', [{ key: 'loyalist', label: 'Loyalist' }])],
       })
     }
     if (windowKey === 'all') {
@@ -198,6 +208,23 @@ test('rankings: paginates, then the window pill re-queries and resets the table'
   await page.getByRole('button', { name: 'Load more' }).click()
   await expect(page.getByRole('link', { name: 'chatterTwo' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Load more' })).not.toBeVisible()
+
+  // Archetype filter chip: any-of, client-side only — toggling re-filters the
+  // already-loaded rows with no extra network request (chatterOne is a
+  // Loyalist, chatterTwo carries no badges).
+  const loyalistChip = page.getByRole('button', { name: 'Loyalist' })
+  await expect(loyalistChip).toHaveAttribute('aria-pressed', 'false')
+  await loyalistChip.click()
+  await expect(loyalistChip).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('link', { name: 'chatterOne' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'chatterTwo' })).not.toBeVisible()
+  expect(calls).toHaveLength(2)
+
+  // Clearing the chip restores both loaded rows, still with no new request.
+  await loyalistChip.click()
+  await expect(loyalistChip).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByRole('link', { name: 'chatterTwo' })).toBeVisible()
+  expect(calls).toHaveLength(2)
 
   // Re-clicking the ACTIVE pill is a no-op: loaded pages survive, no request fires.
   await page.getByRole('button', { name: 'All time' }).click()
