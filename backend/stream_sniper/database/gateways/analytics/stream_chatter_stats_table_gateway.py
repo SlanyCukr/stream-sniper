@@ -4,6 +4,8 @@ from psycopg2.extensions import connection as Connection
 from psycopg2.extensions import cursor as Cursor
 
 from ...core.decorators import with_cursor, with_cursor_connection
+from ...core.wire_format import to_char_wire
+from .records import ChatterActiveStreamRow, ChatterDebutRow
 
 
 @with_cursor
@@ -69,6 +71,67 @@ def select_stream_ids_for_chatters_db(
         (chatter_ids,),
     )
     return [int(row[0]) for row in cursor.fetchall()]
+
+
+@with_cursor
+def select_chatter_debut_db(
+    cursor: Cursor,
+    chatter_id: int,
+) -> ChatterDebutRow | None:
+    """The chatter's first message in the corpus, from the stream_chatter_stats rollup.
+
+    Ordered by the earliest per-stream first_message_time (NULLs excluded), so it is the
+    actual first message rather than the first attended stream's start. No message scan.
+    :return: A ChatterDebutRow, or None if the chatter has no recorded messages.
+    """
+    cursor.execute(
+        f"""
+        SELECT
+            scs.stream_id,
+            s.title,
+            cr.display_name,
+            {to_char_wire("scs.first_message_time")}
+        FROM stream_chatter_stats scs
+        JOIN stream s ON s.id = scs.stream_id
+        JOIN creator cr ON cr.id = s.creator_id
+        WHERE scs.chatter_id = %s AND scs.first_message_time IS NOT NULL
+        ORDER BY scs.first_message_time ASC, scs.stream_id ASC
+        LIMIT 1
+        """,
+        (chatter_id,),
+    )
+    row = cursor.fetchone()
+    return ChatterDebutRow(*row) if row is not None else None
+
+
+@with_cursor
+def select_chatter_most_active_stream_db(
+    cursor: Cursor,
+    chatter_id: int,
+) -> ChatterActiveStreamRow | None:
+    """The single stream the chatter sent the most messages in.
+
+    Reads only the stream_chatter_stats rollup; ties break on the lower stream id.
+    :return: A ChatterActiveStreamRow, or None if the chatter has no recorded streams.
+    """
+    cursor.execute(
+        """
+        SELECT
+            scs.stream_id,
+            s.title,
+            cr.display_name,
+            scs.message_count
+        FROM stream_chatter_stats scs
+        JOIN stream s ON s.id = scs.stream_id
+        JOIN creator cr ON cr.id = s.creator_id
+        WHERE scs.chatter_id = %s
+        ORDER BY scs.message_count DESC, scs.stream_id ASC
+        LIMIT 1
+        """,
+        (chatter_id,),
+    )
+    row = cursor.fetchone()
+    return ChatterActiveStreamRow(*row) if row is not None else None
 
 
 def _replace_time_buckets(cursor: Cursor, params: dict[str, int | list[int]]) -> None:

@@ -109,3 +109,21 @@ class StreamPairRetentionRow(NamedTuple):
     from_audience: int
     to_audience: int
     retained: int
+
+
+class ChatterDebutRow(NamedTuple):
+    """A chatter's first message in the corpus, from the stream_chatter_stats rollup."""
+
+    stream_id: int
+    stream_title: str
+    creator_display_name: str
+    time: str
+
+
+class ChatterActiveStreamRow(NamedTuple):
+    """The stream a chatter sent the most messages in, from the stream_chatter_stats rollup."""
+
+    stream_id: int
+    title: str
+    creator_display_name: str
+    message_count: int

@@ -47,3 +47,51 @@ export const retrieveChattersOnStream = (streamId: number) =>
 
 export const retrieveChatterStreamActivity = (chatterId: number) =>
   api.get<ChatterStreamActivityDto>(`/chatters/${chatterId}/stream-activity`)
+
+export interface ChatterPassportDto {
+  chatter: {
+    id: number
+    nick: string
+    is_bot: boolean | null
+    bot_reason: string | null
+  }
+  totals: {
+    messages: number
+    streams_attended: number
+    creators_visited: number
+    first_seen: string | null
+    last_seen: string | null
+  }
+  debut: {
+    stream_id: number
+    stream_title: string
+    creator_display_name: string
+    time: string
+  } | null
+  home_channel: {
+    creator_id: number
+    creator_nick: string
+    creator_display_name: string
+    messages: number
+    share: number
+  } | null
+  loyalty: Array<{
+    creator_id: number
+    creator_nick: string
+    creator_display_name: string
+    messages: number
+    streams_attended: number
+    share: number
+  }>
+  milestones: {
+    most_active_stream: {
+      stream_id: number
+      title: string
+      creator_display_name: string
+      messages: number
+    } | null
+  }
+}
+
+export const retrieveChatterPassport = (chatterId: number) =>
+  api.get<ChatterPassportDto>(`/chatters/${chatterId}/passport`)

@@ -429,3 +429,179 @@
         transition: none;
     }
 }
+
+/* ---------- Scene search ---------- */
+.search-toolbar {
+    flex-wrap: wrap;
+    row-gap: 0.6rem;
+
+    .search-query-field {
+        flex: 1 1 22rem;
+        min-width: 14rem;
+    }
+
+    .search-days-field .form-select {
+        width: auto;
+    }
+}
+
+.search-hit-mark {
+    background: rgba($phosphor, 0.24);
+    color: inherit;
+    padding: 0 0.1em;
+    border-radius: 2px;
+}
+
+.search-summary {
+    margin: 1.25rem 0 0.5rem;
+}
+
+.search-frequency-card {
+    gap: 0.65rem;
+    height: 100%;
+}
+
+.search-frequency-title,
+.search-first-title {
+    margin: 0;
+    font-size: 0.95rem;
+    color: $gray-100;
+}
+
+.search-frequency-caption {
+    font-family: $font-family-monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    color: $gray-500;
+    margin-bottom: 0.4rem;
+}
+
+/* result rows */
+.search-results {
+    margin-top: 1rem;
+}
+
+.search-result-head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    font-size: 0.78rem;
+}
+
+.search-result-time {
+    color: $gray-500;
+}
+
+.search-result-creator {
+    color: $gray-100;
+    font-weight: 600;
+}
+
+.search-result-stream {
+    color: $gray-300;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.search-result-foot {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.search-result-nick {
+    color: $phosphor;
+    font-weight: 600;
+}
+
+.search-load-more {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.25rem;
+}
+
+/* who-said-it-first card */
+.search-first-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.search-first-total {
+    color: $phosphor;
+    font-size: 0.95rem;
+    white-space: nowrap;
+
+    .search-first-total-unit {
+        font-size: 0.62rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: $gray-500;
+    }
+}
+
+.search-first-subtitle {
+    margin: 1rem 0 0.5rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: $gray-400;
+    font-family: $font-family-monospace;
+}
+
+.search-first-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.search-first-hit {
+    display: flex;
+    gap: 0.65rem;
+}
+
+.search-first-rank {
+    color: $phosphor;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+}
+
+.search-first-hit-body {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.search-first-meta {
+    font-size: 0.72rem;
+    margin-bottom: 0.2rem;
+}
+
+.search-first-text {
+    margin: 0.1rem 0 0.35rem;
+    font-size: 0.82rem;
+}
+
+.search-first-stream {
+    font-size: 0.76rem;
+    color: $gray-300;
+}
+
+/* context modal chat window */
+.search-context-meta {
+    margin-bottom: 0.75rem;
+    font-size: 0.78rem;
+}
+
+.search-context-chat {
+    max-height: 60vh;
+}
+
+.search-context-text {
+    word-break: break-word;
+}

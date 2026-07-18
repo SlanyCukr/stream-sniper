@@ -141,6 +141,32 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 ```
 
+## Discord "went live" alerts
+
+Set `TRACKING_DISCORD_WEBHOOK_URL` to have the stream monitor post a Discord
+message when a tracked streamer transitions offline → live. It is entirely
+optional — leave the variable unset to disable alerting.
+
+```
+TRACKING_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+Message format (missing fields are omitted gracefully):
+
+```
+🔴 **DisplayName is live** — Stream title
+Just Chatting · 1234 viewers · https://twitch.tv/login
+```
+
+Behavior:
+- **Read once** at scheduler construction and passed to `StreamMonitor`.
+- **Per-session dedup:** each `twitch_stream_session_id` alerts at most once; the
+  session is forgotten when the stream ends, keeping the in-memory set bounded.
+- **Restart-safe:** streams already live at the first poll after a restart are
+  suppressed (first-observation guard) so a restart never spams.
+- **Non-blocking & fault-isolated:** the HTTP call runs via `asyncio.to_thread`
+  and any failure is caught and logged (sanitized) without affecting monitoring.
+
 ## Usage
 
 ### Starting the System

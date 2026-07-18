@@ -26,6 +26,7 @@ from .features.content.scene_event_endpoints import router as scene_event_router
 from .features.creators.analytics_endpoints import router as analytics_router
 from .features.creators.creator_endpoints import router as creator_router
 from .features.operations.operations_endpoints import router as operations_router
+from .features.search.search_endpoints import router as search_router
 from .features.streams.compare_endpoints import router as compare_router
 from .features.streams.message_endpoints import router as message_router
 from .features.streams.stream_endpoints import router as stream_router
@@ -54,6 +55,7 @@ tags_metadata = [
     {"name": "Chatters", "description": "Operations related to chat participants and their messages"},
     {"name": "Streams", "description": "Stream information, analytics, and chat data"},
     {"name": "Creators", "description": "Twitch creator/streamer information"},
+    {"name": "Search", "description": "Scene-wide chat message search and phrase origins"},
     {"name": "Health", "description": "API health monitoring and connection pool status"},
     {"name": "Monitoring", "description": "Performance metrics and monitoring endpoints"},
     {"name": "API Info", "description": "General API information and documentation"},
@@ -95,6 +97,7 @@ def _include_routers(app: FastAPI) -> None:
         scene_router,
         scene_event_router,
         moment_router,
+        search_router,
     ):
         app.include_router(router)
 

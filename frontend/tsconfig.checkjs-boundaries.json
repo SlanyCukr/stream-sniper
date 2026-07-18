@@ -20,6 +20,7 @@
     "hooks/scene/useSceneLiveQueries.js",
     "hooks/scene/useSceneCopypastaQueries.js",
     "hooks/scene/useScenePulseQueries.js",
+    "hooks/scene/useSearchQueries.js",
     "hooks/community/useOverlapModel.js",
     "hooks/creator/useCreatorTrendsQuery.js",
     "hooks/admin/tracking/useTrackingQueries.js",
