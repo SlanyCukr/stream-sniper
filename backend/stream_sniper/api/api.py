@@ -25,7 +25,9 @@ from .features.content.scene_chatter_endpoints import router as scene_chatter_ro
 from .features.content.scene_endpoints import router as scene_router
 from .features.content.scene_event_endpoints import router as scene_event_router
 from .features.content.scene_highlights_endpoints import router as scene_highlights_router
+from .features.content.scene_radar_endpoints import router as scene_radar_router
 from .features.content.scene_trending_endpoints import router as scene_trending_router
+from .features.content.scene_wrapped_endpoints import router as scene_wrapped_router
 from .features.creators.analytics_endpoints import router as analytics_router
 from .features.creators.creator_endpoints import router as creator_router
 from .features.operations.operations_endpoints import router as operations_router
@@ -102,6 +104,8 @@ def _include_routers(app: FastAPI) -> None:
         scene_chatter_router,
         scene_highlights_router,
         scene_trending_router,
+        scene_wrapped_router,
+        scene_radar_router,
         moment_router,
         search_router,
     ):

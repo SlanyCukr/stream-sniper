@@ -1,3 +1,4 @@
+from psycopg2.extensions import connection as Connection
 from psycopg2.extensions import cursor as Cursor
 
 from stream_sniper.database.gateways.analytics.records import (
@@ -7,8 +8,25 @@ from stream_sniper.database.gateways.analytics.records import (
     StreamMetricsRow,
 )
 
-from ...core.decorators import with_cursor
+from ...core.decorators import with_cursor, with_cursor_connection
 from ...core.wire_format import to_char_wire
+
+
+@with_cursor_connection
+def touch_stream_rollup_version_db(cursor: Cursor, connection: Connection, stream_id: int) -> None:
+    """Bump one stream's rollup version (``computed_at``) without recomputing its metrics.
+
+    Targeted refreshes (e.g. the post-bot-classification copypasta/scene-event refresh)
+    rewrite rollup-derived data that the API's rollup-versioned cache keys guard. Touching
+    ``computed_at`` rolls every scene/stream cache key derived from it, so superseded
+    entries age out instead of being served for their full TTL. ``now()`` matches the
+    expression the metrics upsert itself writes.
+    """
+    cursor.execute(
+        "UPDATE stream_metrics SET computed_at = now() WHERE stream_id = %s",
+        (stream_id,),
+    )
+    connection.commit()
 
 
 @with_cursor
