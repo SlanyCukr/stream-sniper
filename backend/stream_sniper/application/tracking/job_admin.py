@@ -48,7 +48,7 @@ def request_processing_job_cancellation(job_id: int) -> None:
     if select_processing_job_by_id_db(job_id) is None:
         raise ProcessingJobNotFoundError(job_id)
     if not request_processing_job_cancellation_db(job_id):
-        raise ProcessingJobConflictError("Job is already terminal")
+        raise ProcessingJobConflictError("This job has already finished, so it can't be cancelled.")
 
 
 def retry_processing_job(job_id: int) -> None:
@@ -56,6 +56,6 @@ def retry_processing_job(job_id: int) -> None:
     if job is None:
         raise ProcessingJobNotFoundError(job_id)
     if job.status != JOB_STATUS_FAILED:
-        raise ProcessingJobConflictError("Only failed jobs can be retried")
+        raise ProcessingJobConflictError("Only failed jobs can be retried.")
     if not retry_failed_processing_job_db(job_id):
-        raise ProcessingJobConflictError("Job state changed before retry")
+        raise ProcessingJobConflictError("The job changed before the retry could start. Refresh and try again.")

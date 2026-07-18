@@ -219,7 +219,7 @@ def test_registration_logs_persistence_failure_without_exposing_it() -> None:
         )
 
     assert response.status_code == 500
-    assert response.json() == {"detail": "Failed to create user"}
+    assert response.json() == {"detail": "Could not create the account because of a server problem. Try again in a moment."}
     assert "database detail" not in response.text
     log_exception.assert_called_once_with("Self-service registration failed for username %s", "new_viewer")
 

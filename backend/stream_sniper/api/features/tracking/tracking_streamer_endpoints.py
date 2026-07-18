@@ -133,14 +133,17 @@ async def add_tracked_streamer(
     except TwitchConfigurationError as error:
         logger.exception("Twitch integration is not configured")
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Twitch integration unavailable"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Twitch lookups aren't available right now because the server's Twitch access isn't configured. Contact the administrator."
         ) from error
     except (TwitchProfileLookupError, TwitchUpstreamError) as error:
         logger.exception("Twitch profile lookup failed for %s", sanitize_log_value(streamer_data.twitch_username))
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to contact Twitch") from error
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Could not reach Twitch. Try again in a moment.") from error
     except TrackedStreamerCreationError as error:
         logger.exception("Tracked streamer creation failed for %s", sanitize_log_value(streamer_data.twitch_username))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(error)) from error
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not add the streamer because of a server problem. Try again in a moment.",
+        ) from error
 
     logger.info(
         "Tracked streamer created by admin %s: %s",
@@ -197,13 +200,13 @@ async def search_twitch_channels(
     except TwitchConfigurationError as error:
         logger.exception("Twitch integration is not configured")
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Twitch integration unavailable"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Twitch lookups aren't available right now because the server's Twitch access isn't configured. Contact the administrator."
         ) from error
     except TwitchUpstreamError as error:
         logger.exception("Error searching Twitch channels for '%s'", sanitize_log_value(query))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Failed to search Twitch channels",
+            detail="Could not search Twitch right now. Try again in a moment.",
         ) from error
 
     result = [
@@ -288,7 +291,7 @@ def update_tracked_streamer(
 
     supplied_fields = streamer_update.model_fields_set
     if not supplied_fields:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid fields to update")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nothing to save — change at least one field first.")
 
     success = update_tracked_streamer_db(
         streamer_id,
@@ -300,12 +303,12 @@ def update_tracked_streamer(
     )
 
     if not success:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update streamer")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not save the streamer changes because of a server problem. Try again in a moment.")
 
     updated_streamer = select_tracked_streamer_by_id_db(streamer_id)
     if not updated_streamer:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated streamer"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="The change may not have been saved because of a server problem. Refresh and try again."
         )
 
     logger.info(
@@ -346,7 +349,7 @@ def remove_tracked_streamer(
     success = delete_tracked_streamer_db(streamer_id)
 
     if not success:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to remove streamer")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not remove the streamer because of a server problem. Try again in a moment.")
 
     logger.info(
         "Tracked streamer removed by admin %s: streamer_id=%s", sanitize_log_value(current_user.username), streamer_id

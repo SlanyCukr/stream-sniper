@@ -70,7 +70,7 @@ def test_empty_patch_is_rejected() -> None:
         response = _client().put("/admin/tracking/streamers/7", json={})
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "No valid fields to update"
+    assert response.json()["detail"] == "Nothing to save — change at least one field first."
 
 
 @pytest.mark.parametrize("field", ["is_active", "processing_enabled"])

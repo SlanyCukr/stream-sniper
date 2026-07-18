@@ -55,7 +55,7 @@ def _reject_self_lockout(
 def _load_user_response(user_id: int) -> UserResponse:
     user = select_user_by_id_db(user_id)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated user")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="The changes may not have been saved because of a server problem. Refresh and try again.")
     return convert_user_to_response(user)
 
 
@@ -261,7 +261,7 @@ def update_user_by_id(
     )
 
     if not user_update.email and user_update.role is None and user_update.is_active is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid fields to update")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nothing to save — change at least one field first.")
 
     success = update_user_db(
         user_id,
@@ -271,7 +271,7 @@ def update_user_by_id(
     )
 
     if not success:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update user")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not save the changes because of a server problem. Try again in a moment.")
 
     logger.info("User updated by admin %s: user_id=%s", sanitize_log_value(current_user.username), user_id)
     return _load_user_response(user_id)
@@ -354,11 +354,11 @@ def create_user_admin(
         )
     except UserAlreadyExistsError:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="User with this username or email already exists"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="That username or email is already taken. Try a different one."
         ) from None
     except UserCreationError:
         logger.exception("Admin user creation failed for username %s", sanitize_log_value(user_data.username))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user") from None
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not create the account because of a server problem. Try again in a moment.") from None
 
     logger.info(
         "User created by admin %s: %s",

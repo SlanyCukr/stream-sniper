@@ -164,7 +164,7 @@ describe('stream actions', () => {
   })
 
   it('exposes authenticated exports and surfaces normalized download failures', async () => {
-    mocks.downloadStreamInsightCsv.mockRejectedValue(new Error('network down'))
+    mocks.downloadStreamInsightCsv.mockRejectedValue({ response: { status: 502, data: { detail: 'network down' } } })
     render(<StreamDownloadMenu streamId={42} title="Launch" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Export data for Launch' }))

@@ -60,12 +60,7 @@ const Community = () => {
                 loadingText="Loading community overlap..."
                 isEmpty={value => !((value?.creators?.length > 0) && (value?.pairs?.length > 0))}
                 emptyTitle="No overlap computed yet"
-                emptyHint={(
-                    <>
-                        Run the rollup backfill (<span className="mono">stream-sniper-rollup --all --force</span>)
-                        to populate cross-creator audience overlap.
-                    </>
-                )}
+                emptyHint="Audience overlap hasn’t been computed yet. It’ll appear after the next analytics run."
             >
                 {value => (
                     <CommunityOverlapPanels

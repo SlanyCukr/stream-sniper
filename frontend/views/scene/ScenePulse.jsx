@@ -96,7 +96,7 @@ const ScenePulse = () => {
                             No events yet
                         </p>
                         <p className="empty-hint">
-                            Re-run stream rollups to populate deterministic scene events.
+                            Scene events appear here after streams are processed.
                         </p>
                     </div>
                 )}

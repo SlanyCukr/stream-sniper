@@ -25,9 +25,8 @@ const CopypastaResults = ({
                 <span className="empty-scope" aria-hidden="true" />
                 <p className="empty-title">No copypasta yet</p>
                 <p className="empty-hint">
-                    Nothing has been rolled up for this filter yet. Run{' '}
-                    <span className="mono">stream-sniper-rollup --all --force</span>{' '}
-                    to populate the library.
+                    No copypasta matches this filter yet. Entries appear after
+                    streams are processed.
                 </p>
             </div>
         )

@@ -35,7 +35,7 @@ security = HTTPBearer()
 class AuthenticationError(HTTPException):
     """Custom authentication error"""
 
-    def __init__(self, detail: str = "Could not validate credentials"):
+    def __init__(self, detail: str = "Your session is invalid or has expired. Please log in again."):
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
@@ -132,7 +132,7 @@ def get_current_user(
     if user is None:
         raise AuthenticationError()
     if not user.is_active:
-        raise AuthenticationError("User account is disabled")
+        raise AuthenticationError("This account has been deactivated. Contact an administrator to restore access.")
     return user
 
 
@@ -140,6 +140,6 @@ def get_current_admin_user(current_user: UserInDB = Depends(get_current_user)) -
     """Get current user and verify they have admin role"""
     if current_user.role != ADMIN_ROLE:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions. Admin role required."
+            status_code=status.HTTP_403_FORBIDDEN, detail="You need administrator access to do this."
         )
     return current_user

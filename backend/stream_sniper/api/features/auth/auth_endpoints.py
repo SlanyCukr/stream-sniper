@@ -67,11 +67,11 @@ def register_user(user_data: UserCreateExtended, request: Request, response: Res
         user = create_user(user_data.username, user_data.email, user_data.password, role=USER_ROLE)
     except UserAlreadyExistsError:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="User with this username or email already exists"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="That username or email is already taken. Try a different one."
         ) from None
     except UserCreationError:
         logger.exception("Self-service registration failed for username %s", sanitize_log_value(user_data.username))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user") from None
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not create the account because of a server problem. Try again in a moment.") from None
 
     logger.info("User registered successfully: %s", sanitize_log_value(user_data.username))
     return convert_user_to_response(user)
@@ -156,7 +156,7 @@ def update_current_user(
     current_user: UserInDB = Depends(get_current_user),
 ) -> UserResponse:
     if not user_update.email:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid fields to update")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nothing to save — change at least one field first.")
 
     success = update_user_db(
         current_user.id,
@@ -164,11 +164,11 @@ def update_current_user(
     )
 
     if not success:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update user")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not save the changes because of a server problem. Try again in a moment.")
 
     updated_user = select_user_by_id_db(current_user.id)
     if not updated_user:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve updated user")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="The changes may not have been saved because of a server problem. Refresh and try again.")
 
     logger.info("User updated successfully: %s", sanitize_log_value(current_user.username))
     return convert_user_to_response(updated_user)
@@ -201,7 +201,7 @@ def change_password(
     success = update_user_password_db(current_user.id, new_password_hash)
 
     if not success:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update password")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not change the password because of a server problem. Try again in a moment.")
 
     logger.info("Account access updated successfully for user id %s", sanitize_log_value(current_user.id))
     return MessageResponse(message="Password changed successfully")

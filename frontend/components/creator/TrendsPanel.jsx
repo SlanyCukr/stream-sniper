@@ -134,8 +134,8 @@ const TrendsPanel = ({ creatorId }) => {
                             aria-hidden="true" />
                         <p className="empty-title">Metrics not yet computed</p>
                         <p className="empty-hint">
-                            Run the rollup backfill (<span className="mono">stream-sniper-rollup --all --force</span>)
-                            to populate per-stream trends for this creator.
+                            Trends for this creator haven’t been computed yet.
+                            They’ll appear after the next analytics run.
                         </p>
                     </div>
                 </Card.Body>

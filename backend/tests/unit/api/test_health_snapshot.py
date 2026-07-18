@@ -83,7 +83,7 @@ def test_probe_exception_is_timed_and_classified_by_registry_policy() -> None:
 
     assert component.status is HealthStatus.CRITICAL
     assert component.response_time_ms == 10.0
-    assert component.details == {"error": "offline"}
+    assert component.details == {"error": "Unexpected failure. See server logs for details."}
     assert overall_health_status({"database": component}) is HealthStatus.CRITICAL
 
 
