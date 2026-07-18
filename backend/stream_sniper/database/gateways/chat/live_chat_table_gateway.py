@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import datetime
+from typing import NamedTuple
 
 from psycopg2.extensions import connection as Connection
 from psycopg2.extensions import cursor as Cursor
@@ -103,32 +104,35 @@ def finalize_live_stream_db(
     connection.commit()
 
 
-@with_cursor_connection
-def sweep_stale_live_sessions_db(
+class StaleLiveSessionRow(NamedTuple):
+    """One open live-captured stream row with no recent sign of life (sweep candidate)."""
+
+    stream_id: int
+    twitch_stream_session_id: int
+    creator_nick: str
+
+
+@with_cursor
+def select_stale_live_sessions_db(
     cursor: Cursor,
-    connection: Connection,
     stale_after_hours: int,
-) -> list[int]:
-    """Finalize live-captured stream rows whose session died while the service was down.
+) -> list[StaleLiveSessionRow]:
+    """Return open live-captured rows whose session shows no sign of life (sweep candidates).
 
     The reconcile loop only finalizes channels in the sink's in-memory map, so a restart
     mid-capture leaks the row as a permanent zombie (``"end"`` stuck NULL,
-    ``live_capture_complete`` false — which also blocks VOD reconciliation). This sweep
-    closes any open live-captured row with no sign of life for ``stale_after_hours``:
-    no chat message AND no viewer sample for the same Twitch session (the sample guard
-    keeps a genuinely-live-but-silent tracked stream open). ``"end"`` is set to the last
-    message time (the best estimate of when capture actually stopped; stream start when
-    no messages exist) and ``live_capture_complete`` flips true so the VOD path can
-    reconcile. Returns the swept stream ids so the caller can enqueue their rollups.
+    ``live_capture_complete`` false — which also blocks VOD reconciliation). A candidate is
+    an open live-captured row with no chat message AND no viewer sample for the same Twitch
+    session for ``stale_after_hours`` (the sample guard keeps a genuinely-live-but-silent
+    tracked stream out of the list). Read-only: the collector confirms each candidate's
+    session is really dead (sink state + a live Twitch lookup, failing closed) before
+    finalizing it with ``finalize_stale_live_session_db``.
     """
     cursor.execute(
         """
-        UPDATE stream_sniper.stream s
-        SET "end" = COALESCE(
-                (SELECT max(m.time) FROM stream_sniper.message m WHERE m.stream_id = s.id),
-                s.start),
-            live_capture_complete = true,
-            message_count = (SELECT count(*) FROM stream_sniper.message m WHERE m.stream_id = s.id)
+        SELECT s.id, s.twitch_stream_session_id, c.nick
+        FROM stream_sniper.stream s
+        JOIN stream_sniper.creator c ON c.id = s.creator_id
         WHERE s."end" IS NULL
           AND s.twitch_stream_session_id IS NOT NULL
           AND NOT EXISTS (
@@ -141,13 +145,43 @@ def sweep_stale_live_sessions_db(
               WHERE svs.twitch_stream_session_id = s.twitch_stream_session_id
                 AND svs.sampled_at >= now() - (%(stale)s * interval '1 hour')
           )
-        RETURNING s.id
         """,
         {"stale": stale_after_hours},
     )
-    swept = [int(row[0]) for row in cursor.fetchall()]
+    return [StaleLiveSessionRow(int(row[0]), int(row[1]), row[2]) for row in cursor.fetchall()]
+
+
+@with_cursor_connection
+def finalize_stale_live_session_db(
+    cursor: Cursor,
+    connection: Connection,
+    stream_id: int,
+) -> bool:
+    """Finalize one confirmed-dead zombie row; returns False if it was already closed.
+
+    ``"end"`` is set to the last message time — a PROVISIONAL estimate (capture stopped at
+    service shutdown, possibly before the stream ended; stream start when no messages
+    exist). ``reconcile_live_stream_vod_db`` later repairs it from the VOD's authoritative
+    metadata. ``live_capture_complete`` flips true so that VOD reconciliation can happen at
+    all. The ``"end" IS NULL`` guard makes the call race-safe against a concurrent real
+    finalize.
+    """
+    cursor.execute(
+        """
+        UPDATE stream_sniper.stream s
+        SET "end" = COALESCE(
+                (SELECT max(m.time) FROM stream_sniper.message m WHERE m.stream_id = s.id),
+                s.start),
+            live_capture_complete = true,
+            message_count = (SELECT count(*) FROM stream_sniper.message m WHERE m.stream_id = s.id)
+        WHERE s.id = %s AND s."end" IS NULL
+        RETURNING s.id
+        """,
+        (stream_id,),
+    )
+    finalized = cursor.fetchone() is not None
     connection.commit()
-    return swept
+    return finalized
 
 
 @with_cursor
@@ -170,17 +204,32 @@ def reconcile_live_stream_vod_db(
     twitch_stream_session_id: int,
     twitch_vod_id: int,
     thumbnail_url: str | None,
-) -> int | None:
-    """Attach the later VOD id to its live row so Twitch deep-links remain valid."""
+    vod_ended_at: datetime | None = None,
+) -> tuple[int, bool] | None:
+    """Attach the later VOD id to its live row and repair a provisional ``"end"``.
+
+    ``vod_ended_at`` (VOD created_at + duration) is the authoritative session end. It only
+    ever EXTENDS the recorded end (``GREATEST``): a swept zombie's provisional last-message
+    estimate is corrected forward, while an accurately live-finalized end is left alone
+    (Postgres ``GREATEST`` ignores a NULL argument). Returns ``(stream_id, end_changed)``
+    so the caller can recompute duration-derived rollups when the end moved, or ``None``
+    when no completed live capture exists for the session.
+    """
     cursor.execute(
         """
-        UPDATE stream_sniper.stream
-        SET twitch_id = %s, thumbnail_url = COALESCE(%s, thumbnail_url)
-        WHERE twitch_stream_session_id = %s AND live_capture_complete
-        RETURNING id
+        UPDATE stream_sniper.stream s
+        SET twitch_id = %s,
+            thumbnail_url = COALESCE(%s, thumbnail_url),
+            "end" = GREATEST(s."end", %s)
+        FROM (
+            SELECT id, "end" AS previous_end FROM stream_sniper.stream
+            WHERE twitch_stream_session_id = %s AND live_capture_complete
+        ) previous
+        WHERE s.id = previous.id
+        RETURNING s.id, s."end" IS DISTINCT FROM previous.previous_end
         """,
-        (twitch_vod_id, thumbnail_url, twitch_stream_session_id),
+        (twitch_vod_id, thumbnail_url, vod_ended_at, twitch_stream_session_id),
     )
     row = cursor.fetchone()
     connection.commit()
-    return int(row[0]) if row else None
+    return (int(row[0]), bool(row[1])) if row else None
