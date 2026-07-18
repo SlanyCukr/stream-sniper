@@ -13,6 +13,7 @@ from twitchAPI.type import AuthScope
 from ...analytics.rollups.rollup_engine import compute_stream_rollup
 from ...database.gateways.chat.live_chat_table_gateway import (
     finalize_stale_live_session_db,
+    refresh_live_stream_message_counts_db,
     select_stale_live_sessions_db,
 )
 from ...database.gateways.identity.creator_table_gateway import find_or_insert_creator_id_db, select_creator_id_db
@@ -206,7 +207,20 @@ class LiveChatCollector:
             ticks += 1
             if ticks % _SWEEP_EVERY_TICKS == 0:
                 await self._sweep_stale_sessions()
+            await self._refresh_message_counts()
             await self._reconcile_stream_sessions()
+
+    async def _refresh_message_counts(self) -> None:
+        """Keep stream.message_count truthful while streams are LIVE (minute cadence).
+
+        Only finalize paths wrote the counter, so live streams read as 0 messages for
+        their whole duration. Failures are swallowed: a cosmetic counter must never
+        take down capture.
+        """
+        try:
+            await asyncio.to_thread(refresh_live_stream_message_counts_db)
+        except Exception:
+            logger.exception("Live message-count refresh failed")
 
     async def _sweep_stale_sessions(self) -> None:
         """Finalize zombie live rows (no message + no viewer sample for the stale window).
