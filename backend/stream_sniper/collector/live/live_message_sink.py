@@ -1,9 +1,16 @@
 """Bounded, asynchronous sink from Twitch IRC events to canonical message rows."""
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
+from typing import Any
 
+from ...database.core.connection_pool import (
+    DatabaseConnectionPool,
+    enter_pool_scope,
+    exit_pool_scope,
+    peek_active_pool,
+)
 from ...database.gateways.chat.chatter_table_gateway import find_or_insert_chatter_id_db
 from ...database.gateways.chat.live_chat_table_gateway import (
     LiveMessageRow,
@@ -59,6 +66,23 @@ class LiveMessageSink:
         self._flush_lock = asyncio.Lock()
         self._channel_locks: dict[str, asyncio.Lock] = {}
         self._finalized_sessions: dict[str, int] = {}
+        # twitchAPI's chat client invokes message callbacks on its own thread, whose
+        # context never saw the service entrypoint's pool binding (ContextVars do not
+        # cross thread boundaries). Capture the pool here — the sink is constructed
+        # inside the service's database runtime — and re-bind it around every
+        # worker-thread gateway call. None (unit tests) falls back to the ambient
+        # context so gateway monkeypatching keeps working unchanged.
+        self._pool: DatabaseConnectionPool | None = peek_active_pool()
+
+    def _call_with_pool(self, gateway: Callable[..., Any], /, *args: Any) -> Any:
+        """Run a gateway call with the captured pool bound in the worker thread."""
+        if self._pool is None:
+            return gateway(*args)
+        token = enter_pool_scope(self._pool)
+        try:
+            return gateway(*args)
+        finally:
+            exit_pool_scope(token)
 
     def _channel_lock(self, channel: str) -> asyncio.Lock:
         return self._channel_locks.setdefault(channel, asyncio.Lock())
@@ -76,6 +100,7 @@ class LiveMessageSink:
         if current and current[0] == twitch_stream_session_id:
             return current[1]
         stream_id_raw = await asyncio.to_thread(
+            self._call_with_pool,
             ensure_live_stream_db,
             channel,
             twitch_stream_session_id,
@@ -92,7 +117,7 @@ class LiveMessageSink:
     async def _resolve_chatter_id(self, nick: str) -> int:
         chatter_id = self._chatters.get(nick)
         if chatter_id is None:
-            chatter_id = await asyncio.to_thread(find_or_insert_chatter_id_db, nick)
+            chatter_id = await asyncio.to_thread(self._call_with_pool, find_or_insert_chatter_id_db, nick)
             if chatter_id is None:
                 raise RuntimeError(f"Chatter persistence returned no ID for {nick}")
             self._chatters[nick] = chatter_id
@@ -101,7 +126,7 @@ class LiveMessageSink:
     async def _resolve_text_id(self, text: str) -> int:
         text_id = self._texts.get(text)
         if text_id is None:
-            text_id = await asyncio.to_thread(find_or_insert_message_text_id_db, text)
+            text_id = await asyncio.to_thread(self._call_with_pool, find_or_insert_message_text_id_db, text)
             if text_id is None:
                 raise RuntimeError("Message-text persistence returned no ID")
             self._texts[text] = text_id
@@ -169,7 +194,7 @@ class LiveMessageSink:
                 return 0
             batch, self._items = self._items, []
             try:
-                await asyncio.to_thread(bulk_insert_live_messages_db, batch)
+                await asyncio.to_thread(self._call_with_pool, bulk_insert_live_messages_db, batch)
             except Exception as error:
                 self._items = batch + self._items
                 logger.exception(f"Live message flush failed; retained {len(batch)} rows")
@@ -183,7 +208,7 @@ class LiveMessageSink:
             if current is None:
                 return None
             await self.flush()
-            await asyncio.to_thread(finalize_live_stream_db, current[1], ended_at)
+            await asyncio.to_thread(self._call_with_pool, finalize_live_stream_db, current[1], ended_at)
             self._streams.pop(channel, None)
             self._finalized_sessions[channel] = current[0]
             return current[1]
