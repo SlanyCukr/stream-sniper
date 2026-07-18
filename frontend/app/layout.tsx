@@ -8,7 +8,10 @@ export const metadata: Metadata = {
   // resolves the generated opengraph-image routes against http://localhost:3000
   // in the standalone prod container, which breaks every social unfurl.
   metadataBase: new URL('https://stream-sniper.slanycukr.com'),
-  title: 'Stream Sniper',
+  // Template lets per-page metadata (entity pages' generateMetadata, listing pages'
+  // static titles) surface real names in tabs and social unfurls instead of the
+  // generic app title everywhere.
+  title: { default: 'Stream Sniper', template: '%s · Stream Sniper' },
   description: 'Twitch stream analytics dashboard',
 }
 

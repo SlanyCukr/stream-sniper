@@ -242,6 +242,28 @@ async def test_sweep_lost_finalize_race_skips_rollup(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_refresh_message_counts_calls_gateway(monkeypatch) -> None:
+    collector = LiveChatCollector(channels=["alice"])
+    refresh = MagicMock(return_value=2)
+    monkeypatch.setattr(collector_module, "refresh_live_stream_message_counts_db", refresh)
+
+    await collector._refresh_message_counts()
+
+    refresh.assert_called_once_with()
+
+
+@pytest.mark.asyncio
+async def test_refresh_message_counts_failure_is_swallowed(monkeypatch) -> None:
+    # A cosmetic counter must never take down live capture.
+    collector = LiveChatCollector(channels=["alice"])
+    monkeypatch.setattr(
+        collector_module, "refresh_live_stream_message_counts_db", MagicMock(side_effect=RuntimeError("db down"))
+    )
+
+    await collector._refresh_message_counts()  # must not raise
+
+
+@pytest.mark.asyncio
 async def test_sweep_candidate_query_failure_is_swallowed(monkeypatch) -> None:
     # A broken sweep must never take down live capture.
     collector = LiveChatCollector(channels=["alice"])

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Table } from 'react-bootstrap'
 import SortableTableHeader from '@/components/common/SortableTableHeader'
 import { formatTimeAgo } from '@/utils/dateUtils'
@@ -58,7 +59,11 @@ const RegularsTable = ({
                 {regulars.map((regular, index) => (
                     <tr key={regular.chatterId}>
                         <td className="rank-num">{String(index + 1).padStart(2, '0')}</td>
-                        <td>{regular.nick}</td>
+                        <td>
+                            {/* A creator's biggest fans are the top entry point into the
+                                chatter passport — every other chatter listing links there. */}
+                            <Link className="nick" href={`/chatter/${regular.chatterId}`}>{regular.nick}</Link>
+                        </td>
                         <td style={{ minWidth: '140px' }}>
                             <span className="mono">{regular.streamsAttended?.toLocaleString()}</span>
                             <span className="data-bar" aria-hidden="true">

@@ -104,6 +104,28 @@ def finalize_live_stream_db(
     connection.commit()
 
 
+@with_cursor_connection
+def refresh_live_stream_message_counts_db(cursor: Cursor, connection: Connection) -> int:
+    """Sync ``stream.message_count`` with reality for every open live-captured stream.
+
+    Only finalize paths ever wrote the counter, so live streams read as 0 messages for
+    their whole duration — every consumer (stream catalog, filters, report surfaces)
+    showed wrong data exactly while people were watching. Counting from the ``message``
+    table (rather than incrementing per flush) also self-corrects any drift from
+    deduplicated inserts. Returns the number of streams refreshed.
+    """
+    cursor.execute(
+        """
+        UPDATE stream_sniper.stream s
+        SET message_count = (SELECT count(*) FROM stream_sniper.message m WHERE m.stream_id = s.id)
+        WHERE s."end" IS NULL AND s.twitch_stream_session_id IS NOT NULL
+        """
+    )
+    refreshed = cursor.rowcount
+    connection.commit()
+    return refreshed
+
+
 class StaleLiveSessionRow(NamedTuple):
     """One open live-captured stream row with no recent sign of life (sweep candidate)."""
 
