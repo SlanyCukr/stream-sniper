@@ -57,6 +57,9 @@ const fullPayload = {
       messages: 300,
     },
   },
+  archetypes: [
+    { key: 'loyalist', label: 'Loyalist', description: 'Most messages land in one home channel.' },
+  ],
 }
 
 const createClient = () => new QueryClient({
@@ -126,6 +129,9 @@ describe('chatter passport pure logic', () => {
           messages: 300,
         },
       },
+      archetypes: [
+        { key: 'loyalist', label: 'Loyalist', description: 'Most messages land in one home channel.' },
+      ],
     })
   })
 
@@ -143,6 +149,7 @@ describe('chatter passport pure logic', () => {
       home_channel: null,
       loyalty: [],
       milestones: { most_active_stream: null },
+      archetypes: [],
     })
     expect(mapped.debut).toBeNull()
     expect(mapped.homeChannel).toBeNull()
@@ -151,6 +158,7 @@ describe('chatter passport pure logic', () => {
     expect(mapped.totals.lastSeen).toBeNull()
     expect(mapped.chatter).toEqual({ id: 9, nick: 'bot9000', isBot: true, botReason: 'copypasta spam' })
     expect(mapped.loyalty).toEqual([])
+    expect(mapped.archetypes).toEqual([])
   })
 
   it.each([

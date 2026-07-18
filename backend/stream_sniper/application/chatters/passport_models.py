@@ -120,6 +120,12 @@ class PassportMilestones(BaseModel):
     )
 
 
+class PassportArchetype(BaseModel):
+    key: str = Field(..., description="Stable archetype identifier (e.g. 'loyalist')")
+    label: str = Field(..., description="Human-readable badge label")
+    description: str = Field(..., description="Plain-language reason the badge applies (threshold summary)")
+
+
 class ChatterPassport(BaseModel):
     chatter: PassportChatter
     totals: PassportTotals
@@ -127,3 +133,6 @@ class ChatterPassport(BaseModel):
     home_channel: PassportHomeChannel | None = Field(None, description="The creator the chatter chats in most")
     loyalty: list[PassportLoyalty] = Field(..., description="Every creator chatted in, most messages first")
     milestones: PassportMilestones
+    archetypes: list[PassportArchetype] = Field(
+        default_factory=list, description="Rule-based identity badges derived from the passport's own data"
+    )

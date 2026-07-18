@@ -1,0 +1,42 @@
+// Scene power rankings (chatter leaderboard) — night-ops styling.
+// Owned by the rankings feature. Reuse existing _theme.scss primitives
+// (.table, .rank-num, .data-bar, .stat-grid, .status-chip) before adding here.
+
+.rankings-nick {
+    color: $phosphor;
+    font-weight: 600;
+
+    &:hover {
+        color: $teal;
+    }
+}
+
+.rankings-messages {
+    min-width: 8rem;
+
+    .rankings-messages-value {
+        font-size: 0.82rem;
+    }
+}
+
+.rankings-home {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    min-width: 0;
+
+    .rankings-home-share {
+        color: $gray-500;
+        white-space: nowrap;
+    }
+}
+
+.rankings-home-empty {
+    color: $gray-500;
+}
+
+.rankings-load-more {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.25rem;
+}

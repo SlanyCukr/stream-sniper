@@ -76,6 +76,12 @@ def test_assembles_totals_loyalty_and_shares(monkeypatch) -> None:
     assert result.milestones.most_active_stream.stream_id == 11
     assert result.milestones.most_active_stream.messages == 350
 
+    # Archetypes are derived from the assembled totals/home share. home_share 0.8 with
+    # 15 streams -> loyalist; first_seen in 2024 is always >180d before now -> veteran.
+    # 1000/15 avg < 100 and 1000 < 5000 so marathoner/chatterbox do NOT apply.
+    keys = [badge.key for badge in result.archetypes]
+    assert keys == ["loyalist", "veteran"]
+
 
 def test_empty_corpus_yields_zero_share_and_null_milestones(monkeypatch) -> None:
     _patch(
@@ -97,6 +103,8 @@ def test_empty_corpus_yields_zero_share_and_null_milestones(monkeypatch) -> None
     assert result.debut is None
     assert result.milestones.most_active_stream is None
     assert result.chatter.is_bot is None
+    # No corpus -> no archetypes (empty totals, no home share, no first_seen).
+    assert result.archetypes == []
 
 
 def test_totals_seen_come_from_message_time_bounds(monkeypatch) -> None:

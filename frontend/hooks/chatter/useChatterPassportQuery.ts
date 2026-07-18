@@ -61,6 +61,7 @@ export interface ChatterPassport {
     milestones: {
         mostActiveStream: PassportMostActiveStream | null
     }
+    archetypes: Array<{ key: string, label: string, description: string }>
 }
 
 /**
@@ -150,6 +151,15 @@ export const mapChatterPassport = (value: unknown): ChatterPassport => {
         milestones: {
             mostActiveStream: mapMostActiveStream(milestones.most_active_stream),
         },
+        archetypes: requireArrayField(root, 'archetypes', 'chatter passport').map((raw, index) => {
+            const label = `chatter passport.archetypes[${index}]`
+            const badge = requireRecord(raw, label)
+            return {
+                key: requireStringField(badge, 'key', label),
+                label: requireStringField(badge, 'label', label),
+                description: requireStringField(badge, 'description', label),
+            }
+        }),
     }
 }
 
