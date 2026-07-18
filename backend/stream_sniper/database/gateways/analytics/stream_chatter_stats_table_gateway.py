@@ -5,7 +5,7 @@ from psycopg2.extensions import cursor as Cursor
 
 from ...core.decorators import with_cursor, with_cursor_connection
 from ...core.wire_format import to_char_wire
-from .records import ChatterActiveStreamRow, ChatterDebutRow
+from .records import ChatterActiveStreamRow, ChatterDebutRow, ChatterTimeBoundsRow
 
 
 @with_cursor
@@ -132,6 +132,35 @@ def select_chatter_most_active_stream_db(
     )
     row = cursor.fetchone()
     return ChatterActiveStreamRow(*row) if row is not None else None
+
+
+@with_cursor
+def select_chatter_message_time_bounds_db(
+    cursor: Cursor,
+    chatter_id: int,
+) -> ChatterTimeBoundsRow:
+    """Lifetime first/last MESSAGE times for a chatter, from the rollup only.
+
+    Aggregates first_message_time/last_message_time across the chatter's
+    stream_chatter_stats rows (indexed by stream_chatter_stats_chatter_idx) —
+    actual message times, unlike creator_chatter_stats.first_seen_at/last_seen_at
+    which record attended-stream START times. Fields are None when the chatter has
+    no recorded message times.
+    """
+    cursor.execute(
+        f"""
+        SELECT
+            {to_char_wire("min(scs.first_message_time)")},
+            {to_char_wire("max(scs.last_message_time)")}
+        FROM stream_chatter_stats scs
+        WHERE scs.chatter_id = %s
+        """,
+        (chatter_id,),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return ChatterTimeBoundsRow(first_message_time=None, last_message_time=None)
+    return ChatterTimeBoundsRow(first_message_time=row[0], last_message_time=row[1])
 
 
 def _replace_time_buckets(cursor: Cursor, params: dict[str, int | list[int]]) -> None:

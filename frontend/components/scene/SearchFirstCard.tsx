@@ -44,6 +44,11 @@ const SearchFirstCard = ({ data, query }: SearchFirstCardProps) => (
           <span className="search-first-total-unit"> matches</span>
         </span>
       </div>
+      {/* The origin is deliberately all-time: it ignores the page's time-window
+          filter, which only scopes the results list and sparkline below. */}
+      <p className="text-muted mono search-first-scope-note">
+        all-time · ignores the time window filter
+      </p>
       {data.first ? (
         <HitLine hit={data.first} query={query} rank="1st" />
       ) : (

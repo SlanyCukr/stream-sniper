@@ -5,16 +5,19 @@ from stream_sniper.application.chatters.passport_query import get_chatter_passpo
 from stream_sniper.database.gateways.analytics.records import (
     ChatterActiveStreamRow,
     ChatterDebutRow,
+    ChatterTimeBoundsRow,
 )
 from stream_sniper.database.gateways.chat.records import ChatterProfileRow
 from stream_sniper.database.gateways.creators.records import ChatterLoyaltyRow
 
 
-def _patch(monkeypatch, *, profile, loyalty, debut, active) -> None:
+def _patch(monkeypatch, *, profile, loyalty, debut, active, time_bounds=None) -> None:
+    bounds = time_bounds if time_bounds is not None else ChatterTimeBoundsRow(None, None)
     monkeypatch.setattr(passport_query, "select_chatter_profile_db", lambda _cid: profile)
     monkeypatch.setattr(passport_query, "select_chatter_loyalty_db", lambda _cid: loyalty)
     monkeypatch.setattr(passport_query, "select_chatter_debut_db", lambda _cid: debut)
     monkeypatch.setattr(passport_query, "select_chatter_most_active_stream_db", lambda _cid: active)
+    monkeypatch.setattr(passport_query, "select_chatter_message_time_bounds_db", lambda _cid: bounds)
 
 
 def test_unknown_chatter_returns_none(monkeypatch) -> None:
@@ -33,6 +36,9 @@ def test_assembles_totals_loyalty_and_shares(monkeypatch) -> None:
         loyalty=loyalty,
         debut=ChatterDebutRow(7, "First Stream", "Homie", "2024-01-01T20:00:00"),
         active=ChatterActiveStreamRow(11, "Big One", "Homie", 350),
+        # Message-time bounds intentionally differ from the loyalty rows' stream-start
+        # first/last_seen: totals must reflect MESSAGE times (the debut, not stream start).
+        time_bounds=ChatterTimeBoundsRow("2024-01-01T20:00:00", "2024-06-01T13:37:00"),
     )
 
     result = get_chatter_passport(42)
@@ -45,8 +51,11 @@ def test_assembles_totals_loyalty_and_shares(monkeypatch) -> None:
     assert result.totals.messages == 1000
     assert result.totals.streams_attended == 15
     assert result.totals.creators_visited == 2
-    assert result.totals.first_seen == "2024-01-01T00:00:00"
-    assert result.totals.last_seen == "2024-06-01T00:00:00"
+    # From message-time bounds, NOT the loyalty rows' stream-start columns:
+    # first_seen equals the debut message time even though the attended stream
+    # started earlier ("2024-01-01T00:00:00" in the loyalty row).
+    assert result.totals.first_seen == "2024-01-01T20:00:00"
+    assert result.totals.last_seen == "2024-06-01T13:37:00"
 
     # loyalty preserves gateway order (messages desc) and computes share = messages / totals.messages
     assert [entry.creator_id for entry in result.loyalty] == [5, 9]
@@ -90,7 +99,7 @@ def test_empty_corpus_yields_zero_share_and_null_milestones(monkeypatch) -> None
     assert result.chatter.is_bot is None
 
 
-def test_null_seen_timestamps_are_ignored_in_totals(monkeypatch) -> None:
+def test_totals_seen_come_from_message_time_bounds(monkeypatch) -> None:
     loyalty = [
         ChatterLoyaltyRow(5, "a", "A", 100, 2, None, None),
         ChatterLoyaltyRow(9, "b", "B", 50, 1, "2024-03-01T00:00:00", "2024-03-02T00:00:00"),
@@ -101,11 +110,12 @@ def test_null_seen_timestamps_are_ignored_in_totals(monkeypatch) -> None:
         loyalty=loyalty,
         debut=None,
         active=None,
+        time_bounds=ChatterTimeBoundsRow("2024-03-01T18:05:00", "2024-03-02T02:10:00"),
     )
 
     result = get_chatter_passport(1)
     assert result is not None
-    assert result.totals.first_seen == "2024-03-01T00:00:00"
-    assert result.totals.last_seen == "2024-03-02T00:00:00"
+    assert result.totals.first_seen == "2024-03-01T18:05:00"
+    assert result.totals.last_seen == "2024-03-02T02:10:00"
     assert result.chatter.is_bot is True
     assert result.chatter.bot_reason == "known-bot"

@@ -5,13 +5,16 @@ Match semantics are identical everywhere and mirror revision 0017's index:
     stream_sniper.f_unaccent(lower(mt.text)) LIKE
         '%' || stream_sniper.f_unaccent(lower(%s)) || '%'
 
-Every query runs a two-step plan to stay index-friendly on a large message table:
+The paginated page query runs a two-step plan to stay index-friendly on a large
+message table:
 
   1. Resolve matching text ids from message_text via the GIN trigram index, capped
-     at ``_MATCH_TEXT_CAP`` ids. The dedup table is ~134k rows, so the cap only bites
-     for extremely common substrings.
-  2. Join those ids into message (backed by message_text_id_time_idx) for the actual
-     hits / counts / per-day buckets.
+     at ``_MATCH_TEXT_CAP`` ids WITHIN the requested creator/time scope. The dedup
+     table is ~134k rows, so the cap only bites for extremely common substrings.
+  2. Join those ids into message (backed by message_text_id_time_idx) for the hits.
+
+The origin (``select_first_messages_db``) and frequency queries run UNCAPPED
+against the full LIKE match — single bounded scans whose results must be exact.
 
 User input is treated as a literal substring: LIKE wildcards (``%``, ``_``) and the
 escape char (``\\``) are neutralized with an explicit ``ESCAPE '\\'`` clause.
@@ -97,26 +100,46 @@ def _matching_text_ids(
     cursor: Cursor,
     query: str,
     *,
-    newest_first: bool = True,
+    creator_id: int | None = None,
+    days: int | None = None,
     cap: int = _MATCH_TEXT_CAP,
 ) -> list[int]:
     """Step 1: deduplicated-text ids whose text matches, capped, via the trgm index.
 
-    Ordered by mt.id so the cap is deterministic: ``newest_first=True`` keeps the most
-    recently first-seen texts (search pages advertise newest-first), ``False`` keeps
-    the earliest first-seen texts (origin tracing needs the oldest candidates).
+    The cap is applied AFTER any creator/time scoping (via an indexed EXISTS probe
+    into message), so a creator-scoped search for an ultra-common term can never
+    lose that creator's matches to the global cap. Ordered ``mt.id DESC`` so the
+    capped set is deterministic and biased toward recently first-seen texts,
+    matching the newest-first contract of the paginated search.
 
     Runs on the caller's cursor (NOT independently decorated) so the two-step plan
     holds a single pooled connection per request instead of nesting a second checkout.
     """
-    direction = "DESC" if newest_first else "ASC"
+    conditions = [_LIKE_MATCH]
+    params: list[object] = [_escape_like(query)]
+    scope: list[str] = []
+    scope_params: list[object] = []
+    if creator_id is not None:
+        scope.append("s.creator_id = %s")
+        scope_params.append(creator_id)
+    if days is not None:
+        scope.append("m.time >= (now() AT TIME ZONE 'UTC') - (%s * interval '1 day')")
+        scope_params.append(days)
+    if scope:
+        conditions.append(
+            "EXISTS (SELECT 1 FROM message m JOIN stream s ON s.id = m.stream_id\n"
+            f"        WHERE m.message_text_id = mt.id AND {' AND '.join(scope)})"
+        )
+        params.extend(scope_params)
+
+    params.append(cap)
     cursor.execute(
         "SELECT mt.id\n"
         "FROM message_text mt\n"
-        f"WHERE {_LIKE_MATCH}\n"
-        f"ORDER BY mt.id {direction}\n"
+        f"WHERE {' AND '.join(conditions)}\n"
+        "ORDER BY mt.id DESC\n"
         "LIMIT %s",
-        (_escape_like(query), cap),
+        tuple(params),
     )
     return [row[0] for row in cursor.fetchall()]
 
@@ -134,9 +157,11 @@ def search_messages_db(
 
     Fetches ``limit + 1`` rows; the caller trims to ``limit`` and reads has_more off
     the overflow row. When a term matches more than ``_MATCH_TEXT_CAP`` distinct
-    texts, results cover the most recently first-seen texts (deterministic cap).
+    texts WITHIN the requested scope, results cover the most recently first-seen
+    texts (deterministic cap; the creator/days filters are pushed into the cap
+    query so scoped searches never lose matches to globally-common texts).
     """
-    text_ids = _matching_text_ids(cursor, query, newest_first=True)
+    text_ids = _matching_text_ids(cursor, query, creator_id=creator_id, days=days)
     if not text_ids:
         return [], False
 
@@ -172,35 +197,35 @@ def select_first_messages_db(
 ) -> FirstMatchResult:
     """Earliest overall hit, earliest per-creator debuts (<=8), and total match count.
 
-    The candidate set keeps the EARLIEST first-seen matching texts (``mt.id ASC``), so
-    ``first`` is exact even past the cap: if 5000 matching texts predate a candidate's
-    text, each of those texts was first used in an earlier matching message, so the true
-    origin necessarily lies within the capped set. Per-creator debuts for creators whose
-    earliest match uses a text outside the cap are an approximation. ``total_matches``
-    is an exact uncapped count (single aggregate, no sort).
+    All three run UNCAPPED against the full LIKE match (the planner does its own
+    two-step: GIN bitmap scan on message_text, then the message_text_id btree into
+    message), so ``first``, the per-creator debuts, and ``total_matches`` are exact —
+    no dependence on the text-id cap or on message_text.id tracking chronology
+    (backfilled VODs can create old messages with high text ids). Cost is one
+    bounded scan of the matching messages per query, same class as the count, and
+    the endpoint result is TTL-cached.
     """
-    text_ids = _matching_text_ids(cursor, query, newest_first=False)
-    if not text_ids:
-        return FirstMatchResult(first=None, by_creator=[], total_matches=0)
-
-    scope = ["m.message_text_id = ANY(%s)"]
-    scope_params: list[object] = [text_ids]
+    conditions = [_LIKE_MATCH]
+    params: list[object] = [_escape_like(query)]
     if creator_id is not None:
-        scope.append("s.creator_id = %s")
-        scope_params.append(creator_id)
-    where = " AND ".join(scope)
+        conditions.append("s.creator_id = %s")
+        params.append(creator_id)
+    where = " AND ".join(conditions)
 
-    # Earliest matching message overall.
+    # Earliest matching message overall (top-1 over the matched set — no sort spill).
     cursor.execute(
         f"SELECT {_HIT_COLUMNS}\n"
         f"{_HIT_JOINS}\n"
         f"WHERE {where}\n"
         "ORDER BY m.time ASC, m.id ASC\n"
         "LIMIT 1",
-        tuple(scope_params),
+        tuple(params),
     )
     first_row = cursor.fetchone()
     first = SearchHitRow(*first_row) if first_row is not None else None
+
+    if first is None:
+        return FirstMatchResult(first=None, by_creator=[], total_matches=0)
 
     # Earliest matching message per creator, then the 8 oldest of those debuts.
     cursor.execute(
@@ -213,24 +238,18 @@ def select_first_messages_db(
         # Column 2 is the ISO time string from _HIT_COLUMNS; order debuts oldest-first.
         "ORDER BY 2 ASC\n"
         "LIMIT %s",
-        tuple(scope_params) + (_BY_CREATOR_LIMIT,),
+        tuple(params) + (_BY_CREATOR_LIMIT,),
     )
     by_creator = [SearchHitRow(*row) for row in cursor.fetchall()]
 
-    # Total matching messages — uncapped: joins the full LIKE match instead of the
-    # capped text-id set so the headline count is exact for common terms too.
-    count_conditions = [_LIKE_MATCH]
-    count_params: list[object] = [_escape_like(query)]
-    if creator_id is not None:
-        count_conditions.append("s.creator_id = %s")
-        count_params.append(creator_id)
+    # Total matching messages, exact.
     cursor.execute(
         "SELECT count(*)\n"
         "FROM message m\n"
         "JOIN stream s ON s.id = m.stream_id\n"
         "JOIN message_text mt ON mt.id = m.message_text_id\n"
-        f"WHERE {' AND '.join(count_conditions)}",
-        tuple(count_params),
+        f"WHERE {where}",
+        tuple(params),
     )
     count_row = cursor.fetchone()
     total_matches = int(count_row[0]) if count_row is not None else 0
@@ -251,16 +270,16 @@ def select_term_frequency_db(
     every bucket — including the oldest — covers a FULL day, matching the API's
     zero-filled date range exactly (a rolling ``now() - days`` bound would truncate
     the oldest bucket mid-day).
-    """
-    text_ids = _matching_text_ids(cursor, query, newest_first=True)
-    if not text_ids:
-        return []
 
+    Runs UNCAPPED against the full LIKE match (like ``select_first_messages_db``)
+    so counts are exact for common terms too — a single bounded aggregate, cached
+    at the endpoint.
+    """
     conditions = [
-        "m.message_text_id = ANY(%s)",
+        _LIKE_MATCH,
         "m.time >= date_trunc('day', now() AT TIME ZONE 'UTC') - ((%s - 1) * interval '1 day')",
     ]
-    params: list[object] = [text_ids, days]
+    params: list[object] = [_escape_like(query), days]
     if creator_id is not None:
         conditions.append("s.creator_id = %s")
         params.append(creator_id)
@@ -269,6 +288,7 @@ def select_term_frequency_db(
         "SELECT TO_CHAR(date_trunc('day', m.time), 'YYYY-MM-DD') AS day, count(*)\n"
         "FROM message m\n"
         "JOIN stream s ON s.id = m.stream_id\n"
+        "JOIN message_text mt ON mt.id = m.message_text_id\n"
         f"WHERE {' AND '.join(conditions)}\n"
         "GROUP BY day\n"
         "ORDER BY day ASC",
