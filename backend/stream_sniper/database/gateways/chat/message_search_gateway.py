@@ -82,7 +82,7 @@ class FirstMatchResult(NamedTuple):
 
 class TermFrequencyRow(NamedTuple):
     day: str  # 'YYYY-MM-DD'
-    count: int
+    matches: int  # named "matches", not "count", to avoid shadowing tuple.count
 
 
 def _escape_like(term: str) -> str:
@@ -274,4 +274,4 @@ def select_term_frequency_db(
         "ORDER BY day ASC",
         tuple(params),
     )
-    return [TermFrequencyRow(day=row[0], count=int(row[1])) for row in cursor.fetchall()]
+    return [TermFrequencyRow(day=row[0], matches=int(row[1])) for row in cursor.fetchall()]

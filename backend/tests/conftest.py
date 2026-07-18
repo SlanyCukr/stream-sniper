@@ -50,7 +50,7 @@ os.environ["POSTGRES_USER"] = TEST_DB_CONFIG["user"]
 os.environ["POSTGRES_PASSWORD"] = TEST_DB_CONFIG["password"]
 os.environ["POSTGRES_DB"] = TEST_DB_CONFIG["database"]
 
-MIGRATION_HEAD = "0016"
+MIGRATION_HEAD = "0017"
 
 
 def _recreate_test_database() -> None:

@@ -175,7 +175,7 @@ def search_frequency(
         if cached is not None:
             return cached
 
-        counts = {row.day: row.count for row in select_term_frequency_db(term, days, creator_id)}
+        counts = {row.day: row.matches for row in select_term_frequency_db(term, days, creator_id)}
         today = datetime.now(UTC).date()
         start = today - timedelta(days=days - 1)
         points: list[FrequencyPoint] = []
