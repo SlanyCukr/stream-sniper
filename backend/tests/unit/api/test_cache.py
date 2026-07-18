@@ -153,3 +153,24 @@ def test_cache_operation_facade_rejects_unknown_operations():
             record_cache_operation("unknown", "streams")  # type: ignore[arg-type]
     finally:
         exit_metrics_scope(token)
+
+
+def test_live_entry_ceiling_evicts_soonest_expiring(monkeypatch):
+    """The store never exceeds _MAX_LIVE_ENTRIES; victims are soonest-to-expire."""
+    c = make_cache()
+    monkeypatch.setattr(cache_module, "_PRUNE_THRESHOLD", 5)
+    monkeypatch.setattr(cache_module, "_MAX_LIVE_ENTRIES", 10)
+    t = [1000.0]
+    monkeypatch.setattr(cache_module.time, "time", lambda: t[0])
+
+    # Fill to the ceiling with ascending TTLs (k0 expires first, k9 last).
+    for i in range(10):
+        c.set(f"k{i}", i, ttl=100 + i)
+    assert len(c._store) == 10
+
+    # One more insert evicts exactly the soonest-expiring live entry (k0).
+    c.set("overflow", "v", ttl=500)
+    assert len(c._store) == 10
+    assert c.get("k0") is None
+    assert c.get("k1") == 1
+    assert c.get("overflow") == "v"

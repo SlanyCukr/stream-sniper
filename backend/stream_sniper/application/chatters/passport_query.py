@@ -8,6 +8,7 @@ stream_chatter_stats rollup (debut, most-active-stream milestone). Returns
 
 from stream_sniper.database.gateways.analytics.stream_chatter_stats_table_gateway import (
     select_chatter_debut_db,
+    select_chatter_message_time_bounds_db,
     select_chatter_most_active_stream_db,
 )
 from stream_sniper.database.gateways.chat.chatter_table_gateway import select_chatter_profile_db
@@ -34,14 +35,16 @@ def get_chatter_passport(chatter_id: int) -> ChatterPassport | None:
     loyalty_rows = select_chatter_loyalty_db(chatter_id)
 
     total_messages = sum(row.message_count for row in loyalty_rows)
-    first_seens = [row.first_seen for row in loyalty_rows if row.first_seen is not None]
-    last_seens = [row.last_seen for row in loyalty_rows if row.last_seen is not None]
+    # Lifetime bounds come from actual MESSAGE times (stream_chatter_stats), not the
+    # creator_chatter_stats first/last_seen_at columns — those record attended-stream
+    # START times and would contradict the debut card for late-arriving chatters.
+    time_bounds = select_chatter_message_time_bounds_db(chatter_id)
     totals = PassportTotals(
         messages=total_messages,
         streams_attended=sum(row.streams_attended for row in loyalty_rows),
         creators_visited=len(loyalty_rows),
-        first_seen=min(first_seens) if first_seens else None,
-        last_seen=max(last_seens) if last_seens else None,
+        first_seen=time_bounds.first_message_time,
+        last_seen=time_bounds.last_message_time,
     )
 
     loyalty = [PassportLoyalty.from_row(row, total_messages=total_messages) for row in loyalty_rows]

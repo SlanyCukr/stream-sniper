@@ -127,3 +127,13 @@ class ChatterActiveStreamRow(NamedTuple):
     title: str
     creator_display_name: str
     message_count: int
+
+
+class ChatterTimeBoundsRow(NamedTuple):
+    """Lifetime first/last MESSAGE times for a chatter, from the stream_chatter_stats rollup.
+
+    Message times, not stream-start times — a chatter whose first message landed three
+    hours into a stream is first seen at that message, not at the stream's start."""
+
+    first_message_time: str | None
+    last_message_time: str | None

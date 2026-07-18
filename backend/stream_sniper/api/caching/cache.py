@@ -22,6 +22,12 @@ logger = logging.getLogger(__name__)
 # so short-TTL/high-churn keys (e.g. search autocomplete) can't accumulate.
 _PRUNE_THRESHOLD = 1000
 
+# Hard ceiling on LIVE entries. Public cache-miss surfaces (scene search accepts
+# arbitrary query strings) would otherwise let clients grow the store without
+# bound until TTLs expire — real memory pressure on the Pi. When an insert would
+# exceed this, the soonest-to-expire entries are evicted first.
+_MAX_LIVE_ENTRIES = 2000
+
 
 class CacheStatsPayload(TypedDict):
     enabled: bool
@@ -79,8 +85,21 @@ class InProcessCache:
         with self._lock:
             if len(self._store) >= _PRUNE_THRESHOLD:
                 self._prune_expired(now)
+            if len(self._store) >= _MAX_LIVE_ENTRIES:
+                self._evict_soonest_expiring(len(self._store) - _MAX_LIVE_ENTRIES + 1)
             self._store[key] = (now + ttl, serialized)
         return True
+
+    def _evict_soonest_expiring(self, count: int) -> None:
+        """Evict the ``count`` live entries closest to expiry. Caller holds the lock.
+
+        Soonest-to-expire is the cheapest reasonable victim policy here: it favors
+        keeping long-TTL analytics entries over short-TTL churn (search pages),
+        which is exactly the split we want under a cache-filling client.
+        """
+        victims = sorted(self._store.items(), key=lambda item: item[1][0])[:count]
+        for key, _ in victims:
+            self._store.pop(key, None)
 
     def delete(self, key: str) -> bool:
         with self._lock:
