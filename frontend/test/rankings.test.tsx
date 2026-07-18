@@ -37,6 +37,9 @@ const rankingsPayload = {
         messages: 4200,
         share: 0.84,
       },
+      archetypes: [
+        { key: 'loyalist', label: 'Loyalist', description: 'Sticks to one home channel.' },
+      ],
     },
     {
       rank: 2,
@@ -46,6 +49,7 @@ const rankingsPayload = {
       streams_attended: 12,
       creators_visited: 11,
       home_channel: null,
+      archetypes: [],
     },
   ],
 }
@@ -78,6 +82,9 @@ describe('scene rankings view-model contract', () => {
             messages: 4200,
             share: 0.84,
           },
+          archetypes: [
+            { key: 'loyalist', label: 'Loyalist', description: 'Sticks to one home channel.' },
+          ],
         },
         {
           rank: 2,
@@ -87,6 +94,7 @@ describe('scene rankings view-model contract', () => {
           streamsAttended: 12,
           creatorsVisited: 11,
           homeChannel: null,
+          archetypes: [],
         },
       ],
     })
@@ -111,6 +119,26 @@ describe('scene rankings view-model contract', () => {
       total_messages: 1,
       streams_attended: 1,
       creators_visited: 1,
+      archetypes: [],
+    }] }],
+    ['missing archetypes key', { window: 'all', has_more: false, items: [{
+      rank: 1,
+      chatter_id: 1,
+      nick: 'x',
+      total_messages: 1,
+      streams_attended: 1,
+      creators_visited: 1,
+      home_channel: null,
+    }] }],
+    ['badge missing description in archetypes', { window: 'all', has_more: false, items: [{
+      rank: 1,
+      chatter_id: 1,
+      nick: 'x',
+      total_messages: 1,
+      streams_attended: 1,
+      creators_visited: 1,
+      home_channel: null,
+      archetypes: [{ key: 'loyalist', label: 'Loyalist' }],
     }] }],
     ['null envelope', null],
   ])('rejects malformed rankings payloads (%s)', (_label, payload) => {
@@ -127,8 +155,13 @@ describe('scene rankings view-model contract', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(sceneApi.retrieveSceneRankings).toHaveBeenCalledWith({ window: '7', limit: 25, offset: 50 })
     expect(result.current.data?.hasMore).toBe(true)
-    expect(result.current.data?.items[0]).toMatchObject({ chatterId: 7, homeChannel: { creatorId: 3 } })
+    expect(result.current.data?.items[0]).toMatchObject({
+      chatterId: 7,
+      homeChannel: { creatorId: 3 },
+      archetypes: [{ key: 'loyalist', label: 'Loyalist', description: 'Sticks to one home channel.' }],
+    })
     expect(result.current.data?.items[1].homeChannel).toBeNull()
+    expect(result.current.data?.items[1].archetypes).toEqual([])
   })
 
   it('surfaces a malformed rankings response as a boundary TypeError', async () => {
@@ -158,6 +191,7 @@ const passportPayload = (archetypes: unknown) => ({
   loyalty: [],
   milestones: { most_active_stream: null },
   archetypes,
+  companions: [],
 })
 
 describe('chatter passport archetype badges contract', () => {

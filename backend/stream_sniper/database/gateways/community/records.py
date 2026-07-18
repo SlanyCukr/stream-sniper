@@ -46,3 +46,9 @@ class CreatorNeighborRow(NamedTuple):
     display_name: str
     shared_chatters: int
     shared_regulars: int
+
+
+class ChatCompanionRow(NamedTuple):
+    chatter_id: int
+    nick: str
+    shared_streams: int

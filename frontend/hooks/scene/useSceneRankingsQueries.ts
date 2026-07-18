@@ -7,6 +7,7 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+import type { ArchetypeBadge } from '@/components/chatter/ArchetypeBadges'
 import { sceneKeys } from './sceneKeys'
 
 /** A chatter's dominant channel, or `null` when no single channel dominates. */
@@ -27,6 +28,7 @@ export interface RankingsRow {
     streamsAttended: number
     creatorsVisited: number
     homeChannel: RankingsHomeChannel | null
+    archetypes: ArchetypeBadge[]
 }
 
 /** Camel-cased view model for `GET /scene/chatter-rankings`. */
@@ -70,6 +72,15 @@ export const mapSceneRankings = (value: unknown): SceneRankings => {
                 streamsAttended: requireFiniteNumberField(item, 'streams_attended', label),
                 creatorsVisited: requireFiniteNumberField(item, 'creators_visited', label),
                 homeChannel: mapHomeChannel(item.home_channel),
+                archetypes: requireArrayField(item, 'archetypes', label).map((raw, badgeIndex) => {
+                    const badgeLabel = `${label}.archetypes[${badgeIndex}]`
+                    const badge = requireRecord(raw, badgeLabel)
+                    return {
+                        key: requireStringField(badge, 'key', badgeLabel),
+                        label: requireStringField(badge, 'label', badgeLabel),
+                        description: requireStringField(badge, 'description', badgeLabel),
+                    }
+                }),
             }
         }),
     }

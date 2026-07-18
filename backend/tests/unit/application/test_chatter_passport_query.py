@@ -8,16 +8,18 @@ from stream_sniper.database.gateways.analytics.records import (
     ChatterTimeBoundsRow,
 )
 from stream_sniper.database.gateways.chat.records import ChatterProfileRow
+from stream_sniper.database.gateways.community.records import ChatCompanionRow
 from stream_sniper.database.gateways.creators.records import ChatterLoyaltyRow
 
 
-def _patch(monkeypatch, *, profile, loyalty, debut, active, time_bounds=None) -> None:
+def _patch(monkeypatch, *, profile, loyalty, debut, active, time_bounds=None, companions=None) -> None:
     bounds = time_bounds if time_bounds is not None else ChatterTimeBoundsRow(None, None)
     monkeypatch.setattr(passport_query, "select_chatter_profile_db", lambda _cid: profile)
     monkeypatch.setattr(passport_query, "select_chatter_loyalty_db", lambda _cid: loyalty)
     monkeypatch.setattr(passport_query, "select_chatter_debut_db", lambda _cid: debut)
     monkeypatch.setattr(passport_query, "select_chatter_most_active_stream_db", lambda _cid: active)
     monkeypatch.setattr(passport_query, "select_chatter_message_time_bounds_db", lambda _cid: bounds)
+    monkeypatch.setattr(passport_query, "select_chat_companions_db", lambda _cid: companions or [])
 
 
 def test_unknown_chatter_returns_none(monkeypatch) -> None:
@@ -39,6 +41,10 @@ def test_assembles_totals_loyalty_and_shares(monkeypatch) -> None:
         # Message-time bounds intentionally differ from the loyalty rows' stream-start
         # first/last_seen: totals must reflect MESSAGE times (the debut, not stream start).
         time_bounds=ChatterTimeBoundsRow("2024-01-01T20:00:00", "2024-06-01T13:37:00"),
+        companions=[
+            ChatCompanionRow(chatter_id=3, nick="buddy", shared_streams=9),
+            ChatCompanionRow(chatter_id=8, nick="pal", shared_streams=4),
+        ],
     )
 
     result = get_chatter_passport(42)
@@ -82,6 +88,11 @@ def test_assembles_totals_loyalty_and_shares(monkeypatch) -> None:
     keys = [badge.key for badge in result.archetypes]
     assert keys == ["loyalist", "veteran"]
 
+    # companions preserve gateway order (shared_streams desc) and pass through unchanged
+    assert [c.chatter_id for c in result.companions] == [3, 8]
+    assert result.companions[0].nick == "buddy"
+    assert result.companions[0].shared_streams == 9
+
 
 def test_empty_corpus_yields_zero_share_and_null_milestones(monkeypatch) -> None:
     _patch(
@@ -105,6 +116,8 @@ def test_empty_corpus_yields_zero_share_and_null_milestones(monkeypatch) -> None
     assert result.chatter.is_bot is None
     # No corpus -> no archetypes (empty totals, no home share, no first_seen).
     assert result.archetypes == []
+    # No companions returned by the gateway -> passport surfaces an empty list, not None.
+    assert result.companions == []
 
 
 def test_totals_seen_come_from_message_time_bounds(monkeypatch) -> None:
@@ -127,3 +140,26 @@ def test_totals_seen_come_from_message_time_bounds(monkeypatch) -> None:
     assert result.totals.last_seen == "2024-03-02T02:10:00"
     assert result.chatter.is_bot is True
     assert result.chatter.bot_reason == "known-bot"
+
+
+def test_companions_bot_exclusion_boundary_is_the_gateway(monkeypatch) -> None:
+    """The gateway's SQL excludes bot chatters; the application layer just relays the list.
+
+    A companion list with a bot chatter mixed in would never actually reach this layer
+    (select_chat_companions_db filters ``c.is_bot IS NOT TRUE`` in SQL), so a correctly
+    filtered gateway result is exactly what get_chatter_passport should surface unchanged.
+    """
+    _patch(
+        monkeypatch,
+        profile=ChatterProfileRow(42, "chatty", False, None),
+        loyalty=[],
+        debut=None,
+        active=None,
+        # Simulates the gateway already having excluded a bot co-chatter (e.g. "spambot")
+        # from the raw shared-stream join — only non-bot companions are ever passed in.
+        companions=[ChatCompanionRow(chatter_id=3, nick="buddy", shared_streams=9)],
+    )
+
+    result = get_chatter_passport(42)
+    assert result is not None
+    assert [c.nick for c in result.companions] == ["buddy"]

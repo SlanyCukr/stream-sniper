@@ -14,12 +14,14 @@ from stream_sniper.database.gateways.analytics.stream_chatter_stats_table_gatewa
     select_chatter_most_active_stream_db,
 )
 from stream_sniper.database.gateways.chat.chatter_table_gateway import select_chatter_profile_db
+from stream_sniper.database.gateways.community.chat_companions_gateway import select_chat_companions_db
 from stream_sniper.database.gateways.creators.creator_chatter_stats_table_gateway import select_chatter_loyalty_db
 
 from .archetypes import compute_archetypes
 from .passport_models import (
     ChatterPassport,
     PassportChatter,
+    PassportCompanion,
     PassportDebut,
     PassportHomeChannel,
     PassportLoyalty,
@@ -57,6 +59,7 @@ def get_chatter_passport(chatter_id: int) -> ChatterPassport | None:
 
     debut_row = select_chatter_debut_db(chatter_id)
     active_row = select_chatter_most_active_stream_db(chatter_id)
+    companion_rows = select_chat_companions_db(chatter_id)
 
     # Archetypes are derived purely from the aggregates already assembled above
     # (no extra query). now=UTC keeps the age-based badges deterministic per request.
@@ -81,4 +84,5 @@ def get_chatter_passport(chatter_id: int) -> ChatterPassport | None:
             )
         ),
         archetypes=archetypes,
+        companions=[PassportCompanion.from_row(row) for row in companion_rows],
     )

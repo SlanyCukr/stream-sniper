@@ -82,6 +82,46 @@ export interface CreatorEmotesDto {
     stream_count: number
   }>
 }
+
+export interface CreatorWrappedDto {
+  creator_id: number
+  days: number
+  totals: {
+    streams: number
+    hours_streamed: number | null
+    messages: number
+    active_chatters: number
+  }
+  top_chatters: Array<{
+    rank: number
+    chatter_id: number
+    nick: string
+    total_messages: number
+    streams_attended: number
+  }>
+  top_moments: Array<{
+    stream_id: number
+    stream_title: string
+    twitch_id: string | null
+    bucket_minute: string
+    offset_seconds: number
+    ratio: number | null
+    message_count: number
+  }>
+  top_copypastas: Array<{
+    message_text_id: number
+    text: string
+    usage_count: number
+    stream_count: number
+  }>
+  top_emotes: Array<{
+    emote_id: number
+    name: string
+    source: string
+    usage: number
+    chatter_reach: number
+  }>
+}
 export interface CreatorRowDto {
   creator_id: number
   display_name: string
@@ -109,3 +149,6 @@ export const retrieveAudienceMovement = (creatorId: number, days = 30) =>
 
 export const retrieveCreatorEmotes = (creatorId: number, limit = 25) =>
   api.get<CreatorEmotesDto>(`/creators/${creatorId}/emotes?${buildQuery({ limit })}`)
+
+export const retrieveCreatorWrapped = (creatorId: number, days = 30) =>
+  api.get<CreatorWrappedDto>(`/creators/${creatorId}/wrapped?${buildQuery({ days })}`)

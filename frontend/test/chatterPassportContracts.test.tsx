@@ -60,6 +60,10 @@ const fullPayload = {
   archetypes: [
     { key: 'loyalist', label: 'Loyalist', description: 'Most messages land in one home channel.' },
   ],
+  companions: [
+    { chatter_id: 11, nick: 'bestie', shared_streams: 9 },
+    { chatter_id: 12, nick: 'buddy', shared_streams: 4 },
+  ],
 }
 
 const createClient = () => new QueryClient({
@@ -132,6 +136,10 @@ describe('chatter passport pure logic', () => {
       archetypes: [
         { key: 'loyalist', label: 'Loyalist', description: 'Most messages land in one home channel.' },
       ],
+      companions: [
+        { chatterId: 11, nick: 'bestie', sharedStreams: 9 },
+        { chatterId: 12, nick: 'buddy', sharedStreams: 4 },
+      ],
     })
   })
 
@@ -150,6 +158,7 @@ describe('chatter passport pure logic', () => {
       loyalty: [],
       milestones: { most_active_stream: null },
       archetypes: [],
+      companions: [],
     })
     expect(mapped.debut).toBeNull()
     expect(mapped.homeChannel).toBeNull()
@@ -159,6 +168,7 @@ describe('chatter passport pure logic', () => {
     expect(mapped.chatter).toEqual({ id: 9, nick: 'bot9000', isBot: true, botReason: 'copypasta spam' })
     expect(mapped.loyalty).toEqual([])
     expect(mapped.archetypes).toEqual([])
+    expect(mapped.companions).toEqual([])
   })
 
   it.each([
@@ -168,8 +178,24 @@ describe('chatter passport pure logic', () => {
       { ...fullPayload, debut: { stream_id: 10, stream_title: 'x', creator_display_name: 'c' } },
       'chatter passport.debut.time must be a string',
     ],
+    [{ ...fullPayload, companions: {} }, 'chatter passport.companions must be an array'],
+    [
+      { ...fullPayload, companions: [{ chatter_id: 11, nick: 'bestie' }] },
+      'chatter passport.companions[0].shared_streams must be a finite number',
+    ],
   ])('rejects malformed passport payloads', (payload, message) => {
     expect(() => mapChatterPassport(payload)).toThrow(message)
+  })
+
+  it('maps companions verbatim, ordered by shared_streams desc (as returned by the API)', () => {
+    expect(mapChatterPassport(fullPayload).companions).toEqual([
+      { chatterId: 11, nick: 'bestie', sharedStreams: 9 },
+      { chatterId: 12, nick: 'buddy', sharedStreams: 4 },
+    ])
+  })
+
+  it('maps an empty companions list to an empty array (no shared-stream chatters)', () => {
+    expect(mapChatterPassport({ ...fullPayload, companions: [] }).companions).toEqual([])
   })
 })
 

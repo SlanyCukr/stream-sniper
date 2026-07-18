@@ -35,6 +35,18 @@
     color: $gray-500;
 }
 
+.rankings-archetypes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.35rem;
+}
+
+.rankings-filter-empty {
+    color: $gray-500;
+    padding: 1.5rem 1rem;
+}
+
 .rankings-load-more {
     display: flex;
     justify-content: center;
