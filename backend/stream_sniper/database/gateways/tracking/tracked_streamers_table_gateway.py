@@ -99,27 +99,6 @@ def select_tracked_streamer_by_id_db(tracked_streamer_id: int) -> TrackedStreame
         return TrackedStreamer(*row) if row else None
 
 
-def select_tracked_streamer_by_username_db(twitch_username: str) -> TrackedStreamer | None:
-
-    with read_cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT ts.id, ts.creator_id, ts.twitch_username, ts.display_name, ts.is_active,
-                   ts.last_stream_check, ts.last_processed_vod_id, ts.processing_enabled,
-                   ts.created_at, ts.updated_at, ts.created_by, ts.notes,
-                   c.display_name as creator_display_name, c.profile_image_url,
-                   u.username as created_by_username
-            FROM stream_sniper.tracked_streamers ts
-            JOIN stream_sniper.creator c ON ts.creator_id = c.id
-            LEFT JOIN stream_sniper.users u ON ts.created_by = u.id
-            WHERE ts.twitch_username = %s
-            """,
-            (twitch_username,),
-        )
-        row = cursor.fetchone()
-        return TrackedStreamer(*row) if row else None
-
-
 def update_tracked_streamer_db(
     tracked_streamer_id: int,
     *,

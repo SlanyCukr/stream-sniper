@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
+import TabList from '@/components/common/TabList'
 import HighlightCard from '@/components/scene/HighlightCard'
 import {
     useSceneHighlights,
@@ -75,75 +76,69 @@ const Highlights = () => {
                 className="toolbar highlights-toolbar"
                 role="search"
                 aria-label="Highlights filters">
-                <div className="chatter-tabs" role="tablist" aria-label="Time window">
-                    {WINDOW_TABS.map(tab => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={windowKey === tab.key}
-                            className={windowKey === tab.key ? 'chatter-tab active' : 'chatter-tab'}
-                            onClick={() => setWindowKey(tab.key)}>
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-                <div className="chatter-tabs" role="tablist" aria-label="Sort order">
-                    {SORT_TABS.map(tab => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={sort === tab.key}
-                            className={sort === tab.key ? 'chatter-tab active' : 'chatter-tab'}
-                            onClick={() => setSort(tab.key)}>
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <TabList
+                    tabs={WINDOW_TABS}
+                    activeKey={windowKey}
+                    idPrefix="highlights-window"
+                    ariaLabel="Time window"
+                    onChange={setWindowKey}
+                />
+                <TabList
+                    tabs={SORT_TABS}
+                    activeKey={sort}
+                    idPrefix="highlights-sort"
+                    ariaLabel="Sort order"
+                    onChange={setSort}
+                />
             </div>
 
-            <QueryState
-                query={{
-                    data: isFirstPageLoading ? undefined : accumulated,
-                    error: query.error,
-                    isLoading: query.isLoading,
-                    refetch: query.refetch,
-                }}
-                errorTitle="Failed to load highlights"
-                loadingText="Surfacing the best moments…"
-                loadingSize="md"
-                isEmpty={(value: SceneHighlight[]) => value.length === 0}
-                emptyState={(
-                    <EmptyState title="No highlights yet">
-                        No hype-worthy chat moments fall inside this window yet.
-                    </EmptyState>
-                )}
+            <div
+                id={`highlights-window-panel-${windowKey}`}
+                role="tabpanel"
+                aria-labelledby={`highlights-window-tab-${windowKey}`}
             >
-                {(value: SceneHighlight[]) => (
-                    <>
-                        <div className={`highlight-grid${isRefetching ? ' is-refetching' : ''}`}>
-                            {value.map(item => (
-                                <HighlightCard
-                                    key={`${item.streamId}:${item.offsetSeconds}`}
-                                    highlight={item}
-                                />
-                            ))}
-                        </div>
-                        {hasMore ? (
-                            <div className="highlight-load-more">
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-primary btn-sm"
-                                    onClick={() => setOffset(current => current + PAGE_SIZE)}
-                                    disabled={isFetchingMore}>
-                                    {isFetchingMore ? 'Loading…' : 'Load more'}
-                                </button>
+                <QueryState
+                    query={{
+                        data: isFirstPageLoading ? undefined : accumulated,
+                        error: query.error,
+                        isLoading: query.isLoading,
+                        refetch: query.refetch,
+                    }}
+                    errorTitle="Failed to load highlights"
+                    loadingText="Surfacing the best moments…"
+                    loadingSize="md"
+                    isEmpty={(value: SceneHighlight[]) => value.length === 0}
+                    emptyState={(
+                        <EmptyState title="No highlights yet">
+                            No hype-worthy chat moments fall inside this window yet.
+                        </EmptyState>
+                    )}
+                >
+                    {(value: SceneHighlight[]) => (
+                        <>
+                            <div className={`highlight-grid${isRefetching ? ' is-refetching' : ''}`}>
+                                {value.map(item => (
+                                    <HighlightCard
+                                        key={`${item.streamId}:${item.offsetSeconds}`}
+                                        highlight={item}
+                                    />
+                                ))}
                             </div>
-                        ) : null}
-                    </>
-                )}
-            </QueryState>
+                            {hasMore ? (
+                                <div className="highlight-load-more">
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-primary btn-sm"
+                                        onClick={() => setOffset(current => current + PAGE_SIZE)}
+                                        disabled={isFetchingMore}>
+                                        {isFetchingMore ? 'Loading…' : 'Load more'}
+                                    </button>
+                                </div>
+                            ) : null}
+                        </>
+                    )}
+                </QueryState>
+            </div>
         </>
     )
 }

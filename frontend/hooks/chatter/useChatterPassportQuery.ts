@@ -1,4 +1,5 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
+import { shareBarWidth } from '@/utils/numberUtils'
 import { retrieveChatterPassport } from '@/lib/api/chatter'
 import {
     requireArrayField,
@@ -70,10 +71,12 @@ export interface ChatterPassport {
  */
 export const formatSharePct = (share: number): string => `${(share * 100).toFixed(1)}%`
 
-/** Bar width (2..100) for a fractional share, clamped so tiny shares stay visible. */
-export const shareBarWidth = (share: number): number => (
-    Math.min(100, Math.max(2, Math.round(share * 100)))
-)
+/**
+ * Bar width (2..100) for a fractional share, clamped so tiny shares stay
+ * visible. Re-exported here so existing passport imports/tests are unaffected
+ * by the numberUtils consolidation.
+ */
+export { shareBarWidth }
 
 const mapDebut = (raw: unknown): PassportDebut | null => {
     if (raw === null) return null

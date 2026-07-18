@@ -1,16 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { formatCompactNumber } from '@/utils/numberUtils'
+import { formatCompactNumber, magnitudeBarWidth } from '@/utils/numberUtils'
 import { formatStreamTimestamp } from '@/utils/dateUtils'
 import StatusChip from '@/components/common/StatusChip'
 import WrappedSection from '@/components/scene/WrappedSection'
 import type { SceneWrapped } from '@/hooks/scene/useSceneWrappedQuery'
-
-/** Clamp a magnitude bar to 2..100 relative to the leading value in its list. */
-const barWidth = (value: number, top: number): number => (
-    top > 0 ? Math.min(100, Math.max(2, Math.round((value / top) * 100))) : 0
-)
 
 /** Compact count, or an em-dash when the metric is unknown (null). */
 const compactOrDash = (value: number | null): string => (
@@ -92,7 +87,7 @@ const WrappedRecap = ({ wrapped }: { wrapped: SceneWrapped }) => {
                                                 <span className="data-bar" aria-hidden="true">
                                                     <span
                                                         className="data-bar-fill"
-                                                        style={{ width: `${barWidth(creator.totalMessages, topCreatorMessages)}%` }}
+                                                        style={{ width: `${magnitudeBarWidth(creator.totalMessages, topCreatorMessages)}%` }}
                                                     />
                                                 </span>
                                             </td>
@@ -122,7 +117,7 @@ const WrappedRecap = ({ wrapped }: { wrapped: SceneWrapped }) => {
                                     <span className="data-bar" aria-hidden="true">
                                         <span
                                             className="data-bar-fill"
-                                            style={{ width: `${barWidth(chatter.totalMessages, topChatterMessages)}%` }}
+                                            style={{ width: `${magnitudeBarWidth(chatter.totalMessages, topChatterMessages)}%` }}
                                         />
                                     </span>
                                 </span>
@@ -210,7 +205,7 @@ const WrappedRecap = ({ wrapped }: { wrapped: SceneWrapped }) => {
                                     <span className="data-bar" aria-hidden="true">
                                         <span
                                             className="data-bar-fill"
-                                            style={{ width: `${barWidth(emote.usage, topEmoteUsage)}%` }}
+                                            style={{ width: `${magnitudeBarWidth(emote.usage, topEmoteUsage)}%` }}
                                         />
                                     </span>
                                 </span>

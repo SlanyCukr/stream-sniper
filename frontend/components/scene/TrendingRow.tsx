@@ -4,7 +4,7 @@ import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import StatusChip from '@/components/common/StatusChip'
 import type { StatusChipVariant } from '@/components/common/StatusChip'
-import { formatCompactNumber } from '@/utils/numberUtils'
+import { formatCompactNumber, magnitudeBarWidth } from '@/utils/numberUtils'
 
 /** A single magnitude/context pair rendered as a muted chip (e.g. "4 streams"). */
 export interface TrendingContext {
@@ -73,8 +73,7 @@ interface TrendingRowProps {
 
 const TrendingRow = ({ rank, row, maxUsage }: TrendingRowProps) => {
     const indicator = trendIndicator(row.trend, row.deltaPct)
-    const fillWidth = Math.min(100, Math.max(2, Math.round((row.currentUsage / maxUsage) * 100)))
-    const barStyle: CSSProperties = { width: `${fillWidth}%` }
+    const barStyle: CSSProperties = { width: `${magnitudeBarWidth(row.currentUsage, maxUsage)}%` }
 
     return (
         <tr>

@@ -72,17 +72,6 @@ class EndpointAccumulator(TypedDict):
     rate_limited: int
 
 
-class RecentRequestPayload(TypedDict):
-    endpoint: str
-    method: str
-    status_code: int
-    response_time_ms: float
-    timestamp: str
-    client_ip: str
-    cache_hit: bool
-    rate_limited: bool
-
-
 class MonitoringSnapshotPayload(TypedDict):
     system: MetricsSystemPayload
     requests: RequestSnapshotPayload
@@ -304,27 +293,6 @@ class MetricsCollector:
             }
             for endpoint, stats in top_endpoints
         }
-
-    def get_recent_requests(self, minutes: int = 10) -> list[RecentRequestPayload]:
-        cutoff_time = datetime.now() - timedelta(minutes=minutes)
-
-        with self._lock:
-            recent_requests: list[RecentRequestPayload] = [
-                {
-                    "endpoint": req.endpoint,
-                    "method": req.method,
-                    "status_code": req.status_code,
-                    "response_time_ms": req.response_time_ms,
-                    "timestamp": req.timestamp.isoformat(),
-                    "client_ip": req.client_ip,
-                    "cache_hit": req.cache_hit,
-                    "rate_limited": req.rate_limited,
-                }
-                for req in self.request_history
-                if req.timestamp >= cutoff_time
-            ]
-
-        return recent_requests
 
     def reset_metrics(self) -> None:
         """Reset all metrics (useful for testing)."""

@@ -41,21 +41,6 @@ def select_user_by_username_db(username: str) -> UserRow | None:
         return UserRow(*row) if row else None
 
 
-def select_user_by_email_db(email: str) -> UserRow | None:
-
-    with read_cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT id, username, email, password_hash, role, is_active, created_at
-            FROM users
-            WHERE email = %s
-            """,
-            (email,),
-        )
-        row = cursor.fetchone()
-        return UserRow(*row) if row else None
-
-
 def select_user_by_id_db(user_id: int) -> UserRow | None:
 
     with read_cursor() as cursor:

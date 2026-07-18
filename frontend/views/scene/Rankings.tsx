@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
+import TabList from '@/components/common/TabList'
 import RankingsTable from '@/components/scene/RankingsTable'
 import {
     useSceneRankings,
@@ -67,51 +68,50 @@ const Rankings = () => {
                 role="search"
                 aria-label="Rankings window"
             >
-                <div className="chatter-tabs" role="tablist" aria-label="Window">
-                    {WINDOW_TABS.map(tab => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={activeWindow === tab.key}
-                            className={activeWindow === tab.key ? 'chatter-tab active' : 'chatter-tab'}
-                            onClick={() => setActiveWindow(tab.key)}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <TabList
+                    tabs={WINDOW_TABS}
+                    activeKey={activeWindow}
+                    idPrefix="rankings-window"
+                    ariaLabel="Window"
+                    onChange={setActiveWindow}
+                />
             </div>
 
-            {accumulated.length > 0 ? (
-                <RankingsTable
-                    rows={accumulated}
-                    hasMore={hasMore}
-                    isFetchingMore={isFetchingMore}
-                    onLoadMore={loadMore}
-                />
-            ) : (
-                <QueryState
-                    query={query}
-                    errorTitle="Failed to load power rankings"
-                    loadingText="Ranking the scene..."
-                    isEmpty={(value: SceneRankings) => value.items.length === 0}
-                    emptyState={(
-                        <EmptyState title="No power rankings yet">
-                            No chatter activity falls inside this window yet.
-                        </EmptyState>
-                    )}
-                >
-                    {(data: SceneRankings) => (
-                        <RankingsTable
-                            rows={data.items}
-                            hasMore={data.hasMore}
-                            isFetchingMore={isFetchingMore}
-                            onLoadMore={loadMore}
-                        />
-                    )}
-                </QueryState>
-            )}
+            <div
+                id={`rankings-window-panel-${activeWindow}`}
+                role="tabpanel"
+                aria-labelledby={`rankings-window-tab-${activeWindow}`}
+            >
+                {accumulated.length > 0 ? (
+                    <RankingsTable
+                        rows={accumulated}
+                        hasMore={hasMore}
+                        isFetchingMore={isFetchingMore}
+                        onLoadMore={loadMore}
+                    />
+                ) : (
+                    <QueryState
+                        query={query}
+                        errorTitle="Failed to load power rankings"
+                        loadingText="Ranking the scene..."
+                        isEmpty={(value: SceneRankings) => value.items.length === 0}
+                        emptyState={(
+                            <EmptyState title="No power rankings yet">
+                                No chatter activity falls inside this window yet.
+                            </EmptyState>
+                        )}
+                    >
+                        {(data: SceneRankings) => (
+                            <RankingsTable
+                                rows={data.items}
+                                hasMore={data.hasMore}
+                                isFetchingMore={isFetchingMore}
+                                onLoadMore={loadMore}
+                            />
+                        )}
+                    </QueryState>
+                )}
+            </div>
         </>
     )
 }

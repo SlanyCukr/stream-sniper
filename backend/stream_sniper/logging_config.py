@@ -192,10 +192,6 @@ def get_correlation_id() -> str:
     return correlation_id_var.get("")
 
 
-def set_correlation_id(correlation_id: str) -> None:
-    correlation_id_var.set(correlation_id)
-
-
 class LoggingConfig:
     """Centralized logging configuration."""
 
@@ -392,8 +388,3 @@ def get_logger(name: str | None = None) -> logging.Logger:
 def is_logging_configured() -> bool:
     """Return whether an executable boundary configured package logging."""
     return _logging_config is not None
-
-
-def get_performance_timer(operation: str, slow_threshold: float = 1.0) -> PerformanceTimer:
-    logger = get_logger()
-    return PerformanceTimer(logger, operation, slow_threshold=slow_threshold)

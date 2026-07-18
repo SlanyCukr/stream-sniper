@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Card, Table } from 'react-bootstrap'
-import { formatCompactNumber } from '@/utils/numberUtils'
+import { formatCompactNumber, magnitudeBarWidth } from '@/utils/numberUtils'
 import type { RankingsRow } from '@/hooks/scene/useSceneRankingsQueries'
 
 interface RankingsTableProps {
@@ -11,11 +11,6 @@ interface RankingsTableProps {
     isFetchingMore: boolean
     onLoadMore: () => void
 }
-
-/** Clamp a magnitude bar to 2..100 for a value relative to the leading row. */
-const barWidth = (value: number, top: number): number => (
-    top > 0 ? Math.min(100, Math.max(2, Math.round((value / top) * 100))) : 0
-)
 
 /**
  * Server-ranked chatter leaderboard. Rows arrive already ordered by rank, so
@@ -59,7 +54,7 @@ const RankingsTable = ({
                                             <span className="data-bar" aria-hidden="true">
                                                 <span
                                                     className="data-bar-fill"
-                                                    style={{ width: `${barWidth(row.totalMessages, topMessages)}%` }}
+                                                    style={{ width: `${magnitudeBarWidth(row.totalMessages, topMessages)}%` }}
                                                 />
                                             </span>
                                         </td>
