@@ -273,6 +273,16 @@ def get_active_pool() -> DatabaseConnectionPool:
     return active
 
 
+def peek_active_pool() -> DatabaseConnectionPool | None:
+    """Return the currently bound pool, or None when the scope is unbound.
+
+    For components that capture the pool at construction time so they can re-bind
+    it on threads whose context never saw the entrypoint's binding (ContextVars do
+    not cross thread boundaries — e.g. third-party callback threads).
+    """
+    return _active_pool.get()
+
+
 @contextmanager
 def database_runtime(config: DatabasePoolConfig | None = None) -> Iterator[DatabaseConnectionPool]:
     """Own one explicitly configured pool for a command or service lifetime."""

@@ -185,3 +185,58 @@ async def test_finalize_serializes_terminal_flush_against_stale_messages(monkeyp
     assert [row[-1] for row in written] == ["accepted"]
     assert finalized == [(77, None)]
     assert sink._items == []
+
+
+@pytest.mark.asyncio
+async def test_ingest_rebinds_captured_pool_for_worker_thread_gateways(monkeypatch):
+    """Gateways must see the sink's captured pool even when the calling context is unbound.
+
+    twitchAPI chat callbacks arrive on the chat client's own thread, whose context never
+    saw the service entrypoint's pool binding (ContextVars do not cross threads). The sink
+    captures the pool at construction and re-binds it around each worker-thread gateway
+    call — without that, every live message dies with "No database pool is bound".
+    """
+    from stream_sniper.database.core.connection_pool import (
+        enter_pool_scope,
+        exit_pool_scope,
+        get_active_pool,
+    )
+
+    sentinel_pool = object()
+    seen_pools = []
+
+    def recording(result):
+        def gateway(*_args):
+            seen_pools.append(get_active_pool())
+            return result
+
+        return gateway
+
+    monkeypatch.setattr(sink_module, "ensure_live_stream_db", recording(77))
+    monkeypatch.setattr(sink_module, "find_or_insert_chatter_id_db", recording(8))
+    monkeypatch.setattr(sink_module, "find_or_insert_message_text_id_db", recording(9))
+    monkeypatch.setattr(sink_module, "bulk_insert_live_messages_db", recording(None))
+
+    # Construct inside a bound scope (the service does this under database_runtime()),
+    # then drop the binding to model the chat thread's pristine context.
+    token = enter_pool_scope(sentinel_pool)  # type: ignore[arg-type]
+    try:
+        sink = LiveMessageSink(buffer_size=10)
+    finally:
+        exit_pool_scope(token)
+
+    assert await sink.ingest_message(_message(), _stream()) is True
+    await sink.flush()
+
+    # ensure_stream + chatter + text + bulk insert all saw the captured pool.
+    assert len(seen_pools) == 4
+    assert all(pool is sentinel_pool for pool in seen_pools)
+
+
+@pytest.mark.asyncio
+async def test_sink_without_captured_pool_calls_gateways_in_ambient_context(monkeypatch):
+    """No pool at construction (unit-test reality) → gateways run unwrapped."""
+    monkeypatch.setattr(sink_module, "ensure_live_stream_db", lambda *args: 77)
+    sink = LiveMessageSink(buffer_size=10)
+    assert sink._pool is None
+    assert await sink.ensure_stream("somestreamer", _stream()) == 77
