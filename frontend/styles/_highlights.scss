@@ -1,0 +1,150 @@
+// Scene highlights wall (hype-ranked moments) — night-ops styling.
+// Owned by the highlights feature. Reuse existing _scene.scss primitives
+// (.card / .card-hud, .pasta-chips / .pasta-chip, .chatter-tabs) before adding here.
+
+.highlights-toolbar {
+    flex-wrap: wrap;
+    gap: 1rem;
+    row-gap: 0.6rem;
+}
+
+.highlight-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    transition: opacity 0.15s ease;
+
+    &.is-refetching {
+        opacity: 0.6;
+    }
+}
+
+.highlight-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    height: 100%;
+}
+
+.highlight-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.highlight-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.highlight-creator {
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: $gray-300;
+    text-decoration: none;
+
+    &:hover {
+        color: $phosphor;
+    }
+}
+
+.highlight-title {
+    font-weight: 600;
+    color: $gray-100;
+    text-decoration: none;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+
+    &:hover {
+        color: $teal;
+    }
+}
+
+.highlight-hype {
+    flex-shrink: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.highlight-when {
+    font-size: 0.72rem;
+    color: $gray-500;
+}
+
+.highlight-stats {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+}
+
+.highlight-stat {
+    font-size: 0.95rem;
+    color: $gray-100;
+
+    .highlight-stat-unit {
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: $gray-500;
+    }
+}
+
+.highlight-phrases {
+    margin: 0;
+}
+
+.highlight-samples {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.highlight-sample {
+    margin: 0;
+    font-size: 0.82rem;
+    color: $gray-200;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+
+    .highlight-sample-count {
+        color: $gray-500;
+    }
+}
+
+.highlight-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: auto;
+    padding-top: 0.25rem;
+}
+
+.highlight-clip {
+    font-size: 0.82rem;
+    color: $phosphor;
+    text-decoration: none;
+
+    &:hover {
+        color: $teal;
+        text-decoration: underline;
+    }
+}
+
+.highlight-load-more {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.25rem;
+}

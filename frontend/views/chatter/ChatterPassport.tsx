@@ -14,6 +14,7 @@ import {
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
 import StatusChip from '@/components/common/StatusChip'
+import ArchetypeBadges from '@/components/chatter/ArchetypeBadges'
 import { formatCompactNumber } from '@/utils/numberUtils'
 import { formatStreamTimestamp } from '@/utils/dateUtils'
 import { normalizeApiError } from '@/utils/errorUtils'
@@ -203,6 +204,7 @@ const ChatterPassport = ({ chatterId }: { chatterId: number }) => {
                                 <StatusChip variant="warn">BOT</StatusChip>
                             </span>
                         ) : null}
+                        {passport ? <ArchetypeBadges archetypes={passport.archetypes} /> : null}
                     </h1>
                     {passport ? (
                         <p className="page-sub mono small">

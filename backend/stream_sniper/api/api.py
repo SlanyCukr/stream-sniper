@@ -21,8 +21,11 @@ from .features.chatters.chatter_endpoints import router as chatter_router
 from .features.community.audience_endpoints import router as audience_router
 from .features.community.community_endpoints import router as community_router
 from .features.content.moment_endpoints import router as moment_router
+from .features.content.scene_chatter_endpoints import router as scene_chatter_router
 from .features.content.scene_endpoints import router as scene_router
 from .features.content.scene_event_endpoints import router as scene_event_router
+from .features.content.scene_highlights_endpoints import router as scene_highlights_router
+from .features.content.scene_trending_endpoints import router as scene_trending_router
 from .features.creators.analytics_endpoints import router as analytics_router
 from .features.creators.creator_endpoints import router as creator_router
 from .features.operations.operations_endpoints import router as operations_router
@@ -96,6 +99,9 @@ def _include_routers(app: FastAPI) -> None:
         community_router,
         scene_router,
         scene_event_router,
+        scene_chatter_router,
+        scene_highlights_router,
+        scene_trending_router,
         moment_router,
         search_router,
     ):

@@ -91,6 +91,13 @@ export interface ChatterPassportDto {
       messages: number
     } | null
   }
+  // Rule-based identity badges derived from the passport's own data. Always present
+  // (empty array when no badge applies); each entry is a stable key + label + reason.
+  archetypes: Array<{
+    key: string
+    label: string
+    description: string
+  }>
 }
 
 export const retrieveChatterPassport = (chatterId: number) =>

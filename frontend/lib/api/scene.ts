@@ -149,3 +149,148 @@ export const retrieveScenePulse = (request: ScenePulseRequest = {}) =>
 
 export const retrieveSceneDigest = (days = 7) =>
   api.get<SceneDigestDto>(`/scene/digest?${buildQuery({ days })}`)
+
+// ---------------------------------------------------------------------------
+// Scene power rankings (chatter leaderboard) — GET /scene/chatter-rankings
+// ---------------------------------------------------------------------------
+
+export type RankingsWindow = 'all' | '7' | '30'
+
+export interface SceneRankingsRequest {
+  window?: RankingsWindow
+  limit?: number
+  offset?: number
+}
+
+export interface SceneRankingsDto {
+  window: string
+  has_more: boolean
+  items: Array<{
+    rank: number
+    chatter_id: number
+    nick: string
+    total_messages: number
+    streams_attended: number
+    creators_visited: number
+    home_channel: {
+      creator_id: number
+      creator_nick: string
+      creator_display_name: string
+      messages: number
+      share: number
+    } | null
+  }>
+}
+
+export const retrieveSceneRankings = (request: SceneRankingsRequest = {}) =>
+  api.get<SceneRankingsDto>(`/scene/chatter-rankings?${buildQuery({
+    window: request.window,
+    limit: request.limit,
+    offset: request.offset,
+  })}`)
+
+// ---------------------------------------------------------------------------
+// Scene highlights wall (hype-ranked moments) — GET /scene/highlights
+// ---------------------------------------------------------------------------
+
+export type HighlightsWindow = 'all' | '7' | '30'
+export type HighlightsSort = 'hype' | 'recent'
+
+export interface SceneHighlightsRequest {
+  window?: HighlightsWindow
+  creatorId?: number
+  sort?: HighlightsSort
+  limit?: number
+  offset?: number
+}
+
+export interface SceneHighlightsDto {
+  window: string
+  sort: string
+  has_more: boolean
+  items: Array<{
+    stream_id: number
+    stream_title: string
+    twitch_id: string | null
+    creator_id: number
+    creator_nick: string
+    creator_display_name: string
+    bucket_minute: string
+    offset_seconds: number
+    ratio: number | null
+    message_count: number
+    unique_chatters: number
+    sub_share: number | null
+    emote_share: number | null
+    top_phrases: Array<{ phrase: string, count: number, lift: number }> | null
+    sample_messages: Array<{ text: string, count: number }> | null
+    clip_url: string | null
+    review_status: string | null
+  }>
+}
+
+export const retrieveSceneHighlights = (request: SceneHighlightsRequest = {}) =>
+  api.get<SceneHighlightsDto>(`/scene/highlights?${buildQuery({
+    window: request.window,
+    creator_id: request.creatorId,
+    sort: request.sort,
+    limit: request.limit,
+    offset: request.offset,
+  })}`)
+
+// ---------------------------------------------------------------------------
+// Scene trending velocity — GET /scene/trending/{copypastas,emotes}
+// ---------------------------------------------------------------------------
+
+export type TrendingWindow = 7 | 14 | 30
+
+export interface SceneTrendingRequest {
+  window?: TrendingWindow
+  creatorId?: number
+  limit?: number
+}
+
+export interface TrendingCopypastasDto {
+  window: number
+  items: Array<{
+    message_text_id: number
+    text: string
+    current_usage: number
+    prior_usage: number
+    delta_pct: number | null
+    trend: string
+    stream_count: number
+    creator_count: number
+    first_seen: string | null
+  }>
+}
+
+export interface TrendingEmotesDto {
+  window: number
+  items: Array<{
+    emote_id: number
+    name: string
+    source: string
+    provider_id: string | null
+    current_usage: number
+    prior_usage: number
+    delta_pct: number | null
+    trend: string
+    chatter_reach: number
+    first_seen: string | null
+  }>
+}
+
+export const retrieveTrendingCopypastas = (request: SceneTrendingRequest = {}) =>
+  api.get<TrendingCopypastasDto>(`/scene/trending/copypastas?${buildQuery({
+    window: request.window,
+    creator_id: request.creatorId,
+    limit: request.limit,
+  })}`)
+
+export const retrieveTrendingEmotes = (request: SceneTrendingRequest = {}) =>
+  api.get<TrendingEmotesDto>(`/scene/trending/emotes?${buildQuery({
+    window: request.window,
+    creator_id: request.creatorId,
+    limit: request.limit,
+  })}`)

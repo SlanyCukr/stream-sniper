@@ -15,6 +15,7 @@ from stream_sniper.api.features.chatters.chatter_endpoints import router
 from stream_sniper.api.security.rate_limiter import setup_rate_limiting
 from stream_sniper.application.chatters.passport_models import (
     ChatterPassport,
+    PassportArchetype,
     PassportChatter,
     PassportDebut,
     PassportHomeChannel,
@@ -83,6 +84,9 @@ def _sample_passport() -> ChatterPassport:
                 stream_id=11, title="Big One", creator_display_name="Homie", messages=350
             )
         ),
+        archetypes=[
+            PassportArchetype(key="loyalist", label="Loyalist", description="Devoted to one channel."),
+        ],
     )
 
 
@@ -121,6 +125,9 @@ class TestChatterPassportEndpoint:
         assert data["loyalty"][1]["share"] == 0.2
         assert data["milestones"]["most_active_stream"]["stream_id"] == 11
         assert data["milestones"]["most_active_stream"]["messages"] == 350
+        assert data["archetypes"] == [
+            {"key": "loyalist", "label": "Loyalist", "description": "Devoted to one channel."}
+        ]
         mock_query.assert_called_once_with(42)
 
     @patch("stream_sniper.api.features.chatters.chatter_endpoints.scene_rollup_version", return_value="v1")
@@ -162,6 +169,8 @@ class TestChatterPassportEndpoint:
         assert data["loyalty"] == []
         assert data["milestones"]["most_active_stream"] is None
         assert data["chatter"]["is_bot"] is None
+        # archetypes defaults to an empty list when none are supplied
+        assert data["archetypes"] == []
 
     @patch("stream_sniper.api.features.chatters.chatter_endpoints.scene_rollup_version", return_value="v1")
     @patch("stream_sniper.api.features.chatters.chatter_endpoints.get_cache")

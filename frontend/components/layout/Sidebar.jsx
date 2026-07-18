@@ -50,9 +50,19 @@ const navigation = [
         icon: 'bi bi-trophy',
     },
     {
+        title: 'Rankings',
+        href: '/rankings',
+        icon: 'bi bi-list-ol',
+    },
+    {
         title: 'Pulse',
         href: '/pulse',
         icon: 'bi bi-activity',
+    },
+    {
+        title: 'Trending',
+        href: '/trending',
+        icon: 'bi bi-graph-up-arrow',
     },
     {
         title: 'Copypasta',
@@ -61,6 +71,11 @@ const navigation = [
     },
     {
         title: 'Highlights',
+        href: '/highlights',
+        icon: 'bi bi-stars',
+    },
+    {
+        title: 'Moments',
         href: '/moments',
         icon: 'bi bi-bookmark-star',
     },

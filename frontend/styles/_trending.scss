@@ -1,0 +1,122 @@
+// Scene trending velocity (copypastas + emotes) — night-ops styling.
+// Owned by the trending feature. Reuse existing _theme.scss primitives
+// (.table, .data-bar, .status-chip, .chatter-tabs) before adding here.
+
+.trending-toolbar {
+    flex-wrap: wrap;
+    row-gap: 0.6rem;
+
+    // The window tablist lives inside the toolbar chrome, so drop the
+    // standalone bottom rule/margin it carries as a page-level element.
+    .chatter-tabs {
+        margin-bottom: 0;
+        border-bottom: 0;
+    }
+}
+
+.trending-boards {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.trending-board {
+    border-radius: $border-radius;
+    overflow: hidden;
+}
+
+.trending-board-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid $hairline;
+}
+
+.trending-board-title {
+    margin: 0;
+    font-family: $headings-font-family;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: $gray-300;
+}
+
+.trending-table-wrap {
+    overflow-x: auto;
+}
+
+.trending-table {
+    width: 100%;
+
+    .trending-th-rank {
+        width: 2.5rem;
+    }
+
+    // Give the magnitude column room so the data-bar reads as a bar.
+    .trending-usage {
+        min-width: 8rem;
+        white-space: nowrap;
+    }
+}
+
+.trending-primary {
+    max-width: 32rem;
+}
+
+.trending-label {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    color: $gray-100;
+}
+
+.trending-label-link {
+    color: $gray-100;
+    text-decoration: none;
+
+    &:hover {
+        color: $phosphor;
+        text-decoration: underline;
+    }
+}
+
+.trending-source {
+    margin-left: 0.5rem;
+    font-family: $font-family-monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: $gray-500;
+    border: 1px solid $hairline;
+    border-radius: 2px;
+    padding: 0.1rem 0.35rem;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.trending-usage-now {
+    display: block;
+    font-size: 0.82rem;
+    color: $gray-100;
+}
+
+.trending-usage-prior {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.62rem;
+    color: $gray-500;
+}
+
+.trending-context {
+    white-space: nowrap;
+
+    .pasta-chip {
+        margin-left: 0.35rem;
+    }
+}

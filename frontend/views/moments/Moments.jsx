@@ -18,7 +18,7 @@ const Moments = () => {
             <div className="page-head">
                 <div>
                     <p className="page-sub">chat spikes worth clipping</p>
-                    <h1 className="page-title">Highlights</h1>
+                    <h1 className="page-title">Moments</h1>
                 </div>
             </div>
 
