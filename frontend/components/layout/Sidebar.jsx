@@ -20,6 +20,11 @@ const navigation = [
         icon: 'bi bi-broadcast',
     },
     {
+        title: 'Radar',
+        href: '/radar',
+        icon: 'bi bi-soundwave',
+    },
+    {
         title: 'Chatter explorer',
         href: '/chatter',
         icon: 'bi bi-fingerprint',
@@ -48,6 +53,11 @@ const navigation = [
         title: 'Scene',
         href: '/scene',
         icon: 'bi bi-trophy',
+    },
+    {
+        title: 'Wrapped',
+        href: '/wrapped',
+        icon: 'bi bi-gift',
     },
     {
         title: 'Rankings',

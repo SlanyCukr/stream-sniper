@@ -1,0 +1,133 @@
+// Live Moment Radar (chat velocity) — night-ops styling.
+// Owned by the radar feature. Reuses _scene.scss primitives
+// (.live-grid, .live-card, .status-chip, .live-title, .live-uptime) and only
+// adds the velocity-specific chrome here.
+
+.radar-readout {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    font-size: 0.72rem;
+
+    .radar-readout-time {
+        color: $gray-200;
+    }
+
+    .radar-readout-note {
+        color: $gray-500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+}
+
+.radar-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &.is-spiking {
+        border-color: rgba($signal-red, 0.55);
+        box-shadow: 0 0 0 1px rgba($signal-red, 0.25);
+    }
+}
+
+.radar-name-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.radar-live-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: $signal-red;
+    box-shadow: 0 0 0 0 rgba($signal-red, 0.6);
+    animation: radar-pulse 1.8s ease-out infinite;
+}
+
+@keyframes radar-pulse {
+    0% { box-shadow: 0 0 0 0 rgba($signal-red, 0.55); }
+    70% { box-shadow: 0 0 0 6px rgba($signal-red, 0); }
+    100% { box-shadow: 0 0 0 0 rgba($signal-red, 0); }
+}
+
+.radar-badge {
+    align-self: flex-start;
+}
+
+.radar-headline {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.radar-rate {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+}
+
+.radar-rate-value {
+    font-size: 1.5rem;
+    line-height: 1;
+    font-weight: 600;
+}
+
+.radar-rate-unit {
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $gray-500;
+}
+
+.radar-chatters {
+    font-size: 0.82rem;
+    color: $gray-300;
+
+    .radar-chatters-unit {
+        font-size: 0.66rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: $gray-500;
+    }
+}
+
+.radar-spark {
+    display: block;
+    width: 100%;
+    height: 36px;
+
+    .radar-spark-bar {
+        fill: rgba($phosphor, 0.7);
+    }
+
+    .radar-spark-bar.is-current {
+        fill: $phosphor;
+    }
+
+    .radar-spark-bar.is-spiking {
+        fill: $signal-red;
+    }
+}
+
+.radar-foot {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+
+    .radar-title {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .radar-title-empty {
+        color: $gray-500;
+    }
+
+    .live-uptime {
+        flex-shrink: 0;
+    }
+}

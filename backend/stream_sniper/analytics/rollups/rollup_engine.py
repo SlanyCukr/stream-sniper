@@ -7,7 +7,10 @@ from ...database.gateways.analytics.stream_chatter_stats_table_gateway import (
     recompute_stream_rollup_db,
     select_stream_creator_id_db,
 )
-from ...database.gateways.analytics.stream_metrics_table_gateway import select_stream_header_db
+from ...database.gateways.analytics.stream_metrics_table_gateway import (
+    select_stream_header_db,
+    touch_stream_rollup_version_db,
+)
 from ...database.gateways.analytics.stream_time_bucket_table_gateway import select_stream_buckets_db
 from ...database.gateways.chat.emote_dictionary_table_gateway import select_emote_names_db
 from ...database.gateways.chat.message_table_gateway import select_stream_phrase_source_db
@@ -170,10 +173,14 @@ def refresh_stream_copypasta_and_events(stream_id: int) -> None:
     Targeted alternative to a full ``compute_stream_rollup``: used after bot
     classification so freshly-marked bots drop out of the copypasta source (the
     SQL re-applies the ``is_bot`` filter) and the copypasta_spread events stop
-    referencing their texts. Per-stream factual rollups are left untouched.
+    referencing their texts. Per-stream factual rollups are left untouched, but
+    the stream's rollup version IS bumped: the API's scene caches (copypastas,
+    trending, wrapped, ...) key on ``stream_metrics.computed_at``, and without
+    the touch they would serve the superseded lists for their full TTL.
     """
     _compute_and_store_copypasta_rollup(stream_id)
     refresh_stream_events(stream_id)
+    touch_stream_rollup_version_db(stream_id)
 
 
 def _compute_and_store_text_rollups(stream_id: int) -> None:

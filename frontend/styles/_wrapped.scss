@@ -1,0 +1,251 @@
+// Scene Wrapped (period recap) — night-ops styling.
+// Owned by the wrapped feature. Reuse existing _theme.scss primitives
+// (.stat-grid, .stat-tile, .card-hud, .section-label, .rank-list) before adding here.
+
+.wrapped-toolbar {
+    flex-wrap: wrap;
+    row-gap: 0.6rem;
+}
+
+.wrapped-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+.wrapped-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+/* ---------- Top creators table ---------- */
+.wrapped-table-scroll {
+    overflow-x: auto;
+}
+
+.wrapped-creator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    text-decoration: none;
+
+    .wrapped-creator-name {
+        font-weight: 600;
+        color: $gray-100;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &:hover .wrapped-creator-name {
+        color: $teal;
+    }
+}
+
+.wrapped-messages {
+    min-width: 96px;
+
+    .data-bar {
+        margin-left: auto;
+        max-width: 120px;
+    }
+}
+
+/* ---------- Ranked lists (chatters + emotes) ---------- */
+.wrapped-rank-list,
+.wrapped-emotes {
+    .nick {
+        text-decoration: none;
+
+        &:hover {
+            color: $teal;
+        }
+    }
+
+    .count {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.2rem;
+        min-width: 88px;
+
+        .data-bar {
+            width: 100%;
+        }
+    }
+}
+
+.wrapped-home {
+    flex-shrink: 1;
+    min-width: 0;
+    font-size: 0.72rem;
+    color: $gray-400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-left: 0.4rem;
+}
+
+.wrapped-emote-source {
+    margin-left: 0.4rem;
+    text-transform: uppercase;
+}
+
+/* ---------- Biggest moments ---------- */
+.wrapped-moments {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.wrapped-moment {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.wrapped-moment-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.wrapped-moment-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.wrapped-moment-creator {
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: $gray-300;
+}
+
+.wrapped-moment-title {
+    font-weight: 600;
+    color: $gray-100;
+    text-decoration: none;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+
+    &:hover {
+        color: $teal;
+    }
+}
+
+.wrapped-moment-hype {
+    flex-shrink: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.wrapped-moment-count {
+    font-size: 0.95rem;
+    color: $gray-100;
+
+    .wrapped-moment-unit {
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: $gray-500;
+    }
+}
+
+/* ---------- Copypastas ---------- */
+.wrapped-pastas {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.wrapped-pasta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.55rem 0.7rem;
+    background: $bg-surface;
+    border: 1px solid $hairline;
+    border-radius: 3px;
+}
+
+.wrapped-pasta-text {
+    min-width: 0;
+    flex: 1 1 60%;
+    color: $gray-100;
+    text-decoration: none;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+
+    &:hover {
+        color: $teal;
+    }
+}
+
+/* ---------- Notable events timeline ---------- */
+.wrapped-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.wrapped-event {
+    display: flex;
+    gap: 0.9rem;
+    padding-left: 0.9rem;
+    border-left: 2px solid rgba($phosphor, 0.35);
+}
+
+.wrapped-event-when {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: $gray-500;
+    padding-top: 0.1rem;
+    white-space: nowrap;
+}
+
+.wrapped-event-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.wrapped-event-title {
+    margin: 0;
+    font-weight: 600;
+    color: $gray-100;
+}
+
+.wrapped-event-summary {
+    margin: 0;
+    font-size: 0.82rem;
+    color: $gray-300;
+}
+
+.wrapped-event-creator {
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: $gray-400;
+}

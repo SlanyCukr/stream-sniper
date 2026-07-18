@@ -294,3 +294,99 @@ export const retrieveTrendingEmotes = (request: SceneTrendingRequest = {}) =>
     creator_id: request.creatorId,
     limit: request.limit,
   })}`)
+
+// ---------------------------------------------------------------------------
+// Scene Wrapped (period recap) — GET /scene/wrapped
+// ---------------------------------------------------------------------------
+
+export interface SceneWrappedDto {
+  days: number
+  totals: {
+    streams: number
+    hours_streamed: number | null
+    messages: number
+    active_chatters: number
+    creators_active: number
+  }
+  top_creators: Array<{
+    rank: number
+    creator_id: number
+    nick: string
+    display_name: string
+    profile_image_url: string | null
+    total_messages: number
+    streams: number
+    hours_streamed: number | null
+    msgs_per_min: number | null
+    peak_viewers: number | null
+  }>
+  top_chatters: Array<{
+    rank: number
+    chatter_id: number
+    nick: string
+    total_messages: number
+    streams_attended: number
+    creators_visited: number
+    home_creator_display_name: string | null
+  }>
+  top_moments: Array<{
+    stream_id: number
+    stream_title: string
+    twitch_id: string | null
+    creator_display_name: string
+    bucket_minute: string
+    offset_seconds: number
+    ratio: number | null
+    message_count: number
+  }>
+  top_copypastas: Array<{
+    message_text_id: number
+    text: string
+    usage_count: number
+    creator_count: number
+    stream_count: number
+  }>
+  top_emotes: Array<{
+    emote_id: number
+    name: string
+    source: string
+    usage: number
+    chatter_reach: number
+  }>
+  notable_events: Array<{
+    event_type: string
+    occurred_at: string
+    title: string
+    summary: string
+    creator_display_name: string | null
+  }>
+}
+
+export const retrieveSceneWrapped = (days = 30) =>
+  api.get<SceneWrappedDto>(`/scene/wrapped?${buildQuery({ days })}`)
+
+// ---------------------------------------------------------------------------
+// Live Moment Radar (chat velocity for live streams) — GET /scene/radar
+// ---------------------------------------------------------------------------
+
+export interface SceneRadarDto {
+  generated_at: string
+  channels: Array<{
+    stream_id: number
+    creator_id: number
+    creator_nick: string
+    creator_display_name: string
+    profile_image_url: string | null
+    stream_title: string | null
+    started_at: string | null
+    messages_last_minute: number
+    unique_chatters_last_minute: number
+    baseline_per_minute: number | null
+    ratio: number | null
+    spiking: boolean
+    minutes: Array<{ minute: string, messages: number }>
+  }>
+}
+
+export const retrieveSceneRadar = () =>
+  api.get<SceneRadarDto>('/scene/radar')
