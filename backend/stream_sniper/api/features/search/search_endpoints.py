@@ -34,7 +34,9 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/search", tags=["Search"])
 
-_QUERY_MIN = 2
+# Minimum is 3: pg_trgm extracts no trigrams from shorter terms, so a 1-2 char query
+# cannot use the GIN index and would degrade to a public, cache-missing seq scan.
+_QUERY_MIN = 3
 _QUERY_MAX = 200
 _FREQUENCY_MAX_DAYS = 365
 
@@ -50,7 +52,7 @@ def _clean_query(raw: str) -> str:
     if len(term) < _QUERY_MIN:
         raise HTTPException(
             status_code=422,
-            detail="Search for at least 2 characters so we can find matching messages.",
+            detail="Search for at least 3 characters so we can find matching messages.",
         )
     if len(term) > _QUERY_MAX:
         raise HTTPException(
@@ -78,7 +80,7 @@ def search_messages(
     request: Request,
     response: Response,
     q: str = Query(..., description="Substring to search for", json_schema_extra={"example": "pog"}),
-    creator_id: int | None = Query(None, description="Restrict to one creator"),
+    creator_id: int | None = Query(None, ge=1, description="Restrict to one creator"),
     days: int | None = Query(None, ge=1, description="Restrict to the last N days"),
     limit: int = Query(50, ge=1, le=100, description="Maximum hits per page"),
     offset: int = Query(0, ge=0, description="Row offset for pagination"),
@@ -87,8 +89,9 @@ def search_messages(
     term = _clean_query(q)
     with _MESSAGES_CACHE.record_failures():
         cache = get_cache(request)
+        # "all" (not 0) for the unscoped case so no conceivable creator id collides.
         cache_key, cached = _MESSAGES_CACHE.lookup(
-            cache, response, term.lower(), creator_id or 0, days or 0, limit, offset
+            cache, response, term.lower(), creator_id if creator_id is not None else "all", days or 0, limit, offset
         )
         if cached is not None:
             return cached
@@ -121,13 +124,15 @@ def search_first(
     request: Request,
     response: Response,
     q: str = Query(..., description="Substring to search for", json_schema_extra={"example": "kekw"}),
-    creator_id: int | None = Query(None, description="Restrict to one creator"),
+    creator_id: int | None = Query(None, ge=1, description="Restrict to one creator"),
 ) -> FirstMatchResponse:
     """Trace where and when a phrase first appeared in the scene."""
     term = _clean_query(q)
     with _FIRST_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached = _FIRST_CACHE.lookup(cache, response, term.lower(), creator_id or 0)
+        cache_key, cached = _FIRST_CACHE.lookup(
+            cache, response, term.lower(), creator_id if creator_id is not None else "all"
+        )
         if cached is not None:
             return cached
 
@@ -158,13 +163,15 @@ def search_frequency(
     response: Response,
     q: str = Query(..., description="Substring to search for", json_schema_extra={"example": "gg"}),
     days: int = Query(90, ge=1, le=_FREQUENCY_MAX_DAYS, description="Length of the trailing window in days"),
-    creator_id: int | None = Query(None, description="Restrict to one creator"),
+    creator_id: int | None = Query(None, ge=1, description="Restrict to one creator"),
 ) -> FrequencyResponse:
     """Per-day mention counts for a term, zero-filled across the window."""
     term = _clean_query(q)
     with _FREQUENCY_CACHE.record_failures():
         cache = get_cache(request)
-        cache_key, cached = _FREQUENCY_CACHE.lookup(cache, response, term.lower(), days, creator_id or 0)
+        cache_key, cached = _FREQUENCY_CACHE.lookup(
+            cache, response, term.lower(), days, creator_id if creator_id is not None else "all"
+        )
         if cached is not None:
             return cached
 

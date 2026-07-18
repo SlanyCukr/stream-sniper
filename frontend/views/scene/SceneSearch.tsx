@@ -102,7 +102,9 @@ const SceneSearch = () => {
         />
       )
     }
-    if (messagesQuery.isLoading && accumulated.length === 0) {
+    // isFetching (not just isLoading) so a keepPreviousData refetch for a new term
+    // shows the spinner instead of flashing a false "no matches" empty state.
+    if ((messagesQuery.isLoading || messagesQuery.isFetching) && accumulated.length === 0) {
       return <LoadingSpinner text="Searching chat…" centered />
     }
     if (accumulated.length === 0) {

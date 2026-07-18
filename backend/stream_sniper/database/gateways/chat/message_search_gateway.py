@@ -24,8 +24,10 @@ from psycopg2.extensions import cursor as Cursor
 from ...core.decorators import with_cursor
 
 # Cap on matching deduplicated-text ids pulled through the trigram index before the
-# join into message. Bounds worst-case work for ultra-common substrings; total_matches
-# is therefore "messages whose text is among the first N matching texts" (documented).
+# join into message. Bounds worst-case work for ultra-common substrings. The capped
+# set is ordered by mt.id (DESC for search pages, ASC for origin tracing): text ids
+# grow monotonically with first-seen time, so the cap keeps the newest (or oldest)
+# distinct texts deterministically instead of an arbitrary planner-dependent subset.
 _MATCH_TEXT_CAP = 5000
 
 # Ceiling on per-creator "first match" rows returned by select_first_messages_db.
@@ -95,17 +97,24 @@ def _matching_text_ids(
     cursor: Cursor,
     query: str,
     *,
+    newest_first: bool = True,
     cap: int = _MATCH_TEXT_CAP,
 ) -> list[int]:
     """Step 1: deduplicated-text ids whose text matches, capped, via the trgm index.
 
+    Ordered by mt.id so the cap is deterministic: ``newest_first=True`` keeps the most
+    recently first-seen texts (search pages advertise newest-first), ``False`` keeps
+    the earliest first-seen texts (origin tracing needs the oldest candidates).
+
     Runs on the caller's cursor (NOT independently decorated) so the two-step plan
     holds a single pooled connection per request instead of nesting a second checkout.
     """
+    direction = "DESC" if newest_first else "ASC"
     cursor.execute(
         "SELECT mt.id\n"
         "FROM message_text mt\n"
         f"WHERE {_LIKE_MATCH}\n"
+        f"ORDER BY mt.id {direction}\n"
         "LIMIT %s",
         (_escape_like(query), cap),
     )
@@ -124,9 +133,10 @@ def search_messages_db(
     """Newest-first page of matching messages plus a has_more sentinel.
 
     Fetches ``limit + 1`` rows; the caller trims to ``limit`` and reads has_more off
-    the overflow row.
+    the overflow row. When a term matches more than ``_MATCH_TEXT_CAP`` distinct
+    texts, results cover the most recently first-seen texts (deterministic cap).
     """
-    text_ids = _matching_text_ids(cursor, query)
+    text_ids = _matching_text_ids(cursor, query, newest_first=True)
     if not text_ids:
         return [], False
 
@@ -162,11 +172,14 @@ def select_first_messages_db(
 ) -> FirstMatchResult:
     """Earliest overall hit, earliest per-creator debuts (<=8), and total match count.
 
-    ``total_matches`` counts messages whose deduplicated text is among the (capped)
-    matching text ids, so it is an exact count up to the ``_MATCH_TEXT_CAP`` texts and
-    an under-count only for pathologically common substrings.
+    The candidate set keeps the EARLIEST first-seen matching texts (``mt.id ASC``), so
+    ``first`` is exact even past the cap: if 5000 matching texts predate a candidate's
+    text, each of those texts was first used in an earlier matching message, so the true
+    origin necessarily lies within the capped set. Per-creator debuts for creators whose
+    earliest match uses a text outside the cap are an approximation. ``total_matches``
+    is an exact uncapped count (single aggregate, no sort).
     """
-    text_ids = _matching_text_ids(cursor, query)
+    text_ids = _matching_text_ids(cursor, query, newest_first=False)
     if not text_ids:
         return FirstMatchResult(first=None, by_creator=[], total_matches=0)
 
@@ -204,13 +217,20 @@ def select_first_messages_db(
     )
     by_creator = [SearchHitRow(*row) for row in cursor.fetchall()]
 
-    # Total matching messages within the (capped) text-id set.
+    # Total matching messages — uncapped: joins the full LIKE match instead of the
+    # capped text-id set so the headline count is exact for common terms too.
+    count_conditions = [_LIKE_MATCH]
+    count_params: list[object] = [_escape_like(query)]
+    if creator_id is not None:
+        count_conditions.append("s.creator_id = %s")
+        count_params.append(creator_id)
     cursor.execute(
         "SELECT count(*)\n"
         "FROM message m\n"
         "JOIN stream s ON s.id = m.stream_id\n"
-        f"WHERE {where}",
-        tuple(scope_params),
+        "JOIN message_text mt ON mt.id = m.message_text_id\n"
+        f"WHERE {' AND '.join(count_conditions)}",
+        tuple(count_params),
     )
     count_row = cursor.fetchone()
     total_matches = int(count_row[0]) if count_row is not None else 0
@@ -225,14 +245,20 @@ def select_term_frequency_db(
     days: int,
     creator_id: int | None,
 ) -> list[TermFrequencyRow]:
-    """Per-day match counts over the trailing ``days`` window (no zero-fill; API fills)."""
-    text_ids = _matching_text_ids(cursor, query)
+    """Per-day match counts over the trailing ``days`` window (no zero-fill; API fills).
+
+    The window starts at the beginning of the calendar day ``days - 1`` days ago so
+    every bucket — including the oldest — covers a FULL day, matching the API's
+    zero-filled date range exactly (a rolling ``now() - days`` bound would truncate
+    the oldest bucket mid-day).
+    """
+    text_ids = _matching_text_ids(cursor, query, newest_first=True)
     if not text_ids:
         return []
 
     conditions = [
         "m.message_text_id = ANY(%s)",
-        "m.time >= (now() AT TIME ZONE 'UTC') - (%s * interval '1 day')",
+        "m.time >= date_trunc('day', now() AT TIME ZONE 'UTC') - ((%s - 1) * interval '1 day')",
     ]
     params: list[object] = [text_ids, days]
     if creator_id is not None:

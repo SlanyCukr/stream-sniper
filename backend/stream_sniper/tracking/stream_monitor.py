@@ -91,6 +91,7 @@ class StreamMonitor:
             return
 
         self.logger.info(f"Checking {len(tracked_streamers)} tracked streamers")
+        self._prune_untracked_state({row.twitch_username for row in tracked_streamers})
         successful = 0
         failed = 0
         unknown = 0
@@ -158,11 +159,17 @@ class StreamMonitor:
     async def _maybe_alert_went_live(
         self, row: TrackedStreamer, status: StreamStatus, *, is_first_observation: bool
     ) -> None:
-        """Fire a best-effort Discord "went live" alert; never affect monitoring."""
+        """Fire a best-effort Discord "went live" alert; never affect monitoring.
+
+        Alerts only on a PROVEN offline->live edge: the first non-UNKNOWN observation
+        of a streamer this process lifetime is suppressed, so a restart never
+        re-announces ongoing streams. Deliberate trade-off: if the very first poll
+        after startup is UNKNOWN (Twitch API flake) and the streamer goes live before
+        the next poll, that one alert is lost — preferred over restart spam. A flaky
+        UNKNOWN mid-run does NOT lose alerts (the committed OFFLINE state survives it).
+        """
         if not self._discord_webhook_url:
             return
-        # Suppress alerts for streams already live at the first poll after startup so
-        # a service restart does not re-announce ongoing streams.
         if is_first_observation:
             return
         session_id = status.twitch_stream_session_id
@@ -203,6 +210,18 @@ class StreamMonitor:
         session_id = self._streamer_session_ids.pop(twitch_username, None)
         if session_id is not None:
             self._alerted_sessions.discard(session_id)
+
+    def _prune_untracked_state(self, tracked_usernames: set[str]) -> None:
+        """Drop per-streamer state for streamers no longer tracked.
+
+        Without this, a streamer removed from tracking while live would leave their
+        session in the alert-dedup set and their last state in the transitions dict
+        for the life of the process.
+        """
+        for username in list(self._last_stream_states):
+            if username not in tracked_usernames:
+                del self._last_stream_states[username]
+                self._forget_alerted_session(username)
 
     async def _get_stream_status(self, twitch_username: str) -> StreamStatus:
         try:

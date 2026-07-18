@@ -17,8 +17,9 @@ import { sceneKeys } from './sceneKeys'
 
 /** @typedef {Omit<import('@tanstack/react-query').UseQueryOptions<any, Error, any, readonly unknown[]>, 'queryKey'|'queryFn'>} QueryOptions */
 
-/** Minimum trimmed query length the backend accepts before it 422s. */
-export const MIN_QUERY_LENGTH = 2
+/** Minimum trimmed query length the backend accepts before it 422s (mirrors the
+ * backend's 3-char floor — pg_trgm needs 3 chars to use the trigram index). */
+export const MIN_QUERY_LENGTH = 3
 
 /** @param {string} [q] */
 export const isSearchableQuery = q => typeof q === 'string' && q.trim().length >= MIN_QUERY_LENGTH

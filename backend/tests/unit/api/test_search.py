@@ -91,18 +91,20 @@ class TestSearchMessages:
         mock_search.return_value = ([], False)
 
         with TestClient(app) as client:
-            resp = client.get("/search/messages?q=+gg+&creator_id=4&days=30&limit=10&offset=20")
+            resp = client.get("/search/messages?q=+ggg+&creator_id=4&days=30&limit=10&offset=20")
 
         assert resp.status_code == 200
         # query is stripped before hitting the gateway
-        mock_search.assert_called_once_with("gg", 4, 30, 10, 20)
-        assert resp.json()["query"] == "gg"
+        mock_search.assert_called_once_with("ggg", 4, 30, 10, 20)
+        assert resp.json()["query"] == "ggg"
 
     def test_short_query_is_422(self):
-        with TestClient(app) as client:
-            resp = client.get("/search/messages?q=a")
-        assert resp.status_code == 422
-        assert "at least 2" in resp.json()["detail"]
+        # 2 chars is below the floor too: pg_trgm cannot index-serve <3-char terms.
+        for term in ("a", "ab"):
+            with TestClient(app) as client:
+                resp = client.get(f"/search/messages?q={term}")
+            assert resp.status_code == 422
+            assert "at least 3" in resp.json()["detail"]
 
     def test_whitespace_only_query_is_422(self):
         with TestClient(app) as client:
@@ -191,11 +193,11 @@ class TestSearchFrequency:
         mock_freq.return_value = [TermFrequencyRow(two_ago_iso, 2), TermFrequencyRow(today_iso, 4)]
 
         with TestClient(app) as client:
-            resp = client.get("/search/frequency?q=gg&days=5")
+            resp = client.get("/search/frequency?q=ggg&days=5")
 
         assert resp.status_code == 200
         data = resp.json()
-        assert data["query"] == "gg"
+        assert data["query"] == "ggg"
         assert data["days"] == 5
         # 5 continuous days, oldest first, gaps zero-filled
         assert len(data["points"]) == 5
@@ -207,11 +209,11 @@ class TestSearchFrequency:
         assert counts_by_date[today_iso] == 4
         # a day with no gateway row is present with count 0
         assert counts_by_date[one_ago_iso] == 0
-        mock_freq.assert_called_once_with("gg", 5, None)
+        mock_freq.assert_called_once_with("ggg", 5, None)
 
     def test_days_above_max_is_422(self):
         with TestClient(app) as client:
-            resp = client.get("/search/frequency?q=gg&days=366")
+            resp = client.get("/search/frequency?q=ggg&days=366")
         assert resp.status_code == 422
 
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
@@ -221,12 +223,12 @@ class TestSearchFrequency:
         mock_freq.return_value = []
 
         with TestClient(app) as client:
-            resp = client.get("/search/frequency?q=gg")
+            resp = client.get("/search/frequency?q=ggg")
 
         assert resp.status_code == 200
         assert resp.json()["days"] == 90
         assert len(resp.json()["points"]) == 90
-        mock_freq.assert_called_once_with("gg", 90, None)
+        mock_freq.assert_called_once_with("ggg", 90, None)
 
 
 class TestSearchContext:

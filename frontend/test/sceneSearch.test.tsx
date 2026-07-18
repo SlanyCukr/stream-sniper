@@ -49,6 +49,25 @@ describe('splitHighlight', () => {
     const joined = splitHighlight(text, 'pog').map(segment => segment.text).join('')
     expect(joined).toBe(text)
   })
+
+  it('matches accent-insensitively in both directions, preserving original text', () => {
+    // unaccented query highlights the accented hit (mirrors backend f_unaccent)
+    expect(splitHighlight('kdo to řekl první', 'rekl')).toEqual([
+      { text: 'kdo to ', match: false },
+      { text: 'řekl', match: true },
+      { text: ' první', match: false },
+    ])
+    // accented query highlights the unaccented hit
+    expect(splitHighlight('kdo to rekl prvni', 'řekl')).toEqual([
+      { text: 'kdo to ', match: false },
+      { text: 'rekl', match: true },
+      { text: ' prvni', match: false },
+    ])
+    // reconstruction holds for accented text too
+    const text = 'Café CAFE čaf café'
+    const joined = splitHighlight(text, 'cafe').map(segment => segment.text).join('')
+    expect(joined).toBe(text)
+  })
 })
 
 describe('search URL state mapping', () => {
@@ -92,10 +111,11 @@ describe('search URL state mapping', () => {
 })
 
 describe('isSearchableQuery', () => {
-  it('gates on the 2-char trimmed minimum', () => {
+  it('gates on the 3-char trimmed minimum (mirrors the backend/pg_trgm floor)', () => {
     expect(isSearchableQuery('a')).toBe(false)
     expect(isSearchableQuery(' a ')).toBe(false)
-    expect(isSearchableQuery('ab')).toBe(true)
+    expect(isSearchableQuery('ab')).toBe(false)
+    expect(isSearchableQuery('pog')).toBe(true)
     expect(isSearchableQuery('  pog  ')).toBe(true)
     expect(isSearchableQuery(undefined)).toBe(false)
   })
