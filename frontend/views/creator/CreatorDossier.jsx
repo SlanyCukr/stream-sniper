@@ -7,6 +7,7 @@ import { useSceneCopypastas } from '@/hooks/scene/useSceneCopypastaQueries'
 import CreatorDossierOverview from '@/components/creator/CreatorDossierOverview'
 import CreatorSignatureCards from '@/components/creator/CreatorSignatureCards'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
+import { uiError } from '@/utils/errorUtils'
 import QueryState from '@/components/common/QueryState'
 import RegularsPanel from '@/components/creator/RegularsPanel'
 import TrendsPanel from '@/components/creator/TrendsPanel'
@@ -18,7 +19,7 @@ const CreatorDossier = ({ creatorId }) => {
     const copypastasQuery = useSceneCopypastas({ creatorId, sort: 'usage', pageSize: 5 })
 
     if (!Number.isInteger(creatorId) || creatorId <= 0) {
-        return <ErrorAlert title="Invalid creator" error={new Error('Creator ID must be a positive integer.')} />
+        return <ErrorAlert title="Invalid creator" error={uiError('This creator link is invalid. Go back and pick a creator from the list.')} />
     }
 
     return (

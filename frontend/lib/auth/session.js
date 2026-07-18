@@ -7,6 +7,8 @@ export class SessionStorageError extends Error {
         super(`Unable to ${operation} stored authentication session`, { cause })
         this.name = 'SessionStorageError'
         this.operation = operation
+        // Message is written for end users; normalizeApiError may render it.
+        this.userFacing = true
     }
 }
 

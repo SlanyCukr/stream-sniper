@@ -107,7 +107,7 @@ class HealthChecker:
             result = ProbeResult(
                 status=probe.failure_status,
                 message=f"{probe.name.replace('_', ' ').title()} check failed",
-                details={"error": str(exc)},
+                details={"error": "Unexpected failure. See server logs for details."},
             )
         duration_ms = round(
             (self._monotonic() - started) * MILLISECONDS_PER_SECOND,

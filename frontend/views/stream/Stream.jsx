@@ -7,6 +7,7 @@ import { useStreamTimeline } from '@/hooks/stream/timeline/useStreamTimelineQuer
 import { useStreamReplayController } from '@/hooks/stream/replay/useStreamReplayController'
 import QueryState from '@/components/common/QueryState'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
+import { uiError } from '@/utils/errorUtils'
 import StreamInfoCard from '@/components/stream/StreamInfoCard'
 import StreamDownloadMenu from '@/components/stream/StreamDownloadMenu'
 import StreamTimeline from '@/components/stream/timeline/StreamTimeline'
@@ -55,7 +56,7 @@ const Stream = ({ streamId }) => {
             loadingCard
             emptyState={(
                 <ErrorAlert
-                    error={new Error('The stream response did not contain stream data.')}
+                    error={uiError("This stream couldn't be displayed. Refresh the page to try again.")}
                     title="Stream unavailable"
                 />
             )}

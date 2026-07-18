@@ -104,13 +104,13 @@ async def trigger_processing(
     except TwitchConfigurationError as error:
         logger.exception("Twitch integration is not configured")
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Twitch integration unavailable"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Twitch lookups aren't available right now because the server's Twitch access isn't configured. Contact the administrator."
         ) from error
     except TwitchUpstreamError as error:
         logger.exception("Failed to list VODs for %s", sanitize_log_value(twitch_username))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Failed to list VODs from Twitch",
+            detail="Could not fetch recent VODs from Twitch. Try again in a moment.",
         ) from error
 
     outcome = await asyncio.to_thread(enqueue_first_uncollected_vod, streamer_id, videos)
@@ -157,7 +157,7 @@ async def trigger_processing(
         401: {"model": ErrorResponse, "description": "Authentication required"},
         403: {"model": ErrorResponse, "description": "Admin role required"},
         404: {"model": ErrorResponse, "description": "Job not found"},
-        409: {"model": ErrorResponse, "description": "Job is already terminal"},
+        409: {"model": ErrorResponse, "description": "Job already finished"},
         429: {"model": RateLimitErrorResponse, "description": "Rate limit exceeded"},
         500: {"model": ErrorResponse, "description": "Processing-job persistence failed"},
     },

@@ -2,7 +2,7 @@ import MomentCard from './MomentCard'
 import Pagination from '@/components/common/pagination/Pagination'
 
 const EMPTY_HINT = {
-    all: 'No chat spikes have been enriched yet. Run the rollup backfill to populate the queue.',
+    all: 'No highlights detected yet. Moments appear here after streams are processed.',
     pending: 'Nothing awaiting review — every surfaced moment has been triaged.',
     bookmarked: 'No bookmarked moments yet. Bookmark spikes worth clipping to collect them here.',
     rejected: 'No rejected moments.',

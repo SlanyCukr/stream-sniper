@@ -116,8 +116,8 @@ export const useStreamReplayController = streamId => {
                 setJumpToTs({ ts: targetTs, nonce: Date.now() })
             } else {
                 const message = outcome.status === 'exhausted'
-                    ? 'Replay target is farther than the current load budget. Select the timeline point again to continue loading.'
-                    : 'Replay target is unavailable in the recorded chat history.'
+                    ? 'That point is further back than the chat loaded so far. Select it again to keep loading.'
+                    : "That point isn't in the recorded chat history."
                 setJumpFailure(toUiFailure(new Error(message), message))
             }
         } catch (jumpError) {

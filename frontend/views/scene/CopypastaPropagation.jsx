@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Card } from 'react-bootstrap'
 import { useCopypastaPropagation } from '@/hooks/scene/useSceneCopypastaQueries'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
+import { uiError } from '@/utils/errorUtils'
 import QueryState from '@/components/common/QueryState'
 
 const stamp = value => value ? value.replace('T', ' ').slice(0, 16) : '--'
@@ -11,7 +12,7 @@ const stamp = value => value ? value.replace('T', ' ').slice(0, 16) : '--'
 const CopypastaPropagation = ({ messageTextId }) => {
     const query = useCopypastaPropagation(messageTextId)
     if (!Number.isInteger(messageTextId) || messageTextId <= 0) {
-        return <ErrorAlert title="Invalid copypasta" error={new Error('Copypasta ID must be positive.')} />
+        return <ErrorAlert title="Invalid copypasta" error={uiError('This copypasta link is invalid. Go back and pick one from the library.')} />
     }
 
     return (

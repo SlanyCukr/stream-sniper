@@ -99,7 +99,7 @@ describe('UserManagement action lifecycle', () => {
   })
 
   it('keeps a failed delete dialog open', async () => {
-    deleteUser.mutateAsync.mockRejectedValue(new Error('delete offline'))
+    deleteUser.mutateAsync.mockRejectedValue({ response: { status: 500, data: { detail: 'delete offline' } } })
     render(<UserManagement />)
 
     fireEvent.click(screen.getByRole('button', { name: 'delete user' }))

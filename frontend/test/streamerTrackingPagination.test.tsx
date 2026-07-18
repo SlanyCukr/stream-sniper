@@ -99,7 +99,7 @@ describe('StreamerTracking pagination', () => {
   })
 
   it('normalizes mutation failures at the tracking boundary', async () => {
-    updateStreamer.mutateAsync.mockRejectedValue(new Error('update offline'))
+    updateStreamer.mutateAsync.mockRejectedValue({ response: { status: 500, data: { detail: 'update offline' } } })
     hooks.useTrackedStreamers.mockReturnValue({
       data: { items: [streamer], total: 1, pageIndex: 0, pageSize: 20, pageCount: 1 },
       error: null,

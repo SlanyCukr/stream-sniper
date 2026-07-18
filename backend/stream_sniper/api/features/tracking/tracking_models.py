@@ -46,7 +46,7 @@ class TrackedStreamerUpdate(BaseModel):
     @classmethod
     def reject_null_flags(cls, value: object) -> object:
         if value is None:
-            raise ValueError("Boolean updates cannot be null")
+            raise ValueError("is_active and processing_enabled must be true or false")
         return value
 
 
