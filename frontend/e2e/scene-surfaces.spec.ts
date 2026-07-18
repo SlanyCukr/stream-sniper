@@ -12,66 +12,71 @@ const unexpected = (route: Route, pathname: string) => json(
   500,
 )
 
-test('highlights: renders the hype wall and loads a second page on demand', async ({ page }) => {
-  let highlightsRequests = 0
+const highlightItem = (id: number, title: string, creator: string) => ({
+  stream_id: id,
+  stream_title: title,
+  twitch_id: `vod-${id}`,
+  creator_id: id,
+  creator_nick: creator.toLowerCase(),
+  creator_display_name: creator,
+  bucket_minute: '2026-07-14T20:15:00Z',
+  offset_seconds: 900,
+  ratio: 4.2,
+  message_count: 210,
+  unique_chatters: 88,
+  sub_share: 0.12,
+  emote_share: 0.4,
+  top_phrases: [{ phrase: 'POGGERS', count: 40, lift: 3.1 }],
+  sample_messages: [{ text: 'no way he clutched that', count: 3 }],
+  clip_url: null,
+  review_status: null,
+})
+
+test('highlights: paginates, then window and sort pills re-query and reset the wall', async ({ page }) => {
+  const calls: Array<{ window: string, sort: string, offset: number }> = []
 
   await page.route('**/api/**', async (route) => {
-    const request = route.request()
-    const { pathname, searchParams } = new URL(request.url())
+    const { pathname, searchParams } = new URL(route.request().url())
     if (pathname !== '/api/scene/highlights') return unexpected(route, pathname)
 
-    highlightsRequests += 1
+    const windowKey = searchParams.get('window') ?? 'all'
+    const sort = searchParams.get('sort') ?? 'hype'
     const offset = Number(searchParams.get('offset') ?? '0')
-    if (offset === 0) {
+    calls.push({ window: windowKey, sort, offset })
+
+    if (windowKey === 'all' && sort === 'hype' && offset === 0) {
       return json(route, {
-        window: 'all',
-        sort: 'hype',
+        window: windowKey,
+        sort,
         has_more: true,
-        items: [{
-          stream_id: 501,
-          stream_title: 'PixelKobra plays ranked',
-          twitch_id: 'vod-501',
-          creator_id: 71,
-          creator_nick: 'pixelkobra',
-          creator_display_name: 'PixelKobra',
-          bucket_minute: '2026-07-14T20:15:00Z',
-          offset_seconds: 900,
-          ratio: 4.2,
-          message_count: 210,
-          unique_chatters: 88,
-          sub_share: 0.12,
-          emote_share: 0.4,
-          top_phrases: [{ phrase: 'POGGERS', count: 40, lift: 3.1 }],
-          sample_messages: [{ text: 'no way he clutched that', count: 3 }],
-          clip_url: null,
-          review_status: null,
-        }],
+        items: [highlightItem(501, 'PixelKobra plays ranked', 'PixelKobra')],
       })
     }
-    return json(route, {
-      window: 'all',
-      sort: 'hype',
-      has_more: false,
-      items: [{
-        stream_id: 502,
-        stream_title: 'NightOwlCZ late night just chatting',
-        twitch_id: 'vod-502',
-        creator_id: 72,
-        creator_nick: 'nightowlcz',
-        creator_display_name: 'NightOwlCZ',
-        bucket_minute: '2026-07-14T23:05:00Z',
-        offset_seconds: 500,
-        ratio: 2.1,
-        message_count: 95,
-        unique_chatters: 40,
-        sub_share: null,
-        emote_share: null,
-        top_phrases: null,
-        sample_messages: null,
-        clip_url: null,
-        review_status: 'bookmarked',
-      }],
-    })
+    if (windowKey === 'all' && sort === 'hype') {
+      return json(route, {
+        window: windowKey,
+        sort,
+        has_more: false,
+        items: [highlightItem(502, 'NightOwlCZ late night just chatting', 'NightOwlCZ')],
+      })
+    }
+    if (windowKey === '7' && sort === 'hype' && offset === 0) {
+      return json(route, {
+        window: windowKey,
+        sort,
+        has_more: false,
+        items: [highlightItem(503, 'Weekly window hype moment', 'WeeklyHero')],
+      })
+    }
+    if (windowKey === '7' && sort === 'recent' && offset === 0) {
+      return json(route, {
+        window: windowKey,
+        sort,
+        has_more: false,
+        items: [highlightItem(504, 'Freshest moment this week', 'FreshFace')],
+      })
+    }
+    return unexpected(route, pathname)
   })
 
   await page.goto('/highlights')
@@ -80,57 +85,82 @@ test('highlights: renders the hype wall and loads a second page on demand', asyn
   await expect(page.getByText('PixelKobra plays ranked')).toBeVisible()
 
   await page.getByRole('button', { name: 'Load more' }).click()
-
-  await expect(page.getByRole('link', { name: 'NightOwlCZ', exact: true })).toBeVisible()
   await expect(page.getByText('NightOwlCZ late night just chatting')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Load more' })).not.toBeVisible()
-  expect(highlightsRequests).toBe(2)
+
+  // Window pill: re-queries with window=7 at offset 0 and resets the accumulated wall.
+  const sevenDays = page.getByRole('button', { name: '7 days' })
+  await expect(sevenDays).toHaveAttribute('aria-pressed', 'false')
+  await sevenDays.click()
+  await expect(sevenDays).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('Weekly window hype moment')).toBeVisible()
+  await expect(page.getByText('PixelKobra plays ranked')).not.toBeVisible()
+  await expect(page.getByText('NightOwlCZ late night just chatting')).not.toBeVisible()
+
+  // Sort pill: re-queries with sort=recent inside the selected window.
+  const mostRecent = page.getByRole('button', { name: 'Most recent' })
+  await expect(mostRecent).toHaveAttribute('aria-pressed', 'false')
+  await mostRecent.click()
+  await expect(mostRecent).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('Freshest moment this week')).toBeVisible()
+
+  expect(calls).toEqual([
+    { window: 'all', sort: 'hype', offset: 0 },
+    { window: 'all', sort: 'hype', offset: 24 },
+    { window: '7', sort: 'hype', offset: 0 },
+    { window: '7', sort: 'recent', offset: 0 },
+  ])
 })
 
-test('rankings: renders the power-rankings table and loads a second page on demand', async ({ page }) => {
-  let rankingsRequests = 0
+const rankingRow = (rank: number, chatterId: number, nick: string) => ({
+  rank,
+  chatter_id: chatterId,
+  nick,
+  total_messages: 5000 - rank,
+  streams_attended: 42,
+  creators_visited: 6,
+  home_channel: {
+    creator_id: 71,
+    creator_nick: 'pixelkobra',
+    creator_display_name: 'PixelKobra',
+    messages: 3000,
+    share: 0.6,
+  },
+})
+
+test('rankings: paginates, then the window pill re-queries and resets the table', async ({ page }) => {
+  const calls: Array<{ window: string, offset: number }> = []
 
   await page.route('**/api/**', async (route) => {
-    const request = route.request()
-    const { pathname, searchParams } = new URL(request.url())
+    const { pathname, searchParams } = new URL(route.request().url())
     if (pathname !== '/api/scene/chatter-rankings') return unexpected(route, pathname)
 
-    rankingsRequests += 1
+    const windowKey = searchParams.get('window') ?? 'all'
     const offset = Number(searchParams.get('offset') ?? '0')
-    if (offset === 0) {
+    calls.push({ window: windowKey, offset })
+
+    if (windowKey === 'all' && offset === 0) {
       return json(route, {
-        window: 'all',
+        window: windowKey,
         has_more: true,
-        items: [{
-          rank: 1,
-          chatter_id: 301,
-          nick: 'chatterOne',
-          total_messages: 5000,
-          streams_attended: 42,
-          creators_visited: 6,
-          home_channel: {
-            creator_id: 71,
-            creator_nick: 'pixelkobra',
-            creator_display_name: 'PixelKobra',
-            messages: 3000,
-            share: 0.6,
-          },
-        }],
+        items: [rankingRow(1, 301, 'chatterOne')],
       })
     }
-    return json(route, {
-      window: 'all',
-      has_more: false,
-      items: [{
-        rank: 26,
-        chatter_id: 302,
-        nick: 'chatterTwo',
-        total_messages: 900,
-        streams_attended: 10,
-        creators_visited: 2,
-        home_channel: null,
-      }],
-    })
+    if (windowKey === 'all') {
+      return json(route, {
+        window: windowKey,
+        has_more: false,
+        items: [{ ...rankingRow(26, 302, 'chatterTwo'), home_channel: null }],
+      })
+    }
+    if (windowKey === '30' && offset === 0) {
+      return json(route, {
+        window: windowKey,
+        has_more: false,
+        items: [rankingRow(1, 303, 'monthlyChampion')],
+      })
+    }
+    return unexpected(route, pathname)
   })
 
   await page.goto('/rankings')
@@ -138,22 +168,46 @@ test('rankings: renders the power-rankings table and loads a second page on dema
   await expect(page.getByRole('link', { name: 'chatterOne' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Load more' }).click()
-
   await expect(page.getByRole('link', { name: 'chatterTwo' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Load more' })).not.toBeVisible()
-  expect(rankingsRequests).toBe(2)
+
+  // Window pill: re-queries with window=30 at offset 0 and drops the accumulated pages.
+  const thirtyDays = page.getByRole('button', { name: '30 days' })
+  await expect(thirtyDays).toHaveAttribute('aria-pressed', 'false')
+  await thirtyDays.click()
+  await expect(thirtyDays).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('link', { name: 'monthlyChampion' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'chatterOne' })).not.toBeVisible()
+  await expect(page.getByRole('link', { name: 'chatterTwo' })).not.toBeVisible()
+
+  expect(calls).toEqual([
+    { window: 'all', offset: 0 },
+    { window: 'all', offset: 25 },
+    { window: '30', offset: 0 },
+  ])
 })
 
-test('trending: renders both the copypasta and emote boards from the default window', async ({ page }) => {
+test('trending: renders both boards, and the window pill refetches them', async ({ page }) => {
+  const copypastaByWindow: Record<string, { text: string }> = {
+    7: { text: 'OMEGALUL nice job chat' },
+    14: { text: 'KEKW the two week classic' },
+  }
+  const emoteByWindow: Record<string, { name: string }> = {
+    7: { name: 'PogChamp' },
+    14: { name: 'LULW' },
+  }
+
   await page.route('**/api/**', async (route) => {
-    const request = route.request()
-    const { pathname } = new URL(request.url())
+    const { pathname, searchParams } = new URL(route.request().url())
+    const windowKey = searchParams.get('window') ?? '7'
     if (pathname === '/api/scene/trending/copypastas') {
+      const entry = copypastaByWindow[windowKey]
+      if (!entry) return unexpected(route, pathname)
       return json(route, {
-        window: 7,
+        window: Number(windowKey),
         items: [{
           message_text_id: 9001,
-          text: 'OMEGALUL nice job chat',
+          text: entry.text,
           current_usage: 340,
           prior_usage: 120,
           delta_pct: 183,
@@ -165,11 +219,13 @@ test('trending: renders both the copypasta and emote boards from the default win
       })
     }
     if (pathname === '/api/scene/trending/emotes') {
+      const entry = emoteByWindow[windowKey]
+      if (!entry) return unexpected(route, pathname)
       return json(route, {
-        window: 7,
+        window: Number(windowKey),
         items: [{
           emote_id: 42,
-          name: 'PogChamp',
+          name: entry.name,
           source: 'twitch',
           provider_id: 'poggers-42',
           current_usage: 900,
@@ -188,76 +244,90 @@ test('trending: renders both the copypasta and emote boards from the default win
   await expect(page.getByRole('heading', { name: 'Trending' })).toBeVisible()
   await expect(page.getByText('OMEGALUL nice job chat')).toBeVisible()
   await expect(page.getByText('PogChamp')).toBeVisible()
+
+  // Window pill: both boards refetch with window=14.
+  const fourteenDays = page.getByRole('button', { name: '14 days' })
+  await expect(fourteenDays).toHaveAttribute('aria-pressed', 'false')
+  await fourteenDays.click()
+  await expect(fourteenDays).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('KEKW the two week classic')).toBeVisible()
+  await expect(page.getByText('LULW')).toBeVisible()
 })
 
-test('wrapped: renders the scene recap for the default 30-day window', async ({ page }) => {
+const wrappedBody = (days: number, topCreator: string, topChatter: string) => ({
+  days,
+  totals: {
+    streams: 64,
+    hours_streamed: 210.5,
+    messages: 128000,
+    active_chatters: 940,
+    creators_active: 12,
+  },
+  top_creators: [{
+    rank: 1,
+    creator_id: 71,
+    nick: topCreator.toLowerCase(),
+    display_name: topCreator,
+    profile_image_url: null,
+    total_messages: 40000,
+    streams: 20,
+    hours_streamed: 60,
+    msgs_per_min: 33.3,
+    peak_viewers: 1200,
+  }],
+  top_chatters: [{
+    rank: 1,
+    chatter_id: 301,
+    nick: topChatter,
+    total_messages: 5000,
+    streams_attended: 42,
+    creators_visited: 6,
+    home_creator_display_name: topCreator,
+  }],
+  top_moments: [{
+    stream_id: 501,
+    stream_title: `${topCreator} plays ranked`,
+    twitch_id: 'vod-501',
+    creator_display_name: topCreator,
+    bucket_minute: '2026-07-14T20:15:00Z',
+    offset_seconds: 900,
+    ratio: 4.2,
+    message_count: 210,
+  }],
+  top_copypastas: [{
+    message_text_id: 9001,
+    text: 'OMEGALUL nice job chat',
+    usage_count: 340,
+    creator_count: 5,
+    stream_count: 8,
+  }],
+  top_emotes: [{
+    emote_id: 42,
+    name: 'PogChamp',
+    source: 'twitch',
+    usage: 900,
+    chatter_reach: 210,
+  }],
+  notable_events: [{
+    event_type: 'went_live',
+    occurred_at: '2026-07-14T18:00:00Z',
+    title: `${topCreator} went live`,
+    summary: 'Started streaming ranked queue.',
+    creator_display_name: topCreator,
+  }],
+})
+
+test('wrapped: renders the default 30-day recap, and the window pill re-queries', async ({ page }) => {
+  const requestedDays: string[] = []
+
   await page.route('**/api/**', async (route) => {
-    const request = route.request()
-    const { pathname, searchParams } = new URL(request.url())
+    const { pathname, searchParams } = new URL(route.request().url())
     if (pathname !== '/api/scene/wrapped') return unexpected(route, pathname)
-    expect(searchParams.get('days')).toBe('30')
-    return json(route, {
-      days: 30,
-      totals: {
-        streams: 64,
-        hours_streamed: 210.5,
-        messages: 128000,
-        active_chatters: 940,
-        creators_active: 12,
-      },
-      top_creators: [{
-        rank: 1,
-        creator_id: 71,
-        nick: 'pixelkobra',
-        display_name: 'PixelKobra',
-        profile_image_url: null,
-        total_messages: 40000,
-        streams: 20,
-        hours_streamed: 60,
-        msgs_per_min: 33.3,
-        peak_viewers: 1200,
-      }],
-      top_chatters: [{
-        rank: 1,
-        chatter_id: 301,
-        nick: 'chatterOne',
-        total_messages: 5000,
-        streams_attended: 42,
-        creators_visited: 6,
-        home_creator_display_name: 'PixelKobra',
-      }],
-      top_moments: [{
-        stream_id: 501,
-        stream_title: 'PixelKobra plays ranked',
-        twitch_id: 'vod-501',
-        creator_display_name: 'PixelKobra',
-        bucket_minute: '2026-07-14T20:15:00Z',
-        offset_seconds: 900,
-        ratio: 4.2,
-        message_count: 210,
-      }],
-      top_copypastas: [{
-        message_text_id: 9001,
-        text: 'OMEGALUL nice job chat',
-        usage_count: 340,
-        creator_count: 5,
-        stream_count: 8,
-      }],
-      top_emotes: [{
-        emote_id: 42,
-        name: 'PogChamp',
-        source: 'twitch',
-        usage: 900,
-        chatter_reach: 210,
-      }],
-      notable_events: [{
-        event_type: 'went_live',
-        occurred_at: '2026-07-14T18:00:00Z',
-        title: 'PixelKobra went live',
-        summary: 'Started streaming ranked queue.',
-        creator_display_name: 'PixelKobra',
-      }],
-    })
+    const days = searchParams.get('days') ?? ''
+    requestedDays.push(days)
+    if (days === '30') return json(route, wrappedBody(30, 'PixelKobra', 'chatterOne'))
+    if (days === '7') return json(route, wrappedBody(7, 'SprintKing', 'weeklyOne'))
+    return unexpected(route, pathname)
   })
 
   await page.goto('/wrapped')
@@ -265,6 +335,16 @@ test('wrapped: renders the scene recap for the default 30-day window', async ({ 
   await expect(page.getByRole('link', { name: 'PixelKobra' }).first()).toBeVisible()
   await expect(page.getByRole('link', { name: 'chatterOne' })).toBeVisible()
   await expect(page.getByText('OMEGALUL nice job chat')).toBeVisible()
+
+  // Window pill: re-queries the recap with days=7.
+  const sevenDays = page.getByRole('button', { name: '7 days' })
+  await expect(sevenDays).toHaveAttribute('aria-pressed', 'false')
+  await sevenDays.click()
+  await expect(sevenDays).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('link', { name: 'SprintKing' }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'weeklyOne' })).toBeVisible()
+
+  expect(requestedDays).toEqual(['30', '7'])
 })
 
 test('radar: renders a live channel velocity card from the polling feed', async ({ page }) => {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import TabList from '@/components/common/TabList'
+import FilterPills from '@/components/common/FilterPills'
 import {
     useSceneTrendingCopypastas,
     useSceneTrendingEmotes,
@@ -78,21 +78,15 @@ const Trending = () => {
                 role="search"
                 aria-label="Trending controls">
                 <span className="toolbar-label">Window</span>
-                <TabList
-                    tabs={WINDOW_TABS}
+                <FilterPills
+                    options={WINDOW_TABS}
                     activeKey={windowDays}
-                    idPrefix="trending-window"
                     ariaLabel="Trending window"
                     onChange={setWindowDays}
                 />
             </div>
 
-            <div
-                id={`trending-window-panel-${windowDays}`}
-                role="tabpanel"
-                aria-labelledby={`trending-window-tab-${windowDays}`}
-                className="trending-boards"
-            >
+            <div className="trending-boards">
                 <TrendingBoard
                     title="Copypastas"
                     primaryHeader="Copypasta"

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
-import TabList from '@/components/common/TabList'
+import FilterPills from '@/components/common/FilterPills'
 import RankingsTable from '@/components/scene/RankingsTable'
 import {
     useSceneRankings,
@@ -30,12 +30,15 @@ const Rankings = () => {
 
     const query = useSceneRankings({ window: activeWindow, limit: PAGE_SIZE, offset })
 
-    // Reset the accumulated page window whenever the selected window changes.
-    useEffect(() => {
+    // Reset accumulation synchronously WITH the window change (one batched render):
+    // resetting in a useEffect instead fires a wasted query for the new window at
+    // the old offset before the reset lands.
+    const changeWindow = (key: RankingsWindow) => {
+        setActiveWindow(key)
         setOffset(0)
         setAccumulated([])
         appendedOffsetRef.current = -1
-    }, [activeWindow])
+    }
 
     // Fold each freshly-arrived page into the accumulated list (skip stale placeholders).
     useEffect(() => {
@@ -68,50 +71,43 @@ const Rankings = () => {
                 role="search"
                 aria-label="Rankings window"
             >
-                <TabList
-                    tabs={WINDOW_TABS}
+                <FilterPills
+                    options={WINDOW_TABS}
                     activeKey={activeWindow}
-                    idPrefix="rankings-window"
                     ariaLabel="Window"
-                    onChange={setActiveWindow}
+                    onChange={changeWindow}
                 />
             </div>
 
-            <div
-                id={`rankings-window-panel-${activeWindow}`}
-                role="tabpanel"
-                aria-labelledby={`rankings-window-tab-${activeWindow}`}
-            >
-                {accumulated.length > 0 ? (
-                    <RankingsTable
-                        rows={accumulated}
-                        hasMore={hasMore}
-                        isFetchingMore={isFetchingMore}
-                        onLoadMore={loadMore}
-                    />
-                ) : (
-                    <QueryState
-                        query={query}
-                        errorTitle="Failed to load power rankings"
-                        loadingText="Ranking the scene..."
-                        isEmpty={(value: SceneRankings) => value.items.length === 0}
-                        emptyState={(
-                            <EmptyState title="No power rankings yet">
-                                No chatter activity falls inside this window yet.
-                            </EmptyState>
-                        )}
-                    >
-                        {(data: SceneRankings) => (
-                            <RankingsTable
-                                rows={data.items}
-                                hasMore={data.hasMore}
-                                isFetchingMore={isFetchingMore}
-                                onLoadMore={loadMore}
-                            />
-                        )}
-                    </QueryState>
-                )}
-            </div>
+            {accumulated.length > 0 ? (
+                <RankingsTable
+                    rows={accumulated}
+                    hasMore={hasMore}
+                    isFetchingMore={isFetchingMore}
+                    onLoadMore={loadMore}
+                />
+            ) : (
+                <QueryState
+                    query={query}
+                    errorTitle="Failed to load power rankings"
+                    loadingText="Ranking the scene..."
+                    isEmpty={(value: SceneRankings) => value.items.length === 0}
+                    emptyState={(
+                        <EmptyState title="No power rankings yet">
+                            No chatter activity falls inside this window yet.
+                        </EmptyState>
+                    )}
+                >
+                    {(data: SceneRankings) => (
+                        <RankingsTable
+                            rows={data.items}
+                            hasMore={data.hasMore}
+                            isFetchingMore={isFetchingMore}
+                            onLoadMore={loadMore}
+                        />
+                    )}
+                </QueryState>
+            )}
         </>
     )
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
-import TabList from '@/components/common/TabList'
+import FilterPills from '@/components/common/FilterPills'
 import WrappedRecap from '@/components/scene/WrappedRecap'
 import {
     useSceneWrapped,
@@ -35,34 +35,27 @@ const Wrapped = () => {
                 role="search"
                 aria-label="Recap window"
             >
-                <TabList
-                    tabs={DAYS_TABS}
+                <FilterPills
+                    options={DAYS_TABS}
                     activeKey={days}
-                    idPrefix="wrapped-window"
                     ariaLabel="Window"
                     onChange={setDays}
                 />
             </div>
 
-            <div
-                id={`wrapped-window-panel-${days}`}
-                role="tabpanel"
-                aria-labelledby={`wrapped-window-tab-${days}`}
+            <QueryState
+                query={query}
+                errorTitle="Failed to load the scene recap"
+                loadingText="Wrapping the scene..."
+                isEmpty={(value: SceneWrapped) => isWrappedEmpty(value)}
+                emptyState={(
+                    <EmptyState title="Nothing to wrap yet">
+                        No scene activity landed inside this window yet.
+                    </EmptyState>
+                )}
             >
-                <QueryState
-                    query={query}
-                    errorTitle="Failed to load the scene recap"
-                    loadingText="Wrapping the scene..."
-                    isEmpty={(value: SceneWrapped) => isWrappedEmpty(value)}
-                    emptyState={(
-                        <EmptyState title="Nothing to wrap yet">
-                            No scene activity landed inside this window yet.
-                        </EmptyState>
-                    )}
-                >
-                    {(data: SceneWrapped) => <WrappedRecap wrapped={data} />}
-                </QueryState>
-            </div>
+                {(data: SceneWrapped) => <WrappedRecap wrapped={data} />}
+            </QueryState>
         </>
     )
 }
