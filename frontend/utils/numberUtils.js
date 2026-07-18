@@ -58,3 +58,27 @@ export const formatDecimal = (value, fallback = '--') => (
         maximumFractionDigits: 1,
     })
 )
+
+/**
+ * Clamp a magnitude bar to 2..100 for a value relative to the leading row in
+ * its list (e.g. message counts among ranked chatters/creators/emotes).
+ * Returns 0 (no bar) when top is non-positive — dividing by a non-positive
+ * top has no meaningful magnitude to show.
+ * @param {number} value
+ * @param {number} top
+ */
+export const magnitudeBarWidth = (value, top) => (
+    top > 0 ? Math.min(100, Math.max(2, Math.round((value / top) * 100))) : 0
+)
+
+/**
+ * Clamp a magnitude bar to 2..100 for a value already expressed as a 0..1
+ * share (e.g. a chatter's fraction of a creator's messages). Unlike
+ * magnitudeBarWidth, a zero share still renders a 2% sliver rather than an
+ * empty bar: the domain here is a known ratio, not a value/top pair that is
+ * undefined at zero.
+ * @param {number} share
+ */
+export const shareBarWidth = share => (
+    Math.min(100, Math.max(2, Math.round(share * 100)))
+)

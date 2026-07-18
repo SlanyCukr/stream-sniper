@@ -60,9 +60,6 @@ class ModelCachePolicy[ModelT: BaseModel]:
         response.headers["X-Cache"] = "MISS"
         record_cache_operation("set", self.prefix)
 
-    def record_error(self) -> None:
-        record_cache_operation("error", self.prefix)
-
     @contextmanager
     def record_failures(self) -> Iterator[None]:
         with record_cache_failures(self.prefix):

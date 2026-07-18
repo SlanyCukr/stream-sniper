@@ -261,6 +261,12 @@ h1, h2, h3, h4, h5, h6,
         }
     }
 
+    /* spacing between stacked nav groups (Live / Scene analytics / Explore),
+       matching the rhythm of the hr-separated Command section below them */
+    .sidebar-nav-group + .sidebar-nav-group {
+        margin-top: 0.85rem;
+    }
+
     /* status line pinned to the bottom of the rail (negative margins
        counter the .sidebar-inner padding so the top border spans full width) */
     .sidebar-status {

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
+import FilterPills from '@/components/common/FilterPills'
 import RankingsTable from '@/components/scene/RankingsTable'
 import {
     useSceneRankings,
@@ -29,12 +30,16 @@ const Rankings = () => {
 
     const query = useSceneRankings({ window: activeWindow, limit: PAGE_SIZE, offset })
 
-    // Reset the accumulated page window whenever the selected window changes.
-    useEffect(() => {
+    // Reset accumulation synchronously WITH the window change (one batched render):
+    // resetting in a useEffect instead fires a wasted query for the new window at
+    // the old offset before the reset lands.
+    const changeWindow = (key: RankingsWindow) => {
+        if (key === activeWindow) return // re-clicking the active pill must not collapse loaded pages
+        setActiveWindow(key)
         setOffset(0)
         setAccumulated([])
         appendedOffsetRef.current = -1
-    }, [activeWindow])
+    }
 
     // Fold each freshly-arrived page into the accumulated list (skip stale placeholders).
     useEffect(() => {
@@ -67,20 +72,12 @@ const Rankings = () => {
                 role="search"
                 aria-label="Rankings window"
             >
-                <div className="chatter-tabs" role="tablist" aria-label="Window">
-                    {WINDOW_TABS.map(tab => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={activeWindow === tab.key}
-                            className={activeWindow === tab.key ? 'chatter-tab active' : 'chatter-tab'}
-                            onClick={() => setActiveWindow(tab.key)}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <FilterPills
+                    options={WINDOW_TABS}
+                    activeKey={activeWindow}
+                    ariaLabel="Window"
+                    onChange={changeWindow}
+                />
             </div>
 
             {accumulated.length > 0 ? (
@@ -92,7 +89,16 @@ const Rankings = () => {
                 />
             ) : (
                 <QueryState
-                    query={query}
+                    query={{
+                        // Mask keepPreviousData during a window switch: the raw query
+                        // still holds the OLD window's page (rows + hasMore), which
+                        // would render stale rows with a live Load more that fires the
+                        // new window at the old offset. Show the spinner instead.
+                        data: query.isPlaceholderData ? undefined : query.data,
+                        error: query.error,
+                        isLoading: query.isLoading || query.isPlaceholderData,
+                        refetch: query.refetch,
+                    }}
                     errorTitle="Failed to load power rankings"
                     loadingText="Ranking the scene..."
                     isEmpty={(value: SceneRankings) => value.items.length === 0}

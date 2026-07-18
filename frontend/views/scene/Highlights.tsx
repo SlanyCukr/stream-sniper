@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
+import FilterPills from '@/components/common/FilterPills'
 import HighlightCard from '@/components/scene/HighlightCard'
 import {
     useSceneHighlights,
@@ -36,12 +37,24 @@ const Highlights = () => {
         window: windowKey, sort, limit: PAGE_SIZE, offset,
     })
 
-    // Reset the accumulated window whenever the filter identity changes.
-    useEffect(() => {
+    // Reset accumulation synchronously WITH the filter change (one batched render):
+    // resetting in a useEffect instead fires a wasted query for the new filter at
+    // the old offset before the reset lands.
+    const resetPagination = () => {
         setOffset(0)
         setAccumulated([])
         appendedOffsetRef.current = -1
-    }, [windowKey, sort])
+    }
+    const changeWindow = (key: HighlightsWindow) => {
+        if (key === windowKey) return // re-clicking the active pill must not collapse loaded pages
+        setWindowKey(key)
+        resetPagination()
+    }
+    const changeSort = (key: HighlightsSort) => {
+        if (key === sort) return
+        setSort(key)
+        resetPagination()
+    }
 
     // Fold each freshly-arrived page into the running list (skip placeholder frames).
     useEffect(() => {
@@ -75,39 +88,28 @@ const Highlights = () => {
                 className="toolbar highlights-toolbar"
                 role="search"
                 aria-label="Highlights filters">
-                <div className="chatter-tabs" role="tablist" aria-label="Time window">
-                    {WINDOW_TABS.map(tab => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={windowKey === tab.key}
-                            className={windowKey === tab.key ? 'chatter-tab active' : 'chatter-tab'}
-                            onClick={() => setWindowKey(tab.key)}>
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-                <div className="chatter-tabs" role="tablist" aria-label="Sort order">
-                    {SORT_TABS.map(tab => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={sort === tab.key}
-                            className={sort === tab.key ? 'chatter-tab active' : 'chatter-tab'}
-                            onClick={() => setSort(tab.key)}>
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <FilterPills
+                    options={WINDOW_TABS}
+                    activeKey={windowKey}
+                    ariaLabel="Time window"
+                    onChange={changeWindow}
+                />
+                <FilterPills
+                    options={SORT_TABS}
+                    activeKey={sort}
+                    ariaLabel="Sort order"
+                    onChange={changeSort}
+                />
             </div>
 
             <QueryState
                 query={{
                     data: isFirstPageLoading ? undefined : accumulated,
                     error: query.error,
-                    isLoading: query.isLoading,
+                    // isFirstPageLoading, not query.isLoading: with keepPreviousData a
+                    // filter switch keeps status success (isLoading false), which would
+                    // flash the empty state instead of the spinner while data is hidden.
+                    isLoading: isFirstPageLoading,
                     refetch: query.refetch,
                 }}
                 errorTitle="Failed to load highlights"

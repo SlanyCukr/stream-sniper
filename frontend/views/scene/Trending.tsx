@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import FilterPills from '@/components/common/FilterPills'
 import {
     useSceneTrendingCopypastas,
     useSceneTrendingEmotes,
@@ -77,19 +78,12 @@ const Trending = () => {
                 role="search"
                 aria-label="Trending controls">
                 <span className="toolbar-label">Window</span>
-                <div className="chatter-tabs" role="tablist" aria-label="Trending window">
-                    {WINDOW_TABS.map(tab => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={windowDays === tab.key}
-                            className={windowDays === tab.key ? 'chatter-tab active' : 'chatter-tab'}
-                            onClick={() => setWindowDays(tab.key)}>
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <FilterPills
+                    options={WINDOW_TABS}
+                    activeKey={windowDays}
+                    ariaLabel="Trending window"
+                    onChange={setWindowDays}
+                />
             </div>
 
             <div className="trending-boards">

@@ -8,91 +8,106 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
-const navigation = [
+const navigationGroups = [
     {
-        title: 'All streams',
-        href: '/',
-        icon: 'bi bi-collection-play',
+        label: 'Live',
+        items: [
+            {
+                title: 'Live',
+                href: '/live',
+                icon: 'bi bi-broadcast',
+            },
+            {
+                title: 'Radar',
+                href: '/radar',
+                icon: 'bi bi-soundwave',
+            },
+        ],
     },
     {
-        title: 'Live',
-        href: '/live',
-        icon: 'bi bi-broadcast',
+        label: 'Scene analytics',
+        items: [
+            {
+                title: 'Scene',
+                href: '/scene',
+                icon: 'bi bi-trophy',
+            },
+            {
+                title: 'Wrapped',
+                href: '/wrapped',
+                icon: 'bi bi-gift',
+            },
+            {
+                title: 'Rankings',
+                href: '/rankings',
+                icon: 'bi bi-list-ol',
+            },
+            {
+                title: 'Pulse',
+                href: '/pulse',
+                icon: 'bi bi-activity',
+            },
+            {
+                title: 'Trending',
+                href: '/trending',
+                icon: 'bi bi-graph-up-arrow',
+            },
+            {
+                title: 'Copypasta',
+                href: '/copypasta',
+                icon: 'bi bi-chat-quote',
+            },
+            {
+                title: 'Highlights',
+                href: '/highlights',
+                icon: 'bi bi-stars',
+            },
+            {
+                title: 'Moments',
+                href: '/moments',
+                icon: 'bi bi-bookmark-star',
+            },
+        ],
     },
     {
-        title: 'Radar',
-        href: '/radar',
-        icon: 'bi bi-soundwave',
-    },
-    {
-        title: 'Chatter explorer',
-        href: '/chatter',
-        icon: 'bi bi-fingerprint',
-    },
-    {
-        title: 'Search',
-        href: '/search',
-        icon: 'bi bi-search',
-    },
-    {
-        title: 'Creators',
-        href: '/regulars',
-        icon: 'bi bi-people',
-    },
-    {
-        title: 'Community',
-        href: '/community',
-        icon: 'bi bi-diagram-3',
-    },
-    {
-        title: 'Movement',
-        href: '/movement',
-        icon: 'bi bi-arrow-left-right',
-    },
-    {
-        title: 'Scene',
-        href: '/scene',
-        icon: 'bi bi-trophy',
-    },
-    {
-        title: 'Wrapped',
-        href: '/wrapped',
-        icon: 'bi bi-gift',
-    },
-    {
-        title: 'Rankings',
-        href: '/rankings',
-        icon: 'bi bi-list-ol',
-    },
-    {
-        title: 'Pulse',
-        href: '/pulse',
-        icon: 'bi bi-activity',
-    },
-    {
-        title: 'Trending',
-        href: '/trending',
-        icon: 'bi bi-graph-up-arrow',
-    },
-    {
-        title: 'Copypasta',
-        href: '/copypasta',
-        icon: 'bi bi-chat-quote',
-    },
-    {
-        title: 'Highlights',
-        href: '/highlights',
-        icon: 'bi bi-stars',
-    },
-    {
-        title: 'Moments',
-        href: '/moments',
-        icon: 'bi bi-bookmark-star',
-    },
-    {
-        title: 'Compare',
-        href: '/compare',
-        icon: 'bi bi-columns-gap',
+        label: 'Explore',
+        items: [
+            {
+                title: 'All streams',
+                href: '/',
+                icon: 'bi bi-collection-play',
+            },
+            {
+                title: 'Search',
+                href: '/search',
+                icon: 'bi bi-search',
+            },
+            {
+                title: 'Chatter explorer',
+                href: '/chatter',
+                icon: 'bi bi-fingerprint',
+            },
+            {
+                title: 'Creators',
+                href: '/regulars',
+                icon: 'bi bi-people',
+            },
+            {
+                title: 'Community',
+                href: '/community',
+                icon: 'bi bi-diagram-3',
+            },
+            {
+                title: 'Movement',
+                href: '/movement',
+                icon: 'bi bi-arrow-left-right',
+            },
+            {
+                title: 'Compare',
+                href: '/compare',
+                icon: 'bi bi-columns-gap',
+            },
+        ],
     },
 ]
 
@@ -186,14 +201,21 @@ const Sidebar = ({ isSidebarOpen = false, onCloseSidebar = () => {} }) => {
                     className="flex-column sidebarNav"
                     role="navigation"
                 >
-                    <div className="px-3 pb-1">
-                        <span className="sidebar-section">Intel</span>
-                    </div>
-                    <NavLinks
-                        items={navigation}
-                        pathname={pathname}
-                        keyPrefix=""
-                    />
+                    {navigationGroups.map(group => (
+                        <div
+                            className="sidebar-nav-group"
+                            key={group.label}
+                        >
+                            <div className="px-3 pb-1">
+                                <span className="sidebar-section">{group.label}</span>
+                            </div>
+                            <NavLinks
+                                items={group.items}
+                                pathname={pathname}
+                                keyPrefix={`${group.label}-`}
+                            />
+                        </div>
+                    ))}
 
                     {isAuthenticated && isAdmin && (
                         <>

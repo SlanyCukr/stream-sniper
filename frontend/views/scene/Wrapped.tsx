@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
+import FilterPills from '@/components/common/FilterPills'
 import WrappedRecap from '@/components/scene/WrappedRecap'
 import {
     useSceneWrapped,
@@ -34,20 +35,12 @@ const Wrapped = () => {
                 role="search"
                 aria-label="Recap window"
             >
-                <div className="chatter-tabs" role="tablist" aria-label="Window">
-                    {DAYS_TABS.map(tab => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={days === tab.key}
-                            className={days === tab.key ? 'chatter-tab active' : 'chatter-tab'}
-                            onClick={() => setDays(tab.key)}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <FilterPills
+                    options={DAYS_TABS}
+                    activeKey={days}
+                    ariaLabel="Window"
+                    onChange={setDays}
+                />
             </div>
 
             <QueryState

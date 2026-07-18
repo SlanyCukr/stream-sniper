@@ -70,42 +70,6 @@ def _build_stream_filter(
 
 
 @with_cursor
-def select_last_twitch_vod_id_db(
-    cursor: Cursor,
-    creator_nick: str,
-) -> int | None:
-    cursor.execute(
-        "SELECT twitch_id AS twitch_vod_id FROM "
-        "stream "
-        "WHERE creator_id = "
-        "(SELECT id FROM creator WHERE nick = %s) "
-        "ORDER BY twitch_id DESC "
-        "LIMIT 1",
-        (creator_nick,),
-    )
-    result = cursor.fetchone()
-    if not result:
-        return None
-    return cast(int, result[0])
-
-
-@with_cursor
-def select_all_processed_vod_ids_db(
-    cursor: Cursor,
-    creator_nick: str,
-) -> list[int]:
-    cursor.execute(
-        "SELECT twitch_id AS twitch_vod_id FROM stream WHERE creator_id = (SELECT id FROM creator WHERE nick = %s)",
-        (creator_nick,),
-    )
-    result = cursor.fetchall()
-    if not result:
-        return []
-
-    return [x[0] for x in result]
-
-
-@with_cursor
 def stream_exists_by_twitch_vod_id_db(
     cursor: Cursor,
     twitch_vod_id: int | str,

@@ -156,14 +156,6 @@ def update_processing_job_db(
         return bool(cursor.rowcount > 0)
 
 
-def delete_processing_job_db(job_id: int) -> bool:
-    """Delete one processing job and report whether it existed."""
-
-    with write_cursor() as cursor:
-        cursor.execute("DELETE FROM stream_sniper.processing_jobs WHERE id = %s", (job_id,))
-        return bool(cursor.rowcount > 0)
-
-
 def count_processing_jobs_db(status: JobStatus | None = None, tracked_streamer_id: int | None = None) -> int:
     """Count processing jobs using the same filters as the page query."""
 
