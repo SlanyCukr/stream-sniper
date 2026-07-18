@@ -104,6 +104,83 @@ async def test_start_surfaces_loop_failure_and_cancels_sibling(monkeypatch) -> N
 
 
 @pytest.mark.asyncio
+async def test_start_sweeps_stale_sessions_before_loops(monkeypatch) -> None:
+    # Zombie rows leaked by the previous downtime must be cleared on startup, before the
+    # flush/status loops begin.
+    collector = LiveChatCollector(channels=["alice"])
+    collector.chat = MagicMock()
+    collector._sync_channels = AsyncMock()
+    sweep = AsyncMock()
+    monkeypatch.setattr(collector, "_sweep_stale_sessions", sweep)
+
+    async def fail_fast() -> None:
+        raise RuntimeError("stop start()")
+
+    monkeypatch.setattr(collector, "_flush_loop", fail_fast)
+    monkeypatch.setattr(collector, "_status_loop", AsyncMock())
+
+    with pytest.raises(RuntimeError, match="stop start"):
+        await collector.start()
+
+    sweep.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_sweep_enqueues_rollups_for_swept_streams(monkeypatch) -> None:
+    collector = LiveChatCollector(channels=["alice"])
+    sweep_gateway = MagicMock(return_value=[31, 32])
+    monkeypatch.setattr(collector_module, "sweep_stale_live_sessions_db", sweep_gateway)
+    outcome = MagicMock()
+    monkeypatch.setattr(collector_module, "compute_stream_rollup", MagicMock(return_value=outcome))
+
+    await collector._sweep_stale_sessions()
+
+    sweep_gateway.assert_called_once_with(collector_module._STALE_SESSION_HOURS)
+    assert outcome.require_success.call_count == 2
+    assert collector._pending_rollups == {}
+    assert collector.rollup_failures == {}
+
+
+@pytest.mark.asyncio
+async def test_sweep_with_no_zombies_computes_no_rollups(monkeypatch) -> None:
+    collector = LiveChatCollector(channels=["alice"])
+    monkeypatch.setattr(collector_module, "sweep_stale_live_sessions_db", MagicMock(return_value=[]))
+    rollup = MagicMock()
+    monkeypatch.setattr(collector_module, "compute_stream_rollup", rollup)
+
+    await collector._sweep_stale_sessions()
+
+    rollup.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_sweep_failure_is_swallowed(monkeypatch) -> None:
+    # A broken sweep must never take down live capture.
+    collector = LiveChatCollector(channels=["alice"])
+    monkeypatch.setattr(collector_module, "sweep_stale_live_sessions_db", MagicMock(side_effect=RuntimeError("db down")))
+    rollup = MagicMock()
+    monkeypatch.setattr(collector_module, "compute_stream_rollup", rollup)
+
+    await collector._sweep_stale_sessions()
+
+    rollup.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_sweep_rollup_failure_lands_in_retry_queue(monkeypatch) -> None:
+    # A swept stream whose rollup fails must enter the same retrying path finalized
+    # streams use (retried by _retry_failed_rollups on later status cycles).
+    collector = LiveChatCollector(channels=["alice"])
+    monkeypatch.setattr(collector_module, "sweep_stale_live_sessions_db", MagicMock(return_value=[31]))
+    monkeypatch.setattr(collector_module, "compute_stream_rollup", MagicMock(side_effect=RuntimeError("rollup failed")))
+
+    await collector._sweep_stale_sessions()
+
+    assert collector._pending_rollups == {31: 1}
+    assert collector.rollup_failures == {31: "rollup failed"}
+
+
+@pytest.mark.asyncio
 async def test_sync_channels_reconciles_added_and_removed_rooms(monkeypatch) -> None:
     collector = LiveChatCollector(channels=["new"])
     collector.tracking_driven = False

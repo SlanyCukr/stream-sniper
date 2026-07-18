@@ -11,6 +11,7 @@ from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthScope
 
 from ...analytics.rollups.rollup_engine import compute_stream_rollup
+from ...database.gateways.chat.live_chat_table_gateway import sweep_stale_live_sessions_db
 from ...database.gateways.identity.creator_table_gateway import find_or_insert_creator_id_db, select_creator_id_db
 from ...database.gateways.tracking.tracked_streamers_table_gateway import select_active_tracked_streamers_db
 from ...logging_config import get_logger
@@ -21,6 +22,16 @@ from .secure_files import write_private_text
 
 logger = get_logger(__name__)
 _MAX_ROLLUP_ATTEMPTS = 5
+
+# A live-captured row with no chat message AND no viewer sample for this long is a zombie
+# (its session died while the service was down — the reconcile loop only finalizes channels
+# in the sink's in-memory map, so restarts leak rows). Conservative on purpose: no live
+# stream in the tracked scene is silent on both signals for 12 hours, and the viewer-sample
+# guard alone keeps any genuinely-live tracked stream open.
+_STALE_SESSION_HOURS = 12
+# The sweep runs at startup (clearing leaks from the last downtime) and then hourly — the
+# status loop ticks every 60s, so re-sweep every 60 ticks.
+_SWEEP_EVERY_TICKS = 60
 
 
 def _read_token(path: str) -> str:
@@ -101,6 +112,10 @@ class LiveChatCollector:
             raise RuntimeError("Chat initialization did not produce a client")
         self._running = True
         chat.start()
+        # Clear zombies leaked by the previous downtime BEFORE capture resumes: sessions
+        # that ended while the service was down are invisible to the reconcile loop (it
+        # only finalizes channels in the sink's in-memory map).
+        await self._sweep_stale_sessions()
         await self._sync_channels()
         tasks = [
             asyncio.create_task(self._flush_loop()),
@@ -182,9 +197,33 @@ class LiveChatCollector:
             await self.sink.flush()
 
     async def _status_loop(self) -> None:
+        ticks = 0
         while self._running:
             await asyncio.sleep(60)
+            ticks += 1
+            if ticks % _SWEEP_EVERY_TICKS == 0:
+                await self._sweep_stale_sessions()
             await self._reconcile_stream_sessions()
+
+    async def _sweep_stale_sessions(self) -> None:
+        """Finalize zombie live rows (no message + no viewer sample for the stale window).
+
+        Self-healing for restart leaks: the swept rows never got a live finalize, so they
+        also never got a rollup — enqueue one per swept stream through the same retrying
+        path finalized streams use. Sweep failures are logged and swallowed: a broken
+        sweep must never take down live capture.
+        """
+        try:
+            swept = await asyncio.to_thread(sweep_stale_live_sessions_db, _STALE_SESSION_HOURS)
+        except Exception:
+            logger.exception("Stale live-session sweep failed")
+            return
+        if not swept:
+            return
+        logger.info("Swept %s stale live session(s): %s", len(swept), swept)
+        for stream_id in swept:
+            self._pending_rollups.setdefault(stream_id, 0)
+            await self._attempt_rollup(stream_id)
 
     async def _reconcile_stream_sessions(self) -> None:
         """Sync rooms, finalize ended sessions, and record rollup outcomes once."""

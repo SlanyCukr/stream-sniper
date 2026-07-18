@@ -103,6 +103,53 @@ def finalize_live_stream_db(
     connection.commit()
 
 
+@with_cursor_connection
+def sweep_stale_live_sessions_db(
+    cursor: Cursor,
+    connection: Connection,
+    stale_after_hours: int,
+) -> list[int]:
+    """Finalize live-captured stream rows whose session died while the service was down.
+
+    The reconcile loop only finalizes channels in the sink's in-memory map, so a restart
+    mid-capture leaks the row as a permanent zombie (``"end"`` stuck NULL,
+    ``live_capture_complete`` false — which also blocks VOD reconciliation). This sweep
+    closes any open live-captured row with no sign of life for ``stale_after_hours``:
+    no chat message AND no viewer sample for the same Twitch session (the sample guard
+    keeps a genuinely-live-but-silent tracked stream open). ``"end"`` is set to the last
+    message time (the best estimate of when capture actually stopped; stream start when
+    no messages exist) and ``live_capture_complete`` flips true so the VOD path can
+    reconcile. Returns the swept stream ids so the caller can enqueue their rollups.
+    """
+    cursor.execute(
+        """
+        UPDATE stream_sniper.stream s
+        SET "end" = COALESCE(
+                (SELECT max(m.time) FROM stream_sniper.message m WHERE m.stream_id = s.id),
+                s.start),
+            live_capture_complete = true,
+            message_count = (SELECT count(*) FROM stream_sniper.message m WHERE m.stream_id = s.id)
+        WHERE s."end" IS NULL
+          AND s.twitch_stream_session_id IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM stream_sniper.message m
+              WHERE m.stream_id = s.id
+                AND m.time >= (now() AT TIME ZONE 'UTC') - (%(stale)s * interval '1 hour')
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM stream_sniper.stream_viewer_sample svs
+              WHERE svs.twitch_stream_session_id = s.twitch_stream_session_id
+                AND svs.sampled_at >= now() - (%(stale)s * interval '1 hour')
+          )
+        RETURNING s.id
+        """,
+        {"stale": stale_after_hours},
+    )
+    swept = [int(row[0]) for row in cursor.fetchall()]
+    connection.commit()
+    return swept
+
+
 @with_cursor
 def select_live_stream_by_session_db(
     cursor: Cursor,
