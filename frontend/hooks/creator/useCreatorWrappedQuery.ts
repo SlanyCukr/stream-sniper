@@ -163,5 +163,8 @@ export const useCreatorWrapped = (
     ...options,
     queryKey: creatorWrappedKeys.detail(creatorId, days),
     queryFn: async () => mapCreatorWrapped((await retrieveCreatorWrapped(creatorId, days)).data),
-    enabled: Boolean(creatorId) && enabled,
+    // Positive safe integer, not just truthy: the route boundary already 404s
+    // invalid segments, but a fractional/NaN id reaching here must never fire
+    // a request that can only produce a misleading generic API error.
+    enabled: Number.isSafeInteger(creatorId) && creatorId > 0 && enabled,
 })

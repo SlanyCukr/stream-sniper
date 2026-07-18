@@ -42,6 +42,11 @@ def _install_successful_phases(monkeypatch, calls: list[str]) -> None:
         "recompute_creator_overlap",
         lambda *, blocking: calls.append(f"community_overlap:{blocking}") or True,
     )
+    monkeypatch.setattr(
+        rollup_engine,
+        "touch_stream_rollup_version_db",
+        lambda _stream_id: calls.append("rollup_version_touch"),
+    )
 
 
 def test_complete_rollup_returns_a_checked_success(monkeypatch):
@@ -60,7 +65,12 @@ def test_complete_rollup_returns_a_checked_success(monkeypatch):
         "copypasta_rollup",
         "scene_events",
         "community_overlap",
+        "rollup_version_touch",
     )
+    # The version touch must be the LAST real act: TX1 already bumped computed_at,
+    # so only a final roll of the key evicts cache entries stored while the
+    # moment/copypasta phases were still writing.
+    assert calls[-1] == "rollup_version_touch"
     outcome.require_success()
 
 
@@ -82,6 +92,26 @@ def test_partial_rollup_records_failure_and_cannot_report_success(monkeypatch):
     assert "community_overlap" not in outcome.completed_phases
     with pytest.raises(RollupIncompleteError, match="sql_rollup: database unavailable"):
         outcome.require_success()
+
+
+def test_version_touch_runs_last_even_after_phase_failure(monkeypatch):
+    """A failed phase must not skip the final version touch: TX1 already bumped
+    computed_at, so without the touch a cache entry stored mid-rollup would pin
+    the mixed generation for its full TTL."""
+    calls: list[str] = []
+    monkeypatch.setattr(rollup_engine, "select_stream_creator_id_db", lambda _stream_id: (7,))
+    _install_successful_phases(monkeypatch, calls)
+
+    def fail_copypasta(_stream_id: int) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(rollup_engine, "_compute_and_store_copypasta_rollup", fail_copypasta)
+
+    outcome = rollup_engine.compute_stream_rollup(42, refresh_overlap=False)
+
+    assert outcome.succeeded is False
+    assert "rollup_version_touch" in outcome.completed_phases
+    assert calls[-1] == "rollup_version_touch"
 
 
 def test_lock_skipped_overlap_is_not_reported_as_completed(monkeypatch):
