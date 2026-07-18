@@ -2,8 +2,9 @@
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
+from ...analytics.rollups.rollup_engine import compute_stream_rollup
 from ...database.gateways.chat.live_chat_table_gateway import (
     reconcile_live_stream_vod_db,
     select_live_stream_by_session_db,
@@ -11,7 +12,23 @@ from ...database.gateways.chat.live_chat_table_gateway import (
 from ...database.gateways.streams.stream_table_gateway import stream_exists_by_twitch_vod_id_db
 from ...logging_config import get_logger
 from ..twitch_api import ArchivedVideo, SyncTwitchClient
+from .archived_stream import _stopped_at
 from .twitch_archived_chat import ArchivedChatMessage, TwitchArchivedChatClient
+
+
+def _vod_ended_at(video: ArchivedVideo) -> datetime | None:
+    """The VOD's authoritative session end (created_at + duration) as a naive-UTC datetime.
+
+    None when Twitch's duration string is missing/unparseable — reconciliation then simply
+    keeps the recorded end.
+    """
+    try:
+        ended_at = _stopped_at(video.created_at, video.duration)
+    except ValueError:
+        return None
+    if ended_at.tzinfo is not None:
+        ended_at = ended_at.astimezone(UTC).replace(tzinfo=None)
+    return ended_at
 
 
 @dataclass(frozen=True)
@@ -61,16 +78,28 @@ class TwitchVodChatDownloader:
             if video.twitch_stream_session_id:
                 captured = select_live_stream_by_session_db(video.twitch_stream_session_id)
                 if captured and captured[1]:
-                    reconcile_live_stream_vod_db(
+                    reconciled = reconcile_live_stream_vod_db(
                         video.twitch_stream_session_id,
                         video.twitch_vod_id,
                         video.thumbnail_url,
+                        _vod_ended_at(video),
                     )
                     self.logger.info(
                         "Skipping VOD %s; session %s was captured live",
                         video.twitch_vod_id,
                         video.twitch_stream_session_id,
                     )
+                    if reconciled is not None and reconciled[1]:
+                        # The stream's rollup disagrees with its (possibly just-repaired)
+                        # end — recompute. The staleness flag is durable (metrics vs the
+                        # stream row), so a failure here is retried the next time this VOD
+                        # is discovered; log and move on.
+                        stream_id = reconciled[0]
+                        self.logger.info("VOD %s: stream %s rollup is stale; recomputing", video.twitch_vod_id, stream_id)
+                        try:
+                            compute_stream_rollup(stream_id).require_success()
+                        except Exception:
+                            self.logger.exception("Rollup recompute failed for stream %s; will retry on rediscovery", stream_id)
                     continue
 
             discovery_mode = getattr(self, "_requested_vod_id", None) is None

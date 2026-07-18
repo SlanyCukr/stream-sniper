@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import datetime
+from typing import NamedTuple
 
 from psycopg2.extensions import connection as Connection
 from psycopg2.extensions import cursor as Cursor
@@ -103,6 +104,86 @@ def finalize_live_stream_db(
     connection.commit()
 
 
+class StaleLiveSessionRow(NamedTuple):
+    """One open live-captured stream row with no recent sign of life (sweep candidate)."""
+
+    stream_id: int
+    twitch_stream_session_id: int
+    creator_nick: str
+
+
+@with_cursor
+def select_stale_live_sessions_db(
+    cursor: Cursor,
+    stale_after_hours: int,
+) -> list[StaleLiveSessionRow]:
+    """Return open live-captured rows whose session shows no sign of life (sweep candidates).
+
+    The reconcile loop only finalizes channels in the sink's in-memory map, so a restart
+    mid-capture leaks the row as a permanent zombie (``"end"`` stuck NULL,
+    ``live_capture_complete`` false — which also blocks VOD reconciliation). A candidate is
+    an open live-captured row with no chat message AND no viewer sample for the same Twitch
+    session for ``stale_after_hours`` (the sample guard keeps a genuinely-live-but-silent
+    tracked stream out of the list). Read-only: the collector confirms each candidate's
+    session is really dead (sink state + a live Twitch lookup, failing closed) before
+    finalizing it with ``finalize_stale_live_session_db``.
+    """
+    cursor.execute(
+        """
+        SELECT s.id, s.twitch_stream_session_id, c.nick
+        FROM stream_sniper.stream s
+        JOIN stream_sniper.creator c ON c.id = s.creator_id
+        WHERE s."end" IS NULL
+          AND s.twitch_stream_session_id IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM stream_sniper.message m
+              WHERE m.stream_id = s.id
+                AND m.time >= (now() AT TIME ZONE 'UTC') - (%(stale)s * interval '1 hour')
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM stream_sniper.stream_viewer_sample svs
+              WHERE svs.twitch_stream_session_id = s.twitch_stream_session_id
+                AND svs.sampled_at >= now() - (%(stale)s * interval '1 hour')
+          )
+        """,
+        {"stale": stale_after_hours},
+    )
+    return [StaleLiveSessionRow(int(row[0]), int(row[1]), row[2]) for row in cursor.fetchall()]
+
+
+@with_cursor_connection
+def finalize_stale_live_session_db(
+    cursor: Cursor,
+    connection: Connection,
+    stream_id: int,
+) -> bool:
+    """Finalize one confirmed-dead zombie row; returns False if it was already closed.
+
+    ``"end"`` is set to the last message time — a PROVISIONAL estimate (capture stopped at
+    service shutdown, possibly before the stream ended; stream start when no messages
+    exist). ``reconcile_live_stream_vod_db`` later repairs it from the VOD's authoritative
+    metadata. ``live_capture_complete`` flips true so that VOD reconciliation can happen at
+    all. The ``"end" IS NULL`` guard makes the call race-safe against a concurrent real
+    finalize.
+    """
+    cursor.execute(
+        """
+        UPDATE stream_sniper.stream s
+        SET "end" = COALESCE(
+                (SELECT max(m.time) FROM stream_sniper.message m WHERE m.stream_id = s.id),
+                s.start),
+            live_capture_complete = true,
+            message_count = (SELECT count(*) FROM stream_sniper.message m WHERE m.stream_id = s.id)
+        WHERE s.id = %s AND s."end" IS NULL
+        RETURNING s.id
+        """,
+        (stream_id,),
+    )
+    finalized = cursor.fetchone() is not None
+    connection.commit()
+    return finalized
+
+
 @with_cursor
 def select_live_stream_by_session_db(
     cursor: Cursor,
@@ -116,6 +197,12 @@ def select_live_stream_by_session_db(
     return cursor.fetchone()
 
 
+# A VOD end only repairs the recorded end when it extends it by more than this. Normal
+# live-finalized ends differ from VOD metadata by trailing seconds; repairing those would
+# flag every stream's rollup stale for no analytical gain. Swept zombies are off by hours.
+_END_REPAIR_MIN_SECONDS = 300
+
+
 @with_cursor_connection
 def reconcile_live_stream_vod_db(
     cursor: Cursor,
@@ -123,17 +210,49 @@ def reconcile_live_stream_vod_db(
     twitch_stream_session_id: int,
     twitch_vod_id: int,
     thumbnail_url: str | None,
-) -> int | None:
-    """Attach the later VOD id to its live row so Twitch deep-links remain valid."""
+    vod_ended_at: datetime | None = None,
+) -> tuple[int, bool] | None:
+    """Attach the later VOD id to its live row and repair a provisional ``"end"``.
+
+    ``vod_ended_at`` (VOD created_at + duration) is the authoritative session end. It only
+    ever EXTENDS the recorded end, and only when the gap exceeds ``_END_REPAIR_MIN_SECONDS``
+    (a swept zombie's provisional last-message estimate is hours short; a normal live
+    finalize is seconds off and left alone).
+
+    Returns ``(stream_id, rollup_stale)`` — or ``None`` when no completed live capture
+    exists for the session. ``rollup_stale`` is DURABLE, not an end-moved flag: it is true
+    whenever ``stream_metrics`` is missing or its ``duration_seconds`` disagrees with the
+    (post-repair) ``"end" - start`` — mirroring the rollup's own formula — so a rollup
+    recompute that fails transiently is retried on every later VOD rediscovery until one
+    succeeds, instead of being lost to a one-shot end-changed signal.
+    """
     cursor.execute(
         """
-        UPDATE stream_sniper.stream
-        SET twitch_id = %s, thumbnail_url = COALESCE(%s, thumbnail_url)
-        WHERE twitch_stream_session_id = %s AND live_capture_complete
-        RETURNING id
+        UPDATE stream_sniper.stream s
+        SET twitch_id = %(vod_id)s,
+            thumbnail_url = COALESCE(%(thumb)s, thumbnail_url),
+            "end" = CASE
+                WHEN %(vod_end)s::timestamp > s."end" + (%(min_gap)s * interval '1 second')
+                THEN %(vod_end)s::timestamp
+                ELSE s."end"
+            END
+        WHERE s.twitch_stream_session_id = %(session_id)s AND s.live_capture_complete
+        RETURNING s.id,
+            NOT EXISTS (
+                SELECT 1 FROM stream_sniper.stream_metrics sm
+                WHERE sm.stream_id = s.id
+                  AND sm.duration_seconds IS NOT DISTINCT FROM
+                      GREATEST(EXTRACT(EPOCH FROM (s."end" - s.start))::int, 0)
+            )
         """,
-        (twitch_vod_id, thumbnail_url, twitch_stream_session_id),
+        {
+            "vod_id": twitch_vod_id,
+            "thumb": thumbnail_url,
+            "vod_end": vod_ended_at,
+            "min_gap": _END_REPAIR_MIN_SECONDS,
+            "session_id": twitch_stream_session_id,
+        },
     )
     row = cursor.fetchone()
     connection.commit()
-    return int(row[0]) if row else None
+    return (int(row[0]), bool(row[1])) if row else None
