@@ -5,6 +5,7 @@ import EditUserForm from '@/components/admin/users/EditUserForm'
 import UserManagementModals from '@/components/admin/users/UserManagementModals'
 import UserManagementTable from '@/components/admin/users/UserManagementTable'
 import { USER_ROLES } from '@/lib/auth/roles'
+import type { AdminUserDto } from '@/lib/api/users'
 
 const user = {
   id: 7,
@@ -24,7 +25,7 @@ describe('admin user controls', () => {
     render(
       <UserManagementTable
         users={[user, { ...user, id: 1, username: 'root' }]}
-        authenticatedUser={{ id: 1 }}
+        authenticatedUser={{ id: 1 } as unknown as AdminUserDto}
         onEdit={onEdit}
         onActivationChange={onActivationChange}
         onDelete={onDelete}

@@ -21,10 +21,15 @@ vi.mock('react-virtuoso', () => ({
 }))
 
 import StreamChatReplay from '@/components/stream/replay/StreamChatReplay'
+import type { StreamMessage } from '@/hooks/stream/replay/useStreamMessagesQuery'
 
-const messages = [
-  { id: 1, ts: '2026-07-14T10:00:00Z', nick: 'one', text: 'first', badges: '' },
-  { id: 2, ts: '2026-07-14T10:05:00Z', nick: 'two', text: 'second', badges: '' },
+const messages: StreamMessage[] = [
+  {
+    id: 1, ts: '2026-07-14T10:00:00Z', chatterId: 1, nick: 'one', text: 'first', isSubscriber: false, badges: [],
+  },
+  {
+    id: 2, ts: '2026-07-14T10:05:00Z', chatterId: 2, nick: 'two', text: 'second', isSubscriber: false, badges: [],
+  },
 ]
 
 describe('StreamChatReplay virtualization boundary', () => {

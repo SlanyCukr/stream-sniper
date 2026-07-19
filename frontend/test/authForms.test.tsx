@@ -39,7 +39,7 @@ describe('LoginForm', () => {
   it('validates the draft and submits credentials before reporting success', async () => {
     const onSuccess = vi.fn()
     auth.login.mockResolvedValue(undefined)
-    render(<LoginForm onSuccess={onSuccess} onSwitchToRegister={undefined} />)
+    render(<LoginForm onSuccess={onSuccess} onSwitchToRegister={vi.fn()} />)
 
     fireEvent.submit(screen.getByRole('button', { name: 'Login' }).closest('form')!)
     expect(await screen.findByText('Username is required')).toBeInTheDocument()
@@ -62,7 +62,7 @@ describe('LoginForm', () => {
     auth.login.mockRejectedValue(Object.assign(new Error('request failed'), {
       response: { status: 401, data: { detail: 'wrong credentials' } },
     }))
-    render(<LoginForm onSuccess={undefined} onSwitchToRegister={undefined} />)
+    render(<LoginForm onSuccess={undefined} onSwitchToRegister={vi.fn()} />)
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'operator' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrong' } })
     fireEvent.click(screen.getByRole('button', { name: 'Login' }))

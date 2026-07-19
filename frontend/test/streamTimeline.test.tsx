@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { StreamTimeline as StreamTimelineData } from '@/hooks/stream/timeline/useStreamTimelineQuery'
 
 const { mutate, reviewMutation } = vi.hoisted(() => {
   const mutate = vi.fn()
@@ -24,20 +25,27 @@ vi.mock('@/hooks/moments/useMomentsQueries', () => ({
 
 import StreamTimeline from '@/components/stream/timeline/StreamTimeline'
 
-const timeline = {
+const timeline: Pick<
+  StreamTimelineData,
+  'streamId' | 'twitchVodId' | 'streamStart' | 'buckets' | 'moments' | 'viewerSamples' | 'contextChanges'
+> = {
   streamId: 42,
   twitchVodId: '9876',
   streamStart: '2026-07-14T10:00:00Z',
   buckets: [
-    { t: '2026-07-14T10:00:00Z', count: 2, unique: 2 },
-    { t: '2026-07-14T10:01:00Z', count: 14, unique: 8 },
+    { t: '2026-07-14T10:00:00Z', count: 2, unique: 2, subMessages: 0, emoteMessages: 0 },
+    { t: '2026-07-14T10:01:00Z', count: 14, unique: 8, subMessages: 0, emoteMessages: 0 },
   ],
   moments: [{
     t: '2026-07-14T10:01:00Z',
+    offsetSeconds: 60,
     count: 14,
     score: 4.2,
+    kind: 'spike',
     isPersisted: true,
     status: null,
+    subShare: null,
+    emoteShare: null,
     topPhrases: [{ phrase: 'what happened', count: 3 }],
     sampleMessages: [{ text: 'that was wild', count: 2 }],
   }],
@@ -47,8 +55,12 @@ const timeline = {
   ],
   contextChanges: [{
     t: '2026-07-14T10:00:30Z',
+    categoryId: null,
     categoryName: 'Just Chatting',
     title: 'Morning stream',
+    language: null,
+    tags: [],
+    isMature: null,
   }],
 }
 

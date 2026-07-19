@@ -26,7 +26,9 @@ import {
   useStreamPhrases,
 } from '@/hooks/stream/insights/useStreamInsightsQuery'
 import { mapReportMetric, useStreamReport } from '@/hooks/stream/report/useStreamReportQuery'
+import type { StreamReport } from '@/hooks/stream/report/useStreamReportQuery'
 import { useStreamTimeline } from '@/hooks/stream/timeline/useStreamTimelineQuery'
+import type { StreamTimeline } from '@/hooks/stream/timeline/useStreamTimelineQuery'
 
 const createClient = () => new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -111,7 +113,7 @@ describe('stream analytics query contracts', () => {
     })
 
     const result = renderHook(() => (
-      useStreamTimeline(42) as UseQueryResult<Record<string, unknown>>
+      useStreamTimeline(42) as UseQueryResult<StreamTimeline, Error>
     ), {
       wrapper: createWrapper(createClient()),
     })
@@ -220,7 +222,7 @@ describe('stream analytics query contracts', () => {
     })
 
     const result = renderHook(() => (
-      useStreamReport(42) as UseQueryResult<Record<string, unknown>>
+      useStreamReport(42) as UseQueryResult<StreamReport, Error>
     ), {
       wrapper: createWrapper(createClient()),
     })
@@ -334,10 +336,10 @@ describe('stream analytics query contracts', () => {
     creatorApi.retrieveCreatorEmotes.mockResolvedValue({ data: {} })
     const wrapper = createWrapper(createClient())
     const timeline = renderHook(() => (
-      useStreamTimeline(42) as UseQueryResult<Record<string, unknown>>
+      useStreamTimeline(42) as UseQueryResult<StreamTimeline, Error>
     ), { wrapper })
     const report = renderHook(() => (
-      useStreamReport(42) as UseQueryResult<Record<string, unknown>>
+      useStreamReport(42) as UseQueryResult<StreamReport, Error>
     ), { wrapper })
     const mentions = renderHook(() => useStreamMentions(42), { wrapper })
     const emotes = renderHook(() => useStreamEmotes(42), { wrapper })

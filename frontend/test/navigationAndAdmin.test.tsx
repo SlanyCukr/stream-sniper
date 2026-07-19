@@ -111,10 +111,14 @@ describe('moment review presentation', () => {
         twitchVodId: '1234',
         creatorName: 'alpha',
         t: '2026-01-01T12:15:00',
+        offsetSeconds: 900,
         count: 100,
         baseline: 20,
         score: 5,
-        unique: null,
+        // unique_chatters is a required number on the wire DTO, but MomentCard
+        // still defensively guards `unique != null` — this cast exercises that
+        // guard against a value the current backend contract no longer sends.
+        unique: null as unknown as number,
         subShare: 0.25,
         emoteShare: null,
         topPhrases: [{ phrase: 'lets go', count: 10 }],

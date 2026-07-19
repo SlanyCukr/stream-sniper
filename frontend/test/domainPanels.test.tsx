@@ -62,7 +62,7 @@ describe('chatter explorer', () => {
         isBot: null,
       },
     ]))
-    render(<ChatterFootprintPanel chatter={{ value: 5, label: 'alice' }} />)
+    render(<ChatterFootprintPanel chatter={{ value: 5, label: 'alice', isBot: false }} />)
 
     expect(screen.getByRole('region', { name: 'Chatter footprint results' })).toHaveTextContent('Launch stream')
     expect(screen.getByRole('link', { name: 'Launch stream' })).toHaveAttribute('href', '/stream/10')
@@ -81,7 +81,7 @@ describe('chatter explorer', () => {
       total: 1,
       pageCount: 1,
     }))
-    render(<ChatterMessagesPanel chatter={{ value: 5, label: 'alice' }} />)
+    render(<ChatterMessagesPanel chatter={{ value: 5, label: 'alice', isBot: false }} />)
 
     expect(screen.getByRole('region', { name: 'Chatter messages results' })).toHaveTextContent('hello chat')
     expect(screen.getByRole('link', { name: 'Launch stream' })).toHaveAttribute('href', '/stream/10')
