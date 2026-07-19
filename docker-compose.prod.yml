@@ -11,6 +11,11 @@ services:
     environment:
       - API_PROXY_TARGET=http://stream-sniper-api:5002
       - NODE_ENV=production
+    # OOM containment: the Pi hosts ~19 containers; a runaway process gets
+    # killed and restarted instead of taking the host down. memswap = mem
+    # so a hit means kill+restart, not swap-thrash.
+    mem_limit: 512m
+    memswap_limit: 512m
     restart: unless-stopped
     container_name: stream-sniper-frontend
     networks:
@@ -37,6 +42,11 @@ services:
       # lookup), so the api process needs Twitch creds too — not just tracking.
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+      # Weekly scene digest (cron on the host runs stream-sniper-digest in this
+      # container; empty URL = digest stays dormant).
+      - SCENE_DIGEST_WEBHOOK_URL=${SCENE_DIGEST_WEBHOOK_URL:-}
+    mem_limit: 768m
+    memswap_limit: 768m
     restart: unless-stopped
     container_name: stream-sniper-api
     networks:
@@ -61,6 +71,8 @@ services:
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
       # Optional Discord "went live" alerts (unset = disabled).
       - TRACKING_DISCORD_WEBHOOK_URL=${TRACKING_DISCORD_WEBHOOK_URL:-}
+    mem_limit: 1g
+    memswap_limit: 1g
     restart: unless-stopped
     container_name: stream-sniper-tracking
     networks:
@@ -87,6 +99,8 @@ services:
       - TWITCH_BOT_TOKEN_FILE=/tokens/refresh-token
     volumes:
       - live_tokens:/tokens
+    mem_limit: 512m
+    memswap_limit: 512m
     restart: unless-stopped
     container_name: stream-sniper-live
     networks:
