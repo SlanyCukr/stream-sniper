@@ -32,6 +32,8 @@ const trackedStreamer = {
   is_active: true,
   last_stream_check: null,
   last_processed_vod_id: null,
+  total_streams_collected: 3,
+  last_collected_stream_start: '2026-07-13T18:00:00',
   processing_enabled: true,
   created_at: '2026-07-14T10:00:00Z',
   updated_at: '2026-07-14T10:00:00Z',

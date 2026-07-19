@@ -12,6 +12,7 @@ from stream_sniper.application.tracking.models import (
     ProcessingJob,
     TrackedStreamer,
 )
+from stream_sniper.database.gateways.streams.records import CreatorStreamSummaryRow
 
 from ....tracking.status import (
     HeartbeatSnapshot,
@@ -66,6 +67,11 @@ class TrackedStreamerResponse(BaseModel):
     creator_display_name: str
     profile_image_url: str | None = None
     created_by_username: str | None = None
+    # Collection summary (populated on list/detail reads; None until attached).
+    # Lets the admin UI distinguish dormant channels (old/absent last stream)
+    # from broken ingestion (active on Twitch but nothing collected).
+    total_streams_collected: int | None = None
+    last_collected_stream_start: str | None = None
 
 
 class TrackedStreamersResponse(BaseModel):
@@ -108,6 +114,15 @@ class ProcessingTriggerResponse(BaseModel):
     job_id: int | None = None
     twitch_vod_id: int | None = None
     vod_title: str | None = None
+
+
+class TwitchProbeResponse(BaseModel):
+    """On-demand Twitch snapshot for a tracked streamer — dormant vs broken triage."""
+
+    is_live: bool
+    archive_vod_count: int
+    last_vod_created_at: str | None = None
+    checked_at: str
 
 
 class TrackingSystemStatus(BaseModel):
@@ -165,8 +180,13 @@ class TwitchChannelResult(BaseModel):
 
 def convert_tracked_streamer_to_response(
     row: TrackedStreamer,
+    summary: CreatorStreamSummaryRow | None = None,
 ) -> TrackedStreamerResponse:
-    """Convert a gateway record to the transport model."""
+    """Convert a gateway record to the transport model.
+
+    ``summary`` (batched per-creator collection stats) is attached on list and
+    detail reads; mutation responses skip it — the admin UI re-reads the list.
+    """
     return TrackedStreamerResponse(
         id=row.id,
         creator_id=row.creator_id,
@@ -183,6 +203,10 @@ def convert_tracked_streamer_to_response(
         creator_display_name=row.creator_display_name,
         profile_image_url=row.profile_image_url,
         created_by_username=row.created_by_username,
+        total_streams_collected=summary.total_streams if summary else None,
+        last_collected_stream_start=(
+            summary.last_stream_start.isoformat() if summary and summary.last_stream_start else None
+        ),
     )
 
 

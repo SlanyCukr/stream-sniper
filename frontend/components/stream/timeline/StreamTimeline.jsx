@@ -3,10 +3,11 @@ import {
     useCallback, useMemo, useState,
 } from 'react'
 import { Card } from 'react-bootstrap'
-import { vodDeepLink } from '@/utils/chatRender'
+import { vodDeepLink } from '@/utils/vodChapters'
 import { useAuth } from '@/contexts/AuthContext'
 import { useMomentReview } from '@/hooks/moments/useMomentsQueries'
 import { getHoverIndex, useTimelineGeometry } from '@/hooks/stream/timeline/useTimelineGeometry'
+import CopyChaptersButton from '@/components/stream/timeline/CopyChaptersButton'
 import TimelineLanes from '@/components/stream/timeline/TimelineLanes'
 import TimelineContextList from '@/components/stream/timeline/TimelineContextList'
 import TimelineSelection from '@/components/stream/timeline/TimelineSelection'
@@ -78,6 +79,7 @@ const StreamTimeline = ({ timeline, onJump }) => {
                 <div className="timeline-head">
                     <h3 id="timeline-heading" className="section-label mb-0">Chat activity</h3>
                     <span className="timeline-subtitle">messages / minute</span>
+                    <CopyChaptersButton timeline={timeline} />
                 </div>
                 <TimelineLanes
                     buckets={buckets}

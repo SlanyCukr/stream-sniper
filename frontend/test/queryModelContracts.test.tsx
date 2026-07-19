@@ -242,6 +242,8 @@ describe('query view-model contracts', () => {
       processing_enabled: false,
       last_stream_check: null,
       created_at: 'created',
+      total_streams_collected: 3,
+      last_collected_stream_start: '2026-07-13T18:00:00',
     }
     const rawJob = {
       id: 9,
