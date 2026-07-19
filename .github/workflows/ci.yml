@@ -23,7 +23,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v5
+      uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
 
@@ -74,7 +74,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v5
+      uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
 
@@ -126,7 +126,7 @@ jobs:
         uv run pytest tests/integration -v --cov=stream_sniper --cov-append --cov-report=xml --cov-report=term-missing --cov-fail-under=70
 
     - name: Set up Node.js 22 for real browser smoke
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: 22
         cache: npm
@@ -154,7 +154,7 @@ jobs:
       run: npm run test:e2e:real
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v7
       with:
         file: ./backend/coverage.xml
         flags: unittests
@@ -206,10 +206,10 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
 
     - name: Build API Docker image
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: ./backend
         file: ./backend/Dockerfile.api
@@ -220,7 +220,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Build Collector Docker image
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: ./backend
         file: ./backend/Dockerfile.collector
@@ -258,7 +258,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v5
+      uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
 
@@ -288,7 +288,7 @@ jobs:
       uses: actions/checkout@v7
 
     - name: Set up Node.js 22
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: 22
         cache: npm
