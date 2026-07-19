@@ -126,9 +126,20 @@ describe('digest markdown parsing', () => {
         expect(hasAnchor).toBe(true)
     })
 
-    it('parses numbered chatter lines as list items', () => {
+    it('parses numbered chatter lines as an ORDERED list (ranks preserved)', () => {
         const blocks = parseDigestBlocks('### Most active chatters\n1. **rybicka** — 4200 msgs\n2. **karel** — 900 msgs')
         expect(blocks[1].kind).toBe('list')
+        expect(blocks[1].ordered).toBe(true)
         expect(blocks[1].lines).toEqual(['**rybicka** — 4200 msgs', '**karel** — 900 msgs'])
+    })
+
+    it('keeps bullet and numbered runs as separate blocks', () => {
+        const blocks = parseDigestBlocks('- bullet one\n1. ranked one\n2. ranked two\n- bullet two')
+        expect(blocks.map(block => [block.kind, block.ordered ?? false])).toEqual([
+            ['list', false],
+            ['list', true],
+            ['list', false],
+        ])
+        expect(blocks[1].lines).toHaveLength(2)
     })
 })

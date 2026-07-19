@@ -46,14 +46,21 @@ export const renderInline = (text: string, keyBase: string): ReactNode[] => {
     return nodes
 }
 
-const LIST_ITEM_RE = /^(?:-|\d+\.)\s+/
+const BULLET_ITEM_RE = /^-\s+/
+const ORDERED_ITEM_RE = /^\d+\.\s+/
 
 interface DigestBlock {
     kind: 'h2' | 'h3' | 'list' | 'paragraph'
     lines: string[]
+    /** For list blocks: true = numbered run (rendered <ol> to keep the ranks). */
+    ordered?: boolean
 }
 
-/** Group the digest's lines into heading / list / paragraph blocks. */
+/** Group the digest's lines into heading / list / paragraph blocks.
+
+    Bullet ("- ") and numbered ("1. ") runs stay separate blocks so an ordered
+    section (Most active chatters) keeps its rank numbers instead of collapsing
+    into bullets. */
 export const parseDigestBlocks = (markdown: string): DigestBlock[] => {
     const blocks: DigestBlock[] = []
     for (const rawLine of markdown.split('\n')) {
@@ -63,11 +70,12 @@ export const parseDigestBlocks = (markdown: string): DigestBlock[] => {
             blocks.push({ kind: 'h2', lines: [line.slice(3)] })
         } else if (line.startsWith('### ')) {
             blocks.push({ kind: 'h3', lines: [line.slice(4)] })
-        } else if (LIST_ITEM_RE.test(line)) {
+        } else if (BULLET_ITEM_RE.test(line) || ORDERED_ITEM_RE.test(line)) {
+            const ordered = ORDERED_ITEM_RE.test(line)
             const previous = blocks[blocks.length - 1]
-            const text = line.replace(LIST_ITEM_RE, '')
-            if (previous?.kind === 'list') previous.lines.push(text)
-            else blocks.push({ kind: 'list', lines: [text] })
+            const text = line.replace(ordered ? ORDERED_ITEM_RE : BULLET_ITEM_RE, '')
+            if (previous?.kind === 'list' && previous.ordered === ordered) previous.lines.push(text)
+            else blocks.push({ kind: 'list', ordered, lines: [text] })
         } else {
             blocks.push({ kind: 'paragraph', lines: [line] })
         }
@@ -86,12 +94,13 @@ const DigestMarkdown = ({ markdown }: { markdown: string }): JSX.Element => (
                 return <h3 key={key} className="digest-h3">{renderInline(block.lines[0], key)}</h3>
             }
             if (block.kind === 'list') {
+                const ListTag = block.ordered ? 'ol' : 'ul'
                 return (
-                    <ul key={key} className="digest-list">
+                    <ListTag key={key} className={block.ordered ? 'digest-list digest-list-ordered' : 'digest-list'}>
                         {block.lines.map((line, itemIndex) => (
                             <li key={`${key}-i${itemIndex}`}>{renderInline(line, `${key}-i${itemIndex}`)}</li>
                         ))}
-                    </ul>
+                    </ListTag>
                 )
             }
             return <p key={key} className="digest-p">{renderInline(block.lines[0], key)}</p>

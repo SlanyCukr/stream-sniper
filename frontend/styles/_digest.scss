@@ -38,6 +38,23 @@
         }
     }
 
+    // Numbered runs (Most active chatters) keep their ranks: same hairline
+    // styling, with a mono counter instead of a hidden marker.
+    .digest-list-ordered {
+        counter-reset: digest-rank;
+
+        li {
+            counter-increment: digest-rank;
+
+            &::before {
+                content: counter(digest-rank, decimal-leading-zero) " ";
+                font-family: var(--bs-font-monospace);
+                color: $phosphor-dim;
+                margin-right: 0.35rem;
+            }
+        }
+    }
+
     .digest-p {
         font-size: 0.85rem;
         color: $gray-500;

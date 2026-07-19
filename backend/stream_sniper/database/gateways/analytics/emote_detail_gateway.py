@@ -133,8 +133,11 @@ def select_emote_top_creators_db(cursor: Cursor, emote_id: int, limit: int) -> l
 def select_emote_weekly_usage_db(cursor: Cursor, emote_id: int, weeks: int) -> list[EmoteWeeklyUsageRow]:
     """Usage per ISO week over the trailing ``weeks`` weeks, oldest first.
 
-    Weeks with no usage are absent (the chart treats missing weeks as zero);
-    bucketing keys on ``stream.start`` like every other scene aggregate.
+    Exactly ``weeks`` Monday buckets are eligible: the current (partial) week
+    plus the ``weeks - 1`` before it — not ``weeks`` full weeks back, which
+    would yield ``weeks + 1`` buckets. Weeks with no usage are absent (the
+    chart treats missing weeks as zero); bucketing keys on ``stream.start``
+    like every other scene aggregate.
     """
     cursor.execute(
         """
@@ -143,7 +146,7 @@ def select_emote_weekly_usage_db(cursor: Cursor, emote_id: int, weeks: int) -> l
         FROM stream_emote_stats ses
         JOIN stream s ON s.id = ses.stream_id
         WHERE ses.emote_id = %s
-          AND s.start >= DATE_TRUNC('week', (now() AT TIME ZONE 'UTC')) - (%s * interval '1 week')
+          AND s.start >= DATE_TRUNC('week', (now() AT TIME ZONE 'UTC')) - ((%s - 1) * interval '1 week')
         GROUP BY DATE_TRUNC('week', s.start)
         ORDER BY week_start ASC
         """,
