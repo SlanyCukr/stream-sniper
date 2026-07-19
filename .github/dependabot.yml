@@ -22,6 +22,10 @@ updates:
       - "python"
     open-pull-requests-limit: 10
     rebase-strategy: "auto"
+    groups:
+      python-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
     allow:
       - dependency-type: "direct"
       - dependency-type: "indirect"
@@ -53,6 +57,10 @@ updates:
       - "javascript"
     open-pull-requests-limit: 10
     rebase-strategy: "auto"
+    groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
     ignore:
       # Ignore major version updates for core dependencies
       - dependency-name: "next"
@@ -60,6 +68,15 @@ updates:
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      # Blocked by toolchain peers (checked 2026-07-19) — revisit when
+      # eslint-config-next's plugin set (eslint-plugin-import/react/jsx-a11y)
+      # allows eslint 10, and typescript-eslint allows typescript >=6.1:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
         update-types: ["version-update:semver-major"]
 
   # Docker dependencies
@@ -84,6 +101,10 @@ updates:
       - "docker"
     open-pull-requests-limit: 5
     rebase-strategy: "auto"
+    groups:
+      docker-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
 
   # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
@@ -106,3 +127,8 @@ updates:
       - "ci/cd"
     open-pull-requests-limit: 5
     rebase-strategy: "auto"
+    groups:
+      # Action majors are routine (runner-side); group everything.
+      github-actions-all:
+        applies-to: version-updates
+        update-types: ["major", "minor", "patch"]
