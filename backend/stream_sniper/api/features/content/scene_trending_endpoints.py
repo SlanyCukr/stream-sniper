@@ -6,8 +6,10 @@ slowapi, in-process TTL cache keyed on the query params plus the scene rollup ve
 plain-language 422 copy for an out-of-range window.
 """
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 
+from ....application.scenes.emote_detail_models import EmoteDetail
+from ....application.scenes.emote_detail_query import get_emote_detail as query_emote_detail
 from ....database.gateways.analytics.scene_trends_gateway import (
     select_trending_copypastas_db,
     select_trending_emotes_db,
@@ -33,6 +35,41 @@ router = APIRouter(tags=["Scene"])
 
 _COPYPASTAS_CACHE = ModelCachePolicy("scene_trending_copypastas", CacheTTL.STREAM_ANALYTICS, TrendingCopypastas)
 _EMOTES_CACHE = ModelCachePolicy("scene_trending_emotes", CacheTTL.STREAM_ANALYTICS, TrendingEmotes)
+_EMOTE_DETAIL_CACHE = ModelCachePolicy("scene_emote_detail", CacheTTL.STREAM_ANALYTICS, EmoteDetail)
+
+
+@router.get(
+    "/scene/emotes/{emote_id}",
+    response_model=EmoteDetail,
+    summary="Get one emote's drill-down",
+    description=(
+        "Lifetime story of a single emote: dictionary identity, usage totals, "
+        "the channels it lives in, a trailing weekly trend, and its most recent streams."
+    ),
+    responses={
+        404: {"model": ErrorOrValidationResponse, "description": "Emote not found"},
+        429: {"model": RateLimitErrorResponse, "description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit(rate_limits.ANALYTICS)
+def get_emote_detail(
+    request: Request,
+    response: Response,
+    emote_id: int = Path(..., description="Emote dictionary ID", ge=1),
+) -> EmoteDetail:
+    """Single-emote drill-down assembled from the per-stream emote rollups."""
+    with _EMOTE_DETAIL_CACHE.record_failures():
+        cache = get_cache(request)
+        cache_key, cached = _EMOTE_DETAIL_CACHE.lookup(cache, response, emote_id, scene_rollup_version())
+        if cached is not None:
+            return cached
+
+        result = query_emote_detail(emote_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Emote not found")
+
+        _EMOTE_DETAIL_CACHE.store(cache, response, cache_key, result)
+        return result
 
 
 def _validate_window(window: int) -> None:

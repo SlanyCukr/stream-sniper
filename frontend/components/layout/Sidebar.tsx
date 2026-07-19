@@ -60,6 +60,11 @@ const navigationGroups: NavGroup[] = [
                 icon: 'bi bi-activity',
             },
             {
+                title: 'Digest',
+                href: '/digest',
+                icon: 'bi bi-journal-text',
+            },
+            {
                 title: 'Trending',
                 href: '/trending',
                 icon: 'bi bi-graph-up-arrow',

@@ -1,0 +1,63 @@
+// Scene digest page (/digest) — renders the Discord digest markdown as HTML.
+// Reuses .card, .toolbar, .page-head primitives from _theme.scss.
+
+.digest-card {
+    padding: 1.25rem 1.5rem;
+}
+
+.digest-body {
+    max-width: 720px;
+
+    .digest-h2 {
+        font-size: 1.1rem;
+        margin: 0 0 0.75rem;
+        color: $phosphor;
+    }
+
+    .digest-h3 {
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin: 1.25rem 0 0.5rem;
+        color: $phosphor-dim;
+    }
+
+    .digest-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+
+        li {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            padding-left: 0.9rem;
+            border-left: 2px solid $hairline;
+        }
+    }
+
+    // Numbered runs (Most active chatters) keep their ranks: same hairline
+    // styling, with a mono counter instead of a hidden marker.
+    .digest-list-ordered {
+        counter-reset: digest-rank;
+
+        li {
+            counter-increment: digest-rank;
+
+            &::before {
+                content: counter(digest-rank, decimal-leading-zero) " ";
+                font-family: var(--bs-font-monospace);
+                color: $phosphor-dim;
+                margin-right: 0.35rem;
+            }
+        }
+    }
+
+    .digest-p {
+        font-size: 0.85rem;
+        color: $gray-500;
+        margin: 0 0 0.5rem;
+    }
+}

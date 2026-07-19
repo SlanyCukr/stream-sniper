@@ -106,3 +106,26 @@
     font-size: 0.78rem;
     color: $gray-500;
 }
+
+// --- Chatter versus (/versus/chatters) ---------------------------------------
+// Shares the .versus-* layout above; only chatter-specific bits live here.
+
+.chatter-versus-name {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chatter-versus-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-height: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.chatter-versus-era {
+    margin: 0.75rem 0 0;
+    font-size: 0.78rem;
+    color: $gray-500;
+}

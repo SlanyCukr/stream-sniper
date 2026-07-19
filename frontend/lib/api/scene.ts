@@ -391,3 +391,46 @@ export interface SceneRadarDto {
 
 export const retrieveSceneRadar = () =>
   api.get<SceneRadarDto>('/scene/radar')
+
+// ---------------------------------------------------------------------------
+// Emote drill-down (lifetime story of one emote) — GET /scene/emotes/{id}
+// ---------------------------------------------------------------------------
+
+export interface EmoteDetailDto {
+  meta: {
+    emote_id: number
+    name: string
+    source: string
+    provider_id: string | null
+    first_seen: string | null
+  }
+  totals: {
+    usage: number
+    chatter_reach: number
+    stream_count: number
+    creator_count: number
+    last_used: string | null
+  }
+  top_creators: Array<{
+    creator_id: number
+    nick: string
+    display_name: string
+    usage: number
+    chatter_reach: number
+    stream_count: number
+  }>
+  weekly_usage: Array<{ week_start: string, usage: number }>
+  recent_streams: Array<{
+    stream_id: number
+    title: string | null
+    start: string | null
+    creator_id: number
+    creator_nick: string
+    creator_display_name: string
+    usage: number
+    chatter_count: number
+  }>
+}
+
+export const retrieveEmoteDetail = (emoteId: number) =>
+  api.get<EmoteDetailDto>(`/scene/emotes/${emoteId}`)

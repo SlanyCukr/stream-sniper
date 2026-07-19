@@ -7,6 +7,13 @@ from pydantic import RootModel
 
 from ....application.chatters.passport_models import ChatterPassport
 from ....application.chatters.passport_query import get_chatter_passport as query_chatter_passport
+from ....application.chatters.versus_models import ChatterHeadToHead
+from ....application.chatters.versus_query import (
+    ChatterVersusNotFoundError,
+)
+from ....application.chatters.versus_query import (
+    get_chatter_head_to_head as query_chatter_head_to_head,
+)
 from ....database.gateways.chat.chatter_table_gateway import select_chatters_by_prefix_db
 from ....database.gateways.chat.message_table_gateway import (
     select_chatter_identity_db,
@@ -47,6 +54,49 @@ _CHATTER_ID_CACHE = ModelCachePolicy("chatter_id", CacheTTL.CHATTER_MESSAGES, Ch
 _CHATTER_SEARCH_CACHE = ModelCachePolicy("chatter_search", CacheTTL.CHATTER_SEARCH, _ChatterSearchCache)
 _CHATTER_ACTIVITY_CACHE = ModelCachePolicy("chatter_stream_activity", CacheTTL.STREAM_DETAILS, _ChatterActivityCache)
 _CHATTER_PASSPORT_CACHE = ModelCachePolicy("chatter_passport", CacheTTL.STREAM_ANALYTICS, ChatterPassport)
+_CHATTER_VERSUS_CACHE = ModelCachePolicy("chatter_head_to_head", CacheTTL.STREAM_ANALYTICS, ChatterHeadToHead)
+
+
+@router.get(
+    "/chatters/head-to-head",
+    response_model=ChatterHeadToHead,
+    summary="Compare two chatters head-to-head",
+    description=(
+        "Pairwise chatter comparison: lifetime totals, home channel, and archetype badges per side, "
+        "plus the streams and channels both attended. Side `a` is always the lower chatter id."
+    ),
+    responses={
+        400: {"model": ErrorResponse, "description": "The two chatter ids are identical"},
+        404: {"model": ErrorResponse, "description": "One or both chatters are unknown"},
+        429: {"model": RateLimitErrorResponse, "description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit(rate_limits.ANALYTICS)
+def get_chatter_head_to_head(
+    request: Request,
+    response: Response,
+    chatter_a: int = Query(..., description="First chatter ID", ge=1),
+    chatter_b: int = Query(..., description="Second chatter ID", ge=1),
+) -> ChatterHeadToHead:
+    """Pairwise chatter comparison built from the chatter rollups."""
+    if chatter_a == chatter_b:
+        raise HTTPException(status_code=400, detail="Pick two different chatters to compare.")
+    with _CHATTER_VERSUS_CACHE.record_failures():
+        cache = get_cache(request)
+        # Normalized to (lo, hi) so the cached payload is order-independent:
+        # side `a` is always the lower chatter id, whatever the param order.
+        lo, hi = sorted((chatter_a, chatter_b))
+        cache_key, cached_result = _CHATTER_VERSUS_CACHE.lookup(cache, response, lo, hi, scene_rollup_version())
+        if cached_result is not None:
+            return cached_result
+
+        try:
+            result = query_chatter_head_to_head(lo, hi)
+        except ChatterVersusNotFoundError:
+            raise HTTPException(status_code=404, detail="One of these chatters is not in the corpus.") from None
+
+        _CHATTER_VERSUS_CACHE.store(cache, response, cache_key, result)
+        return result
 
 
 @router.get(

@@ -76,6 +76,7 @@ export const sceneKeys = {
     highlights: (filters: HighlightsFilters) => [...sceneKeys.all, 'highlights', filters] as const,
     trendingCopypastas: (filters: TrendingFilters) => [...sceneKeys.all, 'trending', 'copypastas', filters] as const,
     trendingEmotes: (filters: TrendingFilters) => [...sceneKeys.all, 'trending', 'emotes', filters] as const,
+    emoteDetail: (emoteId: number) => [...sceneKeys.all, 'emote', { emoteId }] as const,
     wrapped: (days: number) => [...sceneKeys.all, 'wrapped', { days }] as const,
     radar: () => [...sceneKeys.all, 'radar'] as const,
     searchMessages: (filters: SearchMessagesKeyFilters) => [...sceneKeys.all, 'search', 'messages', filters] as const,

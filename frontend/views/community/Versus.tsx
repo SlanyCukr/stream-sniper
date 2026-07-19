@@ -148,6 +148,9 @@ const Versus = ({ initialA = null, initialB = null }: VersusProps) => {
                         Head-to-head
                     </h1>
                 </div>
+                <Link className="btn btn-outline-secondary btn-sm" href="/versus/chatters">
+                    Chatter versus →
+                </Link>
             </header>
             <div className="toolbar versus-toolbar">
                 <Select
