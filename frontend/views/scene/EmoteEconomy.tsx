@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
+import Link from 'next/link'
 import FilterPills from '@/components/common/FilterPills'
 import QueryState from '@/components/common/QueryState'
 import StatusChip from '@/components/common/StatusChip'
@@ -42,7 +43,7 @@ const EmoteEconomyRow = ({ rank, item, maxUsage }: EmoteEconomyRowProps) => {
         <tr>
             <td className="rank-num">{String(rank).padStart(2, '0')}</td>
             <td className="trending-primary">
-                <span className="trending-label">{item.name}</span>
+                <Link className="trending-label" href={`/emotes/${item.emoteId}`}>{item.name}</Link>
                 <span className="trending-source">{item.source}</span>
             </td>
             <td className="trending-usage text-end">

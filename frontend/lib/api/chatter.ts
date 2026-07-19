@@ -91,3 +91,36 @@ export interface ChatterPassportDto {
 
 export const retrieveChatterPassport = (chatterId: number) =>
   api.get<ChatterPassportDto>(`/chatters/${chatterId}/passport`)
+
+// ---------------------------------------------------------------------------
+// Chatter head-to-head — GET /chatters/head-to-head
+// ---------------------------------------------------------------------------
+
+interface ChatterHeadToHeadSideDto {
+  chatter_id: number
+  nick: string
+  is_bot: boolean | null
+  messages: number
+  streams_attended: number
+  creators_visited: number
+  first_seen: string | null
+  last_seen: string | null
+  home_channel: {
+    creator_id: number
+    creator_nick: string
+    creator_display_name: string
+    messages: number
+    share: number
+  } | null
+  archetypes: Array<{ key: string, label: string, description: string }>
+}
+
+export interface ChatterHeadToHeadDto {
+  a: ChatterHeadToHeadSideDto
+  b: ChatterHeadToHeadSideDto
+  shared_streams: number
+  shared_creators: number
+}
+
+export const retrieveChatterHeadToHead = (chatterA: number, chatterB: number) =>
+  api.get<ChatterHeadToHeadDto>(`/chatters/head-to-head?${buildQuery({ chatter_a: chatterA, chatter_b: chatterB })}`)
