@@ -11,6 +11,7 @@ import {
     shareBarWidth,
     type ChatterPassport as ChatterPassportModel,
 } from '@/hooks/chatter/useChatterPassportQuery'
+import CardLinkButton from '@/components/common/CardLinkButton'
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
 import StatusChip from '@/components/common/StatusChip'
@@ -245,6 +246,10 @@ const ChatterPassport = ({ chatterId }: { chatterId: number }) => {
                     ) : null}
                 </div>
                 <div className="page-actions">
+                    <CardLinkButton
+                        entity="chatter"
+                        id={chatterId}
+                    />
                     <CopyLinkButton />
                 </div>
             </div>
