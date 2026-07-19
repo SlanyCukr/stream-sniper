@@ -111,9 +111,10 @@ def _iso(value: str | datetime | None) -> str | None:
 
 
 def _sub_share(sub_messages: int | None, total_messages: int | None) -> float | None:
+    """Nullable share rounded to 4 places — same precision contract as compare's _share."""
     if sub_messages is None or total_messages is None or total_messages == 0:
         return None
-    return sub_messages / total_messages
+    return round(sub_messages / total_messages, 4)
 
 
 def _previous_rows(

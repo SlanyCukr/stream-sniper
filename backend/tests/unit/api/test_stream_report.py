@@ -447,3 +447,19 @@ class TestStreamExport:
 
         assert response.status_code == 500
         assert response.json() == {"detail": "Internal server error"}
+
+
+class TestSubShareRounding:
+    """_sub_share carries the same 4-decimal precision contract as compare's _share."""
+
+    def test_rounds_to_four_places(self):
+        from stream_sniper.application.streams.report_query import _sub_share
+
+        assert _sub_share(1, 3) == 0.3333
+
+    def test_nullable_unknown_contract(self):
+        from stream_sniper.application.streams.report_query import _sub_share
+
+        assert _sub_share(None, 100) is None
+        assert _sub_share(10, None) is None
+        assert _sub_share(10, 0) is None
