@@ -51,6 +51,7 @@ const emoteItem = {
   delta_pct: null,
   trend: 'new',
   chatter_reach: 42,
+  creator_count: 6,
   first_seen: null,
 }
 
@@ -110,6 +111,7 @@ describe('scene trending velocity contracts', () => {
         deltaPct: null,
         trend: 'new',
         chatterReach: 42,
+        creatorCount: 6,
         firstSeen: null,
       }],
     })

@@ -63,6 +63,7 @@ def _emote(eid=1, current=10, prior=5, first_seen="2026-01-01T00:00:00"):
         current_usage=current,
         prior_usage=prior,
         chatter_reach=7,
+        creator_count=4,
         first_seen=first_seen,
     )
 
@@ -211,6 +212,7 @@ class TestTrendingEmotes:
             "delta_pct": None,
             "trend": "new",
             "chatter_reach": 7,
+            "creator_count": 4,
             "first_seen": "2026-01-01T00:00:00",
         }
         mock_gw.assert_called_once_with(7, None, 20)

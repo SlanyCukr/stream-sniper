@@ -160,3 +160,84 @@ class TestCreatorNeighborsEndpoint:
     def test_invalid_metric_rejected(self):
         response = _client().get("/community/creators/5/neighbors?metric=bogus")
         assert response.status_code == 422
+
+
+def _audience(cid, nick, chatters, regulars):
+    return CommunityCreatorRow(cid, nick, nick.title(), chatters, regulars, "2026-07-19T06:00:00")
+
+
+class TestHeadToHead:
+    _Q = "stream_sniper.application.community.head_to_head_query"
+    _E = "stream_sniper.api.features.community.community_endpoints"
+
+    def _get(self, a, b):
+        with (
+            patch(f"{self._E}.get_cache", return_value=_miss_cache()),
+            patch(f"{self._E}.scene_rollup_version", return_value="v1"),
+        ):
+            return _client().get(f"/community/head-to-head?creator_a={a}&creator_b={b}")
+
+    def test_shapes_pair_with_shares_and_jaccard(self):
+        with (
+            patch(
+                f"{self._Q}.select_creator_audiences_db",
+                return_value=[_audience(3, "alpha", 100, 20), _audience(4, "beta", 50, 10)],
+            ),
+            patch(
+                f"{self._Q}.select_creator_pair_overlap_db",
+                return_value=CommunityPairRow(3, 4, 30, 5),
+            ),
+        ):
+            response = self._get(3, 4)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["a"]["creator_id"] == 3
+        assert body["a"]["shared_chatter_share"] == 0.3
+        assert body["b"]["shared_chatter_share"] == 0.6
+        assert body["shared_chatters"] == 30
+        assert body["jaccard_chatters"] == _jaccard(30, 100, 50)
+        assert body["computed_at"] == "2026-07-19T06:00:00"
+
+    def test_param_order_never_changes_sides(self):
+        with (
+            patch(
+                f"{self._Q}.select_creator_audiences_db",
+                return_value=[_audience(3, "alpha", 100, 20), _audience(4, "beta", 50, 10)],
+            ),
+            patch(f"{self._Q}.select_creator_pair_overlap_db", return_value=None),
+        ):
+            response = self._get(4, 3)
+
+        assert response.status_code == 200
+        body = response.json()
+        # Side `a` is always the lower creator id, regardless of param order.
+        assert body["a"]["creator_id"] == 3
+        assert body["shared_chatters"] == 0
+        assert body["a"]["shared_chatter_share"] == 0.0
+
+    def test_missing_audience_rollup_404s(self):
+        with (
+            patch(f"{self._Q}.select_creator_audiences_db", return_value=[_audience(3, "alpha", 100, 20)]),
+            patch(f"{self._Q}.select_creator_pair_overlap_db", return_value=None),
+        ):
+            response = self._get(3, 99)
+
+        assert response.status_code == 404
+
+    def test_same_creator_rejected(self):
+        response = self._get(5, 5)
+        assert response.status_code == 400
+
+    def test_empty_audience_share_is_null(self):
+        with (
+            patch(
+                f"{self._Q}.select_creator_audiences_db",
+                return_value=[_audience(3, "alpha", 0, 0), _audience(4, "beta", 50, 10)],
+            ),
+            patch(f"{self._Q}.select_creator_pair_overlap_db", return_value=None),
+        ):
+            response = self._get(3, 4)
+
+        assert response.status_code == 200
+        assert response.json()["a"]["shared_chatter_share"] is None

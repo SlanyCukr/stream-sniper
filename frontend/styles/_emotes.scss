@@ -1,0 +1,25 @@
+// Emote economy board — night-ops styling.
+// Extends the trending primitives (.trending-board, .trending-table); only the
+// economy-specific bits live here.
+
+.emote-economy-board {
+    .trending-board-head {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.15rem;
+    }
+}
+
+.emote-board-sub {
+    margin: 0;
+    font-size: 0.78rem;
+    color: $gray-500;
+}
+
+.emote-economy-table {
+    .emote-first-seen {
+        font-size: 0.78rem;
+        color: $gray-500;
+        white-space: nowrap;
+    }
+}

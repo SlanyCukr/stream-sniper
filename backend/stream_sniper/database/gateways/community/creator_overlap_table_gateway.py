@@ -152,3 +152,49 @@ def select_creator_neighbors_db(
         {"cid": creator_id, "limit": limit},
     )
     return [CreatorNeighborRow(*row) for row in cursor.fetchall()]
+
+
+@with_cursor
+def select_creator_audiences_db(
+    cursor: Cursor,
+    creator_ids: list[int],
+) -> list[CommunityCreatorRow]:
+    """Audience rollup rows for specific creators (head-to-head denominators)."""
+    if not creator_ids:
+        return []
+    cursor.execute(
+        f"""
+        SELECT ca.creator_id, c.nick, c.display_name, ca.chatters, ca.regulars,
+               {to_char_wire("ca.computed_at")}
+        FROM creator_audience ca
+        JOIN creator c ON c.id = ca.creator_id
+        WHERE ca.creator_id = ANY(%s)
+        ORDER BY ca.creator_id ASC
+        """,
+        (creator_ids,),
+    )
+    return [CommunityCreatorRow(*row) for row in cursor.fetchall()]
+
+
+@with_cursor
+def select_creator_pair_overlap_db(
+    cursor: Cursor,
+    creator_a: int,
+    creator_b: int,
+) -> CommunityPairRow | None:
+    """The stored overlap row for one creator pair, or None when never computed.
+
+    ``creator_overlap`` enforces creator_a < creator_b, so the pair is
+    normalized before querying.
+    """
+    lo, hi = sorted((creator_a, creator_b))
+    cursor.execute(
+        """
+        SELECT creator_a, creator_b, shared_chatters, shared_regulars
+        FROM creator_overlap
+        WHERE creator_a = %s AND creator_b = %s
+        """,
+        (lo, hi),
+    )
+    row = cursor.fetchone()
+    return CommunityPairRow(*row) if row else None

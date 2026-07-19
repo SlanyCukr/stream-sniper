@@ -50,6 +50,7 @@ class TrendingEmoteRow(NamedTuple):
     current_usage: int
     prior_usage: int
     chatter_reach: int
+    creator_count: int
     first_seen: str | None
 
 
@@ -147,6 +148,8 @@ def select_trending_emotes_db(
                    FILTER (WHERE s.start >= b.prior_start AND s.start < b.cur_start), 0) AS prior_usage,
                COALESCE(SUM(ses.chatter_count)
                    FILTER (WHERE s.start >= b.cur_start AND s.start < b.cur_end), 0) AS chatter_reach,
+               COUNT(DISTINCT s.creator_id)
+                   FILTER (WHERE s.start >= b.cur_start AND s.start < b.cur_end) AS creator_count,
                {to_char_wire("d.first_seen AT TIME ZONE 'UTC'")} AS first_seen
         FROM stream_emote_stats ses
         JOIN stream s ON s.id = ses.stream_id
