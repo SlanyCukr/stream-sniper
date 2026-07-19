@@ -78,6 +78,7 @@ class TrendingEmote(BaseModel):
     delta_pct: float | None = Field(None, description="Percent change vs the prior window; null when prior_usage is 0")
     trend: str = Field(..., description="One of: new, rising, falling, steady")
     chatter_reach: int = Field(..., description="Sum of per-stream chatter_count in the current window")
+    creator_count: int = Field(..., description="Distinct channels the emote appeared in during the current window")
     first_seen: str | None = Field(None, description="Dictionary first-seen time (ISO 8601), if known")
 
     @classmethod
@@ -92,6 +93,7 @@ class TrendingEmote(BaseModel):
             delta_pct=_delta_pct(row.current_usage, row.prior_usage),
             trend=_classify_trend(row.current_usage, row.prior_usage),
             chatter_reach=row.chatter_reach,
+            creator_count=row.creator_count,
             first_seen=row.first_seen,
         )
 

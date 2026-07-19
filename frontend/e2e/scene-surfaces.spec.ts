@@ -302,6 +302,7 @@ test('trending: renders both boards, and the window pill refetches them', async 
           delta_pct: -5,
           trend: 'falling',
           chatter_reach: 210,
+          creator_count: 4,
           first_seen: '2026-05-01T00:00:00Z',
         }],
       })

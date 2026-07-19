@@ -68,3 +68,27 @@ class CreatorNeighbors(BaseModel):
     creator_id: int
     metric: str
     neighbors: list[CreatorNeighbor]
+
+
+class HeadToHeadCreator(BaseModel):
+    """One side of a creator head-to-head: audience denominators + share of overlap."""
+
+    creator_id: int
+    nick: str
+    display_name: str
+    chatters: int
+    regulars: int
+    shared_chatter_share: float | None = None
+    shared_regular_share: float | None = None
+
+
+class CreatorHeadToHead(BaseModel):
+    """Pairwise audience comparison. nullable=unknown: shares are null for empty audiences."""
+
+    a: HeadToHeadCreator
+    b: HeadToHeadCreator
+    shared_chatters: int
+    shared_regulars: int
+    jaccard_chatters: float | None = None
+    jaccard_regulars: float | None = None
+    computed_at: str | None = None

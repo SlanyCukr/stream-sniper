@@ -277,6 +277,7 @@ export interface TrendingEmotesDto {
     delta_pct: number | null
     trend: string
     chatter_reach: number
+    creator_count: number
     first_seen: string | null
   }>
 }

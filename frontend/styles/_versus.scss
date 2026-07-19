@@ -1,0 +1,108 @@
+// Creator head-to-head (Versus) — night-ops styling.
+// Reuses .stat-tile / .toolbar / .chatter-tabs primitives from _theme.scss.
+
+.versus-toolbar {
+    flex-wrap: wrap;
+    row-gap: 0.6rem;
+
+    // Two creator pickers share the row; keep them usable on narrow screens.
+    > [class*="-container"] {
+        min-width: 14rem;
+        flex: 1 1 14rem;
+    }
+
+    .chatter-tabs {
+        margin-bottom: 0;
+        border-bottom: 0;
+    }
+}
+
+.versus-toolbar-vs {
+    font-family: $headings-font-family;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: $gray-500;
+}
+
+.versus-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    align-items: stretch;
+
+    @media (max-width: 991px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.versus-side,
+.versus-center {
+    border-radius: $border-radius;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.versus-side-name {
+    font-family: $headings-font-family;
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.versus-side-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.versus-center {
+    align-items: stretch;
+    justify-content: center;
+    min-width: 11rem;
+}
+
+.versus-vs {
+    text-align: center;
+    font-family: $headings-font-family;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: $gray-500;
+}
+
+.versus-share {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: auto;
+}
+
+.versus-share-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    color: $gray-400;
+}
+
+.versus-share-track {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.versus-share-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: $phosphor-dim;
+}
+
+.versus-computed {
+    margin: 1rem 0 0;
+    font-size: 0.78rem;
+    color: $gray-500;
+}

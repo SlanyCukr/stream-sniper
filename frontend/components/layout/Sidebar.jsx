@@ -53,6 +53,11 @@ const navigationGroups = [
                 icon: 'bi bi-graph-up-arrow',
             },
             {
+                title: 'Emotes',
+                href: '/emotes',
+                icon: 'bi bi-emoji-laughing',
+            },
+            {
                 title: 'Copypasta',
                 href: '/copypasta',
                 icon: 'bi bi-chat-quote',
@@ -106,6 +111,11 @@ const navigationGroups = [
                 title: 'Compare',
                 href: '/compare',
                 icon: 'bi bi-columns-gap',
+            },
+            {
+                title: 'Versus',
+                href: '/versus',
+                icon: 'bi bi-intersect',
             },
         ],
     },

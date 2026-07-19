@@ -43,6 +43,7 @@ const toEmoteRow = (item: TrendingEmote): TrendingRowModel => ({
     deltaPct: item.deltaPct,
     trend: item.trend,
     context: [
+        { label: 'channels', value: item.creatorCount },
         { label: 'reach', value: item.chatterReach },
     ],
 })

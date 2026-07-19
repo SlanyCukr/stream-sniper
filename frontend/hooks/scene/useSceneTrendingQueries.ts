@@ -46,6 +46,8 @@ export interface TrendingEmote {
     deltaPct: number | null
     trend: string
     chatterReach: number
+    /** Distinct channels the emote appeared in during the current window. */
+    creatorCount: number
     firstSeen: string | null
 }
 
@@ -93,6 +95,7 @@ export const mapTrendingEmotes = (value: unknown): TrendingEmotes => {
                 deltaPct: requireNullableFiniteNumberField(row, 'delta_pct', label),
                 trend: requireStringField(row, 'trend', label),
                 chatterReach: requireFiniteNumberField(row, 'chatter_reach', label),
+                creatorCount: requireFiniteNumberField(row, 'creator_count', label),
                 firstSeen: requireNullableStringField(row, 'first_seen', label),
             }
         }),
