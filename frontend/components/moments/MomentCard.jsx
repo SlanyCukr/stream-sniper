@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { vodDeepLink } from '@/utils/chatRender'
+import { vodDeepLink } from '@/utils/vodChapters'
 import { formatTimeAgo } from '@/utils/dateUtils'
 import MomentReviewControls from './MomentReviewControls'
 import ErrorAlert from '@/components/common/error/ErrorAlert'

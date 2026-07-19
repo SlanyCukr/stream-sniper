@@ -3,6 +3,8 @@ Tracked-streamer administration endpoints: CRUD plus the Twitch channel search
 used by the add-streamer autocomplete.
 """
 
+import asyncio
+from datetime import UTC, datetime
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -17,6 +19,7 @@ from ....application.identity.tracked_streamer_creation import (
     create_tracked_streamer,
 )
 from ....collector.twitch_api import TwitchConfigurationError, TwitchUpstreamError
+from ....database.gateways.streams.stream_table_gateway import select_creator_stream_summaries_db
 from ....database.gateways.tracking.tracked_streamers_table_gateway import (
     count_tracked_streamers_db,
     delete_tracked_streamer_db,
@@ -37,6 +40,7 @@ from .tracking_models import (
     TrackedStreamersResponse,
     TrackedStreamerUpdate,
     TwitchChannelResult,
+    TwitchProbeResponse,
     convert_tracked_streamer_to_response,
 )
 
@@ -81,7 +85,14 @@ def get_tracked_streamers(
 
     total = count_tracked_streamers_db(is_active=is_active, processing_enabled=processing_enabled)
 
-    streamers = [convert_tracked_streamer_to_response(streamer) for streamer in streamer_records]
+    summaries = {
+        row.creator_id: row
+        for row in select_creator_stream_summaries_db([s.creator_id for s in streamer_records])
+    }
+    streamers = [
+        convert_tracked_streamer_to_response(streamer, summaries.get(streamer.creator_id))
+        for streamer in streamer_records
+    ]
 
     return TrackedStreamersResponse(streamers=streamers, total=total, offset=offset, limit=limit)
 
@@ -252,7 +263,8 @@ def get_tracked_streamer(streamer_id: int, request: Request, response: Response)
     if not streamer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tracked streamer not found")
 
-    return convert_tracked_streamer_to_response(streamer)
+    summaries = select_creator_stream_summaries_db([streamer.creator_id])
+    return convert_tracked_streamer_to_response(streamer, summaries[0] if summaries else None)
 
 
 @router.put(
@@ -355,3 +367,69 @@ def remove_tracked_streamer(
         "Tracked streamer removed by admin %s: streamer_id=%s", sanitize_log_value(current_user.username), streamer_id
     )
     return None
+
+
+@router.post(
+    "/streamers/{streamer_id}/probe",
+    response_model=TwitchProbeResponse,
+    summary="Probe a tracked streamer on Twitch",
+    description="""
+    On-demand Twitch snapshot for a tracked streamer: live status, archive VOD
+    count, and the newest VOD's creation time. Lets an admin distinguish a
+    dormant channel (nothing to collect) from broken ingestion.
+
+    Requires admin role.
+
+    **Rate Limit**: 5 requests per minute
+    """,
+    responses={
+        200: {"description": "Twitch snapshot for the streamer"},
+        401: {"model": ErrorResponse, "description": "Authentication required"},
+        403: {"model": ErrorResponse, "description": "Admin role required"},
+        404: {"model": ErrorResponse, "description": "Streamer not found"},
+        502: {"model": ErrorResponse, "description": "Twitch lookup failed"},
+        503: {"model": ErrorResponse, "description": "Twitch integration is not configured"},
+        429: {"model": RateLimitErrorResponse, "description": "Rate limit exceeded"},
+    },
+)
+@limiter.limit("5/minute")
+async def probe_twitch_channel(
+    streamer_id: int, request: Request, response: Response, current_user: UserInDB = Depends(get_current_admin_user)
+) -> TwitchProbeResponse:
+    streamer = await asyncio.to_thread(select_tracked_streamer_by_id_db, streamer_id)
+    if not streamer:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tracked streamer not found")
+
+    login = streamer.twitch_username
+    try:
+        twitch_api = get_twitch_client(request)
+        await twitch_api.ensure_initialized()
+        live = await twitch_api.get_live_stream(login)
+        videos = await twitch_api.get_archived_videos(login)
+    except TwitchConfigurationError as error:
+        logger.exception("Twitch integration is not configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Twitch lookups aren't available right now because the server's Twitch access isn't configured. Contact the administrator.",
+        ) from error
+    except TwitchUpstreamError as error:
+        logger.exception("Twitch probe failed for %s", sanitize_log_value(login))
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not reach Twitch for this channel. Try again in a moment.",
+        ) from error
+
+    last_vod = max(videos, key=lambda video: video.created_at) if videos else None
+    logger.info(
+        "Twitch probe by admin %s: streamer_id=%s live=%s vods=%s",
+        sanitize_log_value(current_user.username),
+        streamer_id,
+        live is not None,
+        len(videos),
+    )
+    return TwitchProbeResponse(
+        is_live=live is not None,
+        archive_vod_count=len(videos),
+        last_vod_created_at=last_vod.created_at.isoformat() if last_vod else None,
+        checked_at=datetime.now(UTC).isoformat(),
+    )

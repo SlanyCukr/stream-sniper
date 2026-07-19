@@ -81,6 +81,14 @@ class OtherCreatorRow(NamedTuple):
     nick: str
 
 
+class CreatorStreamSummaryRow(NamedTuple):
+    """Per-creator collection summary for the admin tracking table."""
+
+    creator_id: int
+    total_streams: int
+    last_stream_start: datetime | None
+
+
 class StreamParticipantRow(NamedTuple):
     chatter_id: int
     nick: str

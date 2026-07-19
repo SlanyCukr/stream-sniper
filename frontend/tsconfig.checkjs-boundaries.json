@@ -7,6 +7,8 @@
   "include": [
     "next-env.d.ts",
     "components/common/search/AsyncSearchSelect.jsx",
+    "components/stream/timeline/CopyChaptersButton.jsx",
+    "utils/vodChapters.js",
     "hooks/useAsyncSearchLoader.js",
     "hooks/useTableSort.js",
     "hooks/chatter/useChattersQuery.js",

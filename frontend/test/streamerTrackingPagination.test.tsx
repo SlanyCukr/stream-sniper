@@ -5,6 +5,7 @@ const hooks = vi.hoisted(() => ({
   loadTrackedStreamerOptions: vi.fn(),
   useCreateTrackedStreamer: vi.fn(),
   useDeleteTrackedStreamer: vi.fn(),
+  useProbeTwitchChannel: vi.fn(),
   useTrackedStreamers: vi.fn(),
   useUpdateTrackedStreamer: vi.fn(),
 }))
@@ -25,6 +26,8 @@ const streamer = {
   processingEnabled: true,
   lastStreamCheck: null,
   createdAt: '2026-07-14T10:00:00Z',
+  totalStreamsCollected: 3,
+  lastCollectedStreamStart: '2026-07-13T18:00:00',
 }
 
 describe('StreamerTracking pagination', () => {
@@ -39,6 +42,7 @@ describe('StreamerTracking pagination', () => {
     hooks.loadTrackedStreamerOptions.mockResolvedValue([])
     hooks.useDeleteTrackedStreamer.mockReturnValue(deleteStreamer)
     hooks.useUpdateTrackedStreamer.mockReturnValue(updateStreamer)
+    hooks.useProbeTwitchChannel.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
   })
 
   it('moves to the previous page after deleting its last row', async () => {

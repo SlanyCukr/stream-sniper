@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useInvalidatingMutation } from '@/hooks/useInvalidatingMutation'
 import {
     createTrackedStreamer,
     deleteTrackedStreamer,
+    probeTwitchChannel,
     retrieveProcessingJobs,
     retrieveTrackedStreamers,
     retrieveTrackingStats,
@@ -17,6 +18,7 @@ import {
     requireArrayField,
     requireBooleanField,
     requireFiniteNumberField,
+    requireNullableFiniteNumberField,
     requireNullableStringField,
     requireRecord,
     requireStringField,
@@ -92,6 +94,19 @@ export const mapTrackedStreamer = value => {
         processingEnabled: requireBooleanField(streamer, 'processing_enabled', 'tracked streamer'),
         lastStreamCheck: requireNullableStringField(streamer, 'last_stream_check', 'tracked streamer'),
         createdAt: requireStringField(streamer, 'created_at', 'tracked streamer'),
+        totalStreamsCollected: requireNullableFiniteNumberField(streamer, 'total_streams_collected', 'tracked streamer'),
+        lastCollectedStreamStart: requireNullableStringField(streamer, 'last_collected_stream_start', 'tracked streamer'),
+    }
+}
+
+/** @param {unknown} value */
+const mapTwitchProbeResult = value => {
+    const probe = requireRecord(value, 'twitch probe result')
+    return {
+        isLive: requireBooleanField(probe, 'is_live', 'twitch probe result'),
+        archiveVodCount: requireFiniteNumberField(probe, 'archive_vod_count', 'twitch probe result'),
+        lastVodCreatedAt: requireNullableStringField(probe, 'last_vod_created_at', 'twitch probe result'),
+        checkedAt: requireStringField(probe, 'checked_at', 'twitch probe result'),
     }
 }
 
@@ -273,3 +288,14 @@ export const useDeleteTrackedStreamer = (options = {}) => useInvalidatingMutatio
     trackingKeys.all,
     options,
 )
+
+/**
+ * On-demand Twitch snapshot for one tracked streamer. Nothing is stored, so
+ * this is a plain mutation — the caller keeps the result in component state.
+ */
+export const useProbeTwitchChannel = (options = {}) => useMutation({
+    mutationFn: async (/** @type {number} */ streamerId) => (
+        mapTwitchProbeResult((await probeTwitchChannel(streamerId)).data)
+    ),
+    ...options,
+})

@@ -43,6 +43,15 @@ export interface TrackedStreamerDto {
   creator_display_name: string
   profile_image_url: string | null
   created_by_username: string | null
+  total_streams_collected: number | null
+  last_collected_stream_start: string | null
+}
+
+export interface TwitchProbeResultDto {
+  is_live: boolean
+  archive_vod_count: number
+  last_vod_created_at: string | null
+  checked_at: string
 }
 
 export interface TrackedStreamerListDto {
@@ -124,6 +133,9 @@ export const updateTrackedStreamer = (
 
 export const deleteTrackedStreamer = (streamerId: number) =>
   api.delete<void>(`/admin/tracking/streamers/${streamerId}`)
+
+export const probeTwitchChannel = (streamerId: number) =>
+  api.post<TwitchProbeResultDto>(`/admin/tracking/streamers/${streamerId}/probe`)
 
 export const retrieveProcessingJobs = (request: ProcessingJobListRequest = {}) =>
   api.get<ProcessingJobListDto>(`/admin/tracking/jobs?${buildQuery({

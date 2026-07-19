@@ -6,6 +6,7 @@ from psycopg2.extensions import cursor as Cursor
 
 from stream_sniper.database.gateways.streams.records import (
     ChatterMessageTextRow,
+    CreatorStreamSummaryRow,
     MentionedChatterRow,
     MentionPairRow,
     OtherCreatorRow,
@@ -340,3 +341,27 @@ def select_chatter_messages_on_stream_db(
         (stream_id, chatter_id),
     )
     return [ChatterMessageTextRow(*row) for row in cursor.fetchall()]
+
+
+@with_cursor
+def select_creator_stream_summaries_db(
+    cursor: Cursor,
+    creator_ids: list[int],
+) -> list[CreatorStreamSummaryRow]:
+    """Batched per-creator collection summary for the admin tracking table.
+
+    One query for the whole page of tracked streamers — avoids N+1 when the
+    admin list renders last-collected-stream info per row.
+    """
+    if not creator_ids:
+        return []
+    cursor.execute(
+        """
+    SELECT creator_id, COUNT(*), MAX(start)
+    FROM stream_sniper.stream
+    WHERE creator_id = ANY(%s)
+    GROUP BY creator_id
+    """,
+        (creator_ids,),
+    )
+    return [CreatorStreamSummaryRow(*row) for row in cursor.fetchall()]

@@ -67,6 +67,9 @@ export const useStreamerTrackingController = () => {
             onToggleActive: actions.commands.toggleActive,
             onToggleProcessing: actions.commands.toggleProcessing,
             onRemove: setRemoveTarget,
+            onProbe: actions.commands.probeChannel,
+            probeResults: actions.probe.results,
+            probingId: actions.probe.probingId,
         },
         addModalProps: {
             show: showAddModal,

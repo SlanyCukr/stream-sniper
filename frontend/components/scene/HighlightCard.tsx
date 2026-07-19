@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { vodDeepLink } from '@/utils/chatRender'
+import { vodDeepLink } from '@/utils/vodChapters'
 import { formatCompactNumber } from '@/utils/numberUtils'
 import { formatStreamTimestamp } from '@/utils/dateUtils'
 import StatusChip from '@/components/common/StatusChip'
