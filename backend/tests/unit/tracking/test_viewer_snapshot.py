@@ -16,9 +16,6 @@ from stream_sniper.application.tracking.models import TrackedStreamer
 from stream_sniper.collector.twitch_api import TwitchUpstreamError
 from stream_sniper.database.core import decorators as db_decorators
 from stream_sniper.database.gateways.streams import (
-    stream_context_table_gateway as context_gateway,
-)
-from stream_sniper.database.gateways.streams import (
     stream_viewer_sample_table_gateway as gateway,
 )
 from stream_sniper.database.gateways.streams.records import StreamContextSample
@@ -89,43 +86,6 @@ class _FakePool:
 # ---------------------------------------------------------------------------
 
 
-def test_insert_stream_viewer_sample_db_success(monkeypatch):
-    cursor = _FakeCursor()
-    monkeypatch.setattr(db_decorators, "get_active_pool", lambda: _FakePool(cursor))
-
-    result = gateway.insert_stream_viewer_sample_db(
-        tracked_streamer_id=1,
-        twitch_stream_session_id=555,
-        sampled_at=datetime(2026, 7, 11, 12, 0, 0),
-        viewer_count=42,
-        title="Some Title",
-        session_started_at=datetime(2026, 7, 11, 11, 0, 0),
-    )
-
-    assert result is True
-    assert len(cursor.executed) == 1
-    sql, params = cursor.executed[0]
-    assert "INSERT INTO stream_sniper.stream_viewer_sample" in sql
-    assert "ON CONFLICT" in sql
-    assert "DO NOTHING" in sql
-    assert params == (1, 555, datetime(2026, 7, 11, 12, 0, 0), 42, "Some Title", datetime(2026, 7, 11, 11, 0, 0))
-
-
-def test_insert_stream_viewer_sample_db_propagates_operational_failure(monkeypatch):
-    cursor = _FakeCursor(raise_on_execute=RuntimeError("boom"))
-    monkeypatch.setattr(db_decorators, "get_active_pool", lambda: _FakePool(cursor))
-
-    with pytest.raises(RuntimeError, match="boom"):
-        gateway.insert_stream_viewer_sample_db(
-            tracked_streamer_id=1,
-            twitch_stream_session_id=555,
-            sampled_at=datetime(2026, 7, 11, 12, 0, 0),
-            viewer_count=42,
-            title="Some Title",
-            session_started_at=None,
-        )
-
-
 def test_insert_live_snapshot_uses_one_transaction_for_both_rows(monkeypatch):
     cursor = _FakeCursor()
     monkeypatch.setattr(db_decorators, "get_active_pool", lambda: _FakePool(cursor))
@@ -139,46 +99,14 @@ def test_insert_live_snapshot_uses_one_transaction_for_both_rows(monkeypatch):
     assert "stream_context_sample" in cursor.executed[1][0]
 
 
-def test_insert_stream_context_sample_db_propagates_operational_failure(monkeypatch):
-    cursor = _FakeCursor(raise_on_execute=RuntimeError("context exploded"))
-    monkeypatch.setattr(context_gateway, "get_active_pool", lambda: _FakePool(cursor))
-    sample = StreamContextSample(
-        tracked_streamer_id=1,
-        twitch_stream_session_id=555,
-        sampled_at=datetime(2026, 7, 11, 12, 0, tzinfo=UTC),
-        session_started_at=None,
-        title="Title",
-        category_id=None,
-        category_name=None,
-        language=None,
-        tags=None,
-        is_mature=None,
-    )
-
-    with pytest.raises(RuntimeError, match="context exploded"):
-        context_gateway.insert_stream_context_sample_db(sample)
-
-
-def test_select_session_viewer_samples_db_returns_rows(monkeypatch):
-    rows = [(datetime(2026, 7, 11, 12, 0, 0), 42, "Some Title")]
-    cursor = _FakeCursor(fetchall_result=rows)
-    monkeypatch.setattr(db_decorators, "get_active_pool", lambda: _FakePool(cursor))
-
-    result = gateway.select_session_viewer_samples_db(1, 555)
-
-    assert result == rows
-    sql, params = cursor.executed[0]
-    assert "SELECT sampled_at, viewer_count, title" in sql
-    assert "ORDER BY sampled_at ASC" in sql
-    assert params == (1, 555)
-
-
-def test_select_session_viewer_samples_db_propagates_operational_failure(monkeypatch):
+def test_insert_live_snapshot_propagates_operational_failure(monkeypatch):
     cursor = _FakeCursor(raise_on_execute=RuntimeError("boom"))
     monkeypatch.setattr(db_decorators, "get_active_pool", lambda: _FakePool(cursor))
+    sampled_at = datetime(2026, 7, 11, 12, 0, tzinfo=UTC)
+    context = StreamContextSample(1, 555, sampled_at, None, "Title", None, None, None, None, None)
 
     with pytest.raises(RuntimeError, match="boom"):
-        gateway.select_session_viewer_samples_db(1, 555)
+        gateway.insert_live_snapshot_db(1, 555, sampled_at, 42, "Title", None, context)
 
 
 # ---------------------------------------------------------------------------

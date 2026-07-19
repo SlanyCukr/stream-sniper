@@ -4,12 +4,13 @@ This document describes the GitHub Actions workflows implemented for the Stream 
 
 ## Overview
 
-The CI/CD pipeline consists of four main workflows:
+The CI/CD pipeline consists of five workflows:
 
 1. **CI Pipeline** (`ci.yml`) - Code quality, testing, and package validation
 2. **Docker Build & Publish** (`docker.yml`) - Container image build and registry publishing
 3. **Security Scanning** (`security.yml`) - Comprehensive security analysis
 4. **Release** (`release.yml`) - Automated versioning and package publishing
+5. **Deploy** (`deploy.yml`) - Production deploy to the RPI on push to `main`
 
 ## Workflows Detail
 
@@ -24,15 +25,15 @@ The CI/CD pipeline consists of four main workflows:
 
 #### `lint` - Code Quality & Linting
 - Runs on Ubuntu with Python 3.14
-- Code formatting check with Black
-- Import sorting check with isort
-- Linting with flake8
-- Type checking with mypy
+- Linting with ruff (`ruff check`, enforced) + `ruff format --check` (advisory, non-blocking)
+- Type checking with mypy (enforced ratchet)
+- Verifies generated BTTV assets are in sync
 
 #### `test` - Tests (Python 3.14)
-- Matrix strategy testing multiple Python versions
+- Single Python version (3.14)
 - PostgreSQL service container for integration tests
 - Unit and integration test execution
+- Real-API browser smoke: Node 22 + Playwright Chromium against the live backend
 - Code coverage reporting with Codecov
 
 #### `package-test` - Package Installation Test
@@ -42,7 +43,7 @@ The CI/CD pipeline consists of four main workflows:
 
 #### `docker-test` - Docker Build Test
 - Builds both API and Collector Docker images
-- Validates images can run and show help
+- Collector image runs `--help`; API image is import-smoke-tested (its entry point starts uvicorn)
 - Uses build cache for efficiency
 
 #### `security-baseline` - Security Baseline Check
@@ -50,7 +51,7 @@ The CI/CD pipeline consists of four main workflows:
 - Security linting with Bandit
 - Security pattern detection with Semgrep
 
-#### `frontend` - Frontend Build & Browser Confidence
+#### `frontend` - Frontend Build & Typecheck
 - Installs the locked Node dependencies on Node.js 22
 - Runs TypeScript and the incremental checked-JavaScript boundary gate
 - Enforces the ratcheted Vitest coverage baseline
@@ -222,7 +223,7 @@ The following badges are available in README.md:
 
 ### Environment Variables
 - `TEST_DB_*` - Test database configuration
-- `TWITCH_USERNAME` - For integration testing
+- `TWITCH_USERNAME` - Used by `docker.yml`'s compose test job
 
 ## Usage Examples
 
@@ -237,12 +238,11 @@ gh workflow run release.yml -f version=v2.1.0
 
 ### Local Development
 ```bash
-# Run the same checks locally
-black --check .
-isort --check-only .
-flake8 stream_sniper/ tests/
-mypy stream_sniper/
-pytest tests/
+# Run the same checks locally (from backend/)
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy stream_sniper/
+uv run pytest tests/
 
 # Build and test Docker images
 docker-compose build

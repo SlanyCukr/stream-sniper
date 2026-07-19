@@ -12,7 +12,7 @@ import {
 /**
  * Query key factory for the chronological stream chat-replay queries
  */
-export const streamMessagesKeys = {
+const streamMessagesKeys = {
     all: [
         'stream-messages',
     ],

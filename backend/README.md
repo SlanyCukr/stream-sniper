@@ -53,9 +53,9 @@ TWITCH_USERNAME=someuser docker-compose up collector
 - `GET /health` - Health check
 - `GET /health/detailed` - Detailed system status
 - `GET /metrics/prometheus` - Prometheus metrics
-- `GET /streams/` - Get streams with pagination
-- `GET /stream/{stream_id}/` - Get stream details
-- `GET /chatter/{chatter_id}/messages/` - Get chatter messages
+- `GET /streams?creator_id=<id>` - Get a creator's streams with pagination
+- `GET /streams/{stream_id}` - Get stream details
+- `GET /chatters/{chatter_id}/messages` - Get chatter messages
 - `GET /creators` - Get all creators
 
 ## Architecture

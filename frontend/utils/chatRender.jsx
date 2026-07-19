@@ -3,7 +3,7 @@ import Image from 'next/image'
 import { EMOTES } from '@/lib/bettertv_emotes'
 
 /* Twitch-style username palette (dark-theme readable). */
-export const NICK_COLORS = [
+const NICK_COLORS = [
     '#ff7a7a',
     '#f5b759',
     '#9fef00',

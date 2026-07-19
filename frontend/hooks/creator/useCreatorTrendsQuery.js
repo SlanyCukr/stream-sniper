@@ -28,7 +28,7 @@ export const creatorTrendsKeys = {
 }
 
 /** @param {unknown} value */
-export const mapCreatorTrends = value => {
+const mapCreatorTrends = value => {
     const data = requireRecord(value, 'creator trends')
     return {
         streams: requireArrayField(data, 'points', 'creator trends').map((value, index) => {

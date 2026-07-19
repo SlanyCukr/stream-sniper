@@ -11,7 +11,7 @@ const ERROR_MESSAGES = {
     UNKNOWN_ERROR: 'An unexpected error occurred.',
 }
 
-export const ERROR_TYPES = Object.freeze({
+const ERROR_TYPES = Object.freeze({
     NETWORK: 'network',
     VALIDATION: 'validation',
     AUTHENTICATION: 'authentication',

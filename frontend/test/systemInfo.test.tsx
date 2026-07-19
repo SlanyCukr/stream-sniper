@@ -64,7 +64,7 @@ describe('SystemInfo partial telemetry', () => {
       refetch: refetchMetrics,
     })
     hooks.useCacheStats.mockReturnValue({
-      data: { backend: 'redis', status: 'healthy', streamSniperKeys: 3 },
+      data: { backend: 'in-process', status: 'healthy', streamSniperKeys: 3 },
       error: null,
       isPending: false,
       isFetching: false,
@@ -75,7 +75,7 @@ describe('SystemInfo partial telemetry', () => {
 
     expect(screen.getByText('System telemetry incomplete')).toBeInTheDocument()
     expect(screen.getByText('System status').parentElement).toHaveTextContent('healthy')
-    expect(screen.getByText('Cache').closest('.card')).toHaveTextContent('redis')
+    expect(screen.getByText('Cache').closest('.card')).toHaveTextContent('in-process')
 
     fireEvent.click(screen.getByRole('button', { name: /retry/i }))
     expect(refetchHealth).toHaveBeenCalledOnce()
@@ -116,7 +116,7 @@ describe('SystemInfo partial telemetry', () => {
       refetch: vi.fn(),
     })
     hooks.useCacheStats.mockReturnValue({
-      data: { backend: 'redis', status: 'healthy', streamSniperKeys: 12 },
+      data: { backend: 'in-process', status: 'healthy', streamSniperKeys: 12 },
       error: null,
       isPending: false,
       isFetching: false,

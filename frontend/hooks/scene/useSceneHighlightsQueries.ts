@@ -16,13 +16,13 @@ import {
 } from '@/lib/api/contractGuards'
 import { sceneKeys } from './sceneKeys'
 
-export interface HighlightPhrase {
+interface HighlightPhrase {
     phrase: string
     count: number
     lift: number
 }
 
-export interface HighlightSample {
+interface HighlightSample {
     text: string
     count: number
 }
@@ -47,7 +47,7 @@ export interface SceneHighlight {
     reviewStatus: string | null
 }
 
-export interface SceneHighlights {
+interface SceneHighlights {
     window: string
     sort: string
     hasMore: boolean
@@ -119,7 +119,7 @@ export const mapSceneHighlights = (value: unknown): SceneHighlights => {
     }
 }
 
-export interface SceneHighlightsFilters {
+interface SceneHighlightsFilters {
     window?: HighlightsWindow
     creatorId?: number | null
     sort?: HighlightsSort

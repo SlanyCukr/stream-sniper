@@ -9,7 +9,7 @@ import {
     requireStringField,
 } from '@/lib/api/contractGuards'
 
-export const streamComparisonKeys = {
+const streamComparisonKeys = {
     all: ['stream-comparison'],
     detail: streamIds => [...streamComparisonKeys.all, streamIds],
 }

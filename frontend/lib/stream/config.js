@@ -1,7 +1,6 @@
 export const THUMBNAIL = {
     WIDTH: '300',
     HEIGHT: '170',
-    DEFAULT_PLACEHOLDER: '/assets/images/no-thumbnail.png',
 }
 
 // Must match the backend sort whitelist: start|message_count|duration.

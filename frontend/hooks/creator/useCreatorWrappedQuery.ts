@@ -10,7 +10,7 @@ import {
 } from '@/lib/api/contractGuards'
 
 /** One creator's totals for the recap window. */
-export interface CreatorWrappedTotals {
+interface CreatorWrappedTotals {
     streams: number
     /** Total streamed hours, or null when uptime is unknown for the window. */
     hoursStreamed: number | null
@@ -19,7 +19,7 @@ export interface CreatorWrappedTotals {
 }
 
 /** One ranked chatter in the recap. */
-export interface CreatorWrappedChatter {
+interface CreatorWrappedChatter {
     rank: number
     chatterId: number
     nick: string
@@ -28,7 +28,7 @@ export interface CreatorWrappedChatter {
 }
 
 /** One peak chat moment in the recap. */
-export interface CreatorWrappedMoment {
+interface CreatorWrappedMoment {
     streamId: number
     streamTitle: string
     twitchId: string | null
@@ -40,7 +40,7 @@ export interface CreatorWrappedMoment {
 }
 
 /** One trending copypasta in the recap. */
-export interface CreatorWrappedCopypasta {
+interface CreatorWrappedCopypasta {
     messageTextId: number
     text: string
     usageCount: number
@@ -48,7 +48,7 @@ export interface CreatorWrappedCopypasta {
 }
 
 /** One trending emote in the recap. */
-export interface CreatorWrappedEmote {
+interface CreatorWrappedEmote {
     emoteId: number
     name: string
     source: string
@@ -79,7 +79,7 @@ const mapTotals = (raw: unknown): CreatorWrappedTotals => {
 }
 
 /** Validate the wrapped envelope at the boundary, then project the view model. */
-export const mapCreatorWrapped = (value: unknown): CreatorWrapped => {
+const mapCreatorWrapped = (value: unknown): CreatorWrapped => {
     const root = requireRecord(value, 'creator wrapped')
     return {
         creatorId: requireFiniteNumberField(root, 'creator_id', 'creator wrapped'),

@@ -154,9 +154,9 @@ class TwitchAPI:
                     video_type=VideoType.ARCHIVE,
                 )
             ]
-        except TwitchOperationError:
-            raise
         except EXPECTED_TWITCH_ERRORS as error:
+            # A TwitchUpstreamError from get_creator_profile propagates unchanged:
+            # it is not in EXPECTED_TWITCH_ERRORS, so it is never re-wrapped here.
             raise TwitchUpstreamError(f"Failed to load archived Twitch videos for {login}") from error
 
 

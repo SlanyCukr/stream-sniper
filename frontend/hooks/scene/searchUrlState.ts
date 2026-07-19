@@ -6,7 +6,7 @@
 
 export const SEARCH_DAY_WINDOWS = [7, 30, 90, 365] as const
 
-export interface SearchUrlState {
+interface SearchUrlState {
   q: string
   creatorId: number | null
   days: number | null

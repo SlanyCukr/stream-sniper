@@ -237,10 +237,11 @@ class LoggingConfig:
                 test_file.touch()
                 test_file.unlink()
             except PermissionError, OSError:
+                unwritable_dir = self.log_dir
                 fallback_dir = Path.home() / ".stream_sniper_logs"
                 fallback_dir.mkdir(parents=True, exist_ok=True)
                 self.log_dir = fallback_dir
-                print(f"Warning: Could not write to {self.log_dir}, using fallback: {fallback_dir}")
+                print(f"Warning: Could not write to {unwritable_dir}, using fallback: {fallback_dir}")
 
     def configure_logging(
         self, loggers: dict[str, str | int] | None = None, disable_existing_loggers: bool = False

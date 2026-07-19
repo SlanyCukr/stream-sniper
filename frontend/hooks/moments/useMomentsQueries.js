@@ -41,7 +41,7 @@ const mapMoment = m => ({
 })
 
 /** @param {unknown} value */
-export const mapMomentsQueue = value => {
+const mapMomentsQueue = value => {
     const data = requireRecord(value, 'moments queue')
     const limit = requireFiniteNumberField(data, 'limit', 'moments queue')
     const offset = requireFiniteNumberField(data, 'offset', 'moments queue')

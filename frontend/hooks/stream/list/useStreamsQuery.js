@@ -142,7 +142,7 @@ export const mapStreamDetails = value => {
     }
 }
 
-export const streamsKeys = {
+const streamsKeys = {
     all: [
         'streams',
     ],

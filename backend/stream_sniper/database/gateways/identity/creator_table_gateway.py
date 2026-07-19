@@ -8,21 +8,6 @@ from ...core.wire_format import to_char_wire
 
 
 @with_cursor
-def select_creator_twitch_user_id_db(
-    cursor: Cursor,
-    nick: str,
-) -> int | str:
-    cursor.execute("SELECT twitch_id FROM creator WHERE nick = %s", (nick,))
-    row = cursor.fetchone()
-    if row is None:
-        raise TypeError(f"Creator {nick!r} has no Twitch identifier")
-    value = row[0]
-    if isinstance(value, (int, str)):
-        return value
-    raise TypeError("creator.twitch_id must be an integer or string")
-
-
-@with_cursor
 def select_creator_id_db(
     cursor: Cursor,
     nick: str,

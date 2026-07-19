@@ -2,7 +2,7 @@ import { jwtDecode } from 'jwt-decode'
 
 const TOKEN_KEY = 'token'
 
-export class SessionStorageError extends Error {
+class SessionStorageError extends Error {
     constructor(operation, cause) {
         super(`Unable to ${operation} stored authentication session`, { cause })
         this.name = 'SessionStorageError'

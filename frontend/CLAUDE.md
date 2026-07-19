@@ -71,7 +71,7 @@ No `src/` directory. Path alias `@/*` -> repo-relative (`./*`).
 app/                       # App Router: file-based routes
   layout.tsx               # root <html data-bs-theme="dark">, global SCSS, Providers, LegacyHashRedirect
   providers.tsx            # QueryClientProvider + AuthProvider ('use client')
-  loading.tsx / error.tsx / global-error.tsx / not-found.tsx
+  error.tsx / global-error.tsx / not-found.tsx   # deliberately NO root loading.tsx (see Gotchas)
   login/page.tsx           # login (no app shell)
   (app)/                   # route group = FullLayout shell (sidebar + header)
     layout.tsx             # renders <FullLayout>
@@ -88,7 +88,6 @@ hooks/                     # capability folders mirror API/product domains (admi
 lib/api/                   # client.ts plus domain endpoint adapters and exact wire DTOs
 lib/auth/, lib/creator/, lib/stream/, lib/models/ # capability contracts and static UI models
 utils/, styles/            # styles/style.scss is the SCSS entry
-public/images/             # xtremelogo.svg, xtremelogowhite.svg, user1.jpg
 next.config.ts, tsconfig.json, eslint.config.mjs
 Dockerfile (dev), Dockerfile.prod (multi-stage standalone, non-root)
 ```
@@ -144,3 +143,11 @@ target port is unchanged. `Dockerfile.prod` runs `npm ci`, so a committed
   isn't blocked; `no-undef` is off for `.ts/.tsx` (TypeScript handles it).
 - **Backend down is not a crash.** Pages must still render their shell +
   error/empty states; a failed `/api` proxy returns 500 but the page renders.
+- **No root `app/loading.tsx` — on purpose.** A loading boundary above the
+  dynamic routes makes Next commit HTTP 200 before `notFound()` in
+  `stream/[id]`, `chatter/[id]`, and `creator/[id]/wrapped` can run, so invalid
+  ids served the 404 UI with a 200 status (crawler-visible). Removing the
+  boundary restores real 404s, and TTFB is unaffected (generateMetadata streams;
+  views own their loading states via react-query). Don't reintroduce a
+  `loading.tsx` at root or above these segments; `e2e/critical-journeys.spec.ts`
+  guards the 404 status.

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from stream_sniper.database.gateways.creators.records import ChatterLoyaltyRow
 
 
-def _share(messages: int, total_messages: int) -> float:
+def share_of_total(messages: int, total_messages: int) -> float:
     """messages / total_messages rounded to 4 places (0.0 when the corpus is empty)."""
     return round(messages / total_messages, 4) if total_messages else 0.0
 
@@ -75,7 +75,7 @@ class PassportHomeChannel(BaseModel):
             creator_nick=row.creator_nick,
             creator_display_name=row.creator_display_name,
             messages=row.message_count,
-            share=_share(row.message_count, total_messages),
+            share=share_of_total(row.message_count, total_messages),
         )
 
 
@@ -95,7 +95,7 @@ class PassportLoyalty(BaseModel):
             creator_display_name=row.creator_display_name,
             messages=row.message_count,
             streams_attended=row.streams_attended,
-            share=_share(row.message_count, total_messages),
+            share=share_of_total(row.message_count, total_messages),
         )
 
 

@@ -5,7 +5,7 @@ import {
 } from '@/lib/api/community'
 import { requireArrayField, requireRecord } from '@/lib/api/contractGuards'
 
-export const communityKeys = {
+const communityKeys = {
     all: ['community'],
     overlap: limit => [...communityKeys.all, 'overlap', { limit }],
     neighbors: (creatorId, metric, limit) => [...communityKeys.all, 'neighbors', { creatorId, metric, limit }],

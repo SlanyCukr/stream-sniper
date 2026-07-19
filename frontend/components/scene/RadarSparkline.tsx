@@ -2,8 +2,8 @@
 
 import type { RadarMinute } from '@/hooks/scene/useSceneRadarQuery'
 
-export const SPARK_WIDTH = 120
-export const SPARK_HEIGHT = 36
+const SPARK_WIDTH = 120
+const SPARK_HEIGHT = 36
 const BAR_GAP = 2
 
 /**

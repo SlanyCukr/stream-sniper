@@ -28,7 +28,7 @@ const nullableArrayField = (record, field, label) => {
 }
 
 /** @param {unknown} value */
-export const mapStreamTimeline = value => {
+const mapStreamTimeline = value => {
     const data = requireRecord(value, 'stream timeline')
     const peakViewers = requireNullableFiniteNumberField(data, 'peak_viewers', 'stream timeline')
     const metricsValue = data.metrics

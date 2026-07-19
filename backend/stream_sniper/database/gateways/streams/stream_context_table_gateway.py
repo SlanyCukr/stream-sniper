@@ -1,46 +1,13 @@
 """Live stream context snapshots and VOD-time-window linkage."""
 
 from psycopg2.extensions import cursor as Cursor
-from psycopg2.extras import Json
 
 from stream_sniper.database.gateways.streams.records import (
     StreamContextChangeRow,
-    StreamContextSample,
 )
 
-from ...core.connection_pool import get_active_pool
-from ...core.decorators import log_database_operation, with_cursor
+from ...core.decorators import with_cursor
 from ...core.wire_format import to_char_wire
-
-
-@log_database_operation
-def insert_stream_context_sample_db(sample: StreamContextSample) -> bool:
-    """Persist a context snapshot; operational failures propagate to the monitor cycle."""
-    with get_active_pool().get_cursor(commit=True) as cursor:
-        cursor.execute(
-            """
-            INSERT INTO stream_sniper.stream_context_sample
-                (tracked_streamer_id, twitch_stream_session_id, sampled_at,
-                 session_started_at, title, category_id, category_name,
-                 language, tags, is_mature)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (tracked_streamer_id, twitch_stream_session_id, sampled_at)
-            DO NOTHING
-            """,
-            (
-                sample.tracked_streamer_id,
-                sample.twitch_stream_session_id,
-                sample.sampled_at,
-                sample.session_started_at,
-                sample.title,
-                sample.category_id,
-                sample.category_name,
-                sample.language,
-                Json(sample.tags) if sample.tags is not None else None,
-                sample.is_mature,
-            ),
-        )
-    return True
 
 
 @with_cursor

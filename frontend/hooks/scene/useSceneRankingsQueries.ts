@@ -11,7 +11,7 @@ import type { ArchetypeBadge } from '@/components/chatter/ArchetypeBadges'
 import { sceneKeys } from './sceneKeys'
 
 /** A chatter's dominant channel, or `null` when no single channel dominates. */
-export interface RankingsHomeChannel {
+interface RankingsHomeChannel {
     creatorId: number
     creatorNick: string
     creatorDisplayName: string
@@ -86,7 +86,7 @@ export const mapSceneRankings = (value: unknown): SceneRankings => {
     }
 }
 
-export interface UseSceneRankingsParams {
+interface UseSceneRankingsParams {
     window?: RankingsWindow
     limit?: number
     offset?: number

@@ -14,7 +14,7 @@ import {
 /**
  * Query key factory for stream report-card queries
  */
-export const streamReportKeys = {
+const streamReportKeys = {
     all: [
         'stream-report',
     ],
@@ -47,7 +47,7 @@ export const mapReportMetric = (value, label) => {
 }
 
 /** @param {unknown} value */
-export const mapReportTopEmote = value => {
+const mapReportTopEmote = value => {
     if (value === null) return null
     const emote = requireRecord(value, 'stream report.top_emote')
     return {
@@ -60,7 +60,7 @@ export const mapReportTopEmote = value => {
 }
 
 /** @param {unknown} value */
-export const mapReportTopPhrase = value => {
+const mapReportTopPhrase = value => {
     if (value === null) return null
     const phrase = requireRecord(value, 'stream report.top_phrase')
     return {
@@ -71,7 +71,7 @@ export const mapReportTopPhrase = value => {
 }
 
 /** @param {unknown} value @param {number} index */
-export const mapReportMoment = (value, index) => {
+const mapReportMoment = (value, index) => {
     const label = `stream report.top_moments[${index}]`
     const moment = requireRecord(value, label)
     return {
@@ -84,7 +84,7 @@ export const mapReportMoment = (value, index) => {
 }
 
 /** @param {unknown} value */
-export const mapStreamReport = value => {
+const mapStreamReport = value => {
     const data = requireRecord(value, 'stream report')
     const metrics = requireRecord(data.metrics, 'stream report.metrics')
     const mapMetric = (/** @type {string} */ key) => (

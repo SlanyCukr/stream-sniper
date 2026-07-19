@@ -22,12 +22,6 @@ export interface SearchFrequencyPoint {
   count: number
 }
 
-export interface SearchFrequencyVM {
-  query: string
-  days: number
-  points: SearchFrequencyPoint[]
-}
-
 export interface SearchContextMessageVM {
   id: number
   time: string

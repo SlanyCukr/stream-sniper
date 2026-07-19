@@ -8,15 +8,10 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel, Field
 
 from ....application.chatters.archetypes import compute_archetypes
-from ....application.chatters.passport_models import PassportArchetype
+from ....application.chatters.passport_models import PassportArchetype, share_of_total
 
 if TYPE_CHECKING:
     from ....database.gateways.creators.scene_chatter_rankings_gateway import SceneChatterRankRow
-
-
-def _share(messages: int, total_messages: int) -> float:
-    """messages / total_messages rounded to 4 places (0.0 when the corpus is empty)."""
-    return round(messages / total_messages, 4) if total_messages else 0.0
 
 
 class RankHomeChannel(BaseModel):
@@ -54,13 +49,13 @@ class RankItem(BaseModel):
                 creator_nick=row.home_creator_nick or "",
                 creator_display_name=row.home_creator_display_name or "",
                 messages=row.home_messages or 0,
-                share=_share(row.home_messages or 0, row.total_messages),
+                share=share_of_total(row.home_messages or 0, row.total_messages),
             )
         # Identity badges read the lifetime aggregates, NOT the window slice above:
         # a lifetime loyalist who spread out for one week must not badge as Wanderer
         # on the 7-day tab (the gateway carries lifetime_* account-wide in both paths).
         lifetime_home_share = (
-            _share(row.lifetime_home_messages, row.lifetime_messages)
+            share_of_total(row.lifetime_home_messages, row.lifetime_messages)
             if row.lifetime_home_messages is not None
             else None
         )

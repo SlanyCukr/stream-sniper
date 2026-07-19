@@ -11,6 +11,7 @@ from ...config import APIConfig
 from ...dependencies import get_cache, get_config, get_health_checker, get_metrics_collector
 from ...observability.health import HealthChecker
 from ...observability.health_contracts import HealthStatus as HealthStatusEnum
+from ...observability.health_contracts import iso_z
 from ...observability.monitoring import MetricsCollector, collect_monitoring_snapshot
 from ...security.auth import get_current_admin_user
 from ...security.auth_models import UserInDB
@@ -65,7 +66,7 @@ def health_check(
         return HealthStatusResponse(
             status="critical",
             database=None,
-            timestamp=datetime.now().isoformat() + "Z",
+            timestamp=iso_z(datetime.now()),
             version=config.version,
             uptime_seconds=None,
             error="Health check unavailable",
@@ -96,7 +97,7 @@ def detailed_health_check(
         response.status_code = 503
         return DetailedHealthStatusResponse(
             status="critical",
-            timestamp=datetime.now().isoformat() + "Z",
+            timestamp=iso_z(datetime.now()),
             version=config.version,
             uptime_seconds=0.0,
             components={},
@@ -182,7 +183,7 @@ def get_cache_stats(
     return CacheStatsResponse(
         cache_stats=CacheBackendStatsResponse.model_validate(cache_stats),
         performance_metrics=CacheMetricsResponse.model_validate(summary["cache"]),
-        timestamp=datetime.now().isoformat() + "Z",
+        timestamp=iso_z(datetime.now()),
     )
 
 
@@ -203,7 +204,7 @@ def flush_cache(
 ) -> CacheFlushResponse:
     cache.flush_all()
     logger.info("Cache flushed by admin user id %s", sanitize_log_value(current_user.id))
-    return CacheFlushResponse(message="Cache flushed successfully", timestamp=datetime.now().isoformat() + "Z")
+    return CacheFlushResponse(message="Cache flushed successfully", timestamp=iso_z(datetime.now()))
 
 
 @router.get(
@@ -225,7 +226,6 @@ def root(request: Request, config: APIConfig = Depends(get_config)) -> ApiInfoRe
             caching=config.cache.enabled,
             rate_limiting=config.rate_limit.enabled,
             compression=config.compression.enabled,
-            monitoring=config.monitoring.enabled,
         ),
         endpoints=ApiEndpointLinks(
             health="/health",

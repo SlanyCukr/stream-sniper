@@ -15,20 +15,7 @@ class CacheConfig:
     """Cache configuration settings (in-process cache — no external store)."""
 
     enabled: bool = True
-    default_ttl: int = 3600  # 1 hour
-
-    ttl_creators: int = 7200  # 2 hours
-    ttl_stream_count: int = 1800  # 30 minutes
-    ttl_stream_analytics: int = 3600  # 1 hour
-    ttl_most_active_chatters: int = 3600  # 1 hour
-    ttl_most_tagged_chatters: int = 3600  # 1 hour
-    ttl_stream_details: int = 1800  # 30 minutes
-    ttl_chatter_messages: int = 1800  # 30 minutes
-    ttl_health_check: int = 300  # 5 minutes
-
     warm_on_startup: bool = True
-    warm_creators: bool = True
-    warm_stream_counts: bool = True
 
 
 @dataclass
@@ -56,18 +43,12 @@ class CompressionConfig:
     min_size: int = 1024  # 1KB minimum
     compression_level: int = 6  # Default gzip level
 
-    mime_types: str = "application/json,text/plain,text/html,application/javascript,text/css"
-
 
 @dataclass
 class MonitoringConfig:
     """Monitoring and metrics configuration settings."""
 
-    enabled: bool = True
-
     collect_request_metrics: bool = True
-    collect_cache_metrics: bool = True
-    collect_rate_limit_metrics: bool = True
 
     metrics_retention_hours: int = 24
 
@@ -91,7 +72,6 @@ class APIConfig:
 
     host: str = "0.0.0.0"
     port: int = 5002
-    debug: bool = False
 
     cors_enabled: bool = True
     cors_origins: str = "*"
@@ -123,9 +103,6 @@ class APIConfig:
             if self.database.maxconn < self.database.minconn:
                 raise ValueError("Database max connections must be >= min connections")
 
-            if self.cache.default_ttl < 1:
-                raise ValueError(f"Invalid default TTL: {self.cache.default_ttl}")
-
             if not self.auth.secret_key:
                 raise ValueError("JWT signing secret is not configured")
 
@@ -156,25 +133,13 @@ def load_config(environ: Mapping[str, str] | None = None) -> APIConfig:
         version=env.get("API_VERSION", "1.0.0"),
         host=env.get("API_HOST", "0.0.0.0"),
         port=_int(env, "API_PORT", 5002),
-        debug=_bool(env, "API_DEBUG", False),
         cors_enabled=_bool(env, "CORS_ENABLED", True),
         cors_origins=env.get("CORS_ORIGINS", "*"),
         cors_credentials=_bool(env, "CORS_CREDENTIALS", True),
         twitch_client_id=env.get("TWITCH_CLIENT_ID", ""),
         cache=CacheConfig(
             enabled=_bool(env, "CACHE_ENABLED", True),
-            default_ttl=_int(env, "CACHE_DEFAULT_TTL", 3600),
-            ttl_creators=_int(env, "CACHE_TTL_CREATORS", 7200),
-            ttl_stream_count=_int(env, "CACHE_TTL_STREAM_COUNT", 1800),
-            ttl_stream_analytics=_int(env, "CACHE_TTL_STREAM_ANALYTICS", 3600),
-            ttl_most_active_chatters=_int(env, "CACHE_TTL_MOST_ACTIVE_CHATTERS", 3600),
-            ttl_most_tagged_chatters=_int(env, "CACHE_TTL_MOST_TAGGED_CHATTERS", 3600),
-            ttl_stream_details=_int(env, "CACHE_TTL_STREAM_DETAILS", 1800),
-            ttl_chatter_messages=_int(env, "CACHE_TTL_CHATTER_MESSAGES", 1800),
-            ttl_health_check=_int(env, "CACHE_TTL_HEALTH_CHECK", 300),
             warm_on_startup=_bool(env, "CACHE_WARM_ON_STARTUP", True),
-            warm_creators=_bool(env, "CACHE_WARM_CREATORS", True),
-            warm_stream_counts=_bool(env, "CACHE_WARM_STREAM_COUNTS", True),
         ),
         rate_limit=RateLimitConfig(
             enabled=_bool(env, "RATE_LIMIT_ENABLED", True),
@@ -192,16 +157,9 @@ def load_config(environ: Mapping[str, str] | None = None) -> APIConfig:
             enabled=_bool(env, "COMPRESSION_ENABLED", True),
             min_size=_int(env, "COMPRESSION_MIN_SIZE", 1024),
             compression_level=_int(env, "COMPRESSION_LEVEL", 6),
-            mime_types=env.get(
-                "COMPRESSION_MIME_TYPES",
-                "application/json,text/plain,text/html,application/javascript,text/css",
-            ),
         ),
         monitoring=MonitoringConfig(
-            enabled=_bool(env, "MONITORING_ENABLED", True),
             collect_request_metrics=_bool(env, "MONITORING_REQUEST_METRICS", True),
-            collect_cache_metrics=_bool(env, "MONITORING_CACHE_METRICS", True),
-            collect_rate_limit_metrics=_bool(env, "MONITORING_RATE_LIMIT_METRICS", True),
             metrics_retention_hours=_int(env, "MONITORING_RETENTION_HOURS", 24),
         ),
         database=load_database_pool_config(env, require=False),

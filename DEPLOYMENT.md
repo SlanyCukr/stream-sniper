@@ -117,9 +117,14 @@ curl -f http://localhost:5002/health
 - Processes stream chat data when streams end
 - Shares database with API service
 
+### Live Chat Service (`stream-sniper-live`)
+- Captures live Twitch chat for the channels in `LIVE_CHANNELS`
+- Uses the dedicated bot account credentials (`TWITCH_BOT_REFRESH_TOKEN`)
+
 ### Database
-- PostgreSQL runs **on the RPI host**, not in Docker Compose. Containers reach it
-  via the Docker bridge gateway (`POSTGRES_HOST=172.17.0.1`).
+- PostgreSQL runs in a **shared `postgres` container on the RPI** (managed outside
+  this project's compose file). Containers reach it via the Docker bridge gateway
+  (`POSTGRES_HOST=172.17.0.1`).
 - Schema upgrades are applied explicitly from `backend/` with
   `uv run stream-sniper-migrate upgrade head`; there is no automatic init and no
   `postgres_data` Docker volume. For a pre-Alembic database whose baseline tables
@@ -185,19 +190,20 @@ docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
 - SSL certificates automatically renewed by Let's Encrypt (on the VPS)
 - Database password must be set to a strong, non-default value in `.env.prod`
 - JWT secret key must be a long random string in `.env.prod`
-- Note: `docker-compose.prod.yml` currently sets `CORS_ORIGINS=["*"]`. Tighten to
-  the production domain (`.env.prod.template` shows the intended value).
+- `docker-compose.prod.yml` pins `CORS_ORIGINS` to the production domain
+  (`https://stream-sniper.slanycukr.com`).
 
 ## Backup Strategy
 
 ### Database Backup
 
-PostgreSQL runs on the RPI **host**, not in a container — back it up with the
-host `pg_dump`/`psql` directly (there is no `postgres` compose service):
+PostgreSQL runs in the RPI's shared `postgres` container (not part of this
+project's compose file); the host has no postgresql-client, so back it up
+through the container:
 
 ```bash
 # Create backup (run on the RPI host)
-pg_dump -h localhost -p 5432 -U stream_sniper_user stream_sniper > backup.sql
+docker exec postgres pg_dump -U stream_sniper_user stream_sniper > backup.sql
 
 # Restore backup
 psql -h localhost -p 5432 -U stream_sniper_user stream_sniper < backup.sql

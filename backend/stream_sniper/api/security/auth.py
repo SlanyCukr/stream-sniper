@@ -43,10 +43,6 @@ class AuthenticationError(HTTPException):
         )
 
 
-def _created_at_iso(value: datetime) -> str:
-    return value.isoformat()
-
-
 def _user_row_to_auth_user(user_row: UserRow) -> UserInDB:
     """Translate a credential-bearing persistence row at the auth boundary."""
     return UserInDB(
@@ -56,7 +52,7 @@ def _user_row_to_auth_user(user_row: UserRow) -> UserInDB:
         password_hash=user_row.password_hash,
         role=user_row.role,
         is_active=user_row.is_active,
-        created_at=_created_at_iso(user_row.created_at),
+        created_at=user_row.created_at.isoformat(),
     )
 
 

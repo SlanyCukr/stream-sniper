@@ -16,7 +16,7 @@ import {
 /** @typedef {Omit<import('@tanstack/react-query').UseQueryOptions<any, Error, any, readonly unknown[]>, 'queryKey'|'queryFn'>} QueryOptions */
 /** @typedef {{limit?:number}} InsightParams */
 
-export const streamInsightsKeys = {
+const streamInsightsKeys = {
     all: ['stream-insights'],
     mentions: (/** @type {number} */ streamId, /** @type {number} */ limit) => [...streamInsightsKeys.all, 'mentions', { streamId, limit }],
     emotes: (/** @type {number} */ streamId, /** @type {number} */ limit) => [...streamInsightsKeys.all, 'emotes', { streamId, limit }],
@@ -43,7 +43,7 @@ const mapEmote = (value, label) => {
 }
 
 /** @param {unknown} value */
-export const mapStreamMentions = value => {
+const mapStreamMentions = value => {
     const data = requireRecord(value, 'stream mentions')
     return {
         mentioned: requireArrayField(data, 'mentioned', 'stream mentions').map((value, index) => {
@@ -70,7 +70,7 @@ export const mapStreamMentions = value => {
 }
 
 /** @param {unknown} value */
-export const mapStreamEmotes = value => {
+const mapStreamEmotes = value => {
     const data = requireRecord(value, 'stream emotes')
     return {
         emotes: requireArrayField(data, 'emotes', 'stream emotes')
@@ -79,7 +79,7 @@ export const mapStreamEmotes = value => {
 }
 
 /** @param {unknown} value */
-export const mapStreamPhrases = value => {
+const mapStreamPhrases = value => {
     const data = requireRecord(value, 'stream phrases')
     return {
         phrases: requireArrayField(data, 'phrases', 'stream phrases').map((value, index) => {

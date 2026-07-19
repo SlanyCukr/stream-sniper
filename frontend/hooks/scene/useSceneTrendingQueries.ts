@@ -14,13 +14,8 @@ import {
 } from '@/lib/api/contractGuards'
 import { sceneKeys } from './sceneKeys'
 
-/**
- * A trend classification for a scene entity across the current window vs. the
- * prior one. The backend contract enumerates these four, but the view models
- * keep the field a plain string so an unrecognized value degrades to a neutral
- * chip instead of crashing the boundary.
- */
-export type TrendKind = 'new' | 'rising' | 'falling' | 'steady'
+// Trend fields stay plain strings (backend enumerates new/rising/falling/steady)
+// so an unrecognized value degrades to a neutral chip instead of crashing the boundary.
 
 export interface TrendingCopypasta {
     messageTextId: number
@@ -35,7 +30,7 @@ export interface TrendingCopypasta {
     firstSeen: string | null
 }
 
-export interface TrendingCopypastas {
+interface TrendingCopypastas {
     window: number
     items: TrendingCopypasta[]
 }
@@ -54,7 +49,7 @@ export interface TrendingEmote {
     firstSeen: string | null
 }
 
-export interface TrendingEmotes {
+interface TrendingEmotes {
     window: number
     items: TrendingEmote[]
 }

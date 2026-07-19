@@ -187,7 +187,7 @@ docker-compose run --rm api pytest   # in-container
 
 API tests construct explicit `APIConfig` snapshots; imports do not require auth
 environment state. Integration/gateway tests need Postgres (`TEST_DB_*` env in CI).
-Layout: `tests/unit/`, `tests/integration/`, `tests/fixtures/`.
+Layout: `tests/unit/`, `tests/integration/`.
 
 ## Docker
 
