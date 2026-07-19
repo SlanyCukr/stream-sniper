@@ -37,7 +37,7 @@ export const spikeBadge = (spiking: boolean, ratio: number | null): SpikeBadge |
  * Human uptime "2h 14m" / "43m" from a live session start, or null when unknown
  * or the clock is skewed (negative elapsed). Mirrors LiveNow's uptime logic.
  */
-export const uptimeLabel = (startedAt: string | null): string | null => {
+const uptimeLabel = (startedAt: string | null): string | null => {
     const start = parseNaiveUtcEpoch(startedAt)
     if (start === null) return null
     const elapsedMs = Date.now() - start

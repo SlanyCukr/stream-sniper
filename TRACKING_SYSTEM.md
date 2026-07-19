@@ -78,8 +78,8 @@ not an installation script.
 The tracking schema maintains these invariants:
 
 - Each creator and Twitch username has at most one `tracked_streamers` row.
-- `last_processed_twitch_vod_id` records the latest completed Twitch VOD identity; it is
-  distinct from a live stream-session ID.
+- `last_processed_vod_id` (surfaced as `last_processed_twitch_vod_id` in code) records
+  the latest completed Twitch VOD identity; it is distinct from a live stream-session ID.
 - Each `(tracked_streamer_id, twitch_vod_id)` has at most one processing job.
 - A claimed job carries `worker_token` and `lease_expires_at`, allowing ownership
   checks and recovery of expired work.
@@ -94,9 +94,11 @@ The tracking schema maintains these invariants:
 - `GET /admin/tracking/streamers/{id}` - Get streamer details
 - `PUT /admin/tracking/streamers/{id}` - Update streamer settings
 - `DELETE /admin/tracking/streamers/{id}` - Remove streamer
+- `GET /admin/tracking/twitch-search` - Search Twitch channels to add
 
 ### Processing Jobs
 - `GET /admin/tracking/jobs` - List processing jobs
+- `POST /admin/tracking/streamers/{id}/process` - Trigger processing of the streamer's latest VOD
 - `POST /admin/tracking/jobs/{id}/cancel` - Request job cancellation
 - `POST /admin/tracking/jobs/{id}/retry` - Retry failed job
 
@@ -234,7 +236,7 @@ scheduler = TrackingScheduler(
 
 ### Logs
 - **API Logs**: Available through `docker-compose logs api`
-- **Service Logs**: Available through `docker-compose logs tracking`
+- **Service Logs**: `docker logs stream-sniper-tracking` (prod; the dev compose has no tracking service — run `uv run stream-sniper-tracking` locally)
 - **Database Logs**: Check PostgreSQL logs for database issues
 
 ### Health Checks

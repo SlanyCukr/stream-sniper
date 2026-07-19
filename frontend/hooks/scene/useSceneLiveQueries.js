@@ -13,7 +13,7 @@ import { sceneKeys } from './sceneKeys'
 /** @typedef {Omit<import('@tanstack/react-query').UseQueryOptions<any, Error, any, readonly unknown[]>, 'queryKey'|'queryFn'>} QueryOptions */
 
 /** @param {unknown} value */
-export const mapSceneLive = value => {
+const mapSceneLive = value => {
     const data = requireRecord(value, 'scene live')
     return {
         live: requireArrayField(data, 'live', 'scene live').map((value, index) => {
@@ -36,7 +36,7 @@ export const mapSceneLive = value => {
 }
 
 /** @param {unknown} value */
-export const mapSceneLeaderboard = value => {
+const mapSceneLeaderboard = value => {
     const data = requireRecord(value, 'scene leaderboard')
     return {
         windowDays: requireFiniteNumberField(data, 'window_days', 'scene leaderboard'),

@@ -25,7 +25,7 @@ export const MIN_QUERY_LENGTH = 3
 export const isSearchableQuery = q => typeof q === 'string' && q.trim().length >= MIN_QUERY_LENGTH
 
 /** @param {unknown} value @param {string} label */
-export const mapSearchHit = (value, label) => {
+const mapSearchHit = (value, label) => {
     const item = requireRecord(value, label)
     const chatter = requireRecord(item.chatter, `${label}.chatter`)
     const stream = requireRecord(item.stream, `${label}.stream`)
@@ -92,7 +92,7 @@ export const mapSearchFrequency = value => {
 }
 
 /** @param {unknown} value */
-export const mapSearchContext = value => {
+const mapSearchContext = value => {
     const data = requireRecord(value, 'search context')
     const stream = requireRecord(data.stream, 'search context.stream')
     const creator = requireRecord(stream.creator, 'search context.stream.creator')

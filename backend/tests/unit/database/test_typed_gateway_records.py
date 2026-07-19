@@ -50,7 +50,6 @@ from stream_sniper.database.gateways.streams.stream_viewer_sample_table_gateway 
 )
 from stream_sniper.database.gateways.tracking.processing_jobs_table_gateway import (
     select_processing_jobs_db,
-    update_processing_job_db,
 )
 from stream_sniper.database.gateways.tracking.tracked_streamers_table_gateway import (
     select_tracked_streamers_db,
@@ -125,8 +124,6 @@ def test_patch_gateways_reject_unknown_fields_before_sql(mock_connection_pool):
         update_user_db(1, typo=True)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
         update_tracked_streamer_db(1, typo=True)  # type: ignore[call-arg]
-    with pytest.raises(TypeError):
-        update_processing_job_db(1, typo=True)  # type: ignore[call-arg]
 
     cursor.execute.assert_not_called()
 
@@ -137,11 +134,6 @@ def test_nullable_patch_fields_can_be_cleared(mock_connection_pool):
 
     assert update_tracked_streamer_db(1, notes=None)
     assert cursor.execute.call_args.args[1] == [None, 1]
-
-    cursor.reset_mock()
-    cursor.rowcount = 1
-    assert update_processing_job_db(2, error_message=None)
-    assert cursor.execute.call_args.args[1] == [None, 2]
 
 
 def test_message_and_community_projections_preserve_named_field_order(mock_connection_pool):

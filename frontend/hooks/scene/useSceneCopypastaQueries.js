@@ -15,7 +15,7 @@ import { sceneKeys } from './sceneKeys'
 /** @typedef {{pageIndex: number, pageSize: number}} Pagination */
 
 /** @param {unknown} value */
-export const mapSceneCopypastaPage = value => {
+const mapSceneCopypastaPage = value => {
     const data = requireRecord(value, 'scene copypastas')
     const offset = requireFiniteNumberField(data, 'offset', 'scene copypastas')
     const limit = requireFiniteNumberField(data, 'limit', 'scene copypastas')
@@ -42,7 +42,7 @@ export const mapSceneCopypastaPage = value => {
 }
 
 /** @param {unknown} value @param {number} index */
-export const mapCopypastaOccurrence = (value, index) => {
+const mapCopypastaOccurrence = (value, index) => {
     const label = `copypasta propagation.occurrences[${index}]`
     const item = requireRecord(value, label)
     return {
@@ -60,7 +60,7 @@ export const mapCopypastaOccurrence = (value, index) => {
 }
 
 /** @param {unknown} value @param {number} index */
-export const mapCopypastaOriginMessage = (value, index) => {
+const mapCopypastaOriginMessage = (value, index) => {
     const label = `copypasta propagation.origin_context[${index}]`
     const item = requireRecord(value, label)
     return {

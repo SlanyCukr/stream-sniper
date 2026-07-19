@@ -1,6 +1,5 @@
 """Response contracts for chatter lookup and activity endpoints."""
 
-from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -45,7 +44,3 @@ class ChatterMessagesResponse(BaseModel):
     )
     offset: int = Field(..., description="Current zero-based row offset")
     limit: int = Field(..., description="Maximum messages returned by this page")
-
-
-# Compatibility type for gateway rows whose timestamp adapter is database-specific.
-RawChatterRows = list[list[Any]]

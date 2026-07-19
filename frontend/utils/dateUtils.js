@@ -10,7 +10,7 @@ const DATE_FORMATS = {
 }
 
 /** @param {Date|string|number} dateInput @returns {Date} */
-export const parseDate = dateInput => {
+const parseDate = dateInput => {
     if (dateInput instanceof Date) return dateInput
     if (typeof dateInput === 'string' || typeof dateInput === 'number') {
         return new Date(dateInput)
@@ -103,9 +103,6 @@ export const formatDurationSeconds = (startDate, endDate, fallback = 'N/A') => {
 
 /** @param {Date|string|number} date */
 export const formatStreamTimestamp = date => formatDate(date, DATE_FORMATS.STREAM_TIMESTAMP)
-
-/** @param {Date|string|number} date */
-export const isValidDate = date => validDateOrNull(date) !== null
 
 /**
  * Epoch ms for a naive UTC timestamp ("YYYY-MM-DDTHH:MM:SS", no zone) by

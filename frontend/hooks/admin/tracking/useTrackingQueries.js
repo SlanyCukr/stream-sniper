@@ -112,7 +112,7 @@ export const mapProcessingJob = value => {
 }
 
 /** @param {unknown} value @param {{pageIndex:number, pageSize:number}} pagination */
-export const mapTrackedStreamersPage = (value, pagination) => {
+const mapTrackedStreamersPage = (value, pagination) => {
     const data = requireRecord(value, 'tracked streamers')
     return createPage(
         requireArrayField(data, 'streamers', 'tracked streamers').map(mapTrackedStreamer),
@@ -123,7 +123,7 @@ export const mapTrackedStreamersPage = (value, pagination) => {
 }
 
 /** @param {unknown} value */
-export const mapTrackedStreamerOptions = value => {
+const mapTrackedStreamerOptions = value => {
     const data = requireRecord(value, 'tracked streamer options')
     return requireArrayField(data, 'streamers', 'tracked streamer options').map((value, index) => {
         const label = `tracked streamer options.streamers[${index}]`
@@ -136,7 +136,7 @@ export const mapTrackedStreamerOptions = value => {
 }
 
 /** @param {unknown} value @param {{pageIndex:number, pageSize:number}} pagination */
-export const mapProcessingJobsPage = (value, pagination) => {
+const mapProcessingJobsPage = (value, pagination) => {
     const data = requireRecord(value, 'processing jobs')
     return createPage(
         requireArrayField(data, 'jobs', 'processing jobs').map(mapProcessingJob),

@@ -8,7 +8,6 @@ connection and SQL failures propagate to the tracking boundary.
 """
 
 from datetime import datetime
-from typing import cast
 
 from psycopg2.extensions import cursor as Cursor
 from psycopg2.extras import Json
@@ -21,38 +20,6 @@ from stream_sniper.database.gateways.streams.records import (
 
 from ...core.decorators import with_cursor, write_cursor
 from ...core.wire_format import to_char_wire
-
-
-def insert_stream_viewer_sample_db(
-    tracked_streamer_id: int,
-    twitch_stream_session_id: int | str,
-    sampled_at: datetime,
-    viewer_count: int,
-    title: str | None,
-    session_started_at: datetime | None,
-) -> bool:
-    """Insert one viewer snapshot. Duplicate (streamer, session, sampled_at) is a no-op."""
-
-    with write_cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO stream_sniper.stream_viewer_sample
-                (tracked_streamer_id, twitch_stream_session_id, sampled_at,
-                 viewer_count, title, session_started_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (tracked_streamer_id, twitch_stream_session_id, sampled_at)
-            DO NOTHING
-            """,
-            (
-                tracked_streamer_id,
-                twitch_stream_session_id,
-                sampled_at,
-                viewer_count,
-                title,
-                session_started_at,
-            ),
-        )
-        return True
 
 
 def insert_live_snapshot_db(
@@ -108,25 +75,6 @@ def insert_live_snapshot_db(
             ),
         )
     return True
-
-
-@with_cursor
-def select_session_viewer_samples_db(
-    cursor: Cursor,
-    tracked_streamer_id: int,
-    twitch_stream_session_id: int | str,
-) -> list[tuple[datetime, int, str | None]]:
-    """Return session samples oldest first; empty success is ``[]`` and SQL failures propagate."""
-    cursor.execute(
-        """
-        SELECT sampled_at, viewer_count, title
-        FROM stream_sniper.stream_viewer_sample
-        WHERE tracked_streamer_id = %s AND twitch_stream_session_id = %s
-        ORDER BY sampled_at ASC
-        """,
-        (tracked_streamer_id, twitch_stream_session_id),
-    )
-    return cast(list[tuple[datetime, int, str | None]], cursor.fetchall())
 
 
 @with_cursor

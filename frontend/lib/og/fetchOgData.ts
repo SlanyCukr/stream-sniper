@@ -15,7 +15,7 @@ const OG_FETCH_TIMEOUT_MS = 2500
 const MAX_TITLE = 64
 const MAX_SUBTITLE = 80
 
-export interface OgStat {
+interface OgStat {
   label: string
   value: string
 }

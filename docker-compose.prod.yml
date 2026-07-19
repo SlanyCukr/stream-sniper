@@ -32,7 +32,6 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env.prod - refusing to start with a default JWT secret}
-      - ACCESS_TOKEN_EXPIRE_MINUTES=30
       - CORS_ORIGINS=https://stream-sniper.slanycukr.com
       # Adding a tracked streamer via the API calls the Twitch API (creator
       # lookup), so the api process needs Twitch creds too — not just tracking.

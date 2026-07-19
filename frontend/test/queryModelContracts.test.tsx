@@ -59,7 +59,6 @@ vi.mock('@/lib/api/creators', () => ({
   retrieveCreatorTrends: api.retrieveCreatorTrends,
 }))
 
-import { mapChatterRow } from '@/hooks/chatter/useChattersQuery'
 import { mapChatterMessage } from '@/hooks/chatter/useMessagesQuery'
 import { mapStreamDetails, mapStreamListRow } from '@/hooks/stream/list/useStreamsQuery'
 import { buildStreamOptions } from '@/views/stream/StreamCompare'
@@ -124,7 +123,6 @@ describe('query view-model contracts', () => {
   })
 
   it('names positional stream rows and every comprehensive stream collection', () => {
-    expect(mapChatterRow({ chatter_id: 11, nick: 'viewer' })).toEqual({ chatterId: 11, nick: 'viewer' })
     expect(mapStreamListRow({
       stream_id: 1,
       creator_name: 'Operator',
@@ -318,7 +316,7 @@ describe('query view-model contracts', () => {
       rate_limiting: { total_requests: 5, rate_limited_requests: 1, rate_limit_percentage: 20 },
     }))
       .toMatchObject({ requests: { totalRequests: 5 } })
-    expect(mapCacheStats({ cache_stats: { backend: 'redis', status: 'healthy', stream_sniper_keys: 6 } }))
+    expect(mapCacheStats({ cache_stats: { backend: 'in-process', status: 'healthy', stream_sniper_keys: 6 } }))
       .toMatchObject({ streamSniperKeys: 6 })
   })
 

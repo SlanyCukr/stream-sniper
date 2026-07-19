@@ -16,21 +16,3 @@
     margin-bottom: 1.5rem;
 }
 
-.circle-box {
-    width: 40px;
-    height: 40px;
-    line-height: 40px;
-    text-align: center;
-    border-radius: 100%;
-
-    &.lg-box {
-        width: 60px;
-        height: 60px;
-        font-size: 21px;
-        line-height: 60px;
-    }
-}
-
-.button-group .btn {
-    margin: 3px;
-}

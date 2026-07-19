@@ -78,7 +78,6 @@ class ApiFeatureFlags(BaseModel):
     caching: bool
     rate_limiting: bool
     compression: bool
-    monitoring: bool
 
 
 class ApiEndpointLinks(BaseModel):

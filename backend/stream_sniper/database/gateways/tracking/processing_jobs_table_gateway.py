@@ -3,7 +3,6 @@ Database gateway for processing_jobs table operations.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
 
 from stream_sniper.application.tracking.models import (
     JOB_STATUS_COMPLETED,
@@ -12,10 +11,6 @@ from stream_sniper.application.tracking.models import (
     JOB_STATUS_PENDING,
     JobStatus,
     ProcessingJob,
-)
-from stream_sniper.database.core.patches import (
-    UNSET,
-    Unset,
 )
 
 from ...core.decorators import read_cursor, write_cursor
@@ -112,48 +107,6 @@ def select_processing_job_by_id_db(job_id: int) -> ProcessingJob | None:
         )
         row = cursor.fetchone()
         return ProcessingJob(*row) if row else None
-
-
-def update_processing_job_db(
-    job_id: int,
-    *,
-    status: JobStatus | Unset = UNSET,
-    started_at: datetime | None | Unset = UNSET,
-    completed_at: datetime | None | Unset = UNSET,
-    error_message: str | None | Unset = UNSET,
-    retry_count: int | Unset = UNSET,
-) -> bool:
-    """Update supplied fields; ``UNSET`` distinguishes omission from explicit null."""
-
-    set_clauses: list[str] = []
-    params: list[object] = []
-
-    values = {
-        "status": status,
-        "started_at": started_at,
-        "completed_at": completed_at,
-        "error_message": error_message,
-        "retry_count": retry_count,
-    }
-    for field, value in values.items():
-        if value is not UNSET:
-            set_clauses.append(f"{field} = %s")
-            params.append(value)
-
-    if not set_clauses:
-        return False
-
-    set_clauses.append("updated_at = CURRENT_TIMESTAMP")
-    params.append(job_id)
-
-    with write_cursor() as cursor:
-        query = f"""
-            UPDATE stream_sniper.processing_jobs
-            SET {", ".join(set_clauses)}
-            WHERE id = %s
-        """
-        cursor.execute(query, params)
-        return bool(cursor.rowcount > 0)
 
 
 def count_processing_jobs_db(status: JobStatus | None = None, tracked_streamer_id: int | None = None) -> int:

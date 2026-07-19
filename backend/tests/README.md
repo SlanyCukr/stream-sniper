@@ -7,27 +7,16 @@ This directory contains comprehensive tests for the Stream Sniper application, c
 ```
 tests/
 ├── conftest.py              # Pytest configuration and shared fixtures
-├── README.md               # This file
-├── __init__.py             # Test package initialization
-├── unit/                   # Unit tests for individual components
-│   ├── __init__.py
-│   ├── api/                # API endpoint tests
-│   │   └── test_api.py
-│   ├── collector/          # Data collection component tests
-│   │   └── test_chat_processor.py
-│   ├── database/           # Database gateway tests
-│   │   ├── test_creator_table_gateway.py
-│   │   ├── test_decorators.py
-│   │   └── test_stream_table_gateway.py
-│   └── utils/              # Utility function tests
-│       └── test_utils.py
-├── integration/            # Integration tests for complete workflows
-│   ├── __init__.py
-│   ├── test_api_workflows.py
-│   └── test_database_operations.py
-└── fixtures/               # Test data and helper functions
-    ├── __init__.py
-    └── sample_data.py
+├── README.md                # This file
+├── unit/                    # Unit tests, mirroring the package layout
+│   ├── analytics/           # Rollups, digests, bot classification
+│   ├── api/                 # Endpoint, config, middleware, auth tests
+│   ├── application/         # Query-orchestration tests
+│   ├── collector/           # Archived + live collection tests
+│   ├── database/            # Gateway and decorator tests
+│   ├── tracking/            # Monitor/queue/scheduler tests
+│   └── utils/               # Cross-cutting helper tests
+└── integration/             # Postgres-backed workflow tests
 ```
 
 ## Test Categories
@@ -42,17 +31,13 @@ tests/
 - **Database Operations**: Test complete database workflows with real database
 - **API Workflows**: Test end-to-end API functionality with database integration
 
-### Test Fixtures (`tests/fixtures/`)
-- **Sample Data**: Standardized test data for creators, streams, chatters, and messages
-- **Helper Functions**: Utilities for creating test data and validating results
-
 ## Running Tests
 
 ### Prerequisites
 
 1. **Install Dependencies**:
    ```bash
-   pip install -r requirements.txt
+   uv sync
    ```
 
 2. **Database Setup** (for integration tests):
@@ -164,7 +149,6 @@ def test_database_integration():
 ### Database Mocking
 - **Unit Tests**: Use mocked database connections and cursors
 - **Integration Tests**: Use real test database with transaction rollback
-- **Fixtures**: Provide both mocked and real database setups
 
 ### External Service Mocking
 - **Twitch API**: Mocked in unit tests to avoid external dependencies
@@ -173,12 +157,6 @@ def test_database_integration():
 
 ## Test Data Management
 
-### Sample Data (`fixtures/sample_data.py`)
-- Standardized test data for consistency across tests
-- Unicode test data for internationalization testing
-- Performance test data generators for load testing
-- Error condition data for edge case testing
-
 ### Database Test Data
 - Each test starts with clean database state
 - Helper functions for creating related test data
@@ -186,7 +164,9 @@ def test_database_integration():
 
 ## Coverage Requirements
 
-The enforced overall coverage floor is **62%**. This is the current ratchet: CI
+The enforced overall coverage floor is **75%** (`fail_under` in
+`pyproject.toml`; CI's integration step additionally enforces
+`--cov-fail-under=70`). This is the current ratchet: CI
 must not regress below it, and the value should only move upward as coverage is
 added. Longer-term target coverage levels are:
 - **Overall**: > 85%
@@ -289,7 +269,7 @@ Consider adding tests for:
 
 - SQL injection prevention
 - Input validation
-- Authentication/authorization (when implemented)
+- Authentication/authorization edge cases
 - Data sanitization
 
 ## Contributing to Tests

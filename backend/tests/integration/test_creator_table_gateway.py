@@ -4,15 +4,11 @@ PostgreSQL integration tests for creator table gateway functions.
 Tests all creator-related database operations including:
 - Creator insertion with conflict handling
 - Creator selection by nick and ID
-- Creator Twitch ID retrieval
 """
-
-import pytest
 
 from stream_sniper.database.gateways.identity.creator_table_gateway import (
     find_or_insert_creator_id_db,
     select_creator_id_db,
-    select_creator_twitch_user_id_db,
     select_creators_db,
 )
 from tests.conftest import create_test_creator
@@ -20,21 +16,6 @@ from tests.conftest import create_test_creator
 
 class TestCreatorTableGateway:
     """Test suite for creator table gateway functions."""
-
-    def test_select_creator_twitch_user_id_db_success(self, db_cursor, sample_creator_data):
-        """Test successful retrieval of creator Twitch ID."""
-        # Create test creator
-        create_test_creator(db_cursor, sample_creator_data)
-
-        # Test function
-        twitch_id = select_creator_twitch_user_id_db(sample_creator_data["nick"])
-
-        assert twitch_id == sample_creator_data["twitch_id"]
-
-    def test_select_creator_twitch_user_id_db_not_found(self, db_cursor):
-        """Test behavior when creator Twitch ID not found."""
-        with pytest.raises(TypeError):  # fetchone()[0] on None raises TypeError
-            select_creator_twitch_user_id_db("nonexistent_creator")
 
     def test_select_creator_id_db_success(self, db_cursor, sample_creator_data):
         """Test successful retrieval of creator ID."""
@@ -130,16 +111,6 @@ class TestCreatorTableGateway:
 
 class TestCreatorTableGatewayWithMocks:
     """Test creator table gateway functions with mocked database connections."""
-
-    def test_select_creator_twitch_user_id_db_with_mock(self, mock_connection_pool):
-        """Test select_creator_twitch_user_id_db with mocked database."""
-        mock_pool, mock_connection, mock_cursor = mock_connection_pool
-        mock_cursor.fetchone.return_value = ("123456789",)
-
-        result = select_creator_twitch_user_id_db("test_creator")
-
-        assert result == "123456789"
-        mock_cursor.execute.assert_called_once_with("SELECT twitch_id FROM creator WHERE nick = %s", ("test_creator",))
 
     def test_select_creator_id_db_with_mock(self, mock_connection_pool):
         """Test select_creator_id_db with mocked database."""

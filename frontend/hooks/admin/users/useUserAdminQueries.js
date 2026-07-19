@@ -76,7 +76,7 @@ export const mapAdminUser = value => {
 }
 
 /** @param {unknown} value @param {{pageIndex:number, pageSize:number}} pagination */
-export const mapAdminUsersPage = (value, pagination) => {
+const mapAdminUsersPage = (value, pagination) => {
     const data = requireRecord(value, 'admin users')
     return createPage(
         requireArrayField(data, 'users', 'admin users').map(mapAdminUser),

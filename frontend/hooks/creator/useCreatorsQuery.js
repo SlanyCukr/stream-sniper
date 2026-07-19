@@ -7,7 +7,7 @@ import {
 /** @typedef {{creatorId:number, nick:string}} Creator */
 /** @typedef {Omit<import('@tanstack/react-query').UseQueryOptions<Creator[], Error, Creator[], readonly unknown[]>, 'queryKey'|'queryFn'>} CreatorQueryOptions */
 
-export const creatorKeys = {
+const creatorKeys = {
     all: ['creators'],
     list: () => [...creatorKeys.all, 'list'],
 }

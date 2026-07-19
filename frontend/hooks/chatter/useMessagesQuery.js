@@ -23,7 +23,7 @@ export const mapChatterMessage = value => {
 /**
  * Query key factory for messages-related queries
  */
-export const messagesKeys = {
+const messagesKeys = {
     all: [
         'messages',
     ],

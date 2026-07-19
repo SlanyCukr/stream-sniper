@@ -11,14 +11,14 @@ import {
 } from '@/lib/api/contractGuards'
 import { chattersKeys } from './useChattersQuery'
 
-export interface PassportDebut {
+interface PassportDebut {
     streamId: number
     streamTitle: string
     creatorDisplayName: string
     time: string
 }
 
-export interface PassportHomeChannel {
+interface PassportHomeChannel {
     creatorId: number
     creatorNick: string
     creatorDisplayName: string
@@ -26,7 +26,7 @@ export interface PassportHomeChannel {
     share: number
 }
 
-export interface PassportLoyaltyRow {
+interface PassportLoyaltyRow {
     creatorId: number
     creatorNick: string
     creatorDisplayName: string
@@ -35,14 +35,14 @@ export interface PassportLoyaltyRow {
     share: number
 }
 
-export interface PassportMostActiveStream {
+interface PassportMostActiveStream {
     streamId: number
     title: string
     creatorDisplayName: string
     messages: number
 }
 
-export interface PassportCompanion {
+interface PassportCompanion {
     chatterId: number
     nick: string
     sharedStreams: number

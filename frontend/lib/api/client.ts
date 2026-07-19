@@ -29,7 +29,7 @@ export function installUnauthorizedInterceptor(onUnauthorized: () => void) {
   return () => api.interceptors.response.eject(interceptorId)
 }
 
-export type QueryParams = Record<string, string | number | boolean | null | undefined>
+type QueryParams = Record<string, string | number | boolean | null | undefined>
 
 export function buildQuery(params: QueryParams) {
   const searchParams = new URLSearchParams()

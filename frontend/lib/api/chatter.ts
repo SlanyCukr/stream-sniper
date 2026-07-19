@@ -13,12 +13,7 @@ export interface ChatterMessagePageDto {
   limit: number
 }
 
-export interface ChatterIdentityDto {
-  chatter_id: number
-  is_bot: boolean | null
-}
 export type ChatterSearchDto = Array<{ chatter_id: number, nick: string, is_bot: boolean | null }>
-export type ChatterListDto = Array<{ chatter_id: number, nick: string }>
 export type ChatterStreamActivityDto = Array<{
   stream_id: number
   stream_title: string
@@ -36,14 +31,8 @@ export const retrieveChatterMessages = (
   `/chatters/${chatterId}/messages?${buildQuery({ offset: rowOffset, limit: pageSize })}`,
 )
 
-export const retrieveChatterIdentity = (nick: string) =>
-  api.get<ChatterIdentityDto>(`/chatters/by-nick/${nick}`)
-
 export const retrieveChatterSearch = (query: string, limit = 10) =>
   api.get<ChatterSearchDto>(`/chatters/search?${buildQuery({ q: query, limit })}`)
-
-export const retrieveChattersOnStream = (streamId: number) =>
-  api.get<ChatterListDto>(`/streams/${streamId}/chatters`)
 
 export const retrieveChatterStreamActivity = (chatterId: number) =>
   api.get<ChatterStreamActivityDto>(`/chatters/${chatterId}/stream-activity`)

@@ -11,7 +11,7 @@ import {
 import { sceneKeys } from './sceneKeys'
 
 /** Scene-wide totals for the recap window. */
-export interface WrappedTotals {
+interface WrappedTotals {
     streams: number
     /** Total streamed hours, or null when uptime is unknown for the window. */
     hoursStreamed: number | null
@@ -21,7 +21,7 @@ export interface WrappedTotals {
 }
 
 /** One ranked creator in the recap. */
-export interface WrappedCreator {
+interface WrappedCreator {
     rank: number
     creatorId: number
     nick: string
@@ -35,7 +35,7 @@ export interface WrappedCreator {
 }
 
 /** One ranked chatter in the recap. */
-export interface WrappedChatter {
+interface WrappedChatter {
     rank: number
     chatterId: number
     nick: string
@@ -46,7 +46,7 @@ export interface WrappedChatter {
 }
 
 /** One peak chat moment in the recap. */
-export interface WrappedMoment {
+interface WrappedMoment {
     streamId: number
     streamTitle: string
     twitchId: string | null
@@ -59,7 +59,7 @@ export interface WrappedMoment {
 }
 
 /** One trending copypasta in the recap. */
-export interface WrappedCopypasta {
+interface WrappedCopypasta {
     messageTextId: number
     text: string
     usageCount: number
@@ -68,7 +68,7 @@ export interface WrappedCopypasta {
 }
 
 /** One trending emote in the recap. */
-export interface WrappedEmote {
+interface WrappedEmote {
     emoteId: number
     name: string
     source: string
@@ -77,7 +77,7 @@ export interface WrappedEmote {
 }
 
 /** One notable scene event in the recap timeline. */
-export interface WrappedEvent {
+interface WrappedEvent {
     eventType: string
     occurredAt: string
     title: string

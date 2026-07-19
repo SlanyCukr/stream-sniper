@@ -283,3 +283,14 @@ test('runs an authenticated admin mutation and clears the session on 401', async
   ])
   await expect.poll(() => page.evaluate(() => localStorage.getItem('token'))).toBeNull()
 })
+
+test('invalid dynamic-route ids respond with a real HTTP 404', async ({ page }) => {
+  // Regression guard for the removed root app/loading.tsx: a streaming boundary
+  // above these routes made Next commit HTTP 200 before notFound() ran, so
+  // crawlers saw the 404 UI with a 200 status. request.get bypasses the app
+  // shell and asserts the raw response status.
+  for (const path of ['/stream/abc', '/chatter/abc', '/creator/abc/wrapped']) {
+    const response = await page.request.get(path)
+    expect(response.status(), `${path} should 404`).toBe(404)
+  }
+})
