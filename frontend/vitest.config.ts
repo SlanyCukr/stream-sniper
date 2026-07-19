@@ -26,7 +26,7 @@ export default defineConfig({
         branches: 54,
         functions: 60,
         lines: 72,
-        'contexts/AuthContext.jsx': {
+        'contexts/AuthContext.tsx': {
           statements: 65,
           branches: 33,
           functions: 61,
@@ -80,43 +80,43 @@ export default defineConfig({
           functions: 100,
           lines: 100,
         },
-        'components/admin/users/UserManagementTable.jsx': {
+        'components/admin/users/UserManagementTable.tsx': {
           statements: 90,
           branches: 50,
           functions: 100,
           lines: 90,
         },
-        'components/admin/users/UserManagementModals.jsx': {
+        'components/admin/users/UserManagementModals.tsx': {
           statements: 100,
           branches: 100,
           functions: 100,
           lines: 100,
         },
-        'components/admin/users/EditUserForm.jsx': {
+        'components/admin/users/EditUserForm.tsx': {
           statements: 90,
           branches: 100,
           functions: 83,
           lines: 90,
         },
-        'views/admin/SystemInfo.jsx': {
+        'views/admin/SystemInfo.tsx': {
           statements: 94,
           branches: 69,
           functions: 100,
           lines: 94,
         },
-        'components/admin/system/RequestStatistics.jsx': {
+        'components/admin/system/RequestStatistics.tsx': {
           statements: 100,
           branches: 100,
           functions: 100,
           lines: 100,
         },
-        'components/stream/list/StreamThumbnail.jsx': {
+        'components/stream/list/StreamThumbnail.tsx': {
           statements: 100,
           branches: 83,
           functions: 100,
           lines: 100,
         },
-        'components/stream/list/ThumbImage.jsx': {
+        'components/stream/list/ThumbImage.tsx': {
           statements: 100,
           branches: 100,
           functions: 100,

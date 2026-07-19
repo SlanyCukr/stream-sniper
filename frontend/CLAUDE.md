@@ -7,13 +7,14 @@ Twitch-like chat, inspect chatter/message data, JWT auth, and an admin panel
 ## Technology Stack
 
 - **Framework**: Next.js 16 (App Router, Turbopack) + React 19
-- **Language**: TypeScript scaffold (`app/**` and `lib/api/**` in `.ts/.tsx`);
-  migrated components remain `.jsx`. The main config keeps `checkJs: false`,
-  while `tsconfig.checkjs-boundaries.json` checks a deliberately small JS slice.
+- **Language**: TypeScript throughout — every production file under
+  `app|components|views|contexts|hooks|lib|utils` is `.ts/.tsx` under
+  `strict: true` with `allowJs: false`. New code must be TypeScript; a stray
+  `.js` import fails the typecheck.
 - **UI**: Bootstrap 5.3 + `react-bootstrap`, `react-select`; SASS.
 - **Data**: `@tanstack/react-query` (server-state cache), `axios` (single client
   in `lib/api/client.ts`; endpoint adapters in `lib/api/*.ts`).
-- **Auth**: client-side JWT in `localStorage['token']`; `contexts/AuthContext.jsx`.
+- **Auth**: client-side JWT in `localStorage['token']`; `contexts/AuthContext.tsx`.
 - **Output**: `output: 'standalone'` — a Node server runs in the prod container
   (replaces the old nginx container).
 
@@ -29,9 +30,7 @@ npm install            # regenerates package-lock.json (no --legacy-peer-deps ne
 npm run dev            # next dev --turbopack on :3000
 npm run build          # next build -> .next/standalone/server.js (primary gate)
 npm run start          # next start on :3000 (serves a production build)
-npm run typecheck      # tsc --noEmit
-npm run typecheck:js:boundaries # incremental checkJs gate for selected JS seams
-npm run typecheck:js:ratchet # prevent unchecked production JS from increasing
+npm run typecheck      # tsc --noEmit (strict, whole repo)
 npm test -- --run      # Vitest suite
 npx playwright install chromium # one-time local browser runtime setup
 npm run test:e2e       # critical browser journeys; owns localhost:4173
@@ -83,7 +82,7 @@ app/                       # App Router: file-based routes
       page.tsx, dashboard/, users/(+create/), system/, tracking/(streamers/, jobs/)
 components/                # client UI by capability (admin/, auth/, chatter/, community/, creator/, streams/, ...)
 views/                     # route bodies grouped by owning product domain and imported by thin page.tsx wrappers
-contexts/AuthContext.jsx
+contexts/AuthContext.tsx
 hooks/                     # capability folders mirror API/product domains (admin/, chatter/, community/, creator/, moments/, scene/, stream/)
 lib/api/                   # client.ts plus domain endpoint adapters and exact wire DTOs
 lib/auth/, lib/creator/, lib/stream/, lib/models/ # capability contracts and static UI models
@@ -106,7 +105,7 @@ Dockerfile (dev), Dockerfile.prod (multi-stage standalone, non-root)
 - Navigation: `useRouter()`/`usePathname()`/`useSearchParams()` from
   `next/navigation`; `<Link href>` from `next/link`. Dynamic `params` is a
   Promise — unwrap with `use(params)` in the page and pass values down as props.
-- Legacy `/#/path` hash links are handled by `components/layout/LegacyHashRedirect.jsx`.
+- Legacy `/#/path` hash links are handled by `components/layout/LegacyHashRedirect.tsx`.
 
 ## Docker
 
@@ -129,13 +128,10 @@ target port is unchanged. `Dockerfile.prod` runs `npm ci`, so a committed
   so bare `@import "bootstrap/scss/bootstrap"` resolves. Bootstrap emits Sass
   deprecation warnings (harmless). If Turbopack ever rejects `includePaths`,
   switch to `loadPaths`.
-- **JavaScript checking is incremental.** Keep the main `checkJs: false` until
-  migrated files have explicit contracts. Add stable boundary files to
-  `tsconfig.checkjs-boundaries.json` and keep that gate green rather than
-  enabling repository-wide checked JavaScript in one step.
-- **Unchecked JavaScript is ratcheted.** `type-migration-baseline.json` stores
-  the current ceiling. New production `.js`/`.jsx` must enter the selected
-  checkJs boundary (or be TypeScript); lower the ceiling whenever files migrate.
+- **The codebase is fully TypeScript** (migrated 2026-07-19). `allowJs: false`
+  is the regression guard: do not add `.js`/`.jsx` production files — the old
+  checkJs boundary and unchecked-JS ratchet are gone because there is nothing
+  left to ratchet.
 - **ESLint** is flat-config (`eslint.config.mjs`) spreading
   `eslint-config-next`'s default array. Several React-19 rules
   (`react-hooks/set-state-in-effect`, `react-hooks/purity`,

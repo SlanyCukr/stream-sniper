@@ -300,12 +300,6 @@ jobs:
     - name: Type check
       run: npm run typecheck
 
-    - name: Check JavaScript boundary contracts
-      run: npm run typecheck:js:boundaries
-
-    - name: Enforce unchecked JavaScript ratchet
-      run: npm run typecheck:js:ratchet
-
     - name: Run frontend tests with coverage
       run: npm run test:ci
 

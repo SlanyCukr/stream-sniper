@@ -53,7 +53,7 @@ The CI/CD pipeline consists of five workflows:
 
 #### `frontend` - Frontend Build & Typecheck
 - Installs the locked Node dependencies on Node.js 22
-- Runs TypeScript and the incremental checked-JavaScript boundary gate
+- Runs the strict whole-repo TypeScript check (the codebase is fully TypeScript)
 - Enforces the ratcheted Vitest coverage baseline
 - Installs Playwright Chromium and runs the critical browser smoke journeys
 - Builds the Next.js standalone production output

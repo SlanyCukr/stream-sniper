@@ -9,8 +9,6 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "typecheck:js:boundaries": "tsc -p tsconfig.checkjs-boundaries.json",
-    "typecheck:js:ratchet": "node scripts/check-unchecked-js.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",

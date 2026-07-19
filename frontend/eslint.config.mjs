@@ -30,9 +30,9 @@ const config = [
   },
   {
     files: [
-      'views/creator/AudienceMovement.jsx',
-      'views/scene/ScenePulse.jsx',
-      'views/stream/StreamCompare.jsx',
+      'views/creator/AudienceMovement.tsx',
+      'views/scene/ScenePulse.tsx',
+      'views/stream/StreamCompare.tsx',
     ],
     rules: {
       'react/jsx-first-prop-new-line': ['error', 'multiprop'],
@@ -43,10 +43,14 @@ const config = [
   {
     // TypeScript understands type-only references (e.g. React.ReactNode) and
     // globals itself; the core `no-undef` rule is a known false-positive on
-    // .ts/.tsx and is disabled per typescript-eslint guidance.
+    // .ts/.tsx and is disabled per typescript-eslint guidance. Likewise the
+    // core `no-unused-vars` flags parameter names inside type signatures
+    // (`onChange: (event: X) => void`) — the TS-aware rule replaces it.
     files: ['**/*.{ts,tsx}'],
     rules: {
       'no-undef': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { args: 'after-used', argsIgnorePattern: '^_' }],
     },
   },
 ]

@@ -65,7 +65,7 @@ describe('chatter query contracts', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <ChatterFootprintPanel chatter={{ value: 7, label: 'alice' }} />
+        <ChatterFootprintPanel chatter={{ value: 7, label: 'alice', isBot: false }} />
       </QueryClientProvider>,
     )
 

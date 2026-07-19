@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
+import type { FormEvent } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { useAuth, useStreamMessages } = vi.hoisted(() => ({
@@ -43,7 +44,9 @@ describe('UI orchestration failure contracts', () => {
     }))
 
     await act(async () => {
-      await result.current.handleSubmit({ preventDefault: vi.fn() })
+      await result.current.handleSubmit(
+        { preventDefault: vi.fn() } as unknown as FormEvent<HTMLFormElement>,
+      )
     })
 
     expect(result.current.validationError).toBe('')
