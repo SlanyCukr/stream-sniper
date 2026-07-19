@@ -1,23 +1,25 @@
 /**
- * Twitch VOD deep-link + chapter-list helpers. Kept separate from
- * chatRender.jsx so checkJs boundary files can import them without pulling the
- * (unchecked) chat-render module into the typecheck graph.
+ * Twitch VOD deep-link + chapter-list helpers, typed to the timeline wire
+ * contract (nullable stream start, unknown-typed phrase payloads) so callers
+ * never need casts.
  */
 
 /**
  * Build a twitch.tv VOD deep link that seeks to a moment's offset.
  *
  * @param twitchVodId - The VOD id
- * @param streamStart - ISO timestamp of the stream start
+ * @param streamStart - ISO timestamp of the stream start (nullable on the wire)
  * @param momentTs - ISO timestamp of the moment to seek to
- * @returns A twitch.tv/videos deep-link, or null when there is no VOD id
+ * @returns A twitch.tv/videos deep-link, or null when there is no VOD id or no
+ *   usable start time (an offset computed against a missing start would seek
+ *   to a nonsense position).
  */
 export const vodDeepLink = (
-    twitchVodId: string | number | null,
-    streamStart: string,
+    twitchVodId: string | number | null | undefined,
+    streamStart: string | null | undefined,
     momentTs: string,
 ): string | null => {
-    if (!twitchVodId) {
+    if (!twitchVodId || !streamStart) {
         return null
     }
     const startMs = new Date(streamStart).getTime()
@@ -34,8 +36,14 @@ export const vodDeepLink = (
 
 interface VodChaptersTimeline {
     twitchVodId: string | number | null
-    streamStart: string
-    moments: Array<{ t: string, count: number, topPhrases?: string[] | null }>
+    streamStart: string | null
+    moments: Array<{ t: string, count: number, topPhrases?: unknown[] | null }>
+}
+
+/** First phrase of a moment when it is a non-empty string; the wire types phrases as unknown[]. */
+const momentLabel = (topPhrases: unknown[] | null | undefined): string => {
+    const first = topPhrases?.[0]
+    return typeof first === 'string' && first ? first : 'chat spike'
 }
 
 /**
@@ -43,10 +51,10 @@ interface VodChaptersTimeline {
  * moment with its VOD offset, a label (top chat phrase when available), the
  * message count, and a Twitch deep link.
  *
- * @returns Chapter text, or null when there is no VOD or no moments
+ * @returns Chapter text, or null when there is no VOD, no start time, or no moments
  */
 export const buildVodChapters = (timeline: VodChaptersTimeline | null | undefined): string | null => {
-    if (!timeline?.twitchVodId || !timeline.moments?.length) {
+    if (!timeline?.twitchVodId || !timeline.streamStart || !timeline.moments?.length) {
         return null
     }
     const startMs = new Date(timeline.streamStart).getTime()
@@ -59,7 +67,7 @@ export const buildVodChapters = (timeline: VodChaptersTimeline | null | undefine
         const m = Math.floor((offset % 3600) / 60)
         const s = offset % 60
         const stamp = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-        const label = moment.topPhrases?.[0] || 'chat spike'
+        const label = momentLabel(moment.topPhrases)
         const link = vodDeepLink(timeline.twitchVodId, timeline.streamStart, moment.t)
         return `${stamp} — ${label} (${moment.count} msgs) ${link}`
     })

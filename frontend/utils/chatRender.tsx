@@ -1,4 +1,4 @@
-import React, { type JSX } from 'react'
+import { type JSX } from 'react'
 import Image from 'next/image'
 import { EMOTES } from '@/lib/bettertv_emotes'
 
@@ -80,11 +80,13 @@ export interface ParsedBadge {
 }
 
 /**
- * Parses a raw Twitch badges string ("moderator/1,subscriber/12") into structured,
- * render-ready entries. Returns [] for null/empty (legacy rows collected before
- * badge capture) so callers render nothing rather than a placeholder.
+ * Parses raw Twitch badges into structured, render-ready entries. The wire
+ * sends an array of badge tokens ("moderator/1"); legacy call sites pass the
+ * comma-joined string form — both stringify to the same "a/1,b/2" shape.
+ * Returns [] for null/empty (legacy rows collected before badge capture) so
+ * callers render nothing rather than a placeholder.
  */
-export const parseBadges = (badges: string | null | undefined): ParsedBadge[] => {
+export const parseBadges = (badges: unknown[] | string | null | undefined): ParsedBadge[] => {
     if (!badges) {
         return []
     }

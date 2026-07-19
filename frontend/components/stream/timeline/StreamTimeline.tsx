@@ -3,7 +3,7 @@ import {
     useCallback, useMemo, useState, type MouseEvent,
 } from 'react'
 import { Card } from 'react-bootstrap'
-import { vodDeepLink, type buildVodChapters } from '@/utils/vodChapters'
+import { vodDeepLink } from '@/utils/vodChapters'
 import { useAuth } from '@/contexts/AuthContext'
 import { useMomentReview } from '@/hooks/moments/useMomentsQueries'
 import { getHoverIndex, useTimelineGeometry } from '@/hooks/stream/timeline/useTimelineGeometry'
@@ -89,15 +89,7 @@ const StreamTimeline = ({ timeline, onJump }: StreamTimelineProps) => {
     if (geometry.bucketCount === 0) return null
 
     const vodHref = activeMoment
-        // vodDeepLink's declared params don't include `undefined` (only
-        // null/string), but `timeline` itself can be undefined while loading.
-        // The casts are type-only — the underlying runtime value (undefined,
-        // null, or a string) flows through unchanged.
-        ? vodDeepLink(
-            timeline?.twitchVodId as string | number | null,
-            timeline?.streamStart as string,
-            activeMoment.t,
-        )
+        ? vodDeepLink(timeline?.twitchVodId, timeline?.streamStart, activeMoment.t)
         : null
 
     return (
@@ -106,14 +98,7 @@ const StreamTimeline = ({ timeline, onJump }: StreamTimelineProps) => {
                 <div className="timeline-head">
                     <h3 id="timeline-heading" className="section-label mb-0">Chat activity</h3>
                     <span className="timeline-subtitle">messages / minute</span>
-                    <CopyChaptersButton
-                        // buildVodChapters expects `topPhrases: string[] | null` and a
-                        // non-null `streamStart`; the timeline query mapper types these
-                        // more loosely (unknown[] | null, string | null) since it can't
-                        // guarantee the API shape. The cast is type-only — the same
-                        // `timeline` object flows through unchanged (see also
-                        // TimelineSelection.tsx, which documents the same API shape).
-                        timeline={timeline as Parameters<typeof buildVodChapters>[0]} />
+                    <CopyChaptersButton timeline={timeline} />
                 </div>
                 <TimelineLanes
                     buckets={buckets}
