@@ -5,6 +5,7 @@ import {
 import { useStreamDetails } from '@/hooks/stream/list/useStreamsQuery'
 import { useStreamTimeline } from '@/hooks/stream/timeline/useStreamTimelineQuery'
 import { useStreamReplayController } from '@/hooks/stream/replay/useStreamReplayController'
+import CardLinkButton from '@/components/common/CardLinkButton'
 import QueryState from '@/components/common/QueryState'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
 import { uiError } from '@/utils/errorUtils'
@@ -66,10 +67,16 @@ const Stream = ({ streamId }) => {
                     <StreamInfoCard
                         streamInfoData={streamInfoData}
                         downloadMenu={(
-                            <StreamDownloadMenu
-                                streamId={streamId}
-                                title={streamInfoData.title}
-                            />
+                            <>
+                                <CardLinkButton
+                                    entity="stream"
+                                    id={streamId}
+                                />
+                                <StreamDownloadMenu
+                                    streamId={streamId}
+                                    title={streamInfoData.title}
+                                />
+                            </>
                         )}
                     />
 

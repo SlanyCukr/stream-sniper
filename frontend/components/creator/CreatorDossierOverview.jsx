@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import CardLinkButton from '@/components/common/CardLinkButton'
 import { formatTimeAgo } from '@/utils/dateUtils'
 import {
     formatCompactNumber, formatDurationHours,
@@ -30,6 +31,10 @@ const CreatorDossierOverview = ({ creator, creatorId }) => {
                     </div>
                 </div>
                 <div className="d-flex gap-2">
+                    <CardLinkButton
+                        entity="creator"
+                        id={creatorId}
+                    />
                     <Link className="btn btn-outline-primary btn-sm" href={`/creator/${creatorId}/wrapped`}>
                         Wrapped
                     </Link>
