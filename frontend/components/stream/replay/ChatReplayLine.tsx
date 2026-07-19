@@ -16,10 +16,7 @@ interface ChatReplayLineProps {
 const ChatReplayLine = ({
     message, isFlashing,
 }: ChatReplayLineProps) => {
-    // badges is wire-typed as unknown[], but parseBadges's declared string param
-    // relies on String()-coercion (Array#toString comma-joins) — pre-existing
-    // mismatch between chatRender.tsx and useStreamMessagesQuery.ts, not fixed here.
-    const badges = parseBadges(message.badges as unknown as string)
+    const badges = parseBadges(message.badges)
     return (
         <div className={`chat-line${isFlashing ? ' chat-line--flash' : ''}`} role="listitem">
             <span className="chat-timestamp" aria-hidden="true">{clockFromTs(message.ts)}</span>

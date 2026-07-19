@@ -1,7 +1,7 @@
 import {
     describe, expect, it,
 } from 'vitest'
-import { buildVodChapters } from '@/utils/vodChapters'
+import { buildVodChapters, vodDeepLink } from '@/utils/vodChapters'
 
 const timeline = {
     twitchVodId: 123456,
@@ -38,6 +38,22 @@ describe('buildVodChapters', () => {
             ...timeline,
             twitchVodId: null,
         })).toBeNull()
+    })
+
+    it('returns null without a stream start (offset would be nonsense)', () => {
+        expect(buildVodChapters({
+            ...timeline,
+            streamStart: null,
+        })).toBeNull()
+        expect(vodDeepLink(123456, null, '2026-07-16T17:12:00')).toBeNull()
+    })
+
+    it('labels non-string phrase payloads as chat spike instead of stringifying', () => {
+        const chapters = buildVodChapters({
+            ...timeline,
+            moments: [{ t: '2026-07-16T17:12:00', count: 9, topPhrases: [{ phrase: 'obj' }] }],
+        })
+        expect(chapters).toContain('— chat spike (9 msgs)')
     })
 
     it('returns null without moments', () => {
