@@ -1,6 +1,6 @@
 """Contract tests for chatter-passport application orchestration."""
 
-from stream_sniper.application.chatters import passport_query
+from stream_sniper.application.chatters import chatter_aggregates, passport_query
 from stream_sniper.application.chatters.passport_query import get_chatter_passport
 from stream_sniper.database.gateways.analytics.records import (
     ChatterActiveStreamRow,
@@ -14,11 +14,11 @@ from stream_sniper.database.gateways.creators.records import ChatterLoyaltyRow
 
 def _patch(monkeypatch, *, profile, loyalty, debut, active, time_bounds=None, companions=None) -> None:
     bounds = time_bounds if time_bounds is not None else ChatterTimeBoundsRow(None, None)
-    monkeypatch.setattr(passport_query, "select_chatter_profile_db", lambda _cid: profile)
-    monkeypatch.setattr(passport_query, "select_chatter_loyalty_db", lambda _cid: loyalty)
+    monkeypatch.setattr(chatter_aggregates, "select_chatter_profile_db", lambda _cid: profile)
+    monkeypatch.setattr(chatter_aggregates, "select_chatter_loyalty_db", lambda _cid: loyalty)
     monkeypatch.setattr(passport_query, "select_chatter_debut_db", lambda _cid: debut)
     monkeypatch.setattr(passport_query, "select_chatter_most_active_stream_db", lambda _cid: active)
-    monkeypatch.setattr(passport_query, "select_chatter_message_time_bounds_db", lambda _cid: bounds)
+    monkeypatch.setattr(chatter_aggregates, "select_chatter_message_time_bounds_db", lambda _cid: bounds)
     monkeypatch.setattr(passport_query, "select_chat_companions_db", lambda _cid: companions or [])
 
 

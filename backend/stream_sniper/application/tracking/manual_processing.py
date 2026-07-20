@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from ...database.gateways.streams.stream_table_gateway import stream_exists_by_twitch_vod_id_db
+from ...database.gateways.streams.stream_table_gateway import select_existing_twitch_vod_ids_db
 from ...database.gateways.tracking.processing_jobs_table_gateway import enqueue_processing_job_db
 from ...database.gateways.tracking.tracked_streamers_table_gateway import select_tracked_streamer_by_id_db
 from .models import TrackedStreamer
@@ -42,9 +42,11 @@ def enqueue_first_uncollected_vod(
     streamer_id: int,
     videos: Sequence[ArchivedVod],
 ) -> ManualProcessingOutcome:
+    # One batched existence read instead of a round trip per already-collected VOD.
+    collected = select_existing_twitch_vod_ids_db([int(video.twitch_vod_id) for video in videos])
     for video in videos:
         twitch_vod_id = int(video.twitch_vod_id)
-        if not stream_exists_by_twitch_vod_id_db(twitch_vod_id):
+        if twitch_vod_id not in collected:
             job_id = enqueue_processing_job_db(streamer_id, twitch_vod_id)
             if job_id is None:
                 return ManualProcessingOutcome(status="already_queued", video=video)

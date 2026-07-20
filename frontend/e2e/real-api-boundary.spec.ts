@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
+import { login } from './helpers'
 
 test.beforeAll(() => {
   execFileSync('../backend/.venv/bin/python', ['e2e/seed_real_analytics.py'], {
@@ -50,9 +51,7 @@ test('renders seeded stream analytics through Next and FastAPI', async ({ page }
 
 test('persists an admin tracking mutation through the real stack', async ({ page }) => {
   await page.goto('/login?from=/admin/tracking/streamers')
-  await page.getByLabel('Username').fill('e2e_admin')
-  await page.getByLabel('Password').fill(adminPassword)
-  await page.getByRole('button', { name: 'Login' }).click()
+  await login(page, 'e2e_admin', adminPassword)
 
   await expect(page).toHaveURL(/\/admin\/tracking\/streamers$/)
   const row = page.getByRole('row').filter({ hasText: 'e2e_operator' })

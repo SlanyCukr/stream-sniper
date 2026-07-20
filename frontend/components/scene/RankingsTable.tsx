@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Card, Table } from 'react-bootstrap'
-import { formatCompactNumber, magnitudeBarWidth } from '@/utils/numberUtils'
+import { formatCompactNumber, formatSharePct, magnitudeBarWidth } from '@/utils/numberUtils'
 import type { RankingsRow } from '@/hooks/scene/useSceneRankingsQueries'
 import ArchetypeBadges from '@/components/chatter/ArchetypeBadges'
 
@@ -85,7 +85,7 @@ const RankingsTable = ({
                                                         {row.homeChannel.creatorDisplayName}
                                                     </Link>
                                                     <span className="rankings-home-share mono small">
-                                                        {`${(row.homeChannel.share * 100).toFixed(1)}%`}
+                                                        {formatSharePct(row.homeChannel.share)}
                                                     </span>
                                                 </span>
                                             ) : (

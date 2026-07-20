@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import date, datetime
 from typing import cast
 
@@ -77,6 +78,18 @@ def stream_exists_by_twitch_vod_id_db(
 ) -> bool:
     cursor.execute("SELECT 1 FROM stream WHERE twitch_id = %s", (twitch_vod_id,))
     return cursor.fetchone() is not None
+
+
+@with_cursor
+def select_existing_twitch_vod_ids_db(
+    cursor: Cursor,
+    twitch_vod_ids: Sequence[int],
+) -> set[int]:
+    """Subset of the given Twitch VOD ids that already have a collected stream."""
+    if not twitch_vod_ids:
+        return set()
+    cursor.execute("SELECT twitch_id FROM stream WHERE twitch_id = ANY(%s)", (list(twitch_vod_ids),))
+    return {row[0] for row in cursor.fetchall()}
 
 
 @with_cursor

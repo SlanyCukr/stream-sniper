@@ -33,70 +33,71 @@ interface EmotesPanelProps {
  */
 const EmotesPanel = ({ streamId }: EmotesPanelProps) => {
     const query = useStreamEmotes(streamId)
-    const emotes = query.data?.emotes || []
 
     return (
         <StreamInsightPanel
             title="Top emotes"
             query={query}
-            hasItems={emotes.length > 0}
+            isEmpty={data => (data.emotes || []).length === 0}
             loadingText="Loading emotes..."
             errorTitle="Failed to load emotes"
             emptyTitle="No emotes"
             emptyHint="Emote rollups are still pending for this stream."
         >
-                    <ul
-                        className="emote-grid"
-                        role="list"
-                        aria-label="Top emotes">
-                        {emotes.map(emote => {
-                            const src = emoteImageSrc(emote)
-                            return (
-                                <li
-                                    key={`${emote.source}:${emote.name}`}
-                                    className="emote-cell"
-                                    aria-label={`${emote.name}: ${emote.usageCount} uses, ${emote.chatterCount} chatters`}>
-                                    <span className="emote-thumb">
-                                        {src
-                                            ? (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <img
-                                                    src={src}
-                                                    alt={emote.name}
-                                                    loading="lazy"
-                                                />
-                                            )
-                                            : (
-                                                <span
-                                                    className="emote-monogram"
-                                                    aria-hidden="true">
-                                                    {emote.name.slice(0, 2)}
-                                                </span>
-                                            )}
+            {data => (
+                <ul
+                    className="emote-grid"
+                    role="list"
+                    aria-label="Top emotes">
+                    {(data.emotes || []).map(emote => {
+                        const src = emoteImageSrc(emote)
+                        return (
+                            <li
+                                key={`${emote.source}:${emote.name}`}
+                                className="emote-cell"
+                                aria-label={`${emote.name}: ${emote.usageCount} uses, ${emote.chatterCount} chatters`}>
+                                <span className="emote-thumb">
+                                    {src
+                                        ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={src}
+                                                alt={emote.name}
+                                                loading="lazy"
+                                            />
+                                        )
+                                        : (
+                                            <span
+                                                className="emote-monogram"
+                                                aria-hidden="true">
+                                                {emote.name.slice(0, 2)}
+                                            </span>
+                                        )}
+                                </span>
+                                <span
+                                    className="emote-name"
+                                    title={emote.name}>
+                                    {emote.name}
+                                </span>
+                                <span
+                                    className="emote-counts"
+                                    aria-hidden="true">
+                                    <span
+                                        className="mono"
+                                        title="Total uses">
+                                        {emote.usageCount?.toLocaleString()}
                                     </span>
                                     <span
-                                        className="emote-name"
-                                        title={emote.name}>
-                                        {emote.name}
+                                        className="emote-chatters"
+                                        title="Distinct chatters">
+                                        {emote.chatterCount?.toLocaleString()} chatters
                                     </span>
-                                    <span
-                                        className="emote-counts"
-                                        aria-hidden="true">
-                                        <span
-                                            className="mono"
-                                            title="Total uses">
-                                            {emote.usageCount?.toLocaleString()}
-                                        </span>
-                                        <span
-                                            className="emote-chatters"
-                                            title="Distinct chatters">
-                                            {emote.chatterCount?.toLocaleString()} chatters
-                                        </span>
-                                    </span>
-                                </li>
-                            )
-                        })}
-                    </ul>
+                                </span>
+                            </li>
+                        )
+                    })}
+                </ul>
+            )}
         </StreamInsightPanel>
     )
 }

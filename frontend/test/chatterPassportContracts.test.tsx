@@ -203,7 +203,7 @@ describe('useChatterPassport query', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('maps and caches the passport under the authoritative key', async () => {
-    api.retrieveChatterPassport.mockResolvedValue({ data: fullPayload })
+    api.retrieveChatterPassport.mockResolvedValue(fullPayload)
     const queryClient = createClient()
     const hook = renderHook(() => useChatterPassport(7), {
       wrapper: createWrapper(queryClient),

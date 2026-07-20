@@ -1013,7 +1013,7 @@ class TestTriggerProcessingEndpoint:
         app.dependency_overrides.pop(get_current_admin_user, None)
 
     @patch("stream_sniper.application.tracking.manual_processing.enqueue_processing_job_db")
-    @patch("stream_sniper.application.tracking.manual_processing.stream_exists_by_twitch_vod_id_db")
+    @patch("stream_sniper.application.tracking.manual_processing.select_existing_twitch_vod_ids_db")
     @patch("stream_sniper.application.tracking.manual_processing.select_tracked_streamer_by_id_db")
     @patch("stream_sniper.api.features.tracking.tracking_job_endpoints.get_twitch_client")
     def test_trigger_processing_queues_newest_uncollected_vod(
@@ -1043,7 +1043,7 @@ class TestTriggerProcessingEndpoint:
         instance.get_archived_videos = AsyncMock(
             return_value=[ArchivedVideo(111, None, datetime(2024, 1, 15, 20), "newest vod", "1h", "")]
         )
-        mock_select_stream.return_value = False  # not collected yet
+        mock_select_stream.return_value = set()  # not collected yet
         mock_enqueue_job.return_value = 42
 
         self._override_admin()

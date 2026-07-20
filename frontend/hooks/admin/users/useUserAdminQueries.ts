@@ -116,7 +116,7 @@ export const useAdminSystemStats = (options: QueryOptions<AdminSystemStats> = {}
     ...options,
     queryKey: userAdminKeys.stats(),
     queryFn: async () => {
-        const { data } = await retrieveAdminSystemStats()
+        const data = await retrieveAdminSystemStats()
         return mapAdminSystemStats(data)
     },
 })
@@ -130,7 +130,7 @@ export const useAdminUsers = (
         ...options,
         queryKey: userAdminKeys.list(normalizedParams),
         queryFn: async () => {
-            const { data: value } = await retrieveUsers({
+            const value = await retrieveUsers({
                 rowOffset: getRowOffset(normalizedParams.pageIndex, normalizedParams.pageSize),
                 pageSize: normalizedParams.pageSize,
             })

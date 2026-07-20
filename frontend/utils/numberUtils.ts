@@ -1,3 +1,5 @@
+import { parseNaiveUtcEpoch } from '@/utils/dateUtils'
+
 const compactFormatter = new Intl.NumberFormat('en', {
     notation: 'compact',
     maximumFractionDigits: 1,
@@ -82,3 +84,21 @@ export const magnitudeBarWidth = (value: number, top: number): number => (
 export const shareBarWidth = (share: number): number => (
     Math.min(100, Math.max(2, Math.round(share * 100)))
 )
+
+/**
+ * Render a fractional share (0..1) as a single-decimal percentage string.
+ * The one formatting rule for share/jaccard/hit-rate percentages app-wide.
+ */
+export const formatSharePct = (share: number): string => `${(share * 100).toFixed(1)}%`
+
+/**
+ * Human uptime "2h 14m" / "43m" from a live session start, or null when unknown
+ * or the clock is skewed (negative elapsed). Shared by the live-now and radar cards.
+ */
+export const uptimeLabel = (startedAt: string | null): string | null => {
+    const start = parseNaiveUtcEpoch(startedAt)
+    if (start === null) return null
+    const elapsedMs = Date.now() - start
+    if (elapsedMs < 0) return null
+    return formatDurationHoursMinutes(elapsedMs / 1000)
+}

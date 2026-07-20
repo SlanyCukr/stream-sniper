@@ -5,6 +5,7 @@ import StreamGridSkeleton from '@/components/stream/list/StreamGridSkeleton'
 import ErrorDisplay from '@/components/stream/list/ErrorDisplay'
 import FiltersCard from '@/components/stream/list/FiltersCard'
 import Pagination from '@/components/common/pagination/Pagination'
+import EmptyState from '@/components/common/EmptyState'
 
 const AllStreams = () => {
     const {
@@ -49,15 +50,9 @@ const AllStreams = () => {
 
                     {streams.length === 0 ? (
                         <div className="card">
-                            <div className="empty-state">
-                                <div
-                                    className="empty-scope"
-                                    aria-hidden="true" />
-                                <p className="empty-title">No streams in scope</p>
-                                <p className="empty-hint">
-                                    No captured streams match this filter yet. Streams appear here once the collector has processed a VOD.
-                                </p>
-                            </div>
+                            <EmptyState title="No streams in scope">
+                                No captured streams match this filter yet. Streams appear here once the collector has processed a VOD.
+                            </EmptyState>
                         </div>
                     ) : (
                         <div className="stream-grid">

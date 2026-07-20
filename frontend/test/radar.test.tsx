@@ -126,7 +126,7 @@ describe('scene radar view-model contract', () => {
 
   it('fetches through the polling hook and maps the payload', async () => {
     api.retrieveSceneRadar.mockResolvedValue({
-      data: { generated_at: '2026-07-18T14:03:00', channels: [spikingChannel] },
+      generated_at: '2026-07-18T14:03:00', channels: [spikingChannel],
     })
     const { result } = renderHook(() => useSceneRadar(), { wrapper: createWrapper() })
 
@@ -136,7 +136,7 @@ describe('scene radar view-model contract', () => {
   })
 
   it('surfaces a malformed radar response as a boundary TypeError', async () => {
-    api.retrieveSceneRadar.mockResolvedValue({ data: {} })
+    api.retrieveSceneRadar.mockResolvedValue({})
     const { result } = renderHook(() => useSceneRadar(), { wrapper: createWrapper() })
 
     await waitFor(() => expect(result.current.isError).toBe(true))

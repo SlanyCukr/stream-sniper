@@ -69,11 +69,11 @@ def _emote():
 def _patch(*, exists=True, **overrides):
     defaults = {
         "select_creator_wrapped_totals_db": _totals(),
-        "select_creator_active_chatters_db": 0,
+        "select_scene_active_chatters_db": 0,
         "select_creator_wrapped_chatters_db": ([], False),
         "select_scene_highlights_db": ([], False),
         "select_scene_copypastas_db": ([], 0),
-        "select_creator_wrapped_emotes_db": [],
+        "select_scene_emotes_db": [],
     }
     defaults.update(overrides)
     stack = ExitStack()
@@ -92,7 +92,7 @@ def test_unknown_creator_raises_not_found():
 def test_totals_and_active_chatters_passthrough():
     with _patch(
         select_creator_wrapped_totals_db=_totals(streams=5, hours=12.0, messages=2000),
-        select_creator_active_chatters_db=42,
+        select_scene_active_chatters_db=42,
     ):
         wrapped = get_creator_wrapped(5, 30)
 
@@ -131,7 +131,7 @@ def test_moment_twitch_id_stringified_and_copypasta_emote_flow():
     with _patch(
         select_scene_highlights_db=([_highlight()], False),
         select_scene_copypastas_db=([_copypasta()], 1),
-        select_creator_wrapped_emotes_db=[_emote()],
+        select_scene_emotes_db=[_emote()],
     ):
         wrapped = get_creator_wrapped(5, 30)
 

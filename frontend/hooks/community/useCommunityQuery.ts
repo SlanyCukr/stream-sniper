@@ -63,7 +63,7 @@ export const useCommunityOverlap = (
     queryKey: communityKeys.overlap(limit),
     queryFn: async (): Promise<CommunityOverlap> => {
         const response = await retrieveCommunityOverlap(limit)
-        const data = requireRecord(response.data, 'community overlap')
+        const data = requireRecord(response, 'community overlap')
         // Element shape isn't re-validated per item here, matching pre-migration behavior.
         const creators = requireArrayField(data, 'creators', 'community overlap') as OverlapCreatorDto[]
         const pairs = requireArrayField(data, 'pairs', 'community overlap') as OverlapPairDto[]
@@ -99,7 +99,7 @@ export const useCreatorNeighbors = (
     queryFn: async (): Promise<CreatorNeighbors> => {
         // creatorId is guaranteed non-null here — `enabled` below gates the query.
         const response = await retrieveCreatorNeighbors(creatorId as number, { metric, limit })
-        const data = requireRecord(response.data, 'creator neighbors')
+        const data = requireRecord(response, 'creator neighbors')
         const neighbors = requireArrayField(data, 'neighbors', 'creator neighbors') as CreatorNeighborDto[]
         return {
             neighbors: neighbors.map(n => ({

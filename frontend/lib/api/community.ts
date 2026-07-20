@@ -1,4 +1,4 @@
-import { api, buildQuery } from './client'
+import { getJson } from './client'
 
 export interface OverlapCreatorDto {
   creator_id: number
@@ -59,18 +59,18 @@ export interface CreatorHeadToHeadDto {
 }
 
 export const retrieveCommunityOverlap = (limit = 40) =>
-  api.get<CommunityOverlapDto>(`/community/overlap?${buildQuery({ limit })}`)
+  getJson<CommunityOverlapDto>('/community/overlap', { limit })
 
 export const retrieveCreatorNeighbors = (
   creatorId: number,
   request: { metric?: 'regulars' | 'chatters', limit?: number } = {},
-) => api.get<CreatorNeighborsDto>(`/community/creators/${creatorId}/neighbors?${buildQuery({
+) => getJson<CreatorNeighborsDto>(`/community/creators/${creatorId}/neighbors`, {
   metric: request.metric,
   limit: request.limit,
-})}`)
+})
 
 export const retrieveCreatorHeadToHead = (creatorA: number, creatorB: number) =>
-  api.get<CreatorHeadToHeadDto>(`/community/head-to-head?${buildQuery({
+  getJson<CreatorHeadToHeadDto>('/community/head-to-head', {
     creator_a: creatorA,
     creator_b: creatorB,
-  })}`)
+  })

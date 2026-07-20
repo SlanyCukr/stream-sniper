@@ -1,55 +1,61 @@
 import type { ReactNode } from 'react'
 import { Card } from 'react-bootstrap'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
+import QueryState from '@/components/common/QueryState'
 
-interface StreamInsightQuery {
+interface StreamInsightQuery<TData> {
+    data?: TData
     isLoading: boolean
     error: Error | null
     refetch: () => unknown
 }
 
-interface StreamInsightPanelProps {
+interface StreamInsightPanelProps<TData> {
     title: string
-    query: StreamInsightQuery
-    hasItems: boolean
+    query: StreamInsightQuery<TData>
+    /** Predicate deciding the empty slot (rollup not yet run / nothing found). */
+    isEmpty: (data: TData) => boolean
     loadingText: string
     errorTitle: string
     emptyTitle: string
     emptyHint: string
-    children: ReactNode
+    /** Render prop for resolved data, per the QueryState convention. */
+    children: (data: TData) => ReactNode
 }
 
-const StreamInsightPanel = ({
+/**
+ * Titled insight card whose loading / error / empty / content branching is
+ * delegated to QueryState (single policy: stale non-empty data survives a
+ * transient refetch error instead of being blanked by it).
+ */
+const StreamInsightPanel = <TData,>({
     title,
     query,
-    hasItems,
+    isEmpty,
     loadingText,
     errorTitle,
     emptyTitle,
     emptyHint,
     children,
-}: StreamInsightPanelProps) => (
+}: StreamInsightPanelProps<TData>) => (
     <Card className="insight-panel">
         <Card.Body>
             <h3 className="section-label mb-3">{title}</h3>
-            {query.isLoading ? <LoadingSpinner size="md" text={loadingText} /> : null}
-            {query.error && !query.isLoading ? (
-                <ErrorAlert
-                    error={query.error}
-                    title={errorTitle}
-                    onRetry={query.refetch}
-                    showDetails={process.env.NODE_ENV === 'development'}
-                />
-            ) : null}
-            {!query.isLoading && !query.error && !hasItems ? (
-                <div className="empty-state">
-                    <div className="empty-scope" aria-hidden="true" />
-                    <p className="empty-title">{emptyTitle}</p>
-                    <p className="empty-hint">{emptyHint}</p>
-                </div>
-            ) : null}
-            {!query.isLoading && !query.error && hasItems ? children : null}
+            <QueryState
+                query={query}
+                loadingSize="md"
+                loadingText={loadingText}
+                errorTitle={errorTitle}
+                isEmpty={isEmpty}
+                emptyState={(
+                    <div className="empty-state">
+                        <div className="empty-scope" aria-hidden="true" />
+                        <p className="empty-title">{emptyTitle}</p>
+                        <p className="empty-hint">{emptyHint}</p>
+                    </div>
+                )}
+            >
+                {children}
+            </QueryState>
         </Card.Body>
     </Card>
 )

@@ -2,21 +2,19 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
 import Select from 'react-select'
 import QueryState from '@/components/common/QueryState'
 import { useCreatorHeadToHead, type CreatorHeadToHead, type HeadToHeadSide } from '@/hooks/community/useHeadToHeadQuery'
 import { mapCreatorOption, useCreators } from '@/hooks/creator/useCreatorsQuery'
+import { useVersusPairUrl } from '@/hooks/community/useVersusPairUrl'
 import { formatDate } from '@/utils/dateUtils'
-import { shareBarWidth } from '@/utils/numberUtils'
+import { formatSharePct, shareBarWidth } from '@/utils/numberUtils'
 
 const formatShare = (share: number | null): string => (
-    share === null ? '—' : `${(share * 100).toFixed(1)}%`
+    share === null ? '—' : formatSharePct(share)
 )
 
-const formatJaccard = (value: number | null): string => (
-    value === null ? '—' : `${(value * 100).toFixed(1)}%`
-)
+const formatJaccard = formatShare
 
 interface SideCardProps {
     side: HeadToHeadSide
@@ -110,8 +108,7 @@ const Versus = ({ initialA = null, initialB = null }: VersusProps) => {
     const [creatorA, setCreatorA] = useState<number | null>(initialA)
     const [creatorB, setCreatorB] = useState<number | null>(initialB)
     const [metric, setMetric] = useState<'chatters' | 'regulars'>('chatters')
-    const router = useRouter()
-    const pathname = usePathname()
+    const syncPairUrl = useVersusPairUrl()
 
     const creatorsQuery = useCreators()
     const options = useMemo(
@@ -126,12 +123,7 @@ const Versus = ({ initialA = null, initialB = null }: VersusProps) => {
         const nextB = side === 'b' ? value : creatorB
         if (side === 'a') setCreatorA(value)
         else setCreatorB(value)
-        // Keep the matchup deep-linkable without triggering a navigation/remount.
-        const params = new URLSearchParams()
-        if (nextA) params.set('a', String(nextA))
-        if (nextB) params.set('b', String(nextB))
-        const query = params.toString()
-        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+        syncPairUrl(nextA, nextB)
     }
 
     const samePick = creatorA !== null && creatorA === creatorB

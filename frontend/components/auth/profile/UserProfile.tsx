@@ -1,8 +1,9 @@
 'use client'
 
 import {
-    Alert, Card, Form, Spinner,
+    Alert, Card, Form,
 } from 'react-bootstrap'
+import { AuthenticationLoadingState } from '@/components/auth/guards/AuthenticatedGuard'
 import { useUserProfile } from '@/hooks/auth/useUserProfile'
 import ProfileInfo from './ProfileInfo'
 import ProfileActions from './ProfileActions'
@@ -12,11 +13,7 @@ const UserProfile = () => {
     const profile = useUserProfile()
 
     if (profile.isInitializing) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '300px' }}>
-                <Spinner animation="border" variant="primary" />
-            </div>
-        )
+        return <AuthenticationLoadingState />
     }
 
     return (

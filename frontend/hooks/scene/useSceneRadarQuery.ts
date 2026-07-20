@@ -91,7 +91,7 @@ export const useSceneRadar = (options: RadarQueryOptions = {}) => {
     return useQuery({
         ...queryOptions,
         queryKey: sceneKeys.radar(),
-        queryFn: async () => mapSceneRadar((await retrieveSceneRadar()).data),
+        queryFn: async () => mapSceneRadar(await retrieveSceneRadar()),
         enabled,
         refetchInterval,
     })

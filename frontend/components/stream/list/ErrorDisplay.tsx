@@ -30,7 +30,6 @@ const ErrorDisplay = React.memo(({
                     title="Failed to load streams"
                     onRetry={onRetryStreams}
                     className="mb-2"
-                    showDetails={process.env.NODE_ENV === 'development'}
                 />
             )}
             {creatorsError && (
@@ -38,7 +37,6 @@ const ErrorDisplay = React.memo(({
                     error={creatorsError}
                     title="Failed to load creators"
                     onRetry={onRetryCreators}
-                    showDetails={process.env.NODE_ENV === 'development'}
                 />
             )}
         </div>

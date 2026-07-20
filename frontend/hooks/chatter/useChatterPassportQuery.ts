@@ -10,6 +10,7 @@ import {
     requireStringField,
 } from '@/lib/api/contractGuards'
 import { chattersKeys } from './useChattersQuery'
+import { mapArchetypeBadges, mapHomeChannel, type ChatterHomeChannel } from './wireShapes'
 
 interface PassportDebut {
     streamId: number
@@ -18,13 +19,7 @@ interface PassportDebut {
     time: string
 }
 
-interface PassportHomeChannel {
-    creatorId: number
-    creatorNick: string
-    creatorDisplayName: string
-    messages: number
-    share: number
-}
+type PassportHomeChannel = ChatterHomeChannel
 
 interface PassportLoyaltyRow {
     creatorId: number
@@ -72,11 +67,9 @@ export interface ChatterPassport {
     companions: PassportCompanion[]
 }
 
-/**
- * Render a fractional share (0..1) as a single-decimal percentage string.
- * Pure so the passport card and its tests share one formatting rule.
- */
-export const formatSharePct = (share: number): string => `${(share * 100).toFixed(1)}%`
+// Re-exported so existing passport imports/tests are unaffected by the
+// numberUtils consolidation (same pattern as shareBarWidth below).
+export { formatSharePct } from '@/utils/numberUtils'
 
 /**
  * Bar width (2..100) for a fractional share, clamped so tiny shares stay
@@ -94,19 +87,6 @@ const mapDebut = (raw: unknown): PassportDebut | null => {
         streamTitle: requireStringField(debut, 'stream_title', label),
         creatorDisplayName: requireStringField(debut, 'creator_display_name', label),
         time: requireStringField(debut, 'time', label),
-    }
-}
-
-const mapHomeChannel = (raw: unknown): PassportHomeChannel | null => {
-    if (raw === null) return null
-    const label = 'chatter passport.home_channel'
-    const home = requireRecord(raw, label)
-    return {
-        creatorId: requireFiniteNumberField(home, 'creator_id', label),
-        creatorNick: requireStringField(home, 'creator_nick', label),
-        creatorDisplayName: requireStringField(home, 'creator_display_name', label),
-        messages: requireFiniteNumberField(home, 'messages', label),
-        share: requireFiniteNumberField(home, 'share', label),
     }
 }
 
@@ -166,20 +146,12 @@ export const mapChatterPassport = (value: unknown): ChatterPassport => {
             lastSeen: requireNullableStringField(totals, 'last_seen', 'chatter passport.totals'),
         },
         debut: mapDebut(root.debut),
-        homeChannel: mapHomeChannel(root.home_channel),
+        homeChannel: mapHomeChannel(root.home_channel, 'chatter passport.home_channel'),
         loyalty: requireArrayField(root, 'loyalty', 'chatter passport').map(mapLoyaltyRow),
         milestones: {
             mostActiveStream: mapMostActiveStream(milestones.most_active_stream),
         },
-        archetypes: requireArrayField(root, 'archetypes', 'chatter passport').map((raw, index) => {
-            const label = `chatter passport.archetypes[${index}]`
-            const badge = requireRecord(raw, label)
-            return {
-                key: requireStringField(badge, 'key', label),
-                label: requireStringField(badge, 'label', label),
-                description: requireStringField(badge, 'description', label),
-            }
-        }),
+        archetypes: mapArchetypeBadges(root, 'chatter passport'),
         companions: requireArrayField(root, 'companions', 'chatter passport').map(mapCompanion),
     }
 }
@@ -205,7 +177,7 @@ export const useChatterPassport = (
     queryKey: chatterPassportKeys.passport(chatterId),
     queryFn: async () => {
         const response = await retrieveChatterPassport(chatterId)
-        return mapChatterPassport(response.data)
+        return mapChatterPassport(response)
     },
     enabled: Number.isInteger(chatterId) && chatterId > 0 && enabled,
 })

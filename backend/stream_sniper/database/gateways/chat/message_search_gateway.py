@@ -25,6 +25,7 @@ from typing import NamedTuple
 from psycopg2.extensions import cursor as Cursor
 
 from ...core.decorators import with_cursor
+from ...core.wire_format import to_char_wire_us
 
 # Cap on matching deduplicated-text ids pulled through the trigram index before the
 # join into message. Bounds worst-case work for ultra-common substrings. The capped
@@ -43,7 +44,7 @@ _LIKE_MATCH = (
 
 _HIT_COLUMNS = (
     "m.id, "
-    "TO_CHAR(m.time, 'YYYY-MM-DD\"T\"HH24:MI:SS.US'), "
+    f"{to_char_wire_us('m.time')}, "
     "m.chatter_id, c.nick, c.is_bot, "
     "s.id, s.title, "
     "cr.id, cr.nick, cr.display_name, "

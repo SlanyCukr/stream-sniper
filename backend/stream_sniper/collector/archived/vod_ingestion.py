@@ -6,19 +6,19 @@ from ...analytics.rollups.rollup_engine import RollupOutcome, compute_stream_rol
 from ...database.gateways.chat.chatter_table_gateway import (
     find_or_insert_chatter_id_db,
     insert_new_chatters_db,
-    select_all_chatters_db,
+    select_chatter_ids_by_nicks_db,
 )
 from ...database.gateways.chat.emote_dictionary_table_gateway import upsert_twitch_emotes_db
 from ...database.gateways.chat.message_table_gateway import insert_message_db
 from ...database.gateways.chat.message_text_table_gateway import (
     insert_message_texts_db,
-    select_all_message_texts_db,
+    select_message_text_ids_db,
 )
 from ...database.gateways.streams.stream_table_gateway import update_stream_message_count_db
 from .archived_stream import ensure_archived_stream_db
 from .chat_parser import TwitchChatParser
 from .database_buffer import DatabaseBuffer
-from .message_rows import build_message_rows
+from .message_rows import build_message_rows, collect_mention_nicks
 from .twitch_archived_chat import ArchivedChatMessage
 from .twitch_vod_chat_downloader import VodChatStream
 
@@ -54,11 +54,14 @@ class VodIngestionPipeline:
         batch = self.parser.parse_batch(payloads)
         insert_new_chatters_db(list(batch.unique_nicks))
         insert_message_texts_db(list(batch.unique_messages))
+        # Batch-scoped lookups (plus @mention targets from earlier streams) instead
+        # of reloading the ever-growing chatter/message_text tables per batch.
+        lookup_nicks = sorted({*batch.unique_nicks, *collect_mention_nicks(batch)})
         persisted = build_message_rows(
             batch,
             stream_id,
-            select_all_chatters_db(),
-            select_all_message_texts_db(),
+            select_chatter_ids_by_nicks_db(lookup_nicks),
+            select_message_text_ids_db(list(batch.unique_messages)),
         )
         for row in persisted.rows:
             self.message_buffer.add_item(row)

@@ -188,7 +188,7 @@ export const useStreamReport = (
     queryKey: streamReportKeys.detail(streamId),
     queryFn: async () => {
         const response = await retrieveStreamReport(streamId)
-        return mapStreamReport(response.data)
+        return mapStreamReport(response)
     },
     enabled: Boolean(streamId) && enabled,
     // Hold the previous render during refetch — no skeleton flash.

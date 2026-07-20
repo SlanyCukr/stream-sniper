@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import Link from 'next/link'
 import { Card } from 'react-bootstrap'
 import { useSceneDigest, useScenePulse } from '@/hooks/scene/useScenePulseQueries'
@@ -27,15 +28,11 @@ const icon = (type: string): string => ICONS[type] || 'bi-activity'
 const ScenePulse = () => {
     const [eventType, setEventType] = useState('')
     const [days, setDays] = useState(7)
-    const [copied, setCopied] = useState(false)
+    const { copied, copy } = useCopyToClipboard(1500)
     const pulse = useScenePulse({ days, eventType: eventType || undefined, limit: 100 })
     const digest = useSceneDigest({ days })
 
-    const copyDigest = async () => {
-        await navigator.clipboard.writeText(digest.data || '')
-        setCopied(true)
-        window.setTimeout(() => setCopied(false), 1500)
-    }
+    const copyDigest = () => void copy(digest.data || '')
 
     return (
         <>

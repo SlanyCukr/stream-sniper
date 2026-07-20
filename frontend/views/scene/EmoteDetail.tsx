@@ -10,11 +10,7 @@ import {
     type EmoteWeeklyUsage,
 } from '@/hooks/scene/useEmoteDetailQuery'
 import { formatCompactNumber, magnitudeBarWidth } from '@/utils/numberUtils'
-import { formatDate } from '@/utils/dateUtils'
-
-const dateLabel = (value: string | null, mask = 'MMM d, yyyy'): string => (
-    value ? formatDate(value, mask) : '—'
-)
+import { formatDate, formatDateOrDash } from '@/utils/dateUtils'
 
 /** Weekly bars keyed off the busiest week so the trend reads at a glance. */
 const WeeklyTrend = ({ weeks }: { weeks: EmoteWeeklyUsage[] }) => {
@@ -76,11 +72,11 @@ const EmoteDetailBody = ({ data }: { data: EmoteDetailData }) => {
                 </div>
                 <div className="stat-tile">
                     <div className="stat-label">First seen</div>
-                    <div className="stat-value stat-value-date">{dateLabel(data.meta.firstSeen)}</div>
+                    <div className="stat-value stat-value-date">{formatDateOrDash(data.meta.firstSeen)}</div>
                 </div>
                 <div className="stat-tile">
                     <div className="stat-label">Last used</div>
-                    <div className="stat-value stat-value-date">{dateLabel(data.totals.lastUsed)}</div>
+                    <div className="stat-value stat-value-date">{formatDateOrDash(data.totals.lastUsed)}</div>
                 </div>
             </div>
 
@@ -155,7 +151,7 @@ const EmoteDetailBody = ({ data }: { data: EmoteDetailData }) => {
                                         </Link>
                                     </td>
                                     <td>{row.creatorDisplayName || row.creatorNick}</td>
-                                    <td className="mono text-end">{dateLabel(row.start, 'MMM d')}</td>
+                                    <td className="mono text-end">{formatDateOrDash(row.start, 'MMM d')}</td>
                                     <td className="mono text-end">{formatCompactNumber(row.usage)}</td>
                                     <td className="mono text-end">{formatCompactNumber(row.chatterCount)}</td>
                                 </tr>

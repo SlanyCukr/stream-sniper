@@ -1,28 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
+import type { ArchetypeBadge } from '@/components/chatter/ArchetypeBadges'
 import { retrieveChatterHeadToHead } from '@/lib/api/chatter'
 import {
-    requireArrayField,
     requireFiniteNumberField,
     requireNullableBooleanField,
     requireNullableStringField,
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+import { mapArchetypeBadges, mapHomeChannel, type ChatterHomeChannel } from './wireShapes'
 
-export interface ChatterVersusHomeChannel {
-    creatorId: number
-    creatorNick: string
-    creatorDisplayName: string
-    messages: number
-    /** messages / side total, rounded server-side to 4 places. */
-    share: number
-}
+export type ChatterVersusHomeChannel = ChatterHomeChannel
 
-export interface ChatterVersusArchetype {
-    key: string
-    label: string
-    description: string
-}
+export type ChatterVersusArchetype = ArchetypeBadge
 
 export interface ChatterVersusSide {
     chatterId: number
@@ -57,9 +47,6 @@ const chatterVersusKeys = {
 
 const mapSide = (value: unknown, label: string): ChatterVersusSide => {
     const side = requireRecord(value, label)
-    const homeChannel = side.home_channel === null || side.home_channel === undefined
-        ? null
-        : requireRecord(side.home_channel, `${label}.home_channel`)
     return {
         chatterId: requireFiniteNumberField(side, 'chatter_id', label),
         nick: requireStringField(side, 'nick', label),
@@ -69,22 +56,8 @@ const mapSide = (value: unknown, label: string): ChatterVersusSide => {
         creatorsVisited: requireFiniteNumberField(side, 'creators_visited', label),
         firstSeen: requireNullableStringField(side, 'first_seen', label),
         lastSeen: requireNullableStringField(side, 'last_seen', label),
-        homeChannel: homeChannel === null ? null : {
-            creatorId: requireFiniteNumberField(homeChannel, 'creator_id', `${label}.home_channel`),
-            creatorNick: requireStringField(homeChannel, 'creator_nick', `${label}.home_channel`),
-            creatorDisplayName: requireStringField(homeChannel, 'creator_display_name', `${label}.home_channel`),
-            messages: requireFiniteNumberField(homeChannel, 'messages', `${label}.home_channel`),
-            share: requireFiniteNumberField(homeChannel, 'share', `${label}.home_channel`),
-        },
-        archetypes: requireArrayField(side, 'archetypes', label).map((entry, index) => {
-            const badgeLabel = `${label}.archetypes[${index}]`
-            const badge = requireRecord(entry, badgeLabel)
-            return {
-                key: requireStringField(badge, 'key', badgeLabel),
-                label: requireStringField(badge, 'label', badgeLabel),
-                description: requireStringField(badge, 'description', badgeLabel),
-            }
-        }),
+        homeChannel: mapHomeChannel(side.home_channel, `${label}.home_channel`),
+        archetypes: mapArchetypeBadges(side, label),
     }
 }
 
@@ -102,11 +75,9 @@ export const useChatterHeadToHead = (
     chatterA: number | null,
     chatterB: number | null,
 ) => useQuery({
-    queryKey: chatterA && chatterB
-        ? chatterVersusKeys.pair(chatterA, chatterB)
-        : [...chatterVersusKeys.all, { a: chatterA, b: chatterB }],
+    queryKey: chatterVersusKeys.pair(chatterA ?? 0, chatterB ?? 0),
     queryFn: async () => mapChatterHeadToHead(
-        (await retrieveChatterHeadToHead(chatterA as number, chatterB as number)).data,
+        await retrieveChatterHeadToHead(chatterA as number, chatterB as number),
     ),
     enabled: Boolean(chatterA) && Boolean(chatterB) && chatterA !== chatterB,
 })

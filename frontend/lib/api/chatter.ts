@@ -1,4 +1,5 @@
-import { api, buildQuery } from './client'
+import { getJson } from './client'
+import type { ArchetypeBadgeDto, HomeChannelDto } from './sharedDtos'
 
 export interface ChatterMessagePageDto {
   messages: Array<{
@@ -27,15 +28,16 @@ export type ChatterStreamActivityDto = Array<{
 export const retrieveChatterMessages = (
   chatterId: number,
   { rowOffset = 0, pageSize = 50 }: { rowOffset?: number, pageSize?: number } = {},
-) => api.get<ChatterMessagePageDto>(
-  `/chatters/${chatterId}/messages?${buildQuery({ offset: rowOffset, limit: pageSize })}`,
+) => getJson<ChatterMessagePageDto>(
+  `/chatters/${chatterId}/messages`,
+  { offset: rowOffset, limit: pageSize },
 )
 
 export const retrieveChatterSearch = (query: string, limit = 10) =>
-  api.get<ChatterSearchDto>(`/chatters/search?${buildQuery({ q: query, limit })}`)
+  getJson<ChatterSearchDto>('/chatters/search', { q: query, limit })
 
 export const retrieveChatterStreamActivity = (chatterId: number) =>
-  api.get<ChatterStreamActivityDto>(`/chatters/${chatterId}/stream-activity`)
+  getJson<ChatterStreamActivityDto>(`/chatters/${chatterId}/stream-activity`)
 
 export interface ChatterPassportDto {
   chatter: {
@@ -57,13 +59,7 @@ export interface ChatterPassportDto {
     creator_display_name: string
     time: string
   } | null
-  home_channel: {
-    creator_id: number
-    creator_nick: string
-    creator_display_name: string
-    messages: number
-    share: number
-  } | null
+  home_channel: HomeChannelDto | null
   loyalty: Array<{
     creator_id: number
     creator_nick: string
@@ -81,16 +77,12 @@ export interface ChatterPassportDto {
     } | null
   }
   // Rule-based identity badges derived from the passport's own data. Always present
-  // (empty array when no badge applies); each entry is a stable key + label + reason.
-  archetypes: Array<{
-    key: string
-    label: string
-    description: string
-  }>
+  // (empty array when no badge applies).
+  archetypes: ArchetypeBadgeDto[]
 }
 
 export const retrieveChatterPassport = (chatterId: number) =>
-  api.get<ChatterPassportDto>(`/chatters/${chatterId}/passport`)
+  getJson<ChatterPassportDto>(`/chatters/${chatterId}/passport`)
 
 // ---------------------------------------------------------------------------
 // Chatter head-to-head — GET /chatters/head-to-head
@@ -105,14 +97,8 @@ interface ChatterHeadToHeadSideDto {
   creators_visited: number
   first_seen: string | null
   last_seen: string | null
-  home_channel: {
-    creator_id: number
-    creator_nick: string
-    creator_display_name: string
-    messages: number
-    share: number
-  } | null
-  archetypes: Array<{ key: string, label: string, description: string }>
+  home_channel: HomeChannelDto | null
+  archetypes: ArchetypeBadgeDto[]
 }
 
 export interface ChatterHeadToHeadDto {
@@ -123,4 +109,4 @@ export interface ChatterHeadToHeadDto {
 }
 
 export const retrieveChatterHeadToHead = (chatterA: number, chatterB: number) =>
-  api.get<ChatterHeadToHeadDto>(`/chatters/head-to-head?${buildQuery({ chatter_a: chatterA, chatter_b: chatterB })}`)
+  getJson<ChatterHeadToHeadDto>('/chatters/head-to-head', { chatter_a: chatterA, chatter_b: chatterB })

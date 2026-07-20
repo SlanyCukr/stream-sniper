@@ -3,6 +3,8 @@
 from datetime import datetime
 from typing import NamedTuple
 
+from ...core.wire_format import to_char_wire_us
+
 
 class MessageReplayRow(NamedTuple):
     id: int
@@ -12,6 +14,15 @@ class MessageReplayRow(NamedTuple):
     text: str
     is_subscriber: bool | None
     badges: str | None
+
+
+# Shared replay projection — kept beside MessageReplayRow because the column
+# order must match its field order (replay + export gateways both build from it).
+REPLAY_COLUMNS = (
+    f"m.id, {to_char_wire_us('m.time')}, m.chatter_id, c.nick, mt.text, "
+    "m.is_subscriber, m.badges"
+)
+REPLAY_JOINS = "FROM message m\nJOIN chatter c ON c.id = m.chatter_id\nJOIN message_text mt ON mt.id = m.message_text_id"
 
 
 class ChatterMessageRow(NamedTuple):

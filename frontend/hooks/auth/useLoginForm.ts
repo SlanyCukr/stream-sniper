@@ -18,12 +18,7 @@ const validate = (form: LoginFormData) => {
 }
 
 export const useLoginForm = (onSuccess?: () => void) => {
-    // AuthContext.tsx is mid-migration and not yet typed upstream; assert the
-    // subset of its value this hook relies on.
-    const { login, isInitializing } = useAuth() as {
-        login: (username: string, password: string) => Promise<void>
-        isInitializing: boolean
-    }
+    const { login, isInitializing } = useAuth()
     return useAuthFormSubmit({
         initialForm: INITIAL_FORM,
         validate,

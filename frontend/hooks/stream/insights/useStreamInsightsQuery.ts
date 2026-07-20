@@ -148,7 +148,7 @@ export const useStreamMentions = (
     queryKey: streamInsightsKeys.mentions(streamId, limit),
     queryFn: async () => {
         const response = await retrieveStreamMentions(streamId, limit)
-        return mapStreamMentions(response.data)
+        return mapStreamMentions(response)
     },
     enabled: Boolean(streamId) && enabled,
 })
@@ -162,7 +162,7 @@ export const useStreamEmotes = (
     queryKey: streamInsightsKeys.emotes(streamId, limit),
     queryFn: async () => {
         const response = await retrieveStreamEmotes(streamId, limit)
-        return mapStreamEmotes(response.data)
+        return mapStreamEmotes(response)
     },
     enabled: Boolean(streamId) && enabled,
 })
@@ -176,7 +176,7 @@ export const useStreamPhrases = (
     queryKey: streamInsightsKeys.phrases(streamId, limit),
     queryFn: async () => {
         const response = await retrieveStreamPhrases(streamId, limit)
-        return mapStreamPhrases(response.data)
+        return mapStreamPhrases(response)
     },
     enabled: Boolean(streamId) && enabled,
 })
@@ -190,7 +190,7 @@ export const useCreatorEmotes = (
     queryKey: streamInsightsKeys.creatorEmotes(creatorId, limit),
     queryFn: async () => {
         const response = await retrieveCreatorEmotes(creatorId, limit)
-        const data = requireRecord(response.data, 'creator emotes')
+        const data = requireRecord(response, 'creator emotes')
         return {
             emotes: requireArrayField(data, 'emotes', 'creator emotes')
                 .map((emote, index) => mapEmote(emote, `creator emotes.emotes[${index}]`)),

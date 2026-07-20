@@ -118,6 +118,6 @@ export const mapEmoteDetail = (value: unknown): EmoteDetail => {
 
 export const useEmoteDetail = (emoteId: number | null) => useQuery({
     queryKey: sceneKeys.emoteDetail(emoteId ?? 0),
-    queryFn: async () => mapEmoteDetail((await retrieveEmoteDetail(emoteId as number)).data),
+    queryFn: async () => mapEmoteDetail(await retrieveEmoteDetail(emoteId as number)),
     enabled: emoteId !== null && emoteId > 0,
 })

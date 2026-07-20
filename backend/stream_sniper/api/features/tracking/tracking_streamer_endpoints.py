@@ -5,9 +5,9 @@ used by the add-streamer autocomplete.
 
 import asyncio
 from datetime import UTC, datetime
-from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from pydantic import RootModel
 
 from stream_sniper.database.core.patches import UNSET
 
@@ -29,6 +29,7 @@ from ....database.gateways.tracking.tracked_streamers_table_gateway import (
 )
 from ....logging_config import get_logger, sanitize_log_value
 from ...caching.cache import CacheTTL
+from ...caching.model_cache import ModelCachePolicy
 from ...dependencies import get_cache, get_twitch_client
 from ...security.auth import get_current_admin_user
 from ...security.auth_models import UserInDB
@@ -48,6 +49,13 @@ logger = get_logger(__name__)
 
 # Mounted under /admin/tracking by tracking_router.py.
 router = APIRouter()
+
+
+class _TwitchSearchCache(RootModel[list[TwitchChannelResult]]):
+    pass
+
+
+_TWITCH_SEARCH_CACHE = ModelCachePolicy("twitch_search", CacheTTL.TWITCH_SEARCH, _TwitchSearchCache)
 
 
 @router.get(
@@ -198,11 +206,9 @@ async def search_twitch_channels(
         return []
 
     cache = get_cache(request)
-    cache_key = cache.generate_key("twitch_search", query.lower(), limit)
-    cached_result = cache.get(cache_key)
+    cache_key, cached_result = _TWITCH_SEARCH_CACHE.lookup(cache, response, query.lower(), limit)
     if cached_result is not None:
-        response.headers["X-Cache"] = "HIT"
-        return [TwitchChannelResult.model_validate(row) for row in cast(list[object], cached_result)]
+        return cached_result.root
 
     try:
         twitch_api = get_twitch_client(request)
@@ -230,8 +236,7 @@ async def search_twitch_channels(
         for channel in channels
     ]
 
-    cache.set(cache_key, [channel.model_dump() for channel in result], CacheTTL.TWITCH_SEARCH)
-    response.headers["X-Cache"] = "MISS"
+    _TWITCH_SEARCH_CACHE.store(cache, response, cache_key, _TwitchSearchCache(result))
     return result
 
 

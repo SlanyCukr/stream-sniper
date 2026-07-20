@@ -48,7 +48,7 @@ export const useCreatorSummary = (
     ...options,
     queryKey: creatorSummaryKeys.detail(creatorId),
     queryFn: async () => {
-        const { data: value } = await retrieveCreatorSummary(creatorId)
+        const value = await retrieveCreatorSummary(creatorId)
         const data = requireRecord(value, 'creator summary')
         const latestStream = data.latest_stream === null
             ? null

@@ -8,6 +8,8 @@ import { useAudienceMovement, type AudienceAssociation } from '@/hooks/creator/u
 import {
     mapCreatorOption, useCreators,
 } from '@/hooks/creator/useCreatorsQuery'
+import EmptyState from '@/components/common/EmptyState'
+import FilterPills from '@/components/common/FilterPills'
 import QueryState from '@/components/common/QueryState'
 
 const WINDOWS = [7, 30, 90]
@@ -90,34 +92,17 @@ const AudienceMovement = ({ initialCreatorId = null }: AudienceMovementProps) =>
                     onChange={option => setCreatorId(option?.value || null)}
                     placeholder="Choose creator..."
                 />
-                <div
-                    className="chatter-tabs"
-                    role="tablist"
-                    aria-label="Movement window"
-                >
-                    {WINDOWS.map(window => (
-                        <button
-                            key={window}
-                            type="button"
-                            role="tab"
-                            aria-selected={days === window}
-                            className={days === window ? 'chatter-tab active' : 'chatter-tab'}
-                            onClick={() => setDays(window)}
-                        >
-                            {`${window} days`}
-                        </button>
-                    ))}
-                </div>
+                <FilterPills
+                    options={WINDOWS.map(window => ({ key: window, label: `${window} days` }))}
+                    activeKey={days}
+                    ariaLabel="Movement window"
+                    onChange={setDays}
+                />
             </div>
             {!creatorId ? (
-                <div className="empty-state">
-                    <p className="empty-title">
-                        Choose a creator
-                    </p>
-                    <p className="empty-hint">
-                        Compare distinct chat participants with the preceding equal window.
-                    </p>
-                </div>
+                <EmptyState title="Choose a creator">
+                    Compare distinct chat participants with the preceding equal window.
+                </EmptyState>
             ) : null}
             <QueryState
                 query={query}

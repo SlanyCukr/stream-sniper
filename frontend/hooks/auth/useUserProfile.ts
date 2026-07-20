@@ -2,20 +2,12 @@ import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeApiError } from '@/utils/errorUtils'
 import { validateEmail } from '@/utils/validationUtils'
-import type { AdminUserDto } from '@/lib/api/users'
 import type { PasswordChangeData } from '@/utils/validationUtils'
 
 export const useUserProfile = () => {
-    // AuthContext.tsx is mid-migration and not yet typed upstream; assert the
-    // subset of its value this hook relies on.
     const {
         user, updateUser, changePassword, isInitializing,
-    } = useAuth() as {
-        user: AdminUserDto | null
-        updateUser: (userData: { email: string }) => Promise<void>
-        changePassword: (currentPassword: string, newPassword: string) => Promise<unknown>
-        isInitializing: boolean
-    }
+    } = useAuth()
     const [emailDraft, setEmailDraft] = useState<string | null>(null)
     const [isEditing, setIsEditing] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)

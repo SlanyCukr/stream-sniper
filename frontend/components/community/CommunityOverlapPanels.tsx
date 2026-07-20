@@ -3,6 +3,7 @@ import {
     useState,
 } from 'react'
 import { Card } from 'react-bootstrap'
+import { formatSharePct } from '@/utils/numberUtils'
 import { useOverlapModel } from '@/hooks/community/useOverlapModel'
 import type { OverlapRow, SelectedPair } from '@/hooks/community/useOverlapModel'
 import type { CommunityCreator, CommunityOverlapPair, OverlapMetric } from '@/hooks/community/useCommunityQuery'
@@ -11,7 +12,7 @@ import OverlapMatrix from './OverlapMatrix'
 import OverlapTable from './OverlapTable'
 import NeighborsExplorer from './NeighborsExplorer'
 
-const formatJaccard = (value: number | null) => (value == null ? '--' : `${(value * 100).toFixed(1)}%`)
+const formatJaccard = (value: number | null) => (value == null ? '--' : formatSharePct(value))
 
 const OverlapDetail = ({ detail }: { detail: OverlapRow | null }) => {
     if (!detail) return null

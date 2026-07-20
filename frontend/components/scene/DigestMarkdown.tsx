@@ -1,6 +1,6 @@
 'use client'
 
-import type { JSX, ReactNode } from 'react'
+import { useMemo, type JSX, type ReactNode } from 'react'
 
 /**
  * Renderer for the scene digest's narrow markdown dialect — exactly the
@@ -83,29 +83,37 @@ export const parseDigestBlocks = (markdown: string): DigestBlock[] => {
     return blocks
 }
 
-const DigestMarkdown = ({ markdown }: { markdown: string }): JSX.Element => (
-    <div className="digest-body">
-        {parseDigestBlocks(markdown).map((block, index) => {
-            const key = `block-${index}`
-            if (block.kind === 'h2') {
-                return <h2 key={key} className="digest-h2">{renderInline(block.lines[0], key)}</h2>
-            }
-            if (block.kind === 'h3') {
-                return <h3 key={key} className="digest-h3">{renderInline(block.lines[0], key)}</h3>
-            }
-            if (block.kind === 'list') {
-                const ListTag = block.ordered ? 'ol' : 'ul'
-                return (
-                    <ListTag key={key} className={block.ordered ? 'digest-list digest-list-ordered' : 'digest-list'}>
-                        {block.lines.map((line, itemIndex) => (
-                            <li key={`${key}-i${itemIndex}`}>{renderInline(line, `${key}-i${itemIndex}`)}</li>
-                        ))}
-                    </ListTag>
-                )
-            }
-            return <p key={key} className="digest-p">{renderInline(block.lines[0], key)}</p>
-        })}
-    </div>
-)
+const DigestMarkdown = ({ markdown }: { markdown: string }): JSX.Element => {
+    // Parsing is regex-heavy; don't redo it when a parent re-renders (e.g. the
+    // copy button's `copied` toggle) with the same markdown.
+    const blocks = useMemo(() => parseDigestBlocks(markdown), [markdown])
+    return (
+        <div className="digest-body">
+            {blocks.map((block, index) => {
+                const key = `block-${index}`
+                if (block.kind === 'h2') {
+                    return <h2 key={key} className="digest-h2">{renderInline(block.lines[0], key)}</h2>
+                }
+                if (block.kind === 'h3') {
+                    return <h3 key={key} className="digest-h3">{renderInline(block.lines[0], key)}</h3>
+                }
+                if (block.kind === 'list') {
+                    const ListTag = block.ordered ? 'ol' : 'ul'
+                    return (
+                        <ListTag
+                            key={key}
+                            className={block.ordered ? 'digest-list digest-list-ordered' : 'digest-list'}
+                        >
+                            {block.lines.map((line, itemIndex) => (
+                                <li key={`${key}-i${itemIndex}`}>{renderInline(line, `${key}-i${itemIndex}`)}</li>
+                            ))}
+                        </ListTag>
+                    )
+                }
+                return <p key={key} className="digest-p">{renderInline(block.lines[0], key)}</p>
+            })}
+        </div>
+    )
+}
 
 export default DigestMarkdown

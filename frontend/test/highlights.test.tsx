@@ -183,9 +183,9 @@ describe('useSceneHighlights', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('requests the mandated filter tuple and maps the envelope', async () => {
-    api.retrieveSceneHighlights.mockResolvedValue({ data: {
+    api.retrieveSceneHighlights.mockResolvedValue({
       window: '30', sort: 'recent', has_more: true, items: [fullItem],
-    } })
+    })
 
     const { result } = renderHook(
       () => useSceneHighlights({ window: '30', sort: 'recent', limit: 24, offset: 24 }),
@@ -209,7 +209,7 @@ describe('useSceneHighlights', () => {
   })
 
   it('surfaces a malformed payload as a TypeError instead of empty success', async () => {
-    api.retrieveSceneHighlights.mockResolvedValue({ data: {} })
+    api.retrieveSceneHighlights.mockResolvedValue({})
     const { result } = renderHook(() => useSceneHighlights(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.error).toBeInstanceOf(TypeError)

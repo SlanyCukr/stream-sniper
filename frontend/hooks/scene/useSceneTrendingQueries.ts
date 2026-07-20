@@ -114,7 +114,7 @@ export const useSceneTrendingCopypastas = (
     ...options,
     queryKey: sceneKeys.trendingCopypastas({ window, creatorId: creatorId ?? null, limit }),
     queryFn: async () => mapTrendingCopypastas(
-        (await retrieveTrendingCopypastas({ window, creatorId, limit })).data,
+        await retrieveTrendingCopypastas({ window, creatorId, limit }),
     ),
     enabled,
 })
@@ -126,7 +126,7 @@ export const useSceneTrendingEmotes = (
     ...options,
     queryKey: sceneKeys.trendingEmotes({ window, creatorId: creatorId ?? null, limit }),
     queryFn: async () => mapTrendingEmotes(
-        (await retrieveTrendingEmotes({ window, creatorId, limit })).data,
+        await retrieveTrendingEmotes({ window, creatorId, limit }),
     ),
     enabled,
 })

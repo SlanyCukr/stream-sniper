@@ -150,7 +150,7 @@ def create_app(
     app.state.database_pool = runtime.database
     app.state.rate_limit_config = resolved.rate_limit
 
-    setup_middleware(app, resolved)
+    setup_middleware(app)
 
     if resolved.cors_enabled:
         origins = resolved.cors_origins.split(",") if resolved.cors_origins != "*" else ["*"]

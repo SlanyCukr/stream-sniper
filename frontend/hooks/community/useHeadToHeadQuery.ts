@@ -74,7 +74,7 @@ export const useCreatorHeadToHead = (
         ? headToHeadKeys.pair(creatorA, creatorB)
         : [...headToHeadKeys.all, { a: creatorA, b: creatorB }],
     queryFn: async () => mapCreatorHeadToHead(
-        (await retrieveCreatorHeadToHead(creatorA as number, creatorB as number)).data,
+        await retrieveCreatorHeadToHead(creatorA as number, creatorB as number),
     ),
     enabled: enabled && Boolean(creatorA) && Boolean(creatorB) && creatorA !== creatorB,
 })

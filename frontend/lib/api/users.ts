@@ -1,4 +1,4 @@
-import { api, buildQuery } from './client'
+import { api, buildQuery, getJson } from './client'
 import type { UserRole } from '@/lib/auth/roles'
 
 export interface UserListRequest {
@@ -43,10 +43,11 @@ export interface UpdateAdminUserRequest {
   is_active?: boolean
 }
 
-export const retrieveAdminSystemStats = () => api.get<AdminStatsDto>('/auth/admin/stats')
+export const retrieveAdminSystemStats = () => getJson<AdminStatsDto>('/auth/admin/stats')
 
-export const retrieveUsers = (request: UserListRequest = {}) => api.get<UserListDto>(
-  `/auth/users?${buildQuery({ offset: request.rowOffset, limit: request.pageSize })}`,
+export const retrieveUsers = (request: UserListRequest = {}) => getJson<UserListDto>(
+  '/auth/users',
+  { offset: request.rowOffset, limit: request.pageSize },
 )
 
 export const createAdminUser = (user: CreateAdminUserRequest) =>

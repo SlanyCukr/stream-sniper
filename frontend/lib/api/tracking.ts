@@ -1,4 +1,4 @@
-import { api, buildQuery } from './client'
+import { api, getJson } from './client'
 
 export interface TrackedStreamerListRequest {
   rowOffset?: number
@@ -108,20 +108,21 @@ export type TwitchChannelSearchDto = Array<{
 }>
 
 export const retrieveTwitchChannelSearch = (query: string, limit = 8) =>
-  api.get<TwitchChannelSearchDto>(
-    `/admin/tracking/twitch-search?${buildQuery({ q: query, limit })}`,
+  getJson<TwitchChannelSearchDto>(
+    '/admin/tracking/twitch-search',
+    { q: query, limit },
   )
 
 export const retrieveTrackingStats = () =>
-  api.get<TrackingStatsDto>('/admin/tracking/stats')
+  getJson<TrackingStatsDto>('/admin/tracking/stats')
 
 export const retrieveTrackedStreamers = (request: TrackedStreamerListRequest = {}) =>
-  api.get<TrackedStreamerListDto>(`/admin/tracking/streamers?${buildQuery({
+  getJson<TrackedStreamerListDto>('/admin/tracking/streamers', {
     offset: request.rowOffset,
     limit: request.pageSize,
     is_active: request.isActive,
     processing_enabled: request.processingEnabled,
-  })}`)
+  })
 
 export const createTrackedStreamer = (streamer: CreateTrackedStreamerRequest) =>
   api.post<TrackedStreamerDto>('/admin/tracking/streamers', streamer)
@@ -138,9 +139,9 @@ export const probeTwitchChannel = (streamerId: number) =>
   api.post<TwitchProbeResultDto>(`/admin/tracking/streamers/${streamerId}/probe`)
 
 export const retrieveProcessingJobs = (request: ProcessingJobListRequest = {}) =>
-  api.get<ProcessingJobListDto>(`/admin/tracking/jobs?${buildQuery({
+  getJson<ProcessingJobListDto>('/admin/tracking/jobs', {
     offset: request.rowOffset,
     limit: request.pageSize,
     status: request.status,
     tracked_streamer_id: request.trackedStreamerId,
-  })}`)
+  })

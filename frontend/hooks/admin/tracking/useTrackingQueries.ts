@@ -230,7 +230,7 @@ const mapProcessingJobsPage = (value: unknown, pagination: { pageIndex: number, 
 export const loadTrackedStreamerOptions = async (query: string) => {
     const trimmed = query.trim()
     if (trimmed.length < 2) return []
-    const { data } = await retrieveTwitchChannelSearch(trimmed)
+    const data = await retrieveTwitchChannelSearch(trimmed)
     return requireArray(data, 'Twitch channel search').map((entry, index) => {
         const label = `Twitch channel search[${index}]`
         const channel = requireRecord(entry, label)
@@ -279,7 +279,7 @@ export const useTrackingStats = (options: QueryOptions<TrackingStats> = {}) => u
     ...options,
     queryKey: trackingKeys.stats(),
     queryFn: async () => {
-        const { data } = await retrieveTrackingStats()
+        const data = await retrieveTrackingStats()
         return mapTrackingStats(data)
     },
 })
@@ -293,7 +293,7 @@ export const useTrackedStreamers = (
         ...options,
         queryKey: trackingKeys.streamersList(normalizedParams),
         queryFn: async () => {
-            const { data: value } = await retrieveTrackedStreamers({
+            const value = await retrieveTrackedStreamers({
                 rowOffset: getRowOffset(normalizedParams.pageIndex, normalizedParams.pageSize),
                 pageSize: normalizedParams.pageSize,
                 isActive: normalizedParams.isActive,
@@ -310,7 +310,7 @@ export const useTrackedStreamerOptions = (
     ...options,
     queryKey: trackingKeys.streamerOptions(),
     queryFn: async () => {
-        const { data: value } = await retrieveTrackedStreamers({ pageSize: 1000 })
+        const value = await retrieveTrackedStreamers({ pageSize: 1000 })
         return mapTrackedStreamerOptions(value)
     },
     staleTime: 1000 * 60 * 10,
@@ -325,7 +325,7 @@ export const useProcessingJobs = (
         ...options,
         queryKey: trackingKeys.jobsList(normalizedParams),
         queryFn: async () => {
-            const { data: value } = await retrieveProcessingJobs({
+            const value = await retrieveProcessingJobs({
                 rowOffset: getRowOffset(normalizedParams.pageIndex, normalizedParams.pageSize),
                 pageSize: normalizedParams.pageSize,
                 status: normalizedParams.status,

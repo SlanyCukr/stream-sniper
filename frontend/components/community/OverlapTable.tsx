@@ -4,6 +4,7 @@ import { Table } from 'react-bootstrap'
 import { useOverlapTableModel } from '@/hooks/community/useOverlapTableModel'
 import type { OverlapTableModel } from '@/hooks/community/useOverlapModel'
 import SortableTableHeader from '@/components/common/SortableTableHeader'
+import { formatSharePct } from '@/utils/numberUtils'
 
 interface OverlapTableColumn {
     key: 'a' | 'b' | 'shared' | 'jaccard'
@@ -79,7 +80,7 @@ const OverlapTable = ({ model }: OverlapTableProps) => {
                             <td><Link href={`/creator/${row.bId}`} onClick={event => event.stopPropagation()}>{row.bName}</Link></td>
                             <td className="mono text-end">{row.shared.toLocaleString()}</td>
                             <td className="mono text-end">
-                                {row.jaccard == null ? '--' : `${(row.jaccard * 100).toFixed(1)}%`}
+                                {row.jaccard == null ? '--' : formatSharePct(row.jaccard)}
                             </td>
                         </tr>
                     ))}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { Button } from 'react-bootstrap'
 
 interface CardLinkButtonProps {
@@ -14,18 +14,9 @@ interface CardLinkButtonProps {
  * Discord or docs. Uses the live origin so dev/prod links stay correct.
  */
 const CardLinkButton = ({ entity, id }: CardLinkButtonProps) => {
-    const [copied, setCopied] = useState(false)
+    const { copied, copy } = useCopyToClipboard()
 
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(`${window.location.origin}/card/${entity}/${id}`)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
-        } catch {
-            // Clipboard access denied (permissions/insecure context) — leave
-            // the label unchanged rather than pretending it copied.
-        }
-    }
+    const handleCopy = () => void copy(`${window.location.origin}/card/${entity}/${id}`)
 
     return (
         <Button

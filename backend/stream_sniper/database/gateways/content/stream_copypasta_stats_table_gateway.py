@@ -21,7 +21,7 @@ from stream_sniper.database.gateways.content.records import (
 )
 
 from ...core.decorators import with_cursor, with_cursor_connection
-from ...core.wire_format import to_char_wire
+from ...core.wire_format import to_char_wire, to_char_wire_us
 
 # Whitelisted sort: the caller-supplied `sort` maps through this dict to a fixed ORDER BY
 # fragment, so no user string is ever interpolated into the query.
@@ -203,8 +203,8 @@ def select_copypasta_context_db(
 ) -> list[CopypastaContextRow]:
     """Messages surrounding one occurrence, supported by message(stream_id,time,id)."""
     cursor.execute(
-        """
-        SELECT id, TO_CHAR(time, 'YYYY-MM-DD"T"HH24:MI:SS.US'), chatter_id, nick, text
+        f"""
+        SELECT id, {to_char_wire_us("time")}, chatter_id, nick, text
         FROM (
             SELECT m.id, m.time, m.chatter_id, c.nick, mt.text
             FROM message m

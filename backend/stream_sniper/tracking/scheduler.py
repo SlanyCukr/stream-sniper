@@ -7,8 +7,14 @@ from psycopg2 import Error as DatabaseError
 from ..logging_config import get_logger
 from .heartbeat import HEARTBEAT_INTERVAL, delete_heartbeat, write_heartbeat
 from .processing_queue import ProcessingQueue
-from .status import SchedulerStatus, TrackingStatus
-from .stream_monitor import StreamMonitor, StreamStatus
+from .status import (
+    DEFAULT_MAX_CONCURRENT_JOBS,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_MONITOR_INTERVAL,
+    SchedulerStatus,
+    TrackingStatus,
+)
+from .stream_monitor import StreamMonitor
 
 logger = get_logger(__name__)
 
@@ -19,9 +25,9 @@ class TrackingScheduler:
 
     def __init__(
         self,
-        monitor_interval: int = 300,  # 5 minutes
-        max_concurrent_jobs: int = 3,
-        max_retries: int = 3,
+        monitor_interval: int = DEFAULT_MONITOR_INTERVAL,
+        max_concurrent_jobs: int = DEFAULT_MAX_CONCURRENT_JOBS,
+        max_retries: int = DEFAULT_MAX_RETRIES,
     ):
         self.monitor_interval = monitor_interval
         self.max_concurrent_jobs = max_concurrent_jobs
@@ -154,21 +160,12 @@ class TrackingScheduler:
                 self.logger.exception("Heartbeat write failed")
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def restart(self) -> None:
-        await self.stop()
-        await asyncio.sleep(2)
-        await self.start()
-
     def get_status(self) -> TrackingStatus:
-        uptime_seconds = None
-        if self._start_time:
-            uptime_seconds = (datetime.now() - self._start_time).total_seconds()
-
         return TrackingStatus(
             scheduler=SchedulerStatus(
                 running=self._running,
                 start_time=self._start_time.isoformat() if self._start_time else None,
-                uptime_seconds=uptime_seconds,
+                uptime_seconds=self.get_uptime(),
                 monitor_interval=self.monitor_interval,
                 max_concurrent_jobs=self.max_concurrent_jobs,
                 max_retries=self.max_retries,
@@ -176,9 +173,6 @@ class TrackingScheduler:
             stream_monitor=self.stream_monitor.get_monitoring_stats(),
             processing_queue=self.processing_queue.get_queue_status(),
         )
-
-    async def check_streamer_now(self, twitch_username: str) -> StreamStatus:
-        return await self.stream_monitor.check_streamer_now(twitch_username)
 
     def is_running(self) -> bool:
         return self._running

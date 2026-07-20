@@ -31,6 +31,12 @@ export const formatDate = (date: DateInput, formatPattern: string = DATE_FORMATS
     return parsed ? format(parsed, formatPattern) : 'Invalid date'
 }
 
+/** Short date via formatDate, or an em dash for a missing (null/undefined) value. */
+export const formatDateOrDash = (
+    date: DateInput | null | undefined,
+    formatPattern = 'MMM d, yyyy',
+): string => (date ? formatDate(date, formatPattern) : '—')
+
 export const formatTimeAgo = (
     date: DateInput,
     options: Parameters<typeof formatDistanceToNow>[1] = {},

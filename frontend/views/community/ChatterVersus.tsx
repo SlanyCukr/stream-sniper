@@ -1,8 +1,7 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
 import AsyncSearchSelect from '@/components/common/search/AsyncSearchSelect'
 import ArchetypeBadges from '@/components/chatter/ArchetypeBadges'
 import QueryState from '@/components/common/QueryState'
@@ -12,14 +11,14 @@ import {
     type ChatterHeadToHead,
     type ChatterVersusSide,
 } from '@/hooks/chatter/useChatterVersusQuery'
-import type { ChatterOption } from '@/hooks/chatter/useChatterExplorer'
-import { retrieveChatterSearch } from '@/lib/api/chatter'
-import { formatCompactNumber, shareBarWidth } from '@/utils/numberUtils'
-import { formatDate } from '@/utils/dateUtils'
-
-const dateLabel = (value: string | null): string => (
-    value ? formatDate(value, 'MMM d, yyyy') : '—'
-)
+import {
+    loadChatterOptions,
+    noOptionsMessage,
+    type ChatterOption,
+} from '@/hooks/chatter/useChatterExplorer'
+import { useVersusPairUrl } from '@/hooks/community/useVersusPairUrl'
+import { formatCompactNumber, formatSharePct, shareBarWidth } from '@/utils/numberUtils'
+import { formatDateOrDash } from '@/utils/dateUtils'
 
 const SideCard = ({ side }: { side: ChatterVersusSide }) => (
     <div className="versus-side card">
@@ -55,7 +54,7 @@ const SideCard = ({ side }: { side: ChatterVersusSide }) => (
                             {side.homeChannel.creatorDisplayName || side.homeChannel.creatorNick}
                         </Link>
                     </span>
-                    <span className="mono">{`${(side.homeChannel.share * 100).toFixed(1)}%`}</span>
+                    <span className="mono">{formatSharePct(side.homeChannel.share)}</span>
                 </div>
                 <div className="versus-share-track" aria-hidden="true">
                     <div
@@ -66,7 +65,7 @@ const SideCard = ({ side }: { side: ChatterVersusSide }) => (
             </div>
         ) : null}
         <p className="chatter-versus-era">
-            {`Active ${dateLabel(side.firstSeen)} → ${dateLabel(side.lastSeen)}`}
+            {`Active ${formatDateOrDash(side.firstSeen)} → ${formatDateOrDash(side.lastSeen)}`}
         </p>
     </div>
 )
@@ -113,36 +112,14 @@ const ChatterVersus = ({ initialA = null, initialB = null }: ChatterVersusProps)
     const [pickB, setPickB] = useState<ChatterOption | null>(
         initialB ? { value: initialB, label: `#${initialB}`, isBot: null } : null,
     )
-    const router = useRouter()
-    const pathname = usePathname()
-
-    const loadChatterOptions = useCallback(async (query: string): Promise<ChatterOption[]> => {
-        const trimmed = query.trim()
-        if (trimmed.length < 2) return []
-        const { data } = await retrieveChatterSearch(trimmed)
-        return (data || []).map(result => ({
-            value: result.chatter_id,
-            label: result.nick,
-            isBot: result.is_bot,
-        }))
-    }, [])
-    const noOptionsMessage = useCallback(({ inputValue }: { inputValue: string }) => (
-        inputValue && inputValue.trim().length >= 2
-            ? `No chatters matching "${inputValue}"`
-            : 'Type at least 2 characters to search'
-    ), [])
+    const syncPairUrl = useVersusPairUrl()
 
     const pickChatter = (side: 'a' | 'b', option: ChatterOption | null) => {
         const nextA = side === 'a' ? option : pickA
         const nextB = side === 'b' ? option : pickB
         if (side === 'a') setPickA(option)
         else setPickB(option)
-        // Keep the matchup deep-linkable without triggering a navigation/remount.
-        const params = new URLSearchParams()
-        if (nextA) params.set('a', String(nextA.value))
-        if (nextB) params.set('b', String(nextB.value))
-        const query = params.toString()
-        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+        syncPairUrl(nextA?.value ?? null, nextB?.value ?? null)
     }
 
     const chatterA = pickA?.value ?? null

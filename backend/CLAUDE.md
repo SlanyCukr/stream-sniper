@@ -157,7 +157,7 @@ Roles are `user` / `admin`. Bootstrap an admin: `POST /auth/register`, then
 ```bash
 # Database (connection_pool.py and migrations/env.py)
 POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_DB, POSTGRES_PORT
-DB_POOL_MIN_CONN, DB_POOL_MAX_CONN, DB_CONNECT_TIMEOUT, DB_COMMAND_TIMEOUT
+DB_POOL_MIN_CONN, DB_POOL_MAX_CONN, DB_CONNECT_TIMEOUT
 
 # Auth (load_config at API composition) — one of these is REQUIRED for the API
 JWT_SECRET_KEY   # preferred

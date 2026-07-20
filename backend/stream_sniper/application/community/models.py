@@ -70,14 +70,9 @@ class CreatorNeighbors(BaseModel):
     neighbors: list[CreatorNeighbor]
 
 
-class HeadToHeadCreator(BaseModel):
+class HeadToHeadCreator(OverlapCreator):
     """One side of a creator head-to-head: audience denominators + share of overlap."""
 
-    creator_id: int
-    nick: str
-    display_name: str
-    chatters: int
-    regulars: int
     shared_chatter_share: float | None = None
     shared_regular_share: float | None = None
 

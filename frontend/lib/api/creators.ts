@@ -1,4 +1,4 @@
-import { api, buildQuery } from './client'
+import { getJson } from './client'
 
 export interface CreatorRegularsRequest {
   minStreams?: number
@@ -128,27 +128,27 @@ export interface CreatorRowDto {
 }
 export type CreatorListDto = CreatorRowDto[]
 
-export const retrieveAllCreators = () => api.get<CreatorListDto>('/creators')
+export const retrieveAllCreators = () => getJson<CreatorListDto>('/creators')
 
 export const retrieveCreatorSummary = (creatorId: number) =>
-  api.get<CreatorSummaryDto>(`/creators/${creatorId}/summary`)
+  getJson<CreatorSummaryDto>(`/creators/${creatorId}/summary`)
 
 export const retrieveCreatorTrends = (creatorId: number) =>
-  api.get<CreatorTrendsDto>(`/creators/${creatorId}/trends`)
+  getJson<CreatorTrendsDto>(`/creators/${creatorId}/trends`)
 
 export const retrieveCreatorRegulars = (creatorId: number, request: CreatorRegularsRequest = {}) =>
-  api.get<CreatorRegularsDto>(`/creators/${creatorId}/regulars?${buildQuery({
+  getJson<CreatorRegularsDto>(`/creators/${creatorId}/regulars`, {
     min_streams: request.minStreams,
     sort: request.sort,
     dir: request.dir,
     limit: request.limit,
-  })}`)
+  })
 
 export const retrieveAudienceMovement = (creatorId: number, days = 30) =>
-  api.get<AudienceMovementDto>(`/creators/${creatorId}/audience-movement?${buildQuery({ days })}`)
+  getJson<AudienceMovementDto>(`/creators/${creatorId}/audience-movement`, { days })
 
 export const retrieveCreatorEmotes = (creatorId: number, limit = 25) =>
-  api.get<CreatorEmotesDto>(`/creators/${creatorId}/emotes?${buildQuery({ limit })}`)
+  getJson<CreatorEmotesDto>(`/creators/${creatorId}/emotes`, { limit })
 
 export const retrieveCreatorWrapped = (creatorId: number, days = 30) =>
-  api.get<CreatorWrappedDto>(`/creators/${creatorId}/wrapped?${buildQuery({ days })}`)
+  getJson<CreatorWrappedDto>(`/creators/${creatorId}/wrapped`, { days })

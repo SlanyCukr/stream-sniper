@@ -1,4 +1,4 @@
-import { api, buildQuery } from './client'
+import { api, buildQuery, getJson } from './client'
 
 export interface StreamListRequest {
   creatorId: number
@@ -223,8 +223,9 @@ export interface StreamPhrasesDto {
   phrases: Array<{ phrase: string, usage_count: number, chatter_count: number }>
 }
 
-export const retrieveStreams = (request: StreamListRequest) => api.get<StreamListDto>(
-  `/streams?${buildQuery({
+export const retrieveStreams = (request: StreamListRequest) => getJson<StreamListDto>(
+  '/streams',
+  {
     creator_id: request.creatorId,
     sort: request.sort,
     dir: request.dir,
@@ -234,21 +235,21 @@ export const retrieveStreams = (request: StreamListRequest) => api.get<StreamLis
     min_messages: request.minMessages,
     offset: request.rowOffset,
     limit: request.pageSize,
-  })}`,
+  },
 )
 
 export const retrieveStreamMessages = (streamId: number, request: StreamMessageRequest = {}) =>
-  api.get<StreamMessagesDto>(`/streams/${streamId}/messages?${buildQuery({
+  getJson<StreamMessagesDto>(`/streams/${streamId}/messages`, {
     chatter_id: request.chatterId,
     q: request.q,
     after_ts: request.afterTs,
     after_id: request.afterId,
     limit: request.limit,
     sub_only: request.subOnly || null,
-  })}`)
+  })
 
 export const retrieveStreamTimeline = (streamId: number) =>
-  api.get<StreamTimelineDto>(`/streams/${streamId}/timeline`)
+  getJson<StreamTimelineDto>(`/streams/${streamId}/timeline`)
 
 export const retrieveStreamComparison = (streamIds: number[]) => {
   const params = new URLSearchParams()
@@ -257,30 +258,29 @@ export const retrieveStreamComparison = (streamIds: number[]) => {
 }
 
 export const retrieveStreamMentions = (streamId: number, limit = 20) =>
-  api.get<StreamMentionsDto>(`/streams/${streamId}/mentions?${buildQuery({ limit })}`)
+  getJson<StreamMentionsDto>(`/streams/${streamId}/mentions`, { limit })
 
 export const retrieveStreamEmotes = (streamId: number, limit = 25) =>
-  api.get<StreamEmotesDto>(`/streams/${streamId}/emotes?${buildQuery({ limit })}`)
+  getJson<StreamEmotesDto>(`/streams/${streamId}/emotes`, { limit })
 
 export const retrieveStreamPhrases = (streamId: number, limit = 25) =>
-  api.get<StreamPhrasesDto>(`/streams/${streamId}/phrases?${buildQuery({ limit })}`)
+  getJson<StreamPhrasesDto>(`/streams/${streamId}/phrases`, { limit })
 
 export const retrieveStreamReport = (streamId: number, lookback?: number) =>
-  api.get<StreamReportDto>(`/streams/${streamId}/report?${buildQuery({ lookback })}`)
+  getJson<StreamReportDto>(`/streams/${streamId}/report`, { lookback })
+
+// Full AxiosResponse<Blob> on purpose (callers read headers + blob body);
+// timeout 0 because exports stream arbitrarily large chat logs.
+const downloadBlob = (path: string) =>
+  api.get<Blob>(path, { responseType: 'blob', timeout: 0 })
 
 export const downloadStreamExport = (streamId: number, format: 'ndjson' | 'csv' = 'ndjson') =>
-  api.get<Blob>(`/streams/${streamId}/export?${buildQuery({ format })}`, {
-    responseType: 'blob',
-    timeout: 0,
-  })
+  downloadBlob(`/streams/${streamId}/export?${buildQuery({ format })}`)
 
 export const downloadStreamInsightCsv = (
   streamId: number,
   kind: 'emotes' | 'phrases' | 'mentions',
-) => api.get<Blob>(`/streams/${streamId}/${kind}/export`, {
-  responseType: 'blob',
-  timeout: 0,
-})
+) => downloadBlob(`/streams/${streamId}/${kind}/export`)
 
 export const retrieveStreamComprehensive = (streamId: number) =>
-  api.get<StreamDto>(`/streams/${streamId}`)
+  getJson<StreamDto>(`/streams/${streamId}`)

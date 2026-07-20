@@ -10,19 +10,17 @@ optional ``creator_id`` filter, so the application query reuses them directly.
   window (a single aggregate row; an empty window naturally yields
   ``streams=0``/``messages=0`` and ``hours_streamed=None``, since ``SUM`` over zero rows
   is NULL — nullable = unknown, never coalesced to 0).
-* ``select_creator_active_chatters_db`` — distinct human chatters across that creator's
-  streams over the window.
 * ``select_creator_wrapped_chatters_db`` — that creator's top chatters by messages over
   the window (a page, with a ``has_more`` sentinel like the scene ranking gateway).
-* ``select_creator_wrapped_emotes_db`` — that creator's top emotes by usage over the
-  window.
+
+Active-chatter counts and top emotes come from ``content/scene_wrapped_gateway.py``'s
+``select_scene_active_chatters_db``/``select_scene_emotes_db`` via their optional
+``creator_id`` filter — no creator-scoped duplicates here.
 """
 
 from typing import NamedTuple
 
 from psycopg2.extensions import cursor as Cursor
-
-from stream_sniper.database.gateways.content.scene_wrapped_gateway import SceneWrappedEmoteRow
 
 from ...core.decorators import with_cursor
 
@@ -77,35 +75,6 @@ def select_creator_wrapped_totals_db(
 
 
 @with_cursor
-def select_creator_active_chatters_db(
-    cursor: Cursor,
-    creator_id: int,
-    days: int,
-) -> int:
-    """Count of distinct human chatters active across one creator's streams over the window.
-
-    Excludes bots (``chatter.is_bot IS NOT TRUE`` — an unclassified NULL is kept),
-    matching ``select_scene_active_chatters_db``'s convention.
-    """
-    cursor.execute(
-        """
-        SELECT COUNT(DISTINCT scs.chatter_id)
-        FROM stream_chatter_stats scs
-        JOIN stream s ON s.id = scs.stream_id
-        JOIN chatter c ON c.id = scs.chatter_id
-        WHERE s.creator_id = %s
-          AND c.is_bot IS NOT TRUE
-          AND s.start >= (now() AT TIME ZONE 'UTC') - (%s * interval '1 day')
-        """,
-        (creator_id, days),
-    )
-    row = cursor.fetchone()
-    if row is None:
-        raise RuntimeError("creator wrapped active-chatter count returned no row")
-    return int(row[0])
-
-
-@with_cursor
 def select_creator_wrapped_chatters_db(
     cursor: Cursor,
     creator_id: int,
@@ -140,34 +109,3 @@ def select_creator_wrapped_chatters_db(
     rows = [CreatorWrappedChatterRow(*row) for row in cursor.fetchall()]
     has_more = len(rows) > limit
     return rows[:limit], has_more
-
-
-@with_cursor
-def select_creator_wrapped_emotes_db(
-    cursor: Cursor,
-    creator_id: int,
-    days: int,
-    limit: int,
-) -> list[SceneWrappedEmoteRow]:
-    """Top emotes by usage across one creator's streams over the trailing window.
-
-    Same aggregate as ``select_scene_emotes_db`` with a creator filter added; reuses its
-    row shape (emote_id, name, source, usage, chatter_reach).
-    """
-    cursor.execute(
-        """
-        SELECT d.id, d.name, d.source,
-               SUM(ses.usage_count)::bigint   AS usage,
-               SUM(ses.chatter_count)::bigint AS chatter_reach
-        FROM stream_emote_stats ses
-        JOIN stream s ON s.id = ses.stream_id
-        JOIN emote_dictionary d ON d.id = ses.emote_id
-        WHERE s.creator_id = %s
-          AND s.start >= (now() AT TIME ZONE 'UTC') - (%s * interval '1 day')
-        GROUP BY d.id, d.name, d.source
-        ORDER BY usage DESC, d.id ASC
-        LIMIT %s
-        """,
-        (creator_id, days, limit),
-    )
-    return [SceneWrappedEmoteRow(*row) for row in cursor.fetchall()]

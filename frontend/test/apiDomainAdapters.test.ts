@@ -33,9 +33,9 @@ describe('domain API adapters', () => {
     expect(get).toHaveBeenNthCalledWith(3, '/scene/pulse?days=30&event_type=personal_record')
     expect(put).toHaveBeenCalledWith('/auth/users/3/role?new_role=admin')
 
-    expectTypeOf(chatterResponse.data).toEqualTypeOf<ChatterMessagePageDto>()
-    expectTypeOf(streamResponse.data).toEqualTypeOf<StreamListDto>()
-    expectTypeOf(pulseResponse.data).toEqualTypeOf<ScenePulseDto>()
+    expectTypeOf(chatterResponse).toEqualTypeOf<ChatterMessagePageDto>()
+    expectTypeOf(streamResponse).toEqualTypeOf<StreamListDto>()
+    expectTypeOf(pulseResponse).toEqualTypeOf<ScenePulseDto>()
     expectTypeOf(userResponse.data).toEqualTypeOf<AdminUserDto>()
   })
 })

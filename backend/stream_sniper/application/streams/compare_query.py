@@ -11,6 +11,7 @@ from stream_sniper.database.gateways.analytics.stream_compare_table_gateway impo
     select_stream_compare_headers_db,
     select_stream_pair_retention_db,
 )
+from stream_sniper.database.gateways.streams.records import peak_viewer_count
 from stream_sniper.database.gateways.streams.stream_viewer_sample_table_gateway import select_stream_viewer_samples_db
 
 from .compare_models import CompareCurvePoint, ComparedStream, PairRetention, StreamComparison
@@ -59,7 +60,7 @@ def get_stream_comparison(stream_ids: list[int]) -> StreamComparison:
         streams.append(
             ComparedStream.from_row(
                 header,
-                peak_viewers=max((sample.viewer_count for sample in samples), default=None),
+                peak_viewers=peak_viewer_count(samples),
                 curve=normalize_curve(bucket_map[stream_id], header.start, header.duration_seconds),
             )
         )

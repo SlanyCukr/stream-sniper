@@ -14,20 +14,22 @@ interface MentionsPanelProps {
  */
 const MentionsPanel = ({ streamId }: MentionsPanelProps) => {
     const query = useStreamMentions(streamId)
-    const mentioned = query.data?.mentioned || []
-    const pairs = query.data?.pairs || []
-    const maxCount = Math.max(1, ...mentioned.map(m => m.count || 0))
 
     return (
         <StreamInsightPanel
             title="Most mentioned"
             query={query}
-            hasItems={mentioned.length > 0}
+            isEmpty={data => (data.mentioned || []).length === 0}
             loadingText="Loading mentions..."
             errorTitle="Failed to load mentions"
             emptyTitle="No mentions"
             emptyHint="Mention rollups are still pending for this stream."
         >
+            {data => {
+                const mentioned = data.mentioned || []
+                const pairs = data.pairs || []
+                const maxCount = Math.max(1, ...mentioned.map(m => m.count || 0))
+                return (
                     <>
                         <ul
                             className="rank-list mention-list"
@@ -91,6 +93,8 @@ const MentionsPanel = ({ streamId }: MentionsPanelProps) => {
                             </div>
                         )}
                     </>
+                )
+            }}
         </StreamInsightPanel>
     )
 }

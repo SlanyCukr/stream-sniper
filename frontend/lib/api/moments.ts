@@ -1,4 +1,4 @@
-import { api, buildQuery } from './client'
+import { api, getJson } from './client'
 
 export type MomentReviewStatus = 'bookmarked' | 'rejected' | 'clipped' | 'published'
 
@@ -45,12 +45,12 @@ export interface MomentReviewDto {
 }
 
 export const retrieveMomentsQueue = (request: MomentsQueueRequest = {}) =>
-  api.get<MomentsQueueDto>(`/moments?${buildQuery({
+  getJson<MomentsQueueDto>('/moments', {
     status: request.status,
     creator_id: request.creatorId,
     limit: request.pageSize,
     offset: request.rowOffset,
-  })}`)
+  })
 
 export const putMomentReview = (
   streamId: number,

@@ -29,8 +29,8 @@ def test_pipeline_returns_explicit_persisted_and_rollup_result(monkeypatch):
     monkeypatch.setattr(vod_ingestion, "find_or_insert_chatter_id_db", lambda _nick: 1)
     monkeypatch.setattr(vod_ingestion, "insert_new_chatters_db", lambda _nicks: None)
     monkeypatch.setattr(vod_ingestion, "insert_message_texts_db", lambda _messages: None)
-    monkeypatch.setattr(vod_ingestion, "select_all_chatters_db", lambda: {"viewer": 2})
-    monkeypatch.setattr(vod_ingestion, "select_all_message_texts_db", lambda: {"hello": 3})
+    monkeypatch.setattr(vod_ingestion, "select_chatter_ids_by_nicks_db", lambda _nicks: {"viewer": 2})
+    monkeypatch.setattr(vod_ingestion, "select_message_text_ids_db", lambda _texts: {"hello": 3})
     monkeypatch.setattr(vod_ingestion, "upsert_twitch_emotes_db", lambda rows: emotes.append(rows))
     monkeypatch.setattr(vod_ingestion, "ensure_archived_stream_db", lambda *_args: 9)
     monkeypatch.setattr(

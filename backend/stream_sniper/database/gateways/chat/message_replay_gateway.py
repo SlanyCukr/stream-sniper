@@ -3,14 +3,9 @@ from typing import Any, NamedTuple
 from psycopg2.extensions import cursor as Cursor
 
 from ...core.decorators import with_cursor
+from .records import REPLAY_COLUMNS as _REPLAY_COLUMNS
+from .records import REPLAY_JOINS as _REPLAY_JOINS
 from .records import MessageReplayRow
-
-# Shared replay projection (matches MessageReplayRow field order).
-_REPLAY_COLUMNS = (
-    "m.id, TO_CHAR(m.time, 'YYYY-MM-DD\"T\"HH24:MI:SS.US'), m.chatter_id, c.nick, mt.text, "
-    "m.is_subscriber, m.badges"
-)
-_REPLAY_JOINS = "FROM message m\nJOIN chatter c ON c.id = m.chatter_id\nJOIN message_text mt ON mt.id = m.message_text_id"
 
 
 class StreamContextRow(NamedTuple):
@@ -55,11 +50,8 @@ def select_stream_messages_db(
         conditions.append("m.is_subscriber IS TRUE")
 
     query = (
-        "SELECT m.id, TO_CHAR(m.time, 'YYYY-MM-DD\"T\"HH24:MI:SS.US'), m.chatter_id, c.nick, mt.text, "
-        "m.is_subscriber, m.badges\n"
-        "FROM message m\n"
-        "JOIN chatter c ON c.id = m.chatter_id\n"
-        "JOIN message_text mt ON mt.id = m.message_text_id\n"
+        f"SELECT {_REPLAY_COLUMNS}\n"
+        f"{_REPLAY_JOINS}\n"
         f"WHERE {' AND '.join(conditions)}\n"
         "ORDER BY m.time ASC, m.id ASC\n"
         "LIMIT %s"

@@ -76,7 +76,7 @@ export const useScenePulse = (
 ) => useQuery({
     ...options,
     queryKey: sceneKeys.pulse(filters),
-    queryFn: async () => mapScenePulse((await retrieveScenePulse(filters)).data),
+    queryFn: async () => mapScenePulse(await retrieveScenePulse(filters)),
 })
 
 export const useSceneDigest = (
@@ -85,5 +85,5 @@ export const useSceneDigest = (
 ) => useQuery({
     ...options,
     queryKey: sceneKeys.digest(days),
-    queryFn: async () => mapSceneDigest((await retrieveSceneDigest(days)).data),
+    queryFn: async () => mapSceneDigest(await retrieveSceneDigest(days)),
 })

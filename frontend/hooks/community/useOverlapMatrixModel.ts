@@ -77,6 +77,9 @@ export const useOverlapMatrixModel = ({
         })
     }, [sorted, model])
 
+    // Stable identity so memoized cells don't re-render on every hover change.
+    const handleLeave = useCallback(() => setHover(null), [])
+
     return {
         hover,
         sorted,
@@ -84,7 +87,7 @@ export const useOverlapMatrixModel = ({
         cellFor: model.cellFor,
         fillOpacity,
         handleEnter,
-        handleLeave: () => setHover(null),
+        handleLeave,
         handleSelect: model.onSelectPair,
         isSelected: model.isSelected,
     }

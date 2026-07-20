@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import {
     nickColor, parseBadges, renderMessageWithBetterTtvEmotes,
 } from '@/utils/chatRender'
@@ -13,7 +14,9 @@ interface ChatReplayLineProps {
     isFlashing: boolean
 }
 
-const ChatReplayLine = ({
+// Memoized: a jump-to-timestamp swaps Virtuoso's renderRow identity, which
+// otherwise re-renders (and re-parses badges/emotes for) every visible row.
+const ChatReplayLine = memo(({
     message, isFlashing,
 }: ChatReplayLineProps) => {
     const badges = parseBadges(message.badges)
@@ -49,6 +52,8 @@ const ChatReplayLine = ({
             <span className="chat-text">{renderMessageWithBetterTtvEmotes(message.text)}</span>
         </div>
     )
-}
+})
+
+ChatReplayLine.displayName = 'ChatReplayLine'
 
 export default ChatReplayLine

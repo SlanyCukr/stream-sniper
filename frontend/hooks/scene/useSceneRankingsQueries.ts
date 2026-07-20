@@ -9,15 +9,10 @@ import {
 } from '@/lib/api/contractGuards'
 import type { ArchetypeBadge } from '@/components/chatter/ArchetypeBadges'
 import { sceneKeys } from './sceneKeys'
+import { mapArchetypeBadges, mapHomeChannel, type ChatterHomeChannel } from '@/hooks/chatter/wireShapes'
 
 /** A chatter's dominant channel, or `null` when no single channel dominates. */
-interface RankingsHomeChannel {
-    creatorId: number
-    creatorNick: string
-    creatorDisplayName: string
-    messages: number
-    share: number
-}
+type RankingsHomeChannel = ChatterHomeChannel
 
 /** One ranked chatter row in the scene power rankings. */
 export interface RankingsRow {
@@ -38,23 +33,6 @@ export interface SceneRankings {
     items: RankingsRow[]
 }
 
-/**
- * A missing `home_channel` is a contract violation (the API always emits the
- * key, `null` when no channel dominates); only an explicit `null` maps to null.
- */
-const mapHomeChannel = (raw: unknown): RankingsHomeChannel | null => {
-    if (raw === null) return null
-    const label = 'scene rankings.home_channel'
-    const home = requireRecord(raw, label)
-    return {
-        creatorId: requireFiniteNumberField(home, 'creator_id', label),
-        creatorNick: requireStringField(home, 'creator_nick', label),
-        creatorDisplayName: requireStringField(home, 'creator_display_name', label),
-        messages: requireFiniteNumberField(home, 'messages', label),
-        share: requireFiniteNumberField(home, 'share', label),
-    }
-}
-
 /** Validate the rankings envelope at the boundary, then project the view model. */
 export const mapSceneRankings = (value: unknown): SceneRankings => {
     const root = requireRecord(value, 'scene rankings')
@@ -71,16 +49,8 @@ export const mapSceneRankings = (value: unknown): SceneRankings => {
                 totalMessages: requireFiniteNumberField(item, 'total_messages', label),
                 streamsAttended: requireFiniteNumberField(item, 'streams_attended', label),
                 creatorsVisited: requireFiniteNumberField(item, 'creators_visited', label),
-                homeChannel: mapHomeChannel(item.home_channel),
-                archetypes: requireArrayField(item, 'archetypes', label).map((raw, badgeIndex) => {
-                    const badgeLabel = `${label}.archetypes[${badgeIndex}]`
-                    const badge = requireRecord(raw, badgeLabel)
-                    return {
-                        key: requireStringField(badge, 'key', badgeLabel),
-                        label: requireStringField(badge, 'label', badgeLabel),
-                        description: requireStringField(badge, 'description', badgeLabel),
-                    }
-                }),
+                homeChannel: mapHomeChannel(item.home_channel, 'scene rankings.home_channel'),
+                archetypes: mapArchetypeBadges(item, label),
             }
         }),
     }
@@ -111,7 +81,7 @@ export const useSceneRankings = (
         placeholderData: keepPreviousData,
         ...queryOptions,
         queryKey: sceneKeys.rankings({ window, limit, offset }),
-        queryFn: async () => mapSceneRankings((await retrieveSceneRankings({ window, limit, offset })).data),
+        queryFn: async () => mapSceneRankings(await retrieveSceneRankings({ window, limit, offset })),
         enabled,
     })
 }

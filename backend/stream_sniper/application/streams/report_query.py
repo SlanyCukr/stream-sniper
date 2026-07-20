@@ -15,6 +15,7 @@ from stream_sniper.database.gateways.analytics.stream_metrics_table_gateway impo
 from stream_sniper.database.gateways.analytics.stream_phrase_stats_table_gateway import select_stream_phrases_db
 from stream_sniper.database.gateways.content.records import StreamMomentRow
 from stream_sniper.database.gateways.content.stream_moment_table_gateway import select_stream_moments_db
+from stream_sniper.database.gateways.streams.records import peak_viewer_count
 from stream_sniper.database.gateways.streams.stream_table_gateway import select_stream_comprehensive_db
 from stream_sniper.database.gateways.streams.stream_viewer_sample_table_gateway import select_stream_viewer_samples_db
 
@@ -53,7 +54,7 @@ def get_stream_report(stream_id: int, lookback: int) -> StreamReport:
     report_values = _report_values(metrics_row)
     viewer_counts = [row.viewer_count for row in sample_rows]
     avg_viewers = sum(viewer_counts) / len(viewer_counts) if viewer_counts else None
-    peak_viewers = max(viewer_counts) if viewer_counts else None
+    peak_viewers = peak_viewer_count(sample_rows)
 
     return StreamReport(
         stream_id=stream_id,

@@ -11,21 +11,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from stream_sniper.database.core.decorators import log_database_operation, with_cursor, with_cursor_connection
+from stream_sniper.database.core.decorators import with_cursor, with_cursor_connection
 
 
 class TestDatabaseDecorators:
     """Test suite for database decorator functions."""
-
-    def test_database_operation_success_has_no_formulaic_log_noise(self, caplog):
-        @log_database_operation
-        def operation():
-            return 42
-
-        with caplog.at_level(logging.DEBUG):
-            assert operation() == 42
-
-        assert caplog.records == []
 
     def test_with_cursor_decorator_success(self):
         """Test successful execution with cursor decorator."""

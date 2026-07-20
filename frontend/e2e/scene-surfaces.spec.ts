@@ -1,16 +1,5 @@
-import { expect, test, type Route } from '@playwright/test'
-
-const json = (route: Route, body: unknown, status = 200) => route.fulfill({
-  status,
-  contentType: 'application/json',
-  body: JSON.stringify(body),
-})
-
-const unexpected = (route: Route, pathname: string) => json(
-  route,
-  { detail: `Unexpected smoke request: ${route.request().method()} ${pathname}` },
-  500,
-)
+import { expect, test } from '@playwright/test'
+import { clickPill, json, unexpected } from './helpers'
 
 const highlightItem = (id: number, title: string, creator: string) => ({
   stream_id: id,
@@ -102,10 +91,7 @@ test('highlights: paginates, then window and sort pills re-query and reset the w
   expect(calls).toHaveLength(2)
 
   // Window pill: re-queries with window=7 at offset 0 and resets the accumulated wall.
-  const sevenDays = page.getByRole('button', { name: '7 days' })
-  await expect(sevenDays).toHaveAttribute('aria-pressed', 'false')
-  await sevenDays.click()
-  await expect(sevenDays).toHaveAttribute('aria-pressed', 'true')
+  await clickPill(page, '7 days')
 
   // While the new window is in flight: spinner, not the empty state, and none
   // of the previous window's cards or its Load more control.
@@ -120,10 +106,7 @@ test('highlights: paginates, then window and sort pills re-query and reset the w
   await expect(page.getByText('NightOwlCZ late night just chatting')).not.toBeVisible()
 
   // Sort pill: re-queries with sort=recent inside the selected window.
-  const mostRecent = page.getByRole('button', { name: 'Most recent' })
-  await expect(mostRecent).toHaveAttribute('aria-pressed', 'false')
-  await mostRecent.click()
-  await expect(mostRecent).toHaveAttribute('aria-pressed', 'true')
+  await clickPill(page, 'Most recent')
   await expect(page.getByText('Freshest moment this week')).toBeVisible()
 
   expect(calls).toEqual([
@@ -233,10 +216,7 @@ test('rankings: paginates, then the window pill re-queries and resets the table'
   expect(calls).toHaveLength(2)
 
   // Window pill: re-queries with window=30 at offset 0 and drops the accumulated pages.
-  const thirtyDays = page.getByRole('button', { name: '30 days' })
-  await expect(thirtyDays).toHaveAttribute('aria-pressed', 'false')
-  await thirtyDays.click()
-  await expect(thirtyDays).toHaveAttribute('aria-pressed', 'true')
+  await clickPill(page, '30 days')
 
   // While the new window is in flight: spinner only — no stale rows, and no
   // Load more that could fire window=30 at the old offset.
@@ -316,10 +296,7 @@ test('trending: renders both boards, and the window pill refetches them', async 
   await expect(page.getByText('PogChamp')).toBeVisible()
 
   // Window pill: both boards refetch with window=14.
-  const fourteenDays = page.getByRole('button', { name: '14 days' })
-  await expect(fourteenDays).toHaveAttribute('aria-pressed', 'false')
-  await fourteenDays.click()
-  await expect(fourteenDays).toHaveAttribute('aria-pressed', 'true')
+  await clickPill(page, '14 days')
   await expect(page.getByText('KEKW the two week classic')).toBeVisible()
   await expect(page.getByText('LULW')).toBeVisible()
 })
@@ -407,10 +384,7 @@ test('wrapped: renders the default 30-day recap, and the window pill re-queries'
   await expect(page.getByText('OMEGALUL nice job chat')).toBeVisible()
 
   // Window pill: re-queries the recap with days=7.
-  const sevenDays = page.getByRole('button', { name: '7 days' })
-  await expect(sevenDays).toHaveAttribute('aria-pressed', 'false')
-  await sevenDays.click()
-  await expect(sevenDays).toHaveAttribute('aria-pressed', 'true')
+  await clickPill(page, '7 days')
   await expect(page.getByRole('link', { name: 'SprintKing' }).first()).toBeVisible()
   await expect(page.getByRole('link', { name: 'weeklyOne' })).toBeVisible()
 

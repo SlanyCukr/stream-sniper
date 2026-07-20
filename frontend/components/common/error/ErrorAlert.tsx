@@ -61,7 +61,8 @@ const ErrorAlert = ({
     title = 'Error',
     onRetry = undefined,
     onDismiss = undefined,
-    showDetails = false,
+    // Same dev-only default QueryState applies; callers only pass this to force it.
+    showDetails = process.env.NODE_ENV === 'development',
     className = '',
     variant = 'danger',
     ...props

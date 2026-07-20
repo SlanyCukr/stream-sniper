@@ -121,7 +121,7 @@ describe('creator head-to-head contracts', () => {
   })
 
   it('fetches when both creators are picked and normalizes the query key', async () => {
-    api.retrieveCreatorHeadToHead.mockResolvedValue({ data: headToHeadPayload })
+    api.retrieveCreatorHeadToHead.mockResolvedValue(headToHeadPayload)
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const { result } = renderHook(
       () => useCreatorHeadToHead(9, 3),
@@ -157,7 +157,7 @@ describe('Versus view', () => {
   })
 
   it('renders the matchup oriented to the picker order, not the normalized payload', async () => {
-    api.retrieveCreatorHeadToHead.mockResolvedValue({ data: headToHeadPayload })
+    api.retrieveCreatorHeadToHead.mockResolvedValue(headToHeadPayload)
     // Left picker holds creator 9 (Bravo) — the payload's *b* side.
     render(<Versus initialA={9} initialB={3} />, { wrapper: createWrapper() })
 
@@ -176,7 +176,7 @@ describe('Versus view', () => {
   })
 
   it('flags picking the same creator on both sides', () => {
-    api.retrieveCreatorHeadToHead.mockResolvedValue({ data: headToHeadPayload })
+    api.retrieveCreatorHeadToHead.mockResolvedValue(headToHeadPayload)
     render(<Versus initialA={3} initialB={3} />, { wrapper: createWrapper() })
     expect(screen.getByText('Same creator on both sides')).toBeInTheDocument()
     expect(api.retrieveCreatorHeadToHead).not.toHaveBeenCalled()

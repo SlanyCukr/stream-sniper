@@ -80,7 +80,7 @@ export const useCreatorTrends = (
     queryKey: creatorTrendsKeys.detail(creatorId),
     queryFn: async () => {
         const response = await retrieveCreatorTrends(creatorId)
-        return mapCreatorTrends(response.data)
+        return mapCreatorTrends(response)
     },
     enabled: Boolean(creatorId) && enabled,
 })

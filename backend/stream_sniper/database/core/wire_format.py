@@ -19,6 +19,10 @@ WIRE_TS_FORMAT = "%Y-%m-%dT%H:%M:%S"
 WIRE_TS_SQL_MASK = 'YYYY-MM-DD"T"HH24:MI:SS'
 """PostgreSQL ``TO_CHAR`` mask matching :data:`WIRE_TS_FORMAT`."""
 
+WIRE_TS_US_SQL_MASK = f"{WIRE_TS_SQL_MASK}.US"
+"""Microsecond-precision variant of the mask, used where message ordering must
+survive the round trip (chat replay/search/export keyset pagination)."""
+
 
 def to_char_wire(expr: str) -> str:
     """Build a ``TO_CHAR(<expr>, '<wire mask>')`` SQL fragment for gateway queries.
@@ -28,3 +32,8 @@ def to_char_wire(expr: str) -> str:
     it is NEVER user input, so interpolating it into the returned SQL is safe.
     """
     return f"TO_CHAR({expr}, '{WIRE_TS_SQL_MASK}')"
+
+
+def to_char_wire_us(expr: str) -> str:
+    """Microsecond-precision sibling of :func:`to_char_wire` (same trust contract)."""
+    return f"TO_CHAR({expr}, '{WIRE_TS_US_SQL_MASK}')"

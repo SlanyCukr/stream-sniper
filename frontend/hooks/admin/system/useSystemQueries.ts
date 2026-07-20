@@ -150,7 +150,7 @@ export const useDetailedHealth = (options: QueryOptions<DetailedHealth> = {}) =>
     ...options,
     queryKey: systemKeys.detailedHealth(),
     queryFn: async () => {
-        const { data } = await retrieveDetailedHealth()
+        const data = await retrieveDetailedHealth()
         return mapDetailedHealth(data)
     },
 })
@@ -159,7 +159,7 @@ export const useSystemMetrics = (options: QueryOptions<SystemMetrics> = {}) => u
     ...options,
     queryKey: systemKeys.metrics(),
     queryFn: async () => {
-        const { data } = await retrieveMetrics()
+        const data = await retrieveMetrics()
         return mapSystemMetrics(data)
     },
 })
@@ -168,7 +168,7 @@ export const useCacheStats = (options: QueryOptions<CacheStats> = {}) => useQuer
     ...options,
     queryKey: systemKeys.cacheStats(),
     queryFn: async () => {
-        const { data } = await retrieveCacheStats()
+        const data = await retrieveCacheStats()
         return mapCacheStats(data)
     },
 })

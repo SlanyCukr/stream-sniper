@@ -21,6 +21,7 @@ community-overlap recompute so the exclusion takes effect immediately.
 """
 
 import argparse
+from typing import Any
 
 from ...database.core.connection_pool import database_entrypoint
 from ...database.gateways.analytics.stream_chatter_stats_table_gateway import (
@@ -94,29 +95,23 @@ def classify_bots(min_channels: int = DEFAULT_MIN_CHANNELS, *, dry_run: bool = F
     """
     newly_marked: list[int] = []
 
-    # 1. Known-name list (select-then-mark so dry-run reports real candidates, not list size).
-    known_candidates = select_unmarked_known_bots_db(sorted(KNOWN_BOTS))
-    known_count = len(known_candidates)
-    if not dry_run and known_candidates:
-        known_ids = [chatter_id for chatter_id, _nick in known_candidates]
-        mark_bots_by_ids_db(known_ids, "known_bot")
-        newly_marked.extend(known_ids)
-
-    # 2. Cross-channel ubiquity (reads the small creator_chatter_stats rollup).
-    ubiquity_candidates = select_bot_candidates_ubiquity_db(min_channels)
-    ubiquity_count = len(ubiquity_candidates)
-    if not dry_run and ubiquity_candidates:
-        ubiquity_ids = [row[0] for row in ubiquity_candidates]
-        mark_bots_by_ids_db(ubiquity_ids, f"ubiquity:{min_channels}")
-        newly_marked.extend(ubiquity_ids)
-
-    # 3. Superhuman sustained message rate (reads the stream_chatter_stats rollup).
-    rate_candidates = select_bot_candidates_rate_db()
-    rate_count = len(rate_candidates)
-    if not dry_run and rate_candidates:
-        rate_ids = [row[0] for row in rate_candidates]
-        mark_bots_by_ids_db(rate_ids, "rate")
-        newly_marked.extend(rate_ids)
+    # Each pass selects-then-marks so dry-run reports real candidates, not list sizes.
+    # Candidate rows always lead with the chatter id. Passes:
+    #   known    — the curated KNOWN_BOTS name list
+    #   ubiquity — cross-channel presence (small creator_chatter_stats rollup)
+    #   rate     — superhuman sustained message rate (stream_chatter_stats rollup)
+    passes: list[tuple[str, str, list[tuple[int, Any]]]] = [
+        ("known", "known_bot", select_unmarked_known_bots_db(sorted(KNOWN_BOTS))),
+        ("ubiquity", f"ubiquity:{min_channels}", select_bot_candidates_ubiquity_db(min_channels)),
+        ("rate", "rate", select_bot_candidates_rate_db()),
+    ]
+    counts: dict[str, int] = {}
+    for pass_name, reason, candidates in passes:
+        counts[pass_name] = len(candidates)
+        if not dry_run and candidates:
+            ids = [row[0] for row in candidates]
+            mark_bots_by_ids_db(ids, reason)
+            newly_marked.extend(ids)
 
     # Newly-marked bots may have contributed texts to stream_copypasta_stats when they were
     # still unclassified; refresh only the streams they spoke in so the rollup re-applies the
@@ -126,9 +121,7 @@ def classify_bots(min_channels: int = DEFAULT_MIN_CHANNELS, *, dry_run: bool = F
         refresh_stream_copypasta_and_events(stream_id)
 
     return {
-        "known": known_count,
-        "ubiquity": ubiquity_count,
-        "rate": rate_count,
+        **counts,
         "streams_refreshed": len(affected_streams),
         "total_bots": count_bots_db(),
     }

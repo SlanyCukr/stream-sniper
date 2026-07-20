@@ -20,6 +20,7 @@ from ...database.gateways.chat.live_chat_table_gateway import (
 )
 from ...database.gateways.chat.message_text_table_gateway import find_or_insert_message_text_id_db
 from ...logging_config import get_logger
+from ..badge_format import format_badge_pairs
 from .contracts import ChatMessage, LiveStream
 
 logger = get_logger(__name__)
@@ -47,12 +48,13 @@ def _emote_count(raw: object | None) -> int:
 
 
 def _badge_text(raw: object | None) -> str | None:
-    """Match the canonical ``name/version`` text used by VOD ingestion."""
+    """Canonical ``name/version`` badge text — shared with VOD ingestion via format_badge_pairs."""
     if not raw:
         return None
     if isinstance(raw, Mapping):
-        pairs = (f"{name}/{version if version is not None else 0}" for name, version in sorted(raw.items()) if name)
-        return ",".join(pairs) or None
+        return format_badge_pairs(
+            (name, version if version is not None else 0) for name, version in raw.items() if name
+        )
     return str(raw)
 
 

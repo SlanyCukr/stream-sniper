@@ -1,7 +1,7 @@
 """HTTP contracts for every mounted user-administration route family."""
 
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -11,6 +11,7 @@ from stream_sniper.application.identity.user_creation import UserCreationError
 from stream_sniper.database.gateways.identity.records import (
     PublicUserRow,
     UserRow,
+    UserSystemStatsRow,
 )
 
 NOW = datetime.now(UTC)
@@ -190,14 +191,12 @@ def test_admin_update_accepts_privileged_fields_and_reloads_the_user():
 
 
 def test_system_statistics_route_maps_all_four_counts():
-    cursor = MagicMock()
-    cursor.fetchone.side_effect = [(10,), (8,), (2,), (3,)]
-    pool = MagicMock()
-    pool.get_cursor.return_value.__enter__.return_value = cursor
-
     with (
         patch("stream_sniper.api.security.auth.get_user_by_username", return_value=_admin()),
-        patch("stream_sniper.api.features.auth.user_admin_endpoints.get_active_pool", return_value=pool),
+        patch(
+            "stream_sniper.api.features.auth.user_admin_endpoints.select_user_system_stats_db",
+            return_value=UserSystemStatsRow(10, 8, 2, 3),
+        ),
         _client() as client,
     ):
         response = client.get("/auth/admin/stats", headers=_headers())

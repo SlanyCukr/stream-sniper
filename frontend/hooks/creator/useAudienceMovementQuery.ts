@@ -54,7 +54,7 @@ export const useAudienceMovement = (
     ...options,
     queryKey: audienceMovementKeys.detail(creatorId, days),
     queryFn: async () => {
-        const { data: value } = await retrieveAudienceMovement(creatorId, days)
+        const value = await retrieveAudienceMovement(creatorId, days)
         const record = requireRecord(value, 'audience movement')
         // requireRecord only checks the value is a plain object; individual fields
         // are trusted against the wire DTO rather than guarded field-by-field

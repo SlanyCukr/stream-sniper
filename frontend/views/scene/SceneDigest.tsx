@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import DigestMarkdown from '@/components/scene/DigestMarkdown'
 import FilterPills from '@/components/common/FilterPills'
 import QueryState from '@/components/common/QueryState'
@@ -19,14 +20,11 @@ const WINDOW_TABS: Array<{ key: number, label: string }> = [
  */
 const SceneDigest = () => {
     const [days, setDays] = useState(7)
-    const [copied, setCopied] = useState(false)
+    const { copied, copy } = useCopyToClipboard()
     const query = useSceneDigest({ days })
 
-    const copyDigest = async () => {
-        if (!query.data) return
-        await navigator.clipboard.writeText(query.data)
-        setCopied(true)
-        window.setTimeout(() => setCopied(false), 2000)
+    const copyDigest = () => {
+        if (query.data) void copy(query.data)
     }
 
     return (
