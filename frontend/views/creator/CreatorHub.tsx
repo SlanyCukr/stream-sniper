@@ -26,7 +26,6 @@ const CreatorHub = ({ initialView = 'regulars' }: CreatorHubProps) => {
                     error={hub.creatorsQuery.error}
                     title="Failed to load creators"
                     onRetry={hub.creatorsQuery.refetch}
-                    showDetails={process.env.NODE_ENV === 'development'}
                 />
             ) : null}
             <CreatorHubControls

@@ -104,7 +104,7 @@ export const useSceneLive = (options: QueryOptions<SceneLive> = {}) => {
     return useQuery({
         ...queryOptions,
         queryKey: sceneKeys.live(),
-        queryFn: async () => mapSceneLive((await retrieveSceneLive()).data),
+        queryFn: async () => mapSceneLive(await retrieveSceneLive()),
         enabled,
         refetchInterval,
     })
@@ -116,6 +116,6 @@ export const useSceneLeaderboard = (
 ) => useQuery({
     ...options,
     queryKey: sceneKeys.leaderboard(windowDays),
-    queryFn: async () => mapSceneLeaderboard((await retrieveSceneLeaderboard(windowDays)).data),
+    queryFn: async () => mapSceneLeaderboard(await retrieveSceneLeaderboard(windowDays)),
     enabled: Boolean(windowDays) && enabled,
 })

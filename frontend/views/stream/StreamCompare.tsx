@@ -6,6 +6,7 @@ import Select from 'react-select'
 import { Card, Table } from 'react-bootstrap'
 import { useStreamComparison, type StreamComparisonStream } from '@/hooks/stream/useStreamComparisonQuery'
 import { useStreams, type StreamListRow } from '@/hooks/stream/list/useStreamsQuery'
+import EmptyState from '@/components/common/EmptyState'
 import QueryState from '@/components/common/QueryState'
 
 const COLORS = ['#69f0ae', '#ffb74d', '#64b5f6', '#ef9a9a']
@@ -144,11 +145,7 @@ const StreamCompare = ({ initialIds = [] }: StreamCompareProps) => {
             </div>
 
             {selectedIds.length < 2 ? (
-                <div className="empty-state">
-                    <p className="empty-title">
-                        Choose at least two streams
-                    </p>
-                </div>
+                <EmptyState title="Choose at least two streams" />
             ) : null}
             <QueryState
                 query={comparison}

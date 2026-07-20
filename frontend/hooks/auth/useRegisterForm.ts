@@ -44,12 +44,7 @@ const validate = (form: RegisterFormData) => validateUsername(form.username) ||
     validatePassword(form)
 
 export const useRegisterForm = (onSuccess?: () => void) => {
-    // AuthContext.tsx is mid-migration and not yet typed upstream; assert the
-    // subset of its value this hook relies on.
-    const { register, isInitializing } = useAuth() as {
-        register: (username: string, email: string, password: string) => Promise<void>
-        isInitializing: boolean
-    }
+    const { register, isInitializing } = useAuth()
     return useAuthFormSubmit({
         initialForm: INITIAL_FORM,
         validate,

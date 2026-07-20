@@ -146,7 +146,7 @@ describe('scene rankings view-model contract', () => {
   })
 
   it('fetches a page through the offset-aware hook and maps it', async () => {
-    sceneApi.retrieveSceneRankings.mockResolvedValue({ data: rankingsPayload })
+    sceneApi.retrieveSceneRankings.mockResolvedValue(rankingsPayload)
     const { result } = renderHook(
       () => useSceneRankings({ window: '7', limit: 25, offset: 50 }),
       { wrapper: createWrapper() },
@@ -165,7 +165,7 @@ describe('scene rankings view-model contract', () => {
   })
 
   it('surfaces a malformed rankings response as a boundary TypeError', async () => {
-    sceneApi.retrieveSceneRankings.mockResolvedValue({ data: {} })
+    sceneApi.retrieveSceneRankings.mockResolvedValue({})
     const { result } = renderHook(() => useSceneRankings(), { wrapper: createWrapper() })
 
     await waitFor(() => expect(result.current.isError).toBe(true))

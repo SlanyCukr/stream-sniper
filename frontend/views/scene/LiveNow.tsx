@@ -7,28 +7,12 @@ import { useSceneLive, type SceneLiveChannel } from '@/hooks/scene/useSceneLiveQ
 import QueryState from '@/components/common/QueryState'
 import StatusChip from '@/components/common/StatusChip'
 import { parseNaiveUtcEpoch } from '@/utils/dateUtils'
-import { formatDurationHoursMinutes } from '@/utils/numberUtils'
+import { uptimeLabel } from '@/utils/numberUtils'
 
 // Freshness horizon for the "tracker stale" warning. Samples land every ~5 min;
 // if the newest sample overall is older than this, the tracker is likely down,
 // which reads as "nobody live" — surface that instead of a false empty state.
 const STALE_MS = 15 * 60 * 1000
-
-/**
- * Human uptime "2h 14m" / "43m" from a live session start, or null when unknown
- * or the clock is skewed (negative elapsed).
- */
-const uptimeLabel = (startedAt: string | null): string | null => {
-    const start = parseNaiveUtcEpoch(startedAt)
-    if (start === null) {
-        return null
-    }
-    const elapsedMs = Date.now() - start
-    if (elapsedMs < 0) {
-        return null
-    }
-    return formatDurationHoursMinutes(elapsedMs / 1000)
-}
 
 interface LiveCardProps {
     /** mapped live entry from useSceneLive */

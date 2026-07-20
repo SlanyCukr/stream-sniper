@@ -216,12 +216,10 @@ describe('query view-model contracts', () => {
   })
 
   it('normalizes named creator catalog rows before consumers receive them', async () => {
-    api.retrieveAllCreators.mockResolvedValue({
-      data: [
-        { creator_id: 7, display_name: 'operator' },
-        { creator_id: 8, display_name: 'guest' },
-      ],
-    })
+    api.retrieveAllCreators.mockResolvedValue([
+      { creator_id: 7, display_name: 'operator' },
+      { creator_id: 8, display_name: 'guest' },
+    ])
     const queryClient = createClient()
     const wrapper = createWrapper(queryClient)
     const creators = renderHook(() => useCreators(), { wrapper })
@@ -256,17 +254,13 @@ describe('query view-model contracts', () => {
       completed_at: null,
       retry_count: 2,
     }
-    api.retrieveTrackedStreamers.mockResolvedValue({
-      data: { streamers: [rawStreamer], total: 1 },
-    })
+    api.retrieveTrackedStreamers.mockResolvedValue({ streamers: [rawStreamer], total: 1 })
     api.retrieveDetailedHealth.mockResolvedValue({
-      data: {
-        status: 'healthy',
-        timestamp: 'now',
-        uptime_seconds: 60,
-        system: { memory_usage_percent: 12.5 },
-        components: { database: { status: 'healthy', response_time_ms: 3 } },
-      },
+      status: 'healthy',
+      timestamp: 'now',
+      uptime_seconds: 60,
+      system: { memory_usage_percent: 12.5 },
+      components: { database: { status: 'healthy', response_time_ms: 3 } },
     })
     const queryClient = createClient()
     const wrapper = createWrapper(queryClient)
@@ -332,14 +326,12 @@ describe('query view-model contracts', () => {
       created_at: '2026-07-15T08:00:00Z',
     }
     api.retrieveAdminSystemStats.mockResolvedValue({
-      data: {
-        total_users: 10,
-        active_users: 8,
-        admin_users: 2,
-        recent_registrations: 1,
-      },
+      total_users: 10,
+      active_users: 8,
+      admin_users: 2,
+      recent_registrations: 1,
     })
-    api.retrieveUsers.mockResolvedValue({ data: { users: [rawUser], total: 1 } })
+    api.retrieveUsers.mockResolvedValue({ users: [rawUser], total: 1 })
     const wrapper = createWrapper(createClient())
     const stats = renderHook(() => useAdminSystemStats(), { wrapper })
     const users = renderHook(() => useAdminUsers(), { wrapper })
@@ -370,14 +362,12 @@ describe('query view-model contracts', () => {
     await expect(loadTrackedStreamerOptions(' o ')).resolves.toEqual([])
     expect(api.retrieveTwitchChannelSearch).not.toHaveBeenCalled()
 
-    api.retrieveTwitchChannelSearch.mockResolvedValue({
-      data: [{
-        login: 'operator',
-        display_name: 'Operator',
-        profile_image_url: '',
-        is_live: false,
-      }],
-    })
+    api.retrieveTwitchChannelSearch.mockResolvedValue([{
+      login: 'operator',
+      display_name: 'Operator',
+      profile_image_url: '',
+      is_live: false,
+    }])
     await expect(loadTrackedStreamerOptions(' op ')).resolves.toEqual([
       { value: 'operator', label: 'Operator (operator)' },
     ])
@@ -385,7 +375,7 @@ describe('query view-model contracts', () => {
   })
 
   it('normalizes processing-job filter IDs before the adapter request', async () => {
-    api.retrieveProcessingJobs.mockResolvedValue({ data: { jobs: [], total: 0 } })
+    api.retrieveProcessingJobs.mockResolvedValue({ jobs: [], total: 0 })
     const emptyFilter = renderHook(
       () => useProcessingJobs({ trackedStreamerId: '' }),
       { wrapper: createWrapper(createClient()) },
@@ -407,23 +397,23 @@ describe('query view-model contracts', () => {
 
   it.each([
     ['tracking stats', () => {
-      api.retrieveTrackingStats.mockResolvedValue({ data: {} })
+      api.retrieveTrackingStats.mockResolvedValue({})
       return renderHook(() => useTrackingStats(), { wrapper: createWrapper(createClient()) })
     }],
     ['tracked streamers', () => {
-      api.retrieveTrackedStreamers.mockResolvedValue({ data: {} })
+      api.retrieveTrackedStreamers.mockResolvedValue({})
       return renderHook(() => useTrackedStreamers(), { wrapper: createWrapper(createClient()) })
     }],
     ['admin stats', () => {
-      api.retrieveAdminSystemStats.mockResolvedValue({ data: {} })
+      api.retrieveAdminSystemStats.mockResolvedValue({})
       return renderHook(() => useAdminSystemStats(), { wrapper: createWrapper(createClient()) })
     }],
     ['admin users', () => {
-      api.retrieveUsers.mockResolvedValue({ data: {} })
+      api.retrieveUsers.mockResolvedValue({})
       return renderHook(() => useAdminUsers(), { wrapper: createWrapper(createClient()) })
     }],
     ['creator trends', () => {
-      api.retrieveCreatorTrends.mockResolvedValue({ data: {} })
+      api.retrieveCreatorTrends.mockResolvedValue({})
       return renderHook(() => useCreatorTrends(7), { wrapper: createWrapper(createClient()) })
     }],
   ])('rejects a malformed %s response', async (_name, render) => {

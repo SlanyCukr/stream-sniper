@@ -4,14 +4,11 @@ from collections.abc import Iterator
 from uuid import uuid4
 
 from ...core.connection_pool import DatabaseConnectionPool, get_active_pool
-from .records import MessageReplayRow
+from .records import REPLAY_COLUMNS, REPLAY_JOINS, MessageReplayRow
 
-_EXPORT_SQL = """
-    SELECT m.id, TO_CHAR(m.time, 'YYYY-MM-DD"T"HH24:MI:SS.US'), m.chatter_id, c.nick,
-           mt.text, m.is_subscriber, m.badges
-    FROM message m
-    JOIN chatter c ON c.id = m.chatter_id
-    JOIN message_text mt ON mt.id = m.message_text_id
+_EXPORT_SQL = f"""
+    SELECT {REPLAY_COLUMNS}
+    {REPLAY_JOINS}
     WHERE m.stream_id = %s
     ORDER BY m.time ASC, m.id ASC
 """

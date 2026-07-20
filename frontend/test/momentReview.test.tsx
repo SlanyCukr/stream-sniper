@@ -33,12 +33,12 @@ describe('useMomentReview', () => {
   })
 
   it('decodes the complete queue envelope and uses server pagination metadata', async () => {
-    retrieveMomentsQueue.mockResolvedValue({ data: {
+    retrieveMomentsQueue.mockResolvedValue({
       items: [],
       total: 81,
       limit: 20,
       offset: 40,
-    } })
+    })
     const { result } = renderHook(() => useMomentsQueue({ pageIndex: 2, pageSize: 20 }), {
       wrapper: createWrapper(new QueryClient({ defaultOptions: { queries: { retry: false } } })),
     })

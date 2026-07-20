@@ -1,4 +1,5 @@
-import { api, buildQuery } from './client'
+import { getJson } from './client'
+import type { HomeChannelDto } from './sharedDtos'
 
 export interface SceneCopypastaRequest {
   days?: number
@@ -119,36 +120,37 @@ export interface SceneDigestDto {
   markdown: string
 }
 
-export const retrieveSceneLive = () => api.get<SceneLiveDto>('/scene/live')
+export const retrieveSceneLive = () => getJson<SceneLiveDto>('/scene/live')
 
 export const retrieveSceneLeaderboard = (windowDays: 7 | 30 = 7) =>
-  api.get<SceneLeaderboardDto>(`/scene/leaderboard?${buildQuery({ window: windowDays })}`)
+  getJson<SceneLeaderboardDto>('/scene/leaderboard', { window: windowDays })
 
 export const retrieveSceneCopypastas = (request: SceneCopypastaRequest = {}) =>
-  api.get<SceneCopypastasDto>(`/scene/copypastas?${buildQuery({
+  getJson<SceneCopypastasDto>('/scene/copypastas', {
     days: request.days,
     creator_id: request.creatorId,
     sort: request.sort,
     limit: request.pageSize,
     offset: request.rowOffset,
-  })}`)
+  })
 
 export const retrieveCopypastaPropagation = (messageTextId: number, contextSeconds = 90) =>
-  api.get<CopypastaPropagationDto>(
-    `/scene/copypastas/${messageTextId}?${buildQuery({ context_seconds: contextSeconds })}`,
+  getJson<CopypastaPropagationDto>(
+    `/scene/copypastas/${messageTextId}`,
+    { context_seconds: contextSeconds },
   )
 
 export const retrieveScenePulse = (request: ScenePulseRequest = {}) =>
-  api.get<ScenePulseDto>(`/scene/pulse?${buildQuery({
+  getJson<ScenePulseDto>('/scene/pulse', {
     days: request.days,
     event_type: request.eventType,
     creator_id: request.creatorId,
     limit: request.limit,
     offset: request.offset,
-  })}`)
+  })
 
 export const retrieveSceneDigest = (days = 7) =>
-  api.get<SceneDigestDto>(`/scene/digest?${buildQuery({ days })}`)
+  getJson<SceneDigestDto>('/scene/digest', { days })
 
 // ---------------------------------------------------------------------------
 // Scene power rankings (chatter leaderboard) — GET /scene/chatter-rankings
@@ -172,22 +174,16 @@ export interface SceneRankingsDto {
     total_messages: number
     streams_attended: number
     creators_visited: number
-    home_channel: {
-      creator_id: number
-      creator_nick: string
-      creator_display_name: string
-      messages: number
-      share: number
-    } | null
+    home_channel: HomeChannelDto | null
   }>
 }
 
 export const retrieveSceneRankings = (request: SceneRankingsRequest = {}) =>
-  api.get<SceneRankingsDto>(`/scene/chatter-rankings?${buildQuery({
+  getJson<SceneRankingsDto>('/scene/chatter-rankings', {
     window: request.window,
     limit: request.limit,
     offset: request.offset,
-  })}`)
+  })
 
 // ---------------------------------------------------------------------------
 // Scene highlights wall (hype-ranked moments) — GET /scene/highlights
@@ -230,13 +226,13 @@ export interface SceneHighlightsDto {
 }
 
 export const retrieveSceneHighlights = (request: SceneHighlightsRequest = {}) =>
-  api.get<SceneHighlightsDto>(`/scene/highlights?${buildQuery({
+  getJson<SceneHighlightsDto>('/scene/highlights', {
     window: request.window,
     creator_id: request.creatorId,
     sort: request.sort,
     limit: request.limit,
     offset: request.offset,
-  })}`)
+  })
 
 // ---------------------------------------------------------------------------
 // Scene trending velocity — GET /scene/trending/{copypastas,emotes}
@@ -283,18 +279,18 @@ export interface TrendingEmotesDto {
 }
 
 export const retrieveTrendingCopypastas = (request: SceneTrendingRequest = {}) =>
-  api.get<TrendingCopypastasDto>(`/scene/trending/copypastas?${buildQuery({
+  getJson<TrendingCopypastasDto>('/scene/trending/copypastas', {
     window: request.window,
     creator_id: request.creatorId,
     limit: request.limit,
-  })}`)
+  })
 
 export const retrieveTrendingEmotes = (request: SceneTrendingRequest = {}) =>
-  api.get<TrendingEmotesDto>(`/scene/trending/emotes?${buildQuery({
+  getJson<TrendingEmotesDto>('/scene/trending/emotes', {
     window: request.window,
     creator_id: request.creatorId,
     limit: request.limit,
-  })}`)
+  })
 
 // ---------------------------------------------------------------------------
 // Scene Wrapped (period recap) — GET /scene/wrapped
@@ -364,7 +360,7 @@ export interface SceneWrappedDto {
 }
 
 export const retrieveSceneWrapped = (days = 30) =>
-  api.get<SceneWrappedDto>(`/scene/wrapped?${buildQuery({ days })}`)
+  getJson<SceneWrappedDto>('/scene/wrapped', { days })
 
 // ---------------------------------------------------------------------------
 // Live Moment Radar (chat velocity for live streams) — GET /scene/radar
@@ -390,7 +386,7 @@ export interface SceneRadarDto {
 }
 
 export const retrieveSceneRadar = () =>
-  api.get<SceneRadarDto>('/scene/radar')
+  getJson<SceneRadarDto>('/scene/radar')
 
 // ---------------------------------------------------------------------------
 // Emote drill-down (lifetime story of one emote) — GET /scene/emotes/{id}
@@ -433,4 +429,4 @@ export interface EmoteDetailDto {
 }
 
 export const retrieveEmoteDetail = (emoteId: number) =>
-  api.get<EmoteDetailDto>(`/scene/emotes/${emoteId}`)
+  getJson<EmoteDetailDto>(`/scene/emotes/${emoteId}`)

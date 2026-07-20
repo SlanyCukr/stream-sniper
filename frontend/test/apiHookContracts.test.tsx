@@ -45,31 +45,31 @@ describe('API hook contract boundaries', () => {
 
   it.each([
     ['stream list', () => {
-      api.retrieveStreams.mockResolvedValue({ data: {} })
+      api.retrieveStreams.mockResolvedValue({})
       return renderHook(() => useStreams(), { wrapper: createWrapper() })
     }],
     ['stream detail', () => {
-      api.retrieveStreamComprehensive.mockResolvedValue({ data: {} })
+      api.retrieveStreamComprehensive.mockResolvedValue({})
       return renderHook(() => useStreamDetails(7), { wrapper: createWrapper() })
     }],
     ['community overlap', () => {
-      api.retrieveCommunityOverlap.mockResolvedValue({ data: {} })
+      api.retrieveCommunityOverlap.mockResolvedValue({})
       return renderHook(() => useCommunityOverlap(), { wrapper: createWrapper() })
     }],
     ['creator neighbors', () => {
-      api.retrieveCreatorNeighbors.mockResolvedValue({ data: {} })
+      api.retrieveCreatorNeighbors.mockResolvedValue({})
       return renderHook(() => useCreatorNeighbors(7), { wrapper: createWrapper() })
     }],
     ['detailed health', () => {
-      api.retrieveDetailedHealth.mockResolvedValue({ data: {} })
+      api.retrieveDetailedHealth.mockResolvedValue({})
       return renderHook(() => useDetailedHealth(), { wrapper: createWrapper() })
     }],
     ['system metrics', () => {
-      api.retrieveMetrics.mockResolvedValue({ data: {} })
+      api.retrieveMetrics.mockResolvedValue({})
       return renderHook(() => useSystemMetrics(), { wrapper: createWrapper() })
     }],
     ['cache stats', () => {
-      api.retrieveCacheStats.mockResolvedValue({ data: {} })
+      api.retrieveCacheStats.mockResolvedValue({})
       return renderHook(() => useCacheStats(), { wrapper: createWrapper() })
     }],
   ])('rejects a malformed %s payload instead of returning empty success', async (_name, render) => {
@@ -79,13 +79,13 @@ describe('API hook contract boundaries', () => {
   })
 
   it('keeps hook-owned query functions and keys authoritative', async () => {
-    api.retrieveDetailedHealth.mockResolvedValue({ data: {
+    api.retrieveDetailedHealth.mockResolvedValue({
       status: 'healthy',
       timestamp: 'now',
       uptime_seconds: 12,
       system: { memory_usage_percent: 5 },
       components: {},
-    } })
+    })
     const foreignQuery = vi.fn(async () => ({ status: 'foreign' }))
     const hook = renderHook(
       () => useDetailedHealth({ queryKey: ['foreign'], queryFn: foreignQuery }),

@@ -53,3 +53,10 @@ class PublicUserRow(NamedTuple):
     role: UserRole
     is_active: bool
     created_at: datetime
+
+
+class UserSystemStatsRow(NamedTuple):
+    total_users: int
+    active_users: int
+    admin_users: int
+    recent_registrations: int

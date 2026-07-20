@@ -71,18 +71,3 @@ def with_cursor[**P, R](f: Callable[Concatenate[Cursor, P], R]) -> Callable[P, R
 
     _hide_injected_parameters(wrapper, f, {"cursor"})
     return wrapper
-
-
-def log_database_operation[**P, R](f: Callable[P, R]) -> Callable[P, R]:
-    """Log propagated database failures without success narration."""
-
-    @wraps(f)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        operation_name = f.__name__
-        try:
-            return f(*args, **kwargs)
-        except Exception as e:
-            logger.exception(f"Database operation failed: {operation_name} - {e}")
-            raise
-
-    return wrapper

@@ -70,7 +70,7 @@ describe('creator query contracts', () => {
   })
 
   it('maps audience movement associations and intentional nullable rates', async () => {
-    api.retrieveAudienceMovement.mockResolvedValue({ data: {
+    api.retrieveAudienceMovement.mockResolvedValue({
       creator_id: 7,
       window_days: 14,
       current_audience: 100,
@@ -86,7 +86,7 @@ describe('creator query contracts', () => {
       current_channels_for_lapsed: [{
         creator_id: 9, nick: 'gamma', display_name: 'Gamma', chatter_count: 4,
       }],
-    } })
+    })
     const hook = renderHook(() => useAudienceMovement(7, { days: 14 }), { wrapper: createWrapper() })
     await waitFor(() => expect(hook.result.current.isSuccess).toBe(true))
     expect(api.retrieveAudienceMovement).toHaveBeenCalledWith(7, 14)
@@ -100,7 +100,7 @@ describe('creator query contracts', () => {
   })
 
   it('maps complete creator summary and regular filters without losing nulls', async () => {
-    api.retrieveCreatorSummary.mockResolvedValue({ data: {
+    api.retrieveCreatorSummary.mockResolvedValue({
       creator_id: 7,
       nick: 'alpha',
       display_name: 'Alpha',
@@ -115,8 +115,8 @@ describe('creator query contracts', () => {
       audience_size: 100,
       regulars: 20,
       latest_stream: { stream_id: 99, title: 'Launch', start: null },
-    } })
-    api.retrieveCreatorRegulars.mockResolvedValue({ data: {
+    })
+    api.retrieveCreatorRegulars.mockResolvedValue({
       regulars: [{
         chatter_id: 5,
         nick: 'viewer',
@@ -127,7 +127,7 @@ describe('creator query contracts', () => {
         message_count: 45,
       }],
       total_streams: 4,
-    } })
+    })
 
     const summary = renderHook(() => useCreatorSummary(7), { wrapper: createWrapper() })
     const filters = { minStreams: 3, sort: 'messages', dir: 'desc' as const, limit: 10 }
@@ -160,7 +160,7 @@ describe('creator query contracts', () => {
   })
 
   it('renders a creator trend surface through the real query mapper', async () => {
-    api.retrieveCreatorTrends.mockResolvedValue({ data: { points: [{
+    api.retrieveCreatorTrends.mockResolvedValue({ points: [{
       stream_id: 10,
       title: 'Launch',
       start: '2026-07-14T10:00:00Z',
@@ -170,7 +170,7 @@ describe('creator query contracts', () => {
       new_chatters: 30,
       returning_chatters: 70,
       message_count: 500,
-    }] } })
+    }] })
 
     renderWithQueryClient(<TrendsPanel creatorId={7} />)
 
@@ -182,7 +182,7 @@ describe('creator query contracts', () => {
   })
 
   it('maps creator wrapped totals and top lists without losing nulls', async () => {
-    api.retrieveCreatorWrapped.mockResolvedValue({ data: {
+    api.retrieveCreatorWrapped.mockResolvedValue({
       creator_id: 7,
       days: 30,
       totals: {
@@ -209,7 +209,7 @@ describe('creator query contracts', () => {
       top_emotes: [{
         emote_id: 1, name: 'PogChamp', source: 'twitch', usage: 300, chatter_reach: 60,
       }],
-    } })
+    })
 
     const hook = renderHook(() => useCreatorWrapped(7, 30), { wrapper: createWrapper() })
     await waitFor(() => expect(hook.result.current.isSuccess).toBe(true))

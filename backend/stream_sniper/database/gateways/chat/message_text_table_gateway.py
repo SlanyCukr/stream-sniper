@@ -62,8 +62,16 @@ def insert_message_texts_db(
 
 
 @with_cursor
-def select_all_message_texts_db(
+def select_message_text_ids_db(
     cursor: Cursor,
+    texts: Sequence[str],
 ) -> dict[str, int]:
-    cursor.execute("SELECT id, text FROM message_text")
+    """Text -> id map for exactly the given texts (batch-scoped dedup lookup).
+
+    Replaces a former full-table scan: the dedup table grows with all history,
+    so lookups must stay bounded by the ingestion batch, not table size.
+    """
+    if not texts:
+        return {}
+    cursor.execute("SELECT id, text FROM message_text WHERE text = ANY(%s)", (list(texts),))
     return {str(row[1]): int(row[0]) for row in cursor.fetchall()}

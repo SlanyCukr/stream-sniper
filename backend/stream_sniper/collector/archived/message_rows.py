@@ -25,11 +25,21 @@ class MessagePersistenceBatch:
     emotes: tuple[tuple[str, str | None], ...]
 
 
-def _tagged_user_id(message: str, chatter_ids: dict[str, int]) -> int | None:
+def _mention_token(message: str) -> str | None:
     if "@" not in message:
         return None
-    mention = message.lower().split("@", 1)[1].split(" ", 1)[0]
-    return chatter_ids.get(mention)
+    return message.lower().split("@", 1)[1].split(" ", 1)[0]
+
+
+def _tagged_user_id(message: str, chatter_ids: dict[str, int]) -> int | None:
+    token = _mention_token(message)
+    return chatter_ids.get(token) if token is not None else None
+
+
+def collect_mention_nicks(batch: ParsedChatBatch) -> list[str]:
+    """Lowercased @mention tokens across the batch, so the chatter-id lookup can
+    stay batch-scoped and still resolve mentions of chatters seen in past streams."""
+    return sorted({token for line in batch.lines if (token := _mention_token(line.message))})
 
 
 def build_message_rows(

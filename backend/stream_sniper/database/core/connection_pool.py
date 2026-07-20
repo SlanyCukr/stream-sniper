@@ -27,7 +27,6 @@ class PoolConfigPayload(TypedDict):
     port: int
     options: str
     connect_timeout: int
-    command_timeout: int
 
 
 class PoolStatusPayload(TypedDict):
@@ -55,7 +54,6 @@ class DatabasePoolConfig:
     minconn: int = 2
     maxconn: int = 20
     connect_timeout: int = 10
-    command_timeout: int = 60
 
 
 def load_database_pool_config(environ: Mapping[str, str] | None = None, *, require: bool = True) -> DatabasePoolConfig:
@@ -84,7 +82,6 @@ def load_database_pool_config(environ: Mapping[str, str] | None = None, *, requi
         minconn=int(env.get("DB_POOL_MIN_CONN", "2")),
         maxconn=int(env.get("DB_POOL_MAX_CONN", "20")),
         connect_timeout=int(env.get("DB_CONNECT_TIMEOUT", "10")),
-        command_timeout=int(env.get("DB_COMMAND_TIMEOUT", "60")),
     )
 
 
@@ -226,7 +223,6 @@ class DatabaseConnectionPool:
                 "port": self._config.port,
                 "options": self._config.options,
                 "connect_timeout": self._config.connect_timeout,
-                "command_timeout": self._config.command_timeout,
             },
         }
 

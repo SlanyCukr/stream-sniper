@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import Link from 'next/link'
 import {
     Card, Col, Row, Table,
@@ -21,23 +21,13 @@ import { formatStreamTimestamp } from '@/utils/dateUtils'
 import { normalizeApiError } from '@/utils/errorUtils'
 
 const CopyLinkButton = () => {
-    const [copied, setCopied] = useState(false)
-
-    const copy = async () => {
-        try {
-            await navigator.clipboard.writeText(window.location.href)
-            setCopied(true)
-            window.setTimeout(() => setCopied(false), 2000)
-        } catch {
-            setCopied(false)
-        }
-    }
+    const { copied, copy } = useCopyToClipboard()
 
     return (
         <button
             type="button"
             className="btn btn-outline-primary btn-sm"
-            onClick={copy}
+            onClick={() => void copy(window.location.href)}
             aria-live="polite"
         >
             <i className={`bi ${copied ? 'bi-check2' : 'bi-link-45deg'} me-2`} aria-hidden="true" />

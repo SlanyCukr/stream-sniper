@@ -4,6 +4,8 @@
  * from the address bar. `days === null` means "All time" (no `days` param sent).
  */
 
+import { parsePositiveId } from '@/utils/paramUtils'
+
 export const SEARCH_DAY_WINDOWS = [7, 30, 90, 365] as const
 
 interface SearchUrlState {
@@ -12,20 +14,14 @@ interface SearchUrlState {
   days: number | null
 }
 
-const parsePositiveInt = (value: string | null): number | null => {
-  if (value === null) return null
-  const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-}
-
 /** Read the shareable filter state out of a URLSearchParams-like object. */
 export const readSearchState = (
   params: Pick<URLSearchParams, 'get'>,
 ): SearchUrlState => {
-  const days = parsePositiveInt(params.get('days'))
+  const days = parsePositiveId(params.get('days'))
   return {
     q: (params.get('q') ?? '').slice(0, 200),
-    creatorId: parsePositiveInt(params.get('creator_id')),
+    creatorId: parsePositiveId(params.get('creator_id')),
     days: days !== null && (SEARCH_DAY_WINDOWS as readonly number[]).includes(days) ? days : null,
   }
 }

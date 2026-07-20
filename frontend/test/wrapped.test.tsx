@@ -221,7 +221,7 @@ describe('scene wrapped view-model contract', () => {
   })
 
   it('fetches the recap with the default window and maps it', async () => {
-    api.retrieveSceneWrapped.mockResolvedValue({ data: wirePayload() })
+    api.retrieveSceneWrapped.mockResolvedValue(wirePayload())
     const { result } = renderHook(() => useSceneWrapped(), { wrapper: createWrapper() })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
@@ -230,7 +230,7 @@ describe('scene wrapped view-model contract', () => {
   })
 
   it('threads a non-default window into the request and cache key', async () => {
-    api.retrieveSceneWrapped.mockResolvedValue({ data: emptyPayload() })
+    api.retrieveSceneWrapped.mockResolvedValue(emptyPayload())
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const { result } = renderHook(() => useSceneWrapped(90), { wrapper: createWrapper(client) })
 
@@ -242,7 +242,7 @@ describe('scene wrapped view-model contract', () => {
   })
 
   it('surfaces a malformed response as a boundary TypeError', async () => {
-    api.retrieveSceneWrapped.mockResolvedValue({ data: {} })
+    api.retrieveSceneWrapped.mockResolvedValue({})
     const { result } = renderHook(() => useSceneWrapped(), { wrapper: createWrapper() })
 
     await waitFor(() => expect(result.current.isError).toBe(true))

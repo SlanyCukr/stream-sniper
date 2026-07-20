@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { TimelineContextChange, TimelineMoment } from '@/hooks/stream/timeline/useStreamTimelineQuery'
 
 export const formatTimelineClock = (timestamp: unknown): string => typeof timestamp === 'string' && timestamp.length >= 16
@@ -12,7 +13,9 @@ interface TimelineMarkersProps {
     onMomentClick: (moment: TimelineMoment) => void
 }
 
-const TimelineMarkers = ({
+// Memoized like its hover-sensitive siblings (TimelineBars, TimelineViewerPaths):
+// markers don't depend on hover state, so hover-driven parent renders skip them.
+const TimelineMarkers = memo(({
     contextChanges,
     moments,
     selectedTs,
@@ -41,6 +44,8 @@ const TimelineMarkers = ({
             </button>
         ))}
     </div>
-)
+))
+
+TimelineMarkers.displayName = 'TimelineMarkers'
 
 export default TimelineMarkers

@@ -8,6 +8,7 @@ import {
 import type { OverlapMatrixModel, OverlapCell as OverlapCellShape } from '@/hooks/community/useOverlapModel'
 import type { OverlapMetric } from '@/hooks/community/useCommunityQuery'
 import OverlapCell from './OverlapCell'
+import { formatSharePct } from '@/utils/numberUtils'
 
 interface OverlapMatrixProps {
     creators: OverlapMatrixCreator[]
@@ -45,7 +46,7 @@ const OverlapMatrix = ({
             ? undefined
             : `${model.nameOf(row)} by ${model.nameOf(column)}: ${overlap.jaccard == null
                 ? 'no shared audience'
-                : `${overlap.shared.toLocaleString()} shared, ${(overlap.jaccard * 100).toFixed(1)}% Jaccard`}`
+                : `${overlap.shared.toLocaleString()} shared, ${formatSharePct(overlap.jaccard)} Jaccard`}`
 
         return (
             <OverlapCell
@@ -59,11 +60,13 @@ const OverlapMatrix = ({
                 focusable={focusable}
                 label={label}
                 fillOpacity={diagonal ? 0 : model.fillOpacity(overlap?.jaccard ?? null)}
-                onEnter={diagonal ? undefined : () => model.handleEnter(rowIndex, columnIndex)}
+                rowIndex={rowIndex}
+                columnIndex={columnIndex}
+                rowId={row.creatorId}
+                columnId={column.creatorId}
+                onEnter={diagonal ? undefined : model.handleEnter}
                 onLeave={diagonal ? undefined : model.handleLeave}
-                onSelect={diagonal
-                    ? undefined
-                    : () => model.handleSelect(row.creatorId, column.creatorId)}
+                onSelect={diagonal ? undefined : model.handleSelect}
             />
         )
     }
@@ -138,7 +141,7 @@ const OverlapMatrix = ({
                             <span className="chart-tooltip-metric">
                                 {model.hover.jaccard == null
                                     ? 'Jaccard --'
-                                    : `Jaccard ${(model.hover.jaccard * 100).toFixed(1)}%`}
+                                    : `Jaccard ${formatSharePct(model.hover.jaccard)}`}
                             </span>
                         </div>
                     ) : null}

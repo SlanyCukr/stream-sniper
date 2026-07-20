@@ -2,8 +2,7 @@ import type { ReactNode } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
 import Link from 'next/link'
 import { Card } from 'react-bootstrap'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
+import QueryState from '@/components/common/QueryState'
 import { formatCompactNumber } from '@/utils/numberUtils'
 import type { useCreatorEmotes } from '@/hooks/stream/insights/useStreamInsightsQuery'
 import type { useCreatorNeighbors } from '@/hooks/community/useCommunityQuery'
@@ -23,9 +22,15 @@ const SignatureCard = ({
     <Card className={className}>
         <Card.Body>
             <div className="section-label">{title}</div>
-            {query.isLoading ? <LoadingSpinner text={loadingText} /> : null}
-            {query.error ? <ErrorAlert error={query.error} title={`Failed to load ${title.toLowerCase()}`} onRetry={query.refetch} /> : null}
-            {!query.isLoading && !query.error ? <ol className="rank-list">{children}</ol> : null}
+            <QueryState
+                query={query}
+                loadingSize="md"
+                loadingText={loadingText}
+                errorTitle={`Failed to load ${title.toLowerCase()}`}
+                emptyState={<ol className="rank-list" />}
+            >
+                {() => <ol className="rank-list">{children}</ol>}
+            </QueryState>
         </Card.Body>
     </Card>
 )

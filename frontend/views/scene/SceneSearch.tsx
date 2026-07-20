@@ -98,7 +98,6 @@ const SceneSearch = () => {
           error={messagesQuery.error}
           title="Search failed"
           onRetry={messagesQuery.refetch}
-          showDetails={process.env.NODE_ENV === 'development'}
         />
       )
     }

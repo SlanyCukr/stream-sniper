@@ -1,8 +1,10 @@
 """
 FastAPI middleware for Stream Sniper API.
 
-This module provides middleware for correlation ID tracking, request/response logging,
-and performance monitoring.
+This module provides middleware for correlation ID tracking and request/response
+logging with per-request timing (the ``X-Process-Time`` header and slow-request
+warnings). Endpoint metrics aggregation lives in ``api.py``'s
+``metrics_middleware``, which owns the runtime metric/pool scopes.
 """
 
 import time
@@ -13,10 +15,8 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.types import ASGIApp
 
 from ..logging_config import correlation_context, get_logger
-from .config import APIConfig
 
 logger = get_logger(__name__)
-MAX_LOGGED_RESPONSE_BYTES = 1_024
 
 
 class CorrelationIDMiddleware(BaseHTTPMiddleware):
@@ -38,32 +38,32 @@ class CorrelationIDMiddleware(BaseHTTPMiddleware):
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    """Middleware for logging HTTP requests and responses."""
+    """Log HTTP requests/responses (bodies never logged) and time every request.
+
+    Owns the single request-duration measurement: the ``X-Process-Time`` response
+    header is set on every request (including skip paths), and completions slower
+    than ``slow_request_threshold`` seconds are logged as warnings.
+    """
 
     def __init__(
         self,
         app: ASGIApp,
-        log_requests: bool = True,
-        log_responses: bool = True,
-        log_request_body: bool = False,
-        log_response_body: bool = False,
         skip_paths: list[str] | None = None,
+        slow_request_threshold: float = 2.0,
     ) -> None:
         super().__init__(app)
-        self.log_requests = log_requests
-        self.log_responses = log_responses
-        self.log_request_body = log_request_body
-        self.log_response_body = log_response_body
         self.skip_paths = skip_paths if skip_paths is not None else ["/health", "/metrics", "/docs", "/openapi.json"]
+        self.slow_request_threshold = slow_request_threshold
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         start_time = time.time()
 
         if request.url.path in self.skip_paths:
-            return await call_next(request)
+            response = await call_next(request)
+            response.headers["X-Process-Time"] = str(round(time.time() - start_time, 3))
+            return response
 
-        if self.log_requests:
-            await self._log_request(request)
+        self._log_request(request)
 
         try:
             response = await call_next(request)
@@ -81,11 +81,12 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             )
             raise
 
-        if self.log_responses:
-            self._log_completed_response(request, response, time.time() - start_time)
+        process_time = time.time() - start_time
+        response.headers["X-Process-Time"] = str(round(process_time, 3))
+        self._log_completed_response(request, response, process_time)
         return response
 
-    async def _log_request(self, request: Request) -> None:
+    def _log_request(self, request: Request) -> None:
         request_data: dict[str, object] = {
             "method": request.method,
             "url": str(request.url),
@@ -94,13 +95,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             "path": request.url.path,
             "query_params": dict(request.query_params),
         }
-        if self.log_request_body and request.method in {"POST", "PUT", "PATCH"}:
-            try:
-                body = await request.body()
-                if len(body) < MAX_LOGGED_RESPONSE_BYTES:
-                    request_data["body_size"] = len(body)
-            except Exception as error:
-                request_data["body_read_error"] = str(error)
         logger.info("HTTP request received", extra=request_data)
 
     def _log_completed_response(self, request: Request, response: Response, process_time: float) -> None:
@@ -114,7 +108,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             log_level = "error"
         elif response.status_code >= 400:
             log_level = "warning"
-        elif process_time > 5.0:
+        elif process_time > self.slow_request_threshold:
             log_level = "warning"
             response_data["performance_warning"] = "slow_request"
         else:
@@ -137,66 +131,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return "unknown"
 
 
-class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
-    """Middleware for monitoring API performance."""
-
-    def __init__(self, app: ASGIApp, slow_request_threshold: float = 2.0) -> None:
-        super().__init__(app)
-        self.slow_request_threshold = slow_request_threshold
-
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        start_time = time.time()
-
-        try:
-            response = await call_next(request)
-            process_time = time.time() - start_time
-
-            performance_data: dict[str, object] = {
-                "endpoint": f"{request.method} {request.url.path}",
-                "duration_seconds": round(process_time, 3),
-                "status_code": response.status_code,
-            }
-
-            if process_time > self.slow_request_threshold:
-                performance_data["performance_issue"] = "slow_request"
-                logger.warning("Slow API request detected", extra=performance_data)
-            else:
-                logger.debug("API request performance", extra=performance_data)
-
-            response.headers["X-Process-Time"] = str(round(process_time, 3))
-
-            return response
-
-        except Exception as e:
-            process_time = time.time() - start_time
-
-            logger.error(
-                "API request failed",
-                extra={
-                    "endpoint": f"{request.method} {request.url.path}",
-                    "duration_seconds": round(process_time, 3),
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-                exc_info=True,
-            )
-            raise
-
-
-def setup_middleware(app: FastAPI, config: APIConfig | None = None) -> FastAPI:
+def setup_middleware(app: FastAPI) -> FastAPI:
     """Set up all middleware for the FastAPI application."""
 
     app.add_middleware(
-        PerformanceMonitoringMiddleware,
-        slow_request_threshold=getattr(config, "slow_request_threshold", 2.0) if config else 2.0,
-    )
-
-    app.add_middleware(
         RequestLoggingMiddleware,
-        log_requests=True,
-        log_responses=True,
-        log_request_body=False,  # Disable in production for performance
-        log_response_body=False,
         skip_paths=["/health", "/metrics", "/docs", "/openapi.json", "/favicon.ico"],
     )
 

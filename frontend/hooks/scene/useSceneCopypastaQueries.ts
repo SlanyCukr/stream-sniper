@@ -141,7 +141,7 @@ export const useSceneCopypastas = ({
         ...options,
         queryKey: sceneKeys.copypastas({ days, creatorId, sort, ...pagination }),
         queryFn: async () => {
-            const { data } = await retrieveSceneCopypastas({
+            const data = await retrieveSceneCopypastas({
                 days,
                 creatorId,
                 sort,
@@ -161,7 +161,7 @@ export const useCopypastaPropagation = (
     ...options,
     queryKey: sceneKeys.copypasta(messageTextId, contextSeconds),
     queryFn: async () => mapCopypastaPropagation(
-        (await retrieveCopypastaPropagation(messageTextId, contextSeconds)).data,
+        await retrieveCopypastaPropagation(messageTextId, contextSeconds),
     ),
     enabled: Boolean(messageTextId) && enabled,
 })

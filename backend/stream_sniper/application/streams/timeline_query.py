@@ -10,6 +10,7 @@ from stream_sniper.database.gateways.analytics.stream_metrics_table_gateway impo
 )
 from stream_sniper.database.gateways.analytics.stream_time_bucket_table_gateway import select_stream_buckets_db
 from stream_sniper.database.gateways.content.stream_moment_table_gateway import select_stream_moments_db
+from stream_sniper.database.gateways.streams.records import peak_viewer_count
 from stream_sniper.database.gateways.streams.stream_context_table_gateway import select_stream_context_changes_db
 from stream_sniper.database.gateways.streams.stream_viewer_sample_table_gateway import select_stream_viewer_samples_db
 
@@ -49,7 +50,7 @@ def get_stream_timeline(stream_id: int) -> StreamTimeline:
         moments=moments,
         metrics=TimelineMetrics.from_row(metrics_row) if metrics_row is not None else None,
         viewer_samples=viewer_samples,
-        peak_viewers=max((sample.viewer_count for sample in viewer_samples), default=None),
+        peak_viewers=peak_viewer_count(sample_rows),
         context_changes=[StreamContextChange.from_row(row) for row in context_rows],
     )
 

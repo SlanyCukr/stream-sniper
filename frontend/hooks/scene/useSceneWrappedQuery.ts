@@ -219,6 +219,6 @@ export const useSceneWrapped = (
 ) => useQuery({
     ...options,
     queryKey: sceneKeys.wrapped(days),
-    queryFn: async () => mapSceneWrapped((await retrieveSceneWrapped(days)).data),
+    queryFn: async () => mapSceneWrapped(await retrieveSceneWrapped(days)),
     enabled,
 })

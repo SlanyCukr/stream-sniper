@@ -125,7 +125,7 @@ export const useStreamMessages = (
             afterId: pageParam?.afterId,
             limit: REPLAY_PAGE_SIZE,
         })
-        return mapStreamMessagesPage(response.data)
+        return mapStreamMessagesPage(response)
     },
     initialPageParam: undefined,
     getNextPageParam: last => (last.nextCursor

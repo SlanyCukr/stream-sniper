@@ -148,6 +148,7 @@ def test_exposed_vod_chat_start_failure_is_not_reported_as_success(monkeypatch):
         duration="1h",
     )
     downloader = TwitchVodChatDownloader.__new__(TwitchVodChatDownloader)
+    downloader._requested_vod_id = None
     downloader.available_videos = [video]
     downloader.logger = SimpleNamespace(
         info=lambda *args: None,

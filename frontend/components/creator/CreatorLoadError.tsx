@@ -11,7 +11,6 @@ const CreatorLoadError = <T,>({ query }: CreatorLoadErrorProps<T>) => (
             error={query.error}
             title="Failed to load creators"
             onRetry={query.refetch}
-            showDetails={process.env.NODE_ENV === 'development'}
         />
     ) : null
 )

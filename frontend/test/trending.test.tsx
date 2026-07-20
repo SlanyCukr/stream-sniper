@@ -124,7 +124,7 @@ describe('scene trending velocity contracts', () => {
   })
 
   it('fetches copypastas with window defaults and projects mapped rows', async () => {
-    api.retrieveTrendingCopypastas.mockResolvedValue({ data: { window: 7, items: [copypastaItem] } })
+    api.retrieveTrendingCopypastas.mockResolvedValue({ window: 7, items: [copypastaItem] })
     const { result } = renderHook(() => useSceneTrendingCopypastas(), { wrapper: createWrapper() })
     await waitFor(() => expect((result.current as any).isSuccess).toBe(true))
 
@@ -133,7 +133,7 @@ describe('scene trending velocity contracts', () => {
   })
 
   it('threads window / creator / limit filters into the emote request and key', async () => {
-    api.retrieveTrendingEmotes.mockResolvedValue({ data: { window: 30, items: [emoteItem] } })
+    api.retrieveTrendingEmotes.mockResolvedValue({ window: 30, items: [emoteItem] })
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const { result } = renderHook(
       () => useSceneTrendingEmotes({ window: 30, creatorId: 3, limit: 5 }),
@@ -149,11 +149,11 @@ describe('scene trending velocity contracts', () => {
 
   it.each([
     ['copypastas', () => {
-      api.retrieveTrendingCopypastas.mockResolvedValue({ data: {} })
+      api.retrieveTrendingCopypastas.mockResolvedValue({})
       return renderHook(() => useSceneTrendingCopypastas(), { wrapper: createWrapper() })
     }],
     ['emotes', () => {
-      api.retrieveTrendingEmotes.mockResolvedValue({ data: {} })
+      api.retrieveTrendingEmotes.mockResolvedValue({})
       return renderHook(() => useSceneTrendingEmotes(), { wrapper: createWrapper() })
     }],
   ])('surfaces a TypeError for malformed %s payloads', async (_name, renderTarget) => {

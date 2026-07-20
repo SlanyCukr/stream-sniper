@@ -1,5 +1,6 @@
 """Records owned by stream persistence."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import NamedTuple
@@ -20,6 +21,15 @@ class StreamComprehensiveRow(NamedTuple):
 class ViewerSampleRow(NamedTuple):
     sampled_at: str
     viewer_count: int
+
+
+def peak_viewer_count(rows: Sequence[ViewerSampleRow]) -> int | None:
+    """Highest sampled viewer count, or None (unknown) when a stream has no samples.
+
+    Shared by the compare/timeline/report queries so the "no samples = unknown,
+    not zero" contract cannot drift between them.
+    """
+    return max((row.viewer_count for row in rows), default=None)
 
 
 class StreamContextChangeRow(NamedTuple):

@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 from tqdm import tqdm  # type: ignore[import-untyped]
 
+from ..badge_format import format_badge_pairs
 from .twitch_archived_chat import ArchivedChatMessage
 
 
@@ -12,12 +13,12 @@ def extract_message_metadata(
     """Return normalized subscriber, badge, and emote metadata.
 
     emote_pairs is the list of (name, twitch_emote_id) seen in the line; the message-insert path uses
-    only the first three fields, while the collector facade consumes emote_pairs to grow the emote
-    dictionary. The Twitch client validates and normalizes required fields before this boundary.
+    only the first three fields, while ``TwitchChatParser.parse_batch`` consumes emote_pairs to grow
+    the emote dictionary. The Twitch client validates and normalizes required fields before this
+    boundary.
     """
     author = line["author"]
-    pairs = sorted(f"{badge['name']}/{badge['version']}" for badge in author["badges"])
-    badges = ",".join(pairs) or None
+    badges = format_badge_pairs((badge["name"], badge["version"]) for badge in author["badges"])
     emote_pairs: list[tuple[str, str | None]] = [(emote["name"], emote["id"]) for emote in line.get("emotes", [])]
     return author["is_subscriber"], badges, len(emote_pairs), emote_pairs
 

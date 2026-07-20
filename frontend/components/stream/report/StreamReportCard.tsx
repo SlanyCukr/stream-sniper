@@ -1,64 +1,36 @@
 'use client'
-import type { ReactNode } from 'react'
 import { Card } from 'react-bootstrap'
 import { useStreamReport } from '@/hooks/stream/report/useStreamReportQuery'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
+import QueryState from '@/components/common/QueryState'
 import StreamReportPresentation, { hasReportContent } from './StreamReportPresentation'
-
-const ReportShell = ({ children }: { children: ReactNode }) => (
-    <Card className="stream-report">
-        <Card.Body>
-            <h3 className="section-label mb-3">Report card</h3>
-            {children}
-        </Card.Body>
-    </Card>
-)
 
 interface StreamReportCardProps {
     streamId: number
 }
 
 const StreamReportCard = ({ streamId }: StreamReportCardProps) => {
-    const {
-        data,
-        isLoading,
-        error,
-        refetch,
-    } = useStreamReport(streamId)
+    const query = useStreamReport(streamId)
 
-    if (isLoading) {
-        return (
-            <ReportShell>
-                <LoadingSpinner size="md" text="Loading report..." />
-            </ReportShell>
-        )
-    }
-    if (error) {
-        return (
-            <ReportShell>
-                <ErrorAlert
-                    error={error}
-                    title="Failed to load report"
-                    onRetry={refetch}
-                    showDetails={process.env.NODE_ENV === 'development'}
-                />
-            </ReportShell>
-        )
-    }
-    if (!hasReportContent(data)) {
-        return (
-            <ReportShell>
-                <p className="stat-hint text-muted mb-0">
-                    Metrics not yet computed for this stream.
-                </p>
-            </ReportShell>
-        )
-    }
     return (
-        <ReportShell>
-            <StreamReportPresentation data={data} />
-        </ReportShell>
+        <Card className="stream-report">
+            <Card.Body>
+                <h3 className="section-label mb-3">Report card</h3>
+                <QueryState
+                    query={query}
+                    loadingSize="md"
+                    loadingText="Loading report..."
+                    errorTitle="Failed to load report"
+                    isEmpty={data => !hasReportContent(data)}
+                    emptyState={(
+                        <p className="stat-hint text-muted mb-0">
+                            Metrics not yet computed for this stream.
+                        </p>
+                    )}
+                >
+                    {data => <StreamReportPresentation data={data} />}
+                </QueryState>
+            </Card.Body>
+        </Card>
     )
 }
 

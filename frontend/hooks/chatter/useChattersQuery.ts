@@ -53,7 +53,7 @@ export const useChatterStreamActivity = (
     queryKey: chattersKeys.streamActivity(chatterId),
     queryFn: async () => {
         const response = await retrieveChatterStreamActivity(chatterId)
-        return requireArray(response.data, 'chatter stream activity').map((value, index) => mapChatterActivity(value, index))
+        return requireArray(response, 'chatter stream activity').map((value, index) => mapChatterActivity(value, index))
     },
     enabled: Boolean(chatterId) && enabled,
 })

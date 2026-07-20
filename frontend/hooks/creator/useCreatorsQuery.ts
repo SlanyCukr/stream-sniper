@@ -44,7 +44,7 @@ export const useCreators = (
     queryKey: creatorKeys.list(),
     queryFn: async () => {
         const response = await retrieveAllCreators()
-        return requireArray(response.data, 'creators').map(mapCreatorRow)
+        return requireArray(response, 'creators').map(mapCreatorRow)
     },
     enabled,
     staleTime: 1000 * 60 * 10,

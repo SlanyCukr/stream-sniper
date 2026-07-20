@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { Button } from 'react-bootstrap'
 import { buildVodChapters } from '@/utils/vodChapters'
 
@@ -13,21 +13,12 @@ interface CopyChaptersButtonProps {
  * there would be nothing to copy.
  */
 const CopyChaptersButton = ({ timeline }: CopyChaptersButtonProps) => {
-    const [copied, setCopied] = useState(false)
+    const { copied, copy } = useCopyToClipboard()
     const chapters = buildVodChapters(timeline)
 
     if (!chapters) return null
 
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(chapters)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
-        } catch {
-            // Clipboard access denied (permissions/insecure context) — leave
-            // the label unchanged rather than pretending it copied.
-        }
-    }
+    const handleCopy = () => void copy(chapters)
 
     return (
         <Button

@@ -57,7 +57,6 @@ const ChatterPanelShell = ({
                             error={error}
                             title={errorTitle}
                             onRetry={onRetry}
-                            showDetails={process.env.NODE_ENV === 'development'}
                         />
                     ) : null}
                     {chatterId && !isLoading && !error ? (

@@ -117,7 +117,7 @@ def _patch_query(
     stack.enter_context(patch(f"{_ENDPOINT}.creator_rollup_version", return_value="v1"))
     stack.enter_context(patch(f"{_QUERY}.select_creator_exists_db", return_value=exists))
     stack.enter_context(patch(f"{_QUERY}.select_creator_wrapped_totals_db", return_value=totals))
-    stack.enter_context(patch(f"{_QUERY}.select_creator_active_chatters_db", return_value=active_chatters))
+    stack.enter_context(patch(f"{_QUERY}.select_scene_active_chatters_db", return_value=active_chatters))
     stack.enter_context(
         patch(f"{_QUERY}.select_creator_wrapped_chatters_db", return_value=(list(chatters), False))
     )
@@ -125,7 +125,7 @@ def _patch_query(
     stack.enter_context(
         patch(f"{_QUERY}.select_scene_copypastas_db", return_value=(list(copypastas), len(copypastas)))
     )
-    stack.enter_context(patch(f"{_QUERY}.select_creator_wrapped_emotes_db", return_value=list(emotes)))
+    stack.enter_context(patch(f"{_QUERY}.select_scene_emotes_db", return_value=list(emotes)))
     return stack
 
 

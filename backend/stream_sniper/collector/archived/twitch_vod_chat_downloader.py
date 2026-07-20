@@ -12,7 +12,7 @@ from ...database.gateways.chat.live_chat_table_gateway import (
 from ...database.gateways.streams.stream_table_gateway import stream_exists_by_twitch_vod_id_db
 from ...logging_config import get_logger
 from ..twitch_api import ArchivedVideo, SyncTwitchClient
-from .archived_stream import _stopped_at
+from .archived_stream import stopped_at
 from .twitch_archived_chat import ArchivedChatMessage, TwitchArchivedChatClient
 
 
@@ -23,7 +23,7 @@ def _vod_ended_at(video: ArchivedVideo) -> datetime | None:
     keeps the recorded end.
     """
     try:
-        ended_at = _stopped_at(video.created_at, video.duration)
+        ended_at = stopped_at(video.created_at, video.duration)
     except ValueError:
         return None
     if ended_at.tzinfo is not None:
@@ -102,7 +102,7 @@ class TwitchVodChatDownloader:
                             self.logger.exception("Rollup recompute failed for stream %s; will retry on rediscovery", stream_id)
                     continue
 
-            discovery_mode = getattr(self, "_requested_vod_id", None) is None
+            discovery_mode = self._requested_vod_id is None
             if discovery_mode and stream_exists_by_twitch_vod_id_db(video.twitch_vod_id):
                 self.logger.debug("Archived video is already processed")
                 continue

@@ -62,54 +62,52 @@ describe('stream analytics query contracts', () => {
 
   it('maps the complete timeline payload while preserving nullable rollup fields', async () => {
     streamApi.retrieveStreamTimeline.mockResolvedValue({
-      data: {
-        stream_id: 42,
-        stream_start: '2026-07-14T10:00:00Z',
-        twitch_id: 'vod-42',
-        bucket_seconds: 60,
-        buckets: [{
-          bucket_minute: '2026-07-14T10:01:00Z',
-          message_count: 12,
-          unique_chatters: 7,
-          sub_messages: null,
-          emote_messages: 3,
-        }],
-        moments: [{
-          bucket_minute: '2026-07-14T10:01:00Z',
-          offset_seconds: 60,
-          message_count: 12,
-          ratio: null,
-          persisted: false,
-          status: null,
-          sub_share: null,
-          emote_share: 0.25,
-          top_phrases: null,
-          sample_messages: [{ text: 'wow' }],
-        }],
-        metrics: {
-          unique_chatters: 7,
-          messages_per_minute: null,
-          peak_bucket_minute: '2026-07-14T10:01:00Z',
-          new_chatters: 2,
-          returning_chatters: 5,
-          total_messages: 12,
-          duration_seconds: null,
-          peak_messages: 12,
-          sub_messages: null,
-          emote_messages: 3,
-        },
-        viewer_samples: [{ t: '2026-07-14T10:01:00Z', viewer_count: 99 }],
-        context_changes: [{
-          t: '2026-07-14T10:01:00Z',
-          title: 'New title',
-          category_id: null,
-          category_name: null,
-          language: 'en',
-          tags: null,
-          is_mature: false,
-        }],
-        peak_viewers: null,
+      stream_id: 42,
+      stream_start: '2026-07-14T10:00:00Z',
+      twitch_id: 'vod-42',
+      bucket_seconds: 60,
+      buckets: [{
+        bucket_minute: '2026-07-14T10:01:00Z',
+        message_count: 12,
+        unique_chatters: 7,
+        sub_messages: null,
+        emote_messages: 3,
+      }],
+      moments: [{
+        bucket_minute: '2026-07-14T10:01:00Z',
+        offset_seconds: 60,
+        message_count: 12,
+        ratio: null,
+        persisted: false,
+        status: null,
+        sub_share: null,
+        emote_share: 0.25,
+        top_phrases: null,
+        sample_messages: [{ text: 'wow' }],
+      }],
+      metrics: {
+        unique_chatters: 7,
+        messages_per_minute: null,
+        peak_bucket_minute: '2026-07-14T10:01:00Z',
+        new_chatters: 2,
+        returning_chatters: 5,
+        total_messages: 12,
+        duration_seconds: null,
+        peak_messages: 12,
+        sub_messages: null,
+        emote_messages: 3,
       },
+      viewer_samples: [{ t: '2026-07-14T10:01:00Z', viewer_count: 99 }],
+      context_changes: [{
+        t: '2026-07-14T10:01:00Z',
+        title: 'New title',
+        category_id: null,
+        category_name: null,
+        language: 'en',
+        tags: null,
+        is_mature: false,
+      }],
+      peak_viewers: null,
     })
 
     const result = renderHook(() => (
@@ -181,44 +179,42 @@ describe('stream analytics query contracts', () => {
       baseline_median: null,
     }
     streamApi.retrieveStreamReport.mockResolvedValue({
-      data: {
-        stream_id: 42,
-        creator_id: 7,
-        creator_nick: null,
-        title: 'Report stream',
-        start: null,
-        end: null,
-        duration_seconds: null,
-        baseline_count: 0,
-        lookback: 10,
-        metrics: {
-          messages_per_minute: metric,
-          total_messages: metric,
-          unique_chatters: metric,
-          new_chatters: metric,
-          returning_chatters: metric,
-          sub_share: metric,
-          peak_messages: metric,
-          avg_viewers: metric,
-          peak_viewers: metric,
-        },
-        peak_bucket_minute: null,
-        top_emote: {
-          name: 'OMEGALUL',
-          source: 'bttv',
-          provider_id: null,
-          usage_count: 8,
-          chatter_count: 4,
-        },
-        top_phrase: null,
-        top_moments: [{
-          bucket_minute: '2026-07-14T10:01:00Z',
-          offset_seconds: null,
-          message_count: 12,
-          ratio: null,
-          status: null,
-        }],
+      stream_id: 42,
+      creator_id: 7,
+      creator_nick: null,
+      title: 'Report stream',
+      start: null,
+      end: null,
+      duration_seconds: null,
+      baseline_count: 0,
+      lookback: 10,
+      metrics: {
+        messages_per_minute: metric,
+        total_messages: metric,
+        unique_chatters: metric,
+        new_chatters: metric,
+        returning_chatters: metric,
+        sub_share: metric,
+        peak_messages: metric,
+        avg_viewers: metric,
+        peak_viewers: metric,
       },
+      peak_bucket_minute: null,
+      top_emote: {
+        name: 'OMEGALUL',
+        source: 'bttv',
+        provider_id: null,
+        usage_count: 8,
+        chatter_count: 4,
+      },
+      top_phrase: null,
+      top_moments: [{
+        bucket_minute: '2026-07-14T10:01:00Z',
+        offset_seconds: null,
+        message_count: 12,
+        ratio: null,
+        status: null,
+      }],
     })
 
     const result = renderHook(() => (
@@ -261,31 +257,29 @@ describe('stream analytics query contracts', () => {
 
   it('maps every insights payload through the production hooks', async () => {
     streamApi.retrieveStreamMentions.mockResolvedValue({
-      data: {
-        mentioned: [{ chatter_id: 11, nick: 'viewer', count: 5 }],
-        pairs: [{
-          from_chatter_id: 11,
-          from_nick: 'viewer',
-          to_chatter_id: 12,
-          to_nick: 'friend',
-          count: 3,
-        }],
-      },
+      mentioned: [{ chatter_id: 11, nick: 'viewer', count: 5 }],
+      pairs: [{
+        from_chatter_id: 11,
+        from_nick: 'viewer',
+        to_chatter_id: 12,
+        to_nick: 'friend',
+        count: 3,
+      }],
     })
     streamApi.retrieveStreamEmotes.mockResolvedValue({
-      data: { emotes: [{
+      emotes: [{
         name: 'OMEGALUL', source: 'bttv', provider_id: null,
         usage_count: 8, chatter_count: 4, stream_count: 2,
-      }] },
+      }],
     })
     streamApi.retrieveStreamPhrases.mockResolvedValue({
-      data: { phrases: [{ phrase: 'lets go', usage_count: 6, chatter_count: 3 }] },
+      phrases: [{ phrase: 'lets go', usage_count: 6, chatter_count: 3 }],
     })
     creatorApi.retrieveCreatorEmotes.mockResolvedValue({
-      data: { emotes: [{
+      emotes: [{
         name: 'CreatorLove', source: 'twitch', provider_id: 'emote-1',
         usage_count: 10, chatter_count: 5, stream_count: 4,
-      }] },
+      }],
     })
     const wrapper = createWrapper(createClient())
     const mentions = renderHook(() => useStreamMentions(42, { limit: 10 }), { wrapper })
@@ -328,12 +322,12 @@ describe('stream analytics query contracts', () => {
   })
 
   it('rejects missing required analytics payloads and never requests disabled queries', async () => {
-    streamApi.retrieveStreamTimeline.mockResolvedValue({ data: {} })
-    streamApi.retrieveStreamReport.mockResolvedValue({ data: {} })
-    streamApi.retrieveStreamMentions.mockResolvedValue({ data: {} })
-    streamApi.retrieveStreamEmotes.mockResolvedValue({ data: {} })
-    streamApi.retrieveStreamPhrases.mockResolvedValue({ data: {} })
-    creatorApi.retrieveCreatorEmotes.mockResolvedValue({ data: {} })
+    streamApi.retrieveStreamTimeline.mockResolvedValue({})
+    streamApi.retrieveStreamReport.mockResolvedValue({})
+    streamApi.retrieveStreamMentions.mockResolvedValue({})
+    streamApi.retrieveStreamEmotes.mockResolvedValue({})
+    streamApi.retrieveStreamPhrases.mockResolvedValue({})
+    creatorApi.retrieveCreatorEmotes.mockResolvedValue({})
     const wrapper = createWrapper(createClient())
     const timeline = renderHook(() => (
       useStreamTimeline(42) as UseQueryResult<StreamTimeline, Error>

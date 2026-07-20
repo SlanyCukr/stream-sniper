@@ -85,7 +85,7 @@ describe('scene query view-model contracts', () => {
   })
 
   it('maps live and leaderboard payloads without converting unknowns to zero', async () => {
-    api.retrieveSceneLive.mockResolvedValue({ data: {
+    api.retrieveSceneLive.mockResolvedValue({
       live: [{
         creator_id: 1,
         nick: 'alpha',
@@ -98,8 +98,8 @@ describe('scene query view-model contracts', () => {
       }],
       live_count: 1,
       last_sample_at: 'sampled',
-    } })
-    api.retrieveSceneLeaderboard.mockResolvedValue({ data: {
+    })
+    api.retrieveSceneLeaderboard.mockResolvedValue({
       window_days: 7,
       computed_at: null,
       entries: [{
@@ -115,7 +115,7 @@ describe('scene query view-model contracts', () => {
         chatter_appearances: 20,
         peak_viewers: null,
       }],
-    } })
+    })
 
     const liveClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const live = renderHook(() => useSceneLive({ refetchInterval: false }), {
@@ -144,7 +144,7 @@ describe('scene query view-model contracts', () => {
   })
 
   it('adapts page indexes to row offsets and maps copypasta rows', async () => {
-    api.retrieveSceneCopypastas.mockResolvedValue({ data: {
+    api.retrieveSceneCopypastas.mockResolvedValue({
       total: 51,
       offset: 50,
       limit: 25,
@@ -158,7 +158,7 @@ describe('scene query view-model contracts', () => {
         first_seen: null,
         last_stream_start: null,
       }],
-    } })
+    })
     const { result } = renderHook(
       () => useSceneCopypastas({ creatorId: 3, sort: 'usage', pageIndex: 2, pageSize: 25 }),
       { wrapper: createWrapper() },
@@ -182,27 +182,27 @@ describe('scene query view-model contracts', () => {
 
   it.each([
     ['live', () => {
-      api.retrieveSceneLive.mockResolvedValue({ data: {} })
+      api.retrieveSceneLive.mockResolvedValue({})
       return renderHook(() => useSceneLive({ refetchInterval: false }), { wrapper: createWrapper() })
     }],
     ['leaderboard', () => {
-      api.retrieveSceneLeaderboard.mockResolvedValue({ data: {} })
+      api.retrieveSceneLeaderboard.mockResolvedValue({})
       return renderHook(() => useSceneLeaderboard({ windowDays: 7 }), { wrapper: createWrapper() })
     }],
     ['copypastas', () => {
-      api.retrieveSceneCopypastas.mockResolvedValue({ data: {} })
+      api.retrieveSceneCopypastas.mockResolvedValue({})
       return renderHook(() => useSceneCopypastas(), { wrapper: createWrapper() })
     }],
     ['propagation', () => {
-      api.retrieveCopypastaPropagation.mockResolvedValue({ data: {} })
+      api.retrieveCopypastaPropagation.mockResolvedValue({})
       return renderHook(() => useCopypastaPropagation(7), { wrapper: createWrapper() })
     }],
     ['pulse', () => {
-      api.retrieveScenePulse.mockResolvedValue({ data: {} })
+      api.retrieveScenePulse.mockResolvedValue({})
       return renderHook(() => useScenePulse(), { wrapper: createWrapper() })
     }],
     ['digest', () => {
-      api.retrieveSceneDigest.mockResolvedValue({ data: {} })
+      api.retrieveSceneDigest.mockResolvedValue({})
       return renderHook(() => useSceneDigest(), { wrapper: createWrapper() })
     }],
   ])('rejects malformed %s payloads', async (_name, render) => {

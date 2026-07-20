@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api, getJson } from './client'
 
 export interface HealthComponentDto {
   status: string
@@ -50,7 +50,7 @@ export interface FlushCacheDto {
   timestamp: string
 }
 
-export const retrieveDetailedHealth = () => api.get<DetailedHealthDto>('/health/detailed')
-export const retrieveMetrics = () => api.get<MetricsDto>('/metrics')
-export const retrieveCacheStats = () => api.get<CacheStatsDto>('/cache/stats')
+export const retrieveDetailedHealth = () => getJson<DetailedHealthDto>('/health/detailed')
+export const retrieveMetrics = () => getJson<MetricsDto>('/metrics')
+export const retrieveCacheStats = () => getJson<CacheStatsDto>('/cache/stats')
 export const flushCache = () => api.post<FlushCacheDto>('/cache/flush')

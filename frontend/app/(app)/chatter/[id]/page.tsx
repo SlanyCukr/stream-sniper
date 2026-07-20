@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import ChatterPassport from '@/views/chatter/ChatterPassport'
 import { buildEntityMetadata } from '@/lib/og/entityMetadata'
 import { fetchChatterOgData } from '@/lib/og/fetchOgData'
+import { parsePositiveId } from '@/utils/paramUtils'
 
 // Server component on purpose: generateMetadata cannot live in a 'use client' file,
 // and the bespoke OG images are pointless while every chatter link unfurls with the
@@ -10,20 +11,15 @@ import { fetchChatterOgData } from '@/lib/og/fetchOgData'
 
 type PageProps = { params: Promise<{ id: string }> }
 
-const parseChatterId = (raw: string): number | null => {
-  const id = Number(raw)
-  return Number.isSafeInteger(id) && id > 0 ? id : null
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params
-  if (parseChatterId(id) == null) return {}
+  if (parsePositiveId(id) == null) return {}
   return buildEntityMetadata(await fetchChatterOgData(id))
 }
 
 export default async function ChatterPassportPage({ params }: PageProps) {
   const { id } = await params
-  const chatterId = parseChatterId(id)
+  const chatterId = parsePositiveId(id)
 
   if (chatterId == null) {
     notFound()

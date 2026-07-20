@@ -122,7 +122,7 @@ export const useMomentsQueue = (
                 pageSize: pagination.pageSize,
                 rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
             })
-            return mapMomentsQueue(response.data)
+            return mapMomentsQueue(response)
         },
     })
 }

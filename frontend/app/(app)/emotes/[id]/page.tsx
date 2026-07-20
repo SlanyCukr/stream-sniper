@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import EmoteDetail from '@/views/scene/EmoteDetail'
+import { parsePositiveId } from '@/utils/paramUtils'
 
 // Server wrapper: validates the id (real 404 for garbage), static metadata —
 // the emote name arrives client-side with the drill-down payload.
@@ -11,14 +12,9 @@ export const metadata: Metadata = {
 
 type PageProps = { params: Promise<{ id: string }> }
 
-const parseEmoteId = (raw: string): number | null => {
-  const id = Number(raw)
-  return Number.isSafeInteger(id) && id > 0 ? id : null
-}
-
 export default async function EmoteDetailPage({ params }: PageProps) {
   const { id } = await params
-  const emoteId = parseEmoteId(id)
+  const emoteId = parsePositiveId(id)
 
   if (emoteId == null) {
     notFound()

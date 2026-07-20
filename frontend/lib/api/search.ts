@@ -1,4 +1,4 @@
-import { api, buildQuery } from './client'
+import { getJson } from './client'
 
 export interface SearchMessagesRequest {
   q: string
@@ -70,30 +70,30 @@ export interface SearchContextDto {
 }
 
 export const retrieveSearchMessages = (request: SearchMessagesRequest) =>
-  api.get<SearchMessagesDto>(`/search/messages?${buildQuery({
+  getJson<SearchMessagesDto>('/search/messages', {
     q: request.q,
     creator_id: request.creatorId,
     days: request.days,
     limit: request.limit,
     offset: request.offset,
-  })}`)
+  })
 
 export const retrieveSearchFirst = (request: SearchFirstRequest) =>
-  api.get<SearchFirstDto>(`/search/first?${buildQuery({
+  getJson<SearchFirstDto>('/search/first', {
     q: request.q,
     creator_id: request.creatorId,
-  })}`)
+  })
 
 export const retrieveSearchFrequency = (request: SearchFrequencyRequest) =>
-  api.get<SearchFrequencyDto>(`/search/frequency?${buildQuery({
+  getJson<SearchFrequencyDto>('/search/frequency', {
     q: request.q,
     days: request.days,
     creator_id: request.creatorId,
-  })}`)
+  })
 
 export const retrieveSearchContext = (request: SearchContextRequest) =>
-  api.get<SearchContextDto>(`/search/context?${buildQuery({
+  getJson<SearchContextDto>('/search/context', {
     stream_id: request.streamId,
     message_id: request.messageId,
     radius: request.radius,
-  })}`)
+  })

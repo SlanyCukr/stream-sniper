@@ -7,8 +7,7 @@ import { useCreatorRegulars } from '@/hooks/creator/useCreatorRegularsQuery'
 import {
     DEFAULT_MIN_STREAMS, MIN_STREAMS_MAX, MIN_STREAMS_MIN,
 } from '@/lib/creator/config'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
+import QueryState from '@/components/common/QueryState'
 import { useTableSort, type SortDirection } from '@/hooks/useTableSort'
 import CreatorPanelEmpty from './CreatorPanelEmpty'
 import RegularsTable, { RegularsControls } from './RegularsPresentation'
@@ -62,34 +61,32 @@ const RegularsPanel = ({ creatorId }: RegularsPanelProps) => {
                 showReadout={!query.isLoading && !query.error}
             />
             <Card>
-                <Card.Body className={query.isLoading || query.error || regulars.length === 0 ? 'p-0' : ''}>
-                    {query.isLoading ? <LoadingSpinner size="lg" text="Loading regulars..." /> : null}
-                    {query.error ? (
-                        <ErrorAlert
-                            error={query.error}
-                            title="Failed to load regulars"
-                            onRetry={query.refetch}
-                            showDetails={process.env.NODE_ENV === 'development'}
-                        />
-                    ) : null}
-                    {!query.isLoading && !query.error && regulars.length === 0 ? (
-                        <div className="empty-state">
-                            <div className="empty-scope" aria-hidden="true" />
-                            <p className="empty-title">No regulars found</p>
-                            <p className="empty-hint">
-                                No chatters attended at least {minStreams} stream{minStreams === 1 ? '' : 's'} for this creator.
-                            </p>
-                        </div>
-                    ) : null}
-                    {!query.isLoading && !query.error && regulars.length > 0 ? (
-                        <RegularsTable
-                            regulars={regulars}
-                            totalStreams={totalStreams}
-                            sort={sort}
-                            dir={dir}
-                            onSort={onSort}
-                        />
-                    ) : null}
+                <Card.Body className={regulars.length === 0 ? 'p-0' : ''}>
+                    <QueryState
+                        query={query}
+                        errorTitle="Failed to load regulars"
+                        loadingText="Loading regulars..."
+                        isEmpty={data => data.regulars.length === 0}
+                        emptyState={(
+                            <div className="empty-state">
+                                <div className="empty-scope" aria-hidden="true" />
+                                <p className="empty-title">No regulars found</p>
+                                <p className="empty-hint">
+                                    No chatters attended at least {minStreams} stream{minStreams === 1 ? '' : 's'} for this creator.
+                                </p>
+                            </div>
+                        )}
+                    >
+                        {data => (
+                            <RegularsTable
+                                regulars={data.regulars}
+                                totalStreams={data.totalStreams || 0}
+                                sort={sort}
+                                dir={dir}
+                                onSort={onSort}
+                            />
+                        )}
+                    </QueryState>
                 </Card.Body>
             </Card>
         </>

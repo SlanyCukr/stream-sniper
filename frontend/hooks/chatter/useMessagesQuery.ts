@@ -86,7 +86,7 @@ export const useMessages = (
                 rowOffset: getRowOffset(params.pageIndex, params.pageSize),
                 pageSize: params.pageSize,
             })
-            const data = requireRecord(response.data, 'chatter messages')
+            const data = requireRecord(response, 'chatter messages')
             const responseOffset = requireFiniteNumberField(data, 'offset', 'chatter messages')
             const responseLimit = requireFiniteNumberField(data, 'limit', 'chatter messages')
             return createPage(

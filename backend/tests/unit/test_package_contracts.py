@@ -162,7 +162,13 @@ def test_collector_root_separates_archived_and_live_pipelines() -> None:
     backend_root = Path(__file__).parents[2]
     collector_root = backend_root / "stream_sniper/collector"
 
-    assert {path.name for path in collector_root.glob("*.py")} == {"__init__.py", "twitch_api.py"}
+    # Root holds only the seams both pipelines share: the Twitch client and the
+    # canonical badge-text formatter (archived + live must emit identical badge text).
+    assert {path.name for path in collector_root.glob("*.py")} == {
+        "__init__.py",
+        "badge_format.py",
+        "twitch_api.py",
+    }
     assert {path.name for path in (collector_root / "archived").glob("*.py")} == {
         "__init__.py",
         "archived_stream.py",

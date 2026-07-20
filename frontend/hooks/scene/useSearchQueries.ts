@@ -163,13 +163,13 @@ export const useSearchMessages = ({
         queryKey: sceneKeys.searchMessages({
             q: q.trim(), creatorId: creatorId ?? null, days: days ?? null, limit, offset,
         }),
-        queryFn: async () => mapSearchMessages((await retrieveSearchMessages({
+        queryFn: async () => mapSearchMessages(await retrieveSearchMessages({
             q: q.trim(),
             creatorId: creatorId ?? undefined,
             days: days ?? undefined,
             limit,
             offset,
-        })).data),
+        })),
         enabled: enabledQuery && (options.enabled ?? true),
     })
 }
@@ -187,10 +187,10 @@ export const useSearchFirst = (
     return useQuery({
         ...options,
         queryKey: sceneKeys.searchFirst({ q: q.trim(), creatorId: creatorId ?? null }),
-        queryFn: async () => mapSearchFirst((await retrieveSearchFirst({
+        queryFn: async () => mapSearchFirst(await retrieveSearchFirst({
             q: q.trim(),
             creatorId: creatorId ?? undefined,
-        })).data),
+        })),
         enabled: enabledQuery && (options.enabled ?? true),
     })
 }
@@ -211,11 +211,11 @@ export const useSearchFrequency = (
         queryKey: sceneKeys.searchFrequency({
             q: q.trim(), days: days ?? null, creatorId: creatorId ?? null,
         }),
-        queryFn: async () => mapSearchFrequency((await retrieveSearchFrequency({
+        queryFn: async () => mapSearchFrequency(await retrieveSearchFrequency({
             q: q.trim(),
             days: days ?? undefined,
             creatorId: creatorId ?? undefined,
-        })).data),
+        })),
         enabled: enabledQuery && (options.enabled ?? true),
     })
 }
@@ -233,12 +233,12 @@ export const useSearchContext = ({
     return useQuery({
         ...options,
         queryKey: sceneKeys.searchContext({ streamId: streamId ?? null, messageId: messageId ?? null, radius: radius ?? null }),
-        queryFn: async () => mapSearchContext((await retrieveSearchContext({
+        queryFn: async () => mapSearchContext(await retrieveSearchContext({
             // Guarded by `enabled` below; streamId/messageId are non-null whenever the query runs.
             streamId: streamId as number,
             messageId: messageId as number,
             radius,
-        })).data),
+        })),
         enabled: enabledQuery && (options.enabled ?? true),
     })
 }

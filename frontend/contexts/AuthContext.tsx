@@ -1,6 +1,6 @@
 'use client'
 import {
-    createContext, useCallback, useContext, useEffect, useState,
+    createContext, useCallback, useContext, useEffect, useMemo, useState,
     type ReactNode,
 } from 'react'
 import { installUnauthorizedInterceptor } from '@/lib/api/client'
@@ -105,15 +105,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [clearSession])
 
-    const establishSession = async (sessionPromise: Promise<AuthSession>) => {
+    const establishSession = useCallback(async (sessionPromise: Promise<AuthSession>) => {
         const session = await sessionPromise
         storeToken(session.token)
         setToken(session.token)
         setUser(session.profile)
         setSessionError(null)
-    }
+    }, [])
 
-    const runAuthAction = async (action: () => Promise<unknown>, onFailure?: () => SessionFailure) => {
+    const runAuthAction = useCallback(async (action: () => Promise<unknown>, onFailure?: () => SessionFailure) => {
         try {
             await action()
         } catch (actionError) {
@@ -121,22 +121,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (cleanupFailure) setSessionError(cleanupFailure)
             throw actionError
         }
-    }
+    }, [])
 
-    const login = (username: string, password: string) => runAuthAction(
+    const login = useCallback((username: string, password: string) => runAuthAction(
         () => establishSession(authenticate(username, password)),
         clearSession,
-    )
-    const register = (username: string, email: string, password: string) => runAuthAction(
+    ), [runAuthAction, establishSession, clearSession])
+    const register = useCallback((username: string, email: string, password: string) => runAuthAction(
         () => establishSession(registerAndAuthenticate(username, email, password)),
-    )
-    const updateUser = (userData: { email: string }) => runAuthAction(
+    ), [runAuthAction, establishSession])
+    const updateUser = useCallback((userData: { email: string }) => runAuthAction(
         async () => setUser(await updateProfile(userData)),
-    )
-    const changePassword = (currentPassword: string, newPassword: string) => runAuthAction(
+    ), [runAuthAction])
+    const changePassword = useCallback((currentPassword: string, newPassword: string) => runAuthAction(
         () => requestPasswordChange(currentPassword, newPassword),
-    )
-    const value: AuthContextValue = {
+    ), [runAuthAction])
+
+    // Memoized so always-mounted chrome consuming useAuth() doesn't re-render
+    // whenever an unrelated parent render rebuilds the provider.
+    const value: AuthContextValue = useMemo(() => ({
         user,
         isInitializing,
         sessionError,
@@ -147,7 +150,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         updateUser,
         changePassword,
-    }
+    }), [user, isInitializing, sessionError, token, login, register, logout, updateUser, changePassword])
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

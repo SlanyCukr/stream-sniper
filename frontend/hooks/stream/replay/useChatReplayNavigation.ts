@@ -30,14 +30,12 @@ export const useChatReplayNavigation = ({
     const [flashId, setFlashId] = useState<number | null>(null)
 
     useEffect(() => {
-        const target = jumpToTs && (typeof jumpToTs === 'object' ? jumpToTs.ts : jumpToTs)
-        const nonce = jumpToTs && typeof jumpToTs === 'object' ? jumpToTs.nonce : jumpToTs
-        if (!target || handledNonceRef.current === nonce) return undefined
+        if (!jumpToTs?.ts || handledNonceRef.current === jumpToTs.nonce) return undefined
 
-        const index = messages.findIndex(message => message.ts >= target)
+        const index = messages.findIndex(message => message.ts >= jumpToTs.ts)
         if (index < 0) return undefined
 
-        handledNonceRef.current = nonce
+        handledNonceRef.current = jumpToTs.nonce
         virtuosoRef.current?.scrollToIndex({
             index,
             align: 'start',

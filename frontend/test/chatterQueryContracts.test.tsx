@@ -37,7 +37,7 @@ describe('chatter query contracts', () => {
   })
 
   it('rejects malformed activity payloads', async () => {
-    api.retrieveChatterStreamActivity.mockResolvedValue({ data: {} })
+    api.retrieveChatterStreamActivity.mockResolvedValue({})
     const hook = renderHook(() => useChatterStreamActivity(7), {
       wrapper: createWrapper(createClient()),
     })
@@ -60,7 +60,7 @@ describe('chatter query contracts', () => {
         is_bot: null,
       },
     ]
-    api.retrieveChatterStreamActivity.mockResolvedValue({ data: activity })
+    api.retrieveChatterStreamActivity.mockResolvedValue(activity)
     const queryClient = createClient()
 
     render(

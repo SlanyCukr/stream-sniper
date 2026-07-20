@@ -1,16 +1,5 @@
-import { expect, test, type Route } from '@playwright/test'
-
-const json = (route: Route, body: unknown, status = 200) => route.fulfill({
-  status,
-  contentType: 'application/json',
-  body: JSON.stringify(body),
-})
-
-const unexpected = (route: Route, pathname: string) => json(
-  route,
-  { detail: `Unexpected smoke request: ${route.request().method()} ${pathname}` },
-  500,
-)
+import { expect, test } from '@playwright/test'
+import { clickPill, json, unexpected } from './helpers'
 
 const wrappedBody = (days: number) => ({
   creator_id: 71,
@@ -70,10 +59,7 @@ test('creator wrapped: renders the recap, and the window pill re-queries', async
   await expect(page.getByText('OMEGALUL nice job chat')).toBeVisible()
   await expect(page.getByText('PogChamp')).toBeVisible()
 
-  const sevenDays = page.getByRole('button', { name: '7 days' })
-  await expect(sevenDays).toHaveAttribute('aria-pressed', 'false')
-  await sevenDays.click()
-  await expect(sevenDays).toHaveAttribute('aria-pressed', 'true')
+  await clickPill(page, '7 days')
 
   await expect.poll(() => requestedDays).toEqual(['30', '7'])
 })

@@ -4,6 +4,7 @@ Operates on plain sequences so it unit-tests hermetically. The nullable=unknown
 contract applies throughout: ``None`` inputs mean "not yet computed", never 0.
 """
 
+import statistics
 from typing import TypedDict
 
 
@@ -16,14 +17,7 @@ class ReportMetricValues(TypedDict):
 
 def median(values: list[float]) -> float | None:
     """Median of a plain list of numbers; None for an empty list."""
-    if not values:
-        return None
-    ordered = sorted(values)
-    count = len(ordered)
-    mid = count // 2
-    if count % 2:
-        return float(ordered[mid])
-    return (ordered[mid - 1] + ordered[mid]) / 2.0
+    return float(statistics.median(values)) if values else None
 
 
 def percentile_rank(baseline: list[float], value: float) -> float:
@@ -61,9 +55,8 @@ def build_metric(value: float | None, baseline: list[float | None]) -> ReportMet
     if len(clean) < 2:
         return metric
 
-    baseline_med = median(clean)
-    if baseline_med is None:  # guarded by len(clean), retained for the type contract
-        return metric
+    # clean is non-empty here (len >= 2), so the median is a real number.
+    baseline_med = float(statistics.median(clean))
     metric["baseline_median"] = round(baseline_med, 2)
     if value is None:
         return metric

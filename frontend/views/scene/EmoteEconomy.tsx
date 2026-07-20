@@ -13,7 +13,7 @@ import {
 } from '@/hooks/scene/useSceneTrendingQueries'
 import type { TrendingWindow } from '@/lib/api/scene'
 import { formatCompactNumber, magnitudeBarWidth } from '@/utils/numberUtils'
-import { formatDate } from '@/utils/dateUtils'
+import { formatDateOrDash } from '@/utils/dateUtils'
 
 const WINDOW_TABS: Array<{ key: TrendingWindow, label: string }> = [
     { key: 7, label: '7 days' },
@@ -24,10 +24,6 @@ const WINDOW_TABS: Array<{ key: TrendingWindow, label: string }> = [
 // The trending endpoint's hard cap — the economy board wants the full field,
 // not the compact top-20 the Trending page shows.
 const BOARD_LIMIT = 50
-
-const firstSeenLabel = (firstSeen: string | null): string => (
-    firstSeen ? formatDate(firstSeen, 'MMM d, yyyy') : '—'
-)
 
 interface EmoteEconomyRowProps {
     rank: number
@@ -60,7 +56,7 @@ const EmoteEconomyRow = ({ rank, item, maxUsage }: EmoteEconomyRowProps) => {
             </td>
             <td className="mono text-end">{formatCompactNumber(item.creatorCount)}</td>
             <td className="mono text-end">{formatCompactNumber(item.chatterReach)}</td>
-            <td className="emote-first-seen text-end">{firstSeenLabel(item.firstSeen)}</td>
+            <td className="emote-first-seen text-end">{formatDateOrDash(item.firstSeen)}</td>
         </tr>
     )
 }

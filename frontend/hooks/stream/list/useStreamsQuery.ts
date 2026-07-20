@@ -202,7 +202,7 @@ export const useStreams = (
                 minMessages,
                 rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
             })
-            const data = requireRecord(response.data, 'stream list')
+            const data = requireRecord(response, 'stream list')
             const responseOffset = requireFiniteNumberField(data, 'offset', 'stream list')
             const responseLimit = requireFiniteNumberField(data, 'limit', 'stream list')
             return createPage(
@@ -230,7 +230,7 @@ export const useStreamDetails = (
         queryKey: streamsKeys.detail(streamId),
         queryFn: async () => {
             const response = await retrieveStreamComprehensive(streamId)
-            return mapStreamDetails(response.data)
+            return mapStreamDetails(response)
         },
         enabled: Boolean(streamId) && enabled,
     })

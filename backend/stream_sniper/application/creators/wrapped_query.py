@@ -1,20 +1,22 @@
 """Application-owned assembly for the Creator Wrapped period recap.
 
 Mirrors ``scenes/wrapped_query.get_scene_wrapped`` scoped to a single creator: fans out
-to the creator-scoped ``creator_wrapped_gateway`` aggregates (totals, active chatters,
-chatters, emotes) plus the existing scene highlights/copypasta gateways, both of which
-already accept an optional ``creator_id`` filter — no bespoke gateway was needed for
-moments or copypastas. Unlike the scene recap, an unknown creator IS a 404: the caller
+to the creator-scoped ``creator_wrapped_gateway`` aggregates (totals, chatters) plus the
+scene wrapped/highlights/copypasta gateways, all of which accept an optional
+``creator_id`` filter — no bespoke creator gateways were needed for active chatters,
+emotes, moments, or copypastas. Unlike the scene recap, an unknown creator IS a 404: the caller
 must check ``get_creator_wrapped`` for a :class:`CreatorNotFoundError` before trusting an
 empty-looking recap.
 """
 
 from ...database.gateways.content.scene_highlights_gateway import select_scene_highlights_db
+from ...database.gateways.content.scene_wrapped_gateway import (
+    select_scene_active_chatters_db,
+    select_scene_emotes_db,
+)
 from ...database.gateways.content.stream_copypasta_stats_table_gateway import select_scene_copypastas_db
 from ...database.gateways.creators.creator_wrapped_gateway import (
-    select_creator_active_chatters_db,
     select_creator_wrapped_chatters_db,
-    select_creator_wrapped_emotes_db,
     select_creator_wrapped_totals_db,
 )
 from ...database.gateways.identity.creator_table_gateway import select_creator_exists_db
@@ -45,7 +47,7 @@ def get_creator_wrapped(creator_id: int, days: int) -> CreatorWrapped:
         raise CreatorNotFoundError
 
     totals_row = select_creator_wrapped_totals_db(creator_id, days)
-    active_chatters = select_creator_active_chatters_db(creator_id, days)
+    active_chatters = select_scene_active_chatters_db(days, creator_id=creator_id)
     totals = CreatorWrappedTotals(
         streams=totals_row.streams,
         hours_streamed=totals_row.hours_streamed,
@@ -98,7 +100,7 @@ def get_creator_wrapped(creator_id: int, days: int) -> CreatorWrapped:
             usage=row.usage,
             chatter_reach=row.chatter_reach,
         )
-        for row in select_creator_wrapped_emotes_db(creator_id, days, _TOP_EMOTES)
+        for row in select_scene_emotes_db(days, _TOP_EMOTES, creator_id=creator_id)
     ]
 
     return CreatorWrapped(

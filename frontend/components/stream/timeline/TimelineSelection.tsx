@@ -1,6 +1,7 @@
 'use client'
 import { normalizeApiError } from '@/utils/errorUtils'
 import StatusChip from '@/components/common/StatusChip'
+import { formatTimelineClock } from './TimelineMarkers'
 import type { TimelineMoment } from '@/hooks/stream/timeline/useStreamTimelineQuery'
 import type { useMomentReview } from '@/hooks/moments/useMomentsQueries'
 import type { MomentReviewStatus } from '@/lib/api/moments'
@@ -20,9 +21,6 @@ interface TimelineSampleItem {
     count: number
 }
 
-const clock = (timestamp: string): string => typeof timestamp === 'string' && timestamp.length >= 16
-    ? timestamp.slice(11, 16)
-    : ''
 const pct = (value: number): string => `${(value * 100).toLocaleString(undefined, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
@@ -115,7 +113,7 @@ const TimelineSelection = ({
         <div className="timeline-selection">
             <div className="timeline-selection-head">
                 <span className="timeline-selection-label">
-                    Jumped replay to {clock(activeMoment.t)}
+                    Jumped replay to {formatTimelineClock(activeMoment.t)}
                     {activeMoment.score ? ` · ${activeMoment.score}x baseline` : ''}
                 </span>
                 {activeMoment.status ? <StatusChip variant={activeMoment.status === 'rejected' ? 'err' : 'ok'}>{activeMoment.status}</StatusChip> : null}

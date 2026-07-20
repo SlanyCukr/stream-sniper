@@ -1,8 +1,6 @@
 'use client'
-import { Card } from 'react-bootstrap'
 import { useStreamPhrases } from '@/hooks/stream/insights/useStreamInsightsQuery'
-import LoadingSpinner from '@/components/common/LoadingSpinner'
-import ErrorAlert from '@/components/common/error/ErrorAlert'
+import StreamInsightPanel from './StreamInsightPanel'
 
 interface PhrasesPanelProps {
     streamId: number
@@ -14,72 +12,41 @@ interface PhrasesPanelProps {
  * rollup has run.
  */
 const PhrasesPanel = ({ streamId }: PhrasesPanelProps) => {
-    const {
-        data,
-        isLoading,
-        error,
-        refetch,
-    } = useStreamPhrases(streamId)
-
-    const phrases = data?.phrases || []
+    const query = useStreamPhrases(streamId)
 
     return (
-        <Card className="insight-panel">
-            <Card.Body>
-                <h3 className="section-label mb-3">Recurring phrases</h3>
-
-                {isLoading && (
-                    <LoadingSpinner
-                        size="md"
-                        text="Loading phrases..."
-                    />
-                )}
-
-                {error && !isLoading && (
-                    <ErrorAlert
-                        error={error}
-                        title="Failed to load phrases"
-                        onRetry={refetch}
-                        showDetails={process.env.NODE_ENV === 'development'}
-                    />
-                )}
-
-                {!isLoading && !error && phrases.length === 0 && (
-                    <div className="empty-state">
-                        <div
-                            className="empty-scope"
-                            aria-hidden="true" />
-                        <p className="empty-title">No phrases</p>
-                        <p className="empty-hint">
-                            Phrase rollups are still pending for this stream.
-                        </p>
-                    </div>
-                )}
-
-                {!isLoading && !error && phrases.length > 0 && (
-                    <div
-                        className="phrase-cloud"
-                        role="list"
-                        aria-label="Recurring phrases">
-                        {phrases.map(phrase => (
+        <StreamInsightPanel
+            title="Recurring phrases"
+            query={query}
+            isEmpty={data => (data.phrases || []).length === 0}
+            loadingText="Loading phrases..."
+            errorTitle="Failed to load phrases"
+            emptyTitle="No phrases"
+            emptyHint="Phrase rollups are still pending for this stream."
+        >
+            {data => (
+                <div
+                    className="phrase-cloud"
+                    role="list"
+                    aria-label="Recurring phrases">
+                    {(data.phrases || []).map(phrase => (
+                        <span
+                            key={phrase.phrase}
+                            className="phrase-chip"
+                            role="listitem"
+                            title={`${phrase.chatterCount?.toLocaleString()} chatters`}
+                            aria-label={`${phrase.phrase}: ${phrase.usageCount} uses, ${phrase.chatterCount} chatters`}>
+                            <span className="phrase-text">{phrase.phrase}</span>
                             <span
-                                key={phrase.phrase}
-                                className="phrase-chip"
-                                role="listitem"
-                                title={`${phrase.chatterCount?.toLocaleString()} chatters`}
-                                aria-label={`${phrase.phrase}: ${phrase.usageCount} uses, ${phrase.chatterCount} chatters`}>
-                                <span className="phrase-text">{phrase.phrase}</span>
-                                <span
-                                    className="phrase-count mono"
-                                    aria-hidden="true">
-                                    {phrase.usageCount?.toLocaleString()}
-                                </span>
+                                className="phrase-count mono"
+                                aria-hidden="true">
+                                {phrase.usageCount?.toLocaleString()}
                             </span>
-                        ))}
-                    </div>
-                )}
-            </Card.Body>
-        </Card>
+                        </span>
+                    ))}
+                </div>
+            )}
+        </StreamInsightPanel>
     )
 }
 

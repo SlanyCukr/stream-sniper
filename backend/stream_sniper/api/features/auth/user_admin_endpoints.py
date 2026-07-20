@@ -6,7 +6,6 @@ active-status management, admin user creation, and system statistics.
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from ....application.identity.user_creation import UserAlreadyExistsError, UserCreationError, create_user
-from ....database.core.connection_pool import get_active_pool
 from ....database.gateways.identity.user_table_gateway import (
     activate_user_db,
     count_users_db,
@@ -14,6 +13,7 @@ from ....database.gateways.identity.user_table_gateway import (
     delete_user_db,
     select_user_by_id_db,
     select_user_page_db,
+    select_user_system_stats_db,
     update_user_db,
     update_user_role_db,
 )
@@ -290,36 +290,12 @@ def update_user_by_id(
 )
 @limiter.limit("30/minute")
 def get_system_stats(request: Request, response: Response) -> SystemStats:
-    pool = get_active_pool()
-
-    with pool.get_cursor() as cursor:
-
-        def scalar_count() -> int:
-            row = cursor.fetchone()
-            if row is None:
-                raise RuntimeError("COUNT query returned no row")
-            return int(row[0])
-
-        cursor.execute("SELECT COUNT(*) FROM users")
-        total_users = scalar_count()
-
-        cursor.execute("SELECT COUNT(*) FROM users WHERE is_active = true")
-        active_users = scalar_count()
-
-        cursor.execute("SELECT COUNT(*) FROM users WHERE role = %s", (ADMIN_ROLE,))
-        admin_users = scalar_count()
-
-        cursor.execute("""
-            SELECT COUNT(*) FROM users
-            WHERE created_at >= NOW() - INTERVAL '24 hours'
-        """)
-        recent_registrations = scalar_count()
-
+    stats = select_user_system_stats_db()
     return SystemStats(
-        total_users=total_users,
-        active_users=active_users,
-        admin_users=admin_users,
-        recent_registrations=recent_registrations,
+        total_users=stats.total_users,
+        active_users=stats.active_users,
+        admin_users=stats.admin_users,
+        recent_registrations=stats.recent_registrations,
     )
 
 

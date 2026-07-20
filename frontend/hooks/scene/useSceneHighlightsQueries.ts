@@ -150,11 +150,11 @@ export const useSceneHighlights = (
     placeholderData: keepPreviousData,
     ...options,
     queryKey: sceneKeys.highlights({ window, creatorId, sort, limit, offset }),
-    queryFn: async () => mapSceneHighlights((await retrieveSceneHighlights({
+    queryFn: async () => mapSceneHighlights(await retrieveSceneHighlights({
         window,
         creatorId: creatorId ?? undefined,
         sort,
         limit,
         offset,
-    })).data),
+    })),
 })

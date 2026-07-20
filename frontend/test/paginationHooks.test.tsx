@@ -59,28 +59,26 @@ describe('paginated hook boundaries', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     api.retrieveStreams.mockResolvedValue({
-      data: {
-        streams: [{
-          stream_id: 1,
-          creator_name: 'Operator',
-          start: '2026-07-14T10:00:00Z',
-          end: null,
-          thumbnail_url: null,
-          message_count: 42,
-        }],
-        total: 41,
-        offset: 40,
-        limit: 20,
-      },
+      streams: [{
+        stream_id: 1,
+        creator_name: 'Operator',
+        start: '2026-07-14T10:00:00Z',
+        end: null,
+        thumbnail_url: null,
+        message_count: 42,
+      }],
+      total: 41,
+      offset: 40,
+      limit: 20,
     })
     api.retrieveChatterMessages.mockResolvedValue({
-      data: { messages: [{
+      messages: [{
         stream_id: 1,
         stream_title: 'Stream',
         creator_display_name: 'Creator',
         text: 'message',
         timestamp: '2026-01-01T00:00:00',
-      }], total: 101, offset: 100, limit: 50 },
+      }], total: 101, offset: 100, limit: 50,
     })
   })
 

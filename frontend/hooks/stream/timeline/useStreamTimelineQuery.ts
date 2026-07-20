@@ -199,7 +199,7 @@ export const useStreamTimeline = (
     queryKey: streamTimelineKeys.detail(streamId),
     queryFn: async () => {
         const response = await retrieveStreamTimeline(streamId)
-        return mapStreamTimeline(response.data)
+        return mapStreamTimeline(response)
     },
     enabled: Boolean(streamId) && enabled,
     // Hold the previous render during refetch (moment-review invalidation) — no skeleton flash.

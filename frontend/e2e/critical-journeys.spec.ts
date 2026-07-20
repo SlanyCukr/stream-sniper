@@ -1,10 +1,5 @@
-import { expect, test, type Page, type Route } from '@playwright/test'
-
-const json = (route: Route, body: unknown, status = 200) => route.fulfill({
-  status,
-  contentType: 'application/json',
-  body: JSON.stringify(body),
-})
+import { expect, test, type Page } from '@playwright/test'
+import { json, login, unexpected } from './helpers'
 
 const tokenFor = (role: 'admin' | 'user') => [
   Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url'),
@@ -78,16 +73,14 @@ test('redirects a protected route through the real login/session flow', async ({
     if (pathname === '/api/admin/tracking/streamers' && request.method() === 'GET') {
       return json(route, trackedStreamersPage)
     }
-    return json(route, { detail: `Unexpected smoke request: ${request.method()} ${pathname}` }, 500)
+    return unexpected(route, pathname)
   })
 
   await page.goto('/admin/tracking/streamers')
   await expect(page).toHaveURL(/\/login\?from=%2Fadmin%2Ftracking%2Fstreamers$/)
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 
-  await page.getByLabel('Username').fill('smoke-admin')
-  await page.getByLabel('Password').fill('correct horse battery staple')
-  await page.getByRole('button', { name: 'Login' }).click()
+  await login(page, 'smoke-admin', 'correct horse battery staple')
 
   await expect(page).toHaveURL(/\/admin\/tracking\/streamers$/)
   await expect(page.getByRole('heading', { name: 'Streamer tracking' })).toBeVisible()
@@ -228,7 +221,7 @@ test('loads a stream through production hooks and jumps from timeline to replay'
     if (pathname === '/api/streams/42/emotes') return json(route, { emotes: [] })
     if (pathname === '/api/streams/42/phrases') return json(route, { phrases: [] })
 
-    return json(route, { detail: `Unexpected smoke request: ${request.method()} ${pathname}` }, 500)
+    return unexpected(route, pathname)
   })
 
   await page.goto('/stream/42')
@@ -265,7 +258,7 @@ test('runs an authenticated admin mutation and clears the session on 401', async
       }
       return json(route, { detail: 'Session expired' }, 401)
     }
-    return json(route, { detail: `Unexpected smoke request: ${request.method()} ${pathname}` }, 500)
+    return unexpected(route, pathname)
   })
 
   await page.goto('/admin/tracking/streamers')

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import CreatorWrapped from '@/views/creator/CreatorWrapped'
+import { parsePositiveId } from '@/utils/paramUtils'
 
 // Server component on purpose (mirrors stream/[id]): the id is validated at the
 // route boundary so /creator/not-a-number/wrapped 404s instead of rendering a
@@ -7,14 +8,9 @@ import CreatorWrapped from '@/views/creator/CreatorWrapped'
 
 type PageProps = { params: Promise<{ id: string }> }
 
-const parseCreatorId = (raw: string): number | null => {
-  const id = Number(raw)
-  return Number.isSafeInteger(id) && id > 0 ? id : null
-}
-
 export default async function CreatorWrappedPage({ params }: PageProps) {
   const { id } = await params
-  const creatorId = parseCreatorId(id)
+  const creatorId = parsePositiveId(id)
 
   if (creatorId == null) {
     notFound()

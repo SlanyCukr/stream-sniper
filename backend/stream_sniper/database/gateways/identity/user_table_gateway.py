@@ -5,9 +5,10 @@ Database gateway for user table operations.
 from stream_sniper.database.gateways.identity.records import (
     PublicUserRow,
     UserRow,
+    UserSystemStatsRow,
 )
 
-from ....identity import USER_ROLE, UserRole
+from ....identity import ADMIN_ROLE, USER_ROLE, UserRole
 from ...core.decorators import read_cursor, write_cursor
 
 
@@ -126,6 +127,25 @@ def count_users_db() -> int:
         cursor.execute("SELECT COUNT(*) FROM users")
         result = cursor.fetchone()
         return result[0] if result else 0
+
+
+def select_user_system_stats_db() -> UserSystemStatsRow:
+    """All four admin-dashboard user counts in one table scan (FILTER aggregates)."""
+    with read_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT COUNT(*),
+                   COUNT(*) FILTER (WHERE is_active = true),
+                   COUNT(*) FILTER (WHERE role = %s),
+                   COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')
+            FROM users
+            """,
+            (ADMIN_ROLE,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            raise RuntimeError("User stats aggregate returned no row")
+        return UserSystemStatsRow(*(int(value) for value in row))
 
 
 def user_exists_db(username: str | None = None, email: str | None = None) -> bool:

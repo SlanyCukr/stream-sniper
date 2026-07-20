@@ -79,7 +79,7 @@ export const useCreatorRegulars = (creatorId: number, {
             dir,
             limit,
         })
-        const data = requireRecord(response.data, 'creator regulars')
+        const data = requireRecord(response, 'creator regulars')
         return {
             regulars: requireArrayField(data, 'regulars', 'creator regulars').map(raw => {
                 // requireArrayField only checks the collection shape; individual rows

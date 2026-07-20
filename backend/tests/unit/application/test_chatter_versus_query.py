@@ -2,7 +2,7 @@
 
 import pytest
 
-from stream_sniper.application.chatters import versus_query
+from stream_sniper.application.chatters import chatter_aggregates, versus_query
 from stream_sniper.application.chatters.versus_query import (
     ChatterVersusNotFoundError,
     get_chatter_head_to_head,
@@ -15,10 +15,10 @@ from stream_sniper.database.gateways.creators.records import ChatterLoyaltyRow
 
 def _patch(monkeypatch, *, profiles, loyalty, bounds=None, shared=None) -> None:
     """Patch the versus gateways with per-chatter-id dict lookups."""
-    monkeypatch.setattr(versus_query, "select_chatter_profile_db", lambda cid: profiles.get(cid))
-    monkeypatch.setattr(versus_query, "select_chatter_loyalty_db", lambda cid: loyalty.get(cid, []))
+    monkeypatch.setattr(chatter_aggregates, "select_chatter_profile_db", lambda cid: profiles.get(cid))
+    monkeypatch.setattr(chatter_aggregates, "select_chatter_loyalty_db", lambda cid: loyalty.get(cid, []))
     monkeypatch.setattr(
-        versus_query,
+        chatter_aggregates,
         "select_chatter_message_time_bounds_db",
         lambda cid: (bounds or {}).get(cid, ChatterTimeBoundsRow(None, None)),
     )

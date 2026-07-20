@@ -73,7 +73,7 @@ def insert_new_chatters_db(
 ) -> None:
     """
     Insert new chatters, skipping any that already exist (ON CONFLICT DO NOTHING).
-    Callers fetch the resulting IDs separately via select_all_chatters_db().
+    Callers fetch the resulting IDs separately via select_chatter_ids_by_nicks_db().
     :param nicks: Nicks of the chatters
     """
     sql = """
@@ -142,18 +142,18 @@ def select_chatter_profile_db(
 
 
 @with_cursor
-def select_all_chatters_db(
+def select_chatter_ids_by_nicks_db(
     cursor: Cursor,
+    nicks: Sequence[str],
 ) -> dict[str, int]:
-    sql = """
-    SELECT
-        id,
-        nick
-    FROM
-        chatter
-    """
-    cursor.execute(sql)
+    """Nick -> id map for exactly the given nicks (batch-scoped dedup lookup).
 
+    Replaces a former full-table scan: the chatter table grows with all history,
+    so lookups must stay bounded by the ingestion batch, not table size.
+    """
+    if not nicks:
+        return {}
+    cursor.execute("SELECT id, nick FROM chatter WHERE nick = ANY(%s)", (list(nicks),))
     return {str(row[1]): int(row[0]) for row in cursor.fetchall()}
 
 
