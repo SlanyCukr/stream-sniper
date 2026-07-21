@@ -50,7 +50,7 @@ export interface FlushCacheDto {
   timestamp: string
 }
 
-export const retrieveDetailedHealth = () => getJson<DetailedHealthDto>('/health/detailed')
-export const retrieveMetrics = () => getJson<MetricsDto>('/metrics')
-export const retrieveCacheStats = () => getJson<CacheStatsDto>('/cache/stats')
+export const retrieveDetailedHealth = () => getJson('/health/detailed')
+export const retrieveMetrics = () => getJson('/metrics')
+export const retrieveCacheStats = () => getJson('/cache/stats')
 export const flushCache = () => api.post<FlushCacheDto>('/cache/flush')

@@ -83,7 +83,7 @@ const timelinePayload = () => ({
     category_id: null,
     category_name: null,
     language: 'en',
-    tags: null,
+    tags: ['featured'],
     is_mature: false,
   }],
   peak_viewers: null,
@@ -166,7 +166,7 @@ describe('stream analytics query contracts', () => {
         categoryId: null,
         categoryName: null,
         language: 'en',
-        tags: [],
+        tags: ['featured'],
         isMature: false,
       }],
       peakViewers: null,
@@ -189,6 +189,22 @@ describe('stream analytics query contracts', () => {
 
     await waitFor(() => expect(result.result.current.isError).toBe(true))
     expect(result.result.current.error).toBeInstanceOf(TypeError)
+  })
+
+  it('rejects non-string stream context tags', async () => {
+    const payload = timelinePayload()
+    streamApi.retrieveStreamTimeline.mockResolvedValue({
+      ...payload,
+      context_changes: [{ ...payload.context_changes[0], tags: ['featured', 7] }],
+    })
+    const result = renderHook(() => useStreamTimeline(42), {
+      wrapper: createWrapper(createClient()),
+    })
+
+    await waitFor(() => expect(result.result.current.isError).toBe(true))
+    expect(result.result.current.error).toEqual(expect.objectContaining({
+      message: 'stream timeline.context_changes[0].tags[1] must be a string',
+    }))
   })
 
   it('maps report metrics and optional highlights without converting unknowns to zero', async () => {

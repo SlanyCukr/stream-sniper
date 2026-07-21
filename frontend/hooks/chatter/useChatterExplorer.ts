@@ -1,5 +1,12 @@
 import { useState } from 'react'
 import { retrieveChatterSearch } from '@/lib/api/chatter'
+import {
+    requireArray,
+    requireFiniteNumberField,
+    requireNullableBooleanField,
+    requireRecord,
+    requireStringField,
+} from '@/lib/api/contractGuards'
 import type { ChatterView } from '@/lib/models/chatterExplorer'
 
 export interface ChatterOption {
@@ -13,11 +20,15 @@ export const loadChatterOptions = async (query: string): Promise<ChatterOption[]
     const trimmed = query.trim()
     if (trimmed.length < 2) return []
     const data = await retrieveChatterSearch(trimmed)
-    return (data || []).map(result => ({
-        value: result.chatter_id,
-        label: result.nick,
-        isBot: result.is_bot,
-    }))
+    return requireArray(data, 'chatter search results').map((value, index) => {
+        const label = `chatter search result[${index}]`
+        const result = requireRecord(value, label)
+        return {
+            value: requireFiniteNumberField(result, 'chatter_id', label),
+            label: requireStringField(result, 'nick', label),
+            isBot: requireNullableBooleanField(result, 'is_bot', label),
+        }
+    })
 }
 
 /** Matching empty-state copy for the chatter search select's 2-char gate. */

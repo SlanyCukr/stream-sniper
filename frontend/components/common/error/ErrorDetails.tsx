@@ -5,17 +5,32 @@ import {
 import type { NormalizedApiError } from '@/utils/errorUtils'
 
 type ErrorInfo = NormalizedApiError & { timestamp: string }
-type DetailedError = Error & { response?: { config?: { url?: string, method?: string } } }
 
 interface ErrorDetailsProps {
-    error: DetailedError
+    error: unknown
     errorInfo: ErrorInfo
+}
+
+const asRecord = (value: unknown): Record<string, unknown> | null => (
+    typeof value === 'object' && value !== null ? value as Record<string, unknown> : null
+)
+
+const diagnosticDetails = (error: unknown) => {
+    const source = asRecord(error)
+    const config = asRecord(asRecord(source?.response)?.config)
+    return {
+        url: typeof config?.url === 'string' ? config.url : null,
+        method: typeof config?.method === 'string' ? config.method : null,
+        stack: typeof source?.stack === 'string' ? source.stack : null,
+    }
 }
 
 const ErrorDetails = ({
     error, errorInfo,
-}: ErrorDetailsProps) => (
-    <Card className="mt-3 border-secondary">
+}: ErrorDetailsProps) => {
+    const diagnostics = diagnosticDetails(error)
+    return (
+      <Card className="mt-3 border-secondary">
         <Card.Header className="py-2">
             <small className="text-muted">Technical Details</small>
         </Card.Header>
@@ -33,20 +48,20 @@ const ErrorDetails = ({
                     </>
                 )}
 
-                {error.response?.config?.url && (
+                {diagnostics.url && (
                     <>
                         <dt className="col-3">URL:</dt>
                         <dd className="col-9">
-                            <code className="small">{error.response.config.url}</code>
+                            <code className="small">{diagnostics.url}</code>
                         </dd>
                     </>
                 )}
 
-                {error.response?.config?.method && (
+                {diagnostics.method && (
                     <>
                         <dt className="col-3">Method:</dt>
                         <dd className="col-9">
-                            <Badge bg="info">{error.response.config.method.toUpperCase()}</Badge>
+                            <Badge bg="info">{diagnostics.method.toUpperCase()}</Badge>
                         </dd>
                     </>
                 )}
@@ -59,16 +74,17 @@ const ErrorDetails = ({
                 </dd>
             </dl>
 
-            {error.stack && (
+            {diagnostics.stack && (
                 <details className="mt-2">
                     <summary className="btn btn-link p-0 small">Stack Trace</summary>
                     <pre className="mt-2 p-2 bg-light border rounded small">
-                        {error.stack}
+                        {diagnostics.stack}
                     </pre>
                 </details>
             )}
         </Card.Body>
-    </Card>
-)
+      </Card>
+    )
+}
 
 export default ErrorDetails

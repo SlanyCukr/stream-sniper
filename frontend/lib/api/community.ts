@@ -59,18 +59,18 @@ export interface CreatorHeadToHeadDto {
 }
 
 export const retrieveCommunityOverlap = (limit = 40) =>
-  getJson<CommunityOverlapDto>('/community/overlap', { limit })
+  getJson('/community/overlap', { limit })
 
 export const retrieveCreatorNeighbors = (
   creatorId: number,
   request: { metric?: 'regulars' | 'chatters', limit?: number } = {},
-) => getJson<CreatorNeighborsDto>(`/community/creators/${creatorId}/neighbors`, {
+) => getJson(`/community/creators/${creatorId}/neighbors`, {
   metric: request.metric,
   limit: request.limit,
 })
 
 export const retrieveCreatorHeadToHead = (creatorA: number, creatorB: number) =>
-  getJson<CreatorHeadToHeadDto>('/community/head-to-head', {
+  getJson('/community/head-to-head', {
     creator_a: creatorA,
     creator_b: creatorB,
   })

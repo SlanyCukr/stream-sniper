@@ -223,7 +223,7 @@ export interface StreamPhrasesDto {
   phrases: Array<{ phrase: string, usage_count: number, chatter_count: number }>
 }
 
-export const retrieveStreams = (request: StreamListRequest) => getJson<StreamListDto>(
+export const retrieveStreams = (request: StreamListRequest) => getJson(
   '/streams',
   {
     creator_id: request.creatorId,
@@ -239,7 +239,7 @@ export const retrieveStreams = (request: StreamListRequest) => getJson<StreamLis
 )
 
 export const retrieveStreamMessages = (streamId: number, request: StreamMessageRequest = {}) =>
-  getJson<StreamMessagesDto>(`/streams/${streamId}/messages`, {
+  getJson(`/streams/${streamId}/messages`, {
     chatter_id: request.chatterId,
     q: request.q,
     after_ts: request.afterTs,
@@ -249,25 +249,25 @@ export const retrieveStreamMessages = (streamId: number, request: StreamMessageR
   })
 
 export const retrieveStreamTimeline = (streamId: number) =>
-  getJson<StreamTimelineDto>(`/streams/${streamId}/timeline`)
+  getJson(`/streams/${streamId}/timeline`)
 
 export const retrieveStreamComparison = (streamIds: number[]) => {
   const params = new URLSearchParams()
   streamIds.forEach((id) => params.append('stream_ids', String(id)))
-  return getJson<StreamComparisonDto>(`/streams/compare?${params}`)
+  return getJson(`/streams/compare?${params}`)
 }
 
 export const retrieveStreamMentions = (streamId: number, limit = 20) =>
-  getJson<StreamMentionsDto>(`/streams/${streamId}/mentions`, { limit })
+  getJson(`/streams/${streamId}/mentions`, { limit })
 
 export const retrieveStreamEmotes = (streamId: number, limit = 25) =>
-  getJson<StreamEmotesDto>(`/streams/${streamId}/emotes`, { limit })
+  getJson(`/streams/${streamId}/emotes`, { limit })
 
 export const retrieveStreamPhrases = (streamId: number, limit = 25) =>
-  getJson<StreamPhrasesDto>(`/streams/${streamId}/phrases`, { limit })
+  getJson(`/streams/${streamId}/phrases`, { limit })
 
 export const retrieveStreamReport = (streamId: number, lookback?: number) =>
-  getJson<StreamReportDto>(`/streams/${streamId}/report`, { lookback })
+  getJson(`/streams/${streamId}/report`, { lookback })
 
 // Full AxiosResponse<Blob> on purpose (callers read headers + blob body);
 // timeout 0 because exports stream arbitrarily large chat logs.
@@ -283,4 +283,4 @@ export const downloadStreamInsightCsv = (
 ) => downloadBlob(`/streams/${streamId}/${kind}/export`)
 
 export const retrieveStreamComprehensive = (streamId: number) =>
-  getJson<StreamDto>(`/streams/${streamId}`)
+  getJson(`/streams/${streamId}`)

@@ -17,7 +17,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary', 'html'],
       reportsDirectory: './coverage',
-      include: ['app/**/*.{ts,tsx}', 'components/**/*.{js,jsx,ts,tsx}', 'contexts/**/*.{js,jsx,ts,tsx}', 'hooks/**/*.{js,jsx,ts,tsx}', 'lib/**/*.{ts,tsx}', 'lib/pagination/**/*.{js,jsx}', 'utils/**/*.{js,jsx,ts,tsx}', 'views/**/*.{js,jsx,ts,tsx}'],
+      include: ['app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'contexts/**/*.{ts,tsx}', 'hooks/**/*.{ts,tsx}', 'lib/**/*.{ts,tsx}', 'utils/**/*.{ts,tsx}', 'views/**/*.{ts,tsx}'],
       exclude: ['app/**/layout.tsx', 'app/**/loading.tsx', 'app/**/error.tsx', 'app/**/not-found.tsx'],
       thresholds: {
         // Ratcheted from the 2026-07-15 post-refactor baseline. Raise these as
@@ -38,43 +38,43 @@ export default defineConfig({
           functions: 92,
           lines: 91,
         },
-        'hooks/stream/insights/useStreamInsightsQuery.js': {
+        'hooks/stream/insights/useStreamInsightsQuery.ts': {
           statements: 100,
           branches: 94,
           functions: 100,
           lines: 100,
         },
-        'hooks/stream/report/useStreamReportQuery.js': {
+        'hooks/stream/report/useStreamReportQuery.ts': {
           statements: 90,
           branches: 75,
           functions: 100,
           lines: 92,
         },
-        'hooks/stream/timeline/useStreamTimelineQuery.js': {
+        'hooks/stream/timeline/useStreamTimelineQuery.ts': {
           statements: 90,
           branches: 66,
           functions: 90,
           lines: 89,
         },
-        'hooks/creator/useAudienceMovementQuery.js': {
+        'hooks/creator/useAudienceMovementQuery.ts': {
           statements: 100,
           branches: 88,
           functions: 100,
           lines: 100,
         },
-        'hooks/creator/useCreatorSummaryQuery.js': {
+        'hooks/creator/useCreatorSummaryQuery.ts': {
           statements: 100,
           branches: 83,
           functions: 100,
           lines: 100,
         },
-        'hooks/creator/useCreatorRegularsQuery.js': {
+        'hooks/creator/useCreatorRegularsQuery.ts': {
           statements: 100,
           branches: 100,
           functions: 100,
           lines: 100,
         },
-        'hooks/creator/useCreatorTrendsQuery.js': {
+        'hooks/creator/useCreatorTrendsQuery.ts': {
           statements: 100,
           branches: 100,
           functions: 100,
@@ -119,6 +119,24 @@ export default defineConfig({
         'components/stream/list/ThumbImage.tsx': {
           statements: 100,
           branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        'views/creator/AudienceMovement.tsx': {
+          statements: 100,
+          branches: 80,
+          functions: 100,
+          lines: 100,
+        },
+        'views/community/ChatterVersus.tsx': {
+          statements: 100,
+          branches: 80,
+          functions: 100,
+          lines: 100,
+        },
+        'views/scene/EmoteDetail.tsx': {
+          statements: 100,
+          branches: 75,
           functions: 100,
           lines: 100,
         },

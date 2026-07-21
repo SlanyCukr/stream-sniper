@@ -10,7 +10,7 @@ import RateLimitingMetrics from '@/components/admin/system/RateLimitingMetrics'
 import CacheDetails from '@/components/admin/system/CacheDetails'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
-import StatusChip from '@/components/common/StatusChip'
+import StatusChip, { type StatusChipVariant } from '@/components/common/StatusChip'
 import { useActionFeedback } from '@/hooks/admin/shared/useActionFeedback'
 import { formatDurationDaysHoursMinutes } from '@/utils/numberUtils'
 import {
@@ -19,8 +19,6 @@ import {
     useFlushCache,
     useSystemMetrics,
 } from '@/hooks/admin/system/useSystemQueries'
-
-type StatusChipVariant = 'ok' | 'warn' | 'err' | 'neutral'
 
 const SystemInfo = () => {
     const feedback = useActionFeedback()

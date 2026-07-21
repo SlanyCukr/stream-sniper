@@ -120,13 +120,13 @@ export interface SceneDigestDto {
   markdown: string
 }
 
-export const retrieveSceneLive = () => getJson<SceneLiveDto>('/scene/live')
+export const retrieveSceneLive = () => getJson('/scene/live')
 
 export const retrieveSceneLeaderboard = (windowDays: 7 | 30 = 7) =>
-  getJson<SceneLeaderboardDto>('/scene/leaderboard', { window: windowDays })
+  getJson('/scene/leaderboard', { window: windowDays })
 
 export const retrieveSceneCopypastas = (request: SceneCopypastaRequest = {}) =>
-  getJson<SceneCopypastasDto>('/scene/copypastas', {
+  getJson('/scene/copypastas', {
     days: request.days,
     creator_id: request.creatorId,
     sort: request.sort,
@@ -135,13 +135,13 @@ export const retrieveSceneCopypastas = (request: SceneCopypastaRequest = {}) =>
   })
 
 export const retrieveCopypastaPropagation = (messageTextId: number, contextSeconds = 90) =>
-  getJson<CopypastaPropagationDto>(
+  getJson(
     `/scene/copypastas/${messageTextId}`,
     { context_seconds: contextSeconds },
   )
 
 export const retrieveScenePulse = (request: ScenePulseRequest = {}) =>
-  getJson<ScenePulseDto>('/scene/pulse', {
+  getJson('/scene/pulse', {
     days: request.days,
     event_type: request.eventType,
     creator_id: request.creatorId,
@@ -150,7 +150,7 @@ export const retrieveScenePulse = (request: ScenePulseRequest = {}) =>
   })
 
 export const retrieveSceneDigest = (days = 7) =>
-  getJson<SceneDigestDto>('/scene/digest', { days })
+  getJson('/scene/digest', { days })
 
 // ---------------------------------------------------------------------------
 // Scene power rankings (chatter leaderboard) — GET /scene/chatter-rankings
@@ -179,7 +179,7 @@ export interface SceneRankingsDto {
 }
 
 export const retrieveSceneRankings = (request: SceneRankingsRequest = {}) =>
-  getJson<SceneRankingsDto>('/scene/chatter-rankings', {
+  getJson('/scene/chatter-rankings', {
     window: request.window,
     limit: request.limit,
     offset: request.offset,
@@ -226,7 +226,7 @@ export interface SceneHighlightsDto {
 }
 
 export const retrieveSceneHighlights = (request: SceneHighlightsRequest = {}) =>
-  getJson<SceneHighlightsDto>('/scene/highlights', {
+  getJson('/scene/highlights', {
     window: request.window,
     creator_id: request.creatorId,
     sort: request.sort,
@@ -279,14 +279,14 @@ export interface TrendingEmotesDto {
 }
 
 export const retrieveTrendingCopypastas = (request: SceneTrendingRequest = {}) =>
-  getJson<TrendingCopypastasDto>('/scene/trending/copypastas', {
+  getJson('/scene/trending/copypastas', {
     window: request.window,
     creator_id: request.creatorId,
     limit: request.limit,
   })
 
 export const retrieveTrendingEmotes = (request: SceneTrendingRequest = {}) =>
-  getJson<TrendingEmotesDto>('/scene/trending/emotes', {
+  getJson('/scene/trending/emotes', {
     window: request.window,
     creator_id: request.creatorId,
     limit: request.limit,
@@ -360,7 +360,7 @@ export interface SceneWrappedDto {
 }
 
 export const retrieveSceneWrapped = (days = 30) =>
-  getJson<SceneWrappedDto>('/scene/wrapped', { days })
+  getJson('/scene/wrapped', { days })
 
 // ---------------------------------------------------------------------------
 // Live Moment Radar (chat velocity for live streams) — GET /scene/radar
@@ -386,7 +386,7 @@ export interface SceneRadarDto {
 }
 
 export const retrieveSceneRadar = () =>
-  getJson<SceneRadarDto>('/scene/radar')
+  getJson('/scene/radar')
 
 // ---------------------------------------------------------------------------
 // Emote drill-down (lifetime story of one emote) — GET /scene/emotes/{id}
@@ -429,4 +429,4 @@ export interface EmoteDetailDto {
 }
 
 export const retrieveEmoteDetail = (emoteId: number) =>
-  getJson<EmoteDetailDto>(`/scene/emotes/${emoteId}`)
+  getJson(`/scene/emotes/${emoteId}`)

@@ -9,7 +9,7 @@ const SessionErrorAlert = () => {
 
     return (
         <ErrorAlert
-            error={sessionError.error as Error}
+            error={sessionError.error}
             title="Session problem"
             onDismiss={dismissSessionError}
             showDetails={false}

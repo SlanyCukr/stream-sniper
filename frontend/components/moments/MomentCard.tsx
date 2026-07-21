@@ -139,9 +139,7 @@ const MomentCard = ({
             ) : null}
 
             <ErrorAlert
-                // ErrorAlert's error prop comes from JSDoc in an unchecked .jsx file;
-                // mutation errors are `unknown` at this boundary, narrowing is impossible.
-                error={reviewError as Error | null}
+                error={reviewError}
                 title="Unable to update highlight"
                 onDismiss={onDismissReviewError}
                 className="mt-3 mb-0" />

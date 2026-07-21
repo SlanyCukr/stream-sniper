@@ -63,6 +63,8 @@ describe('formatDurationSeconds', () => {
 
   it('accepts a custom fallback', () => {
     expect(formatDurationSeconds(null, null, 'Pending')).toBe('Pending')
+    expect(formatDurationSeconds('not-a-date', '2026-07-14T10:00:45Z', 'Pending')).toBe('Pending')
+    expect(formatDurationSeconds('2026-07-14T10:00:45Z', 'not-a-date', 'Pending')).toBe('Pending')
   })
 
   it('accepts epoch zero as a valid boundary', () => {

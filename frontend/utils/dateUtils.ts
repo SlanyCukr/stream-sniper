@@ -98,9 +98,10 @@ export const formatDurationSeconds = (
     fallback = 'N/A',
 ): string => {
     if (startDate == null || endDate == null) return fallback
-    const seconds = Math.floor(
-        (parseDate(endDate).getTime() - parseDate(startDate).getTime()) / 1000,
-    )
+    const startTime = parseDate(startDate).getTime()
+    const endTime = parseDate(endDate).getTime()
+    if (Number.isNaN(startTime) || Number.isNaN(endTime)) return fallback
+    const seconds = Math.floor((endTime - startTime) / 1000)
     return `${seconds}s`
 }
 

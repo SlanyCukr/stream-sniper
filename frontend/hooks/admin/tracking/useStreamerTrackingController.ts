@@ -84,6 +84,7 @@ export const useStreamerTrackingController = () => {
         },
         removeModalProps: {
             target: removeTarget,
+            pending: actions.pending.delete,
             onHide: () => setRemoveTarget(null),
             onConfirm: handleRemoveStreamer,
         },

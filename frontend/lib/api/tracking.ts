@@ -121,16 +121,16 @@ export type TwitchChannelSearchDto = Array<{
 }>
 
 export const retrieveTwitchChannelSearch = (query: string, limit = 8) =>
-  getJson<TwitchChannelSearchDto>(
+  getJson(
     '/admin/tracking/twitch-search',
     { q: query, limit },
   )
 
 export const retrieveTrackingStats = () =>
-  getJson<TrackingStatsDto>('/admin/tracking/stats')
+  getJson('/admin/tracking/stats')
 
 export const retrieveTrackedStreamers = (request: TrackedStreamerListRequest = {}) =>
-  getJson<TrackedStreamerListDto>('/admin/tracking/streamers', {
+  getJson('/admin/tracking/streamers', {
     offset: request.rowOffset,
     limit: request.pageSize,
     is_active: request.isActive,
@@ -161,7 +161,7 @@ export const probeTwitchChannel = (streamerId: number) =>
   api.post<TwitchProbeResultDto>(`/admin/tracking/streamers/${streamerId}/probe`)
 
 export const retrieveProcessingJobs = (request: ProcessingJobListRequest = {}) =>
-  getJson<ProcessingJobListDto>('/admin/tracking/jobs', {
+  getJson('/admin/tracking/jobs', {
     offset: request.rowOffset,
     limit: request.pageSize,
     status: request.status,

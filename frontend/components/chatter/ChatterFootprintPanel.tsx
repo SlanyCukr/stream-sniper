@@ -13,10 +13,7 @@ interface ChatterFootprintPanelProps {
 }
 
 const ChatterFootprintPanel = ({ chatter }: ChatterFootprintPanelProps) => {
-    // useChatterStreamActivity declares chatterId as non-nullable number, but
-    // internally guards on Boolean(chatterId) — null (no chatter selected) is
-    // the real, intended runtime value here.
-    const query = useChatterStreamActivity((chatter?.value || null) as number)
+    const query = useChatterStreamActivity(chatter?.value ?? 0)
     const activity = useMemo(() => query.data || [], [query.data])
     const maxMessages = useMemo(() => Math.max(1, ...activity.map(row => row.messageCount || 0)), [activity])
     const isLoading = Boolean(chatter?.value) && query.isLoading

@@ -1,5 +1,8 @@
 import { useMutation, useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { useInvalidatingMutation } from '@/hooks/useInvalidatingMutation'
+import {
+    useInvalidatingMutation,
+    type MutationOptions,
+} from '@/hooks/useInvalidatingMutation'
 import {
     createTrackedStreamer,
     deleteTrackedStreamer,
@@ -27,13 +30,7 @@ import {
     requireStringOrFiniteNumberField,
 } from '@/lib/api/contractGuards'
 
-// queryKey/queryFn stay accepted-but-untyped: every hook below always overwrites
-// them with its own key/fetcher (matching runtime behavior), so a caller
-// passing either does not influence what actually runs.
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'> & {
-    queryKey?: unknown
-    queryFn?: unknown
-}
+type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'>
 
 interface StreamerParams {
     pageIndex?: number
@@ -335,7 +332,9 @@ export const useProcessingJobs = (
     })
 }
 
-export const useCreateTrackedStreamer = (options = {}) => useInvalidatingMutation(
+export const useCreateTrackedStreamer = (
+    options: MutationOptions<TrackedStreamer, CreateTrackedStreamerCommand> = {},
+) => useInvalidatingMutation(
     async (streamer: CreateTrackedStreamerCommand): Promise<TrackedStreamer> => (
         mapTrackedStreamer((await createTrackedStreamer(streamer)).data)
     ),
@@ -343,7 +342,14 @@ export const useCreateTrackedStreamer = (options = {}) => useInvalidatingMutatio
     options,
 )
 
-export const useUpdateTrackedStreamer = (options = {}) => useInvalidatingMutation(
+type UpdateTrackedStreamerVariables = {
+    streamerId: number
+    changes: UpdateTrackedStreamerCommand
+}
+
+export const useUpdateTrackedStreamer = (
+    options: MutationOptions<TrackedStreamer, UpdateTrackedStreamerVariables> = {},
+) => useInvalidatingMutation(
     async (command: { streamerId: number, changes: UpdateTrackedStreamerCommand }): Promise<TrackedStreamer> => (
         mapTrackedStreamer((await updateTrackedStreamer(command.streamerId, command.changes)).data)
     ),
@@ -351,7 +357,9 @@ export const useUpdateTrackedStreamer = (options = {}) => useInvalidatingMutatio
     options,
 )
 
-export const useDeleteTrackedStreamer = (options = {}) => useInvalidatingMutation(
+export const useDeleteTrackedStreamer = (
+    options: MutationOptions<void, number> = {},
+) => useInvalidatingMutation(
     async (streamerId: number): Promise<void> => (await deleteTrackedStreamer(streamerId)).data,
     trackingKeys.all,
     options,
@@ -361,7 +369,9 @@ export const useDeleteTrackedStreamer = (options = {}) => useInvalidatingMutatio
  * On-demand Twitch snapshot for one tracked streamer. Nothing is stored, so
  * this is a plain mutation — the caller keeps the result in component state.
  */
-export const useProbeTwitchChannel = (options = {}) => useMutation({
+export const useProbeTwitchChannel = (
+    options: MutationOptions<TwitchProbeResult, number> = {},
+) => useMutation({
     mutationFn: async (streamerId: number) => (
         mapTwitchProbeResult((await probeTwitchChannel(streamerId)).data)
     ),

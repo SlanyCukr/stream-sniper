@@ -10,12 +10,10 @@ import {
 } from '@/utils/errorUtils'
 import ErrorDetails from './ErrorDetails'
 
-export type DetailedError = Error & { response?: { config?: { url?: string, method?: string } } }
-
 type AlertProps = ComponentProps<typeof Alert>
 
 export interface ErrorAlertProps extends Omit<AlertProps, 'onClose' | 'title'> {
-    error?: DetailedError | null
+    error?: unknown
     title?: string
     onRetry?: () => unknown
     onDismiss?: () => void
@@ -73,7 +71,7 @@ const ErrorAlert = ({
     ] = useState(false)
 
     const errorInfo = useMemo(() => {
-        if (!error) {
+        if (error == null) {
             return null
         }
 
@@ -147,7 +145,7 @@ const ErrorAlert = ({
                         </small>
                     </div>
 
-                    {detailsVisible && error && (
+                    {detailsVisible && error != null && (
                         <ErrorDetails
                             error={error}
                             errorInfo={errorInfo} />

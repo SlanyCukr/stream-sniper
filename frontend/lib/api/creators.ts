@@ -128,16 +128,16 @@ export interface CreatorRowDto {
 }
 export type CreatorListDto = CreatorRowDto[]
 
-export const retrieveAllCreators = () => getJson<CreatorListDto>('/creators')
+export const retrieveAllCreators = () => getJson('/creators')
 
 export const retrieveCreatorSummary = (creatorId: number) =>
-  getJson<CreatorSummaryDto>(`/creators/${creatorId}/summary`)
+  getJson(`/creators/${creatorId}/summary`)
 
 export const retrieveCreatorTrends = (creatorId: number) =>
-  getJson<CreatorTrendsDto>(`/creators/${creatorId}/trends`)
+  getJson(`/creators/${creatorId}/trends`)
 
 export const retrieveCreatorRegulars = (creatorId: number, request: CreatorRegularsRequest = {}) =>
-  getJson<CreatorRegularsDto>(`/creators/${creatorId}/regulars`, {
+  getJson(`/creators/${creatorId}/regulars`, {
     min_streams: request.minStreams,
     sort: request.sort,
     dir: request.dir,
@@ -145,10 +145,10 @@ export const retrieveCreatorRegulars = (creatorId: number, request: CreatorRegul
   })
 
 export const retrieveAudienceMovement = (creatorId: number, days = 30) =>
-  getJson<AudienceMovementDto>(`/creators/${creatorId}/audience-movement`, { days })
+  getJson(`/creators/${creatorId}/audience-movement`, { days })
 
 export const retrieveCreatorEmotes = (creatorId: number, limit = 25) =>
-  getJson<CreatorEmotesDto>(`/creators/${creatorId}/emotes`, { limit })
+  getJson(`/creators/${creatorId}/emotes`, { limit })
 
 export const retrieveCreatorWrapped = (creatorId: number, days = 30) =>
-  getJson<CreatorWrappedDto>(`/creators/${creatorId}/wrapped`, { days })
+  getJson(`/creators/${creatorId}/wrapped`, { days })

@@ -1,8 +1,9 @@
 import { type ChangeEvent, type FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { USER_ROLES, type UserRole } from '@/lib/auth/roles'
+import { isUserRole, USER_ROLES, type UserRole } from '@/lib/auth/roles'
 import { useCreateAdminUser } from './useUserAdminQueries'
 import { useActionFeedback } from '../shared/useActionFeedback'
+import { useOwnedTimeout } from '@/hooks/useOwnedTimeout'
 
 interface CreateUserFormData {
     username: string
@@ -42,17 +43,28 @@ export const useCreateUserForm = () => {
     const router = useRouter()
     const createUser = useCreateAdminUser()
     const feedback = useActionFeedback()
+    const redirectTimeout = useOwnedTimeout()
     const [formData, setFormData] = useState<CreateUserFormData>(INITIAL_FORM)
     const [validationError, setValidationError] = useState<string | null>(null)
 
-    const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-        const {
-            name, value, type, checked,
-        } = event.target
-        setFormData(previous => ({
-            ...previous,
-            [name]: type === 'checkbox' ? checked : value,
-        }))
+    const handleInputChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = event.currentTarget
+        const checked = 'checked' in event.currentTarget ? event.currentTarget.checked : false
+        setFormData(previous => {
+            switch (name) {
+                case 'username':
+                case 'email':
+                case 'password':
+                case 'confirmPassword':
+                    return { ...previous, [name]: value }
+                case 'role':
+                    return isUserRole(value) ? { ...previous, role: value } : previous
+                case 'isActive':
+                    return { ...previous, isActive: checked }
+                default:
+                    return previous
+            }
+        })
     }
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -75,7 +87,7 @@ export const useCreateUserForm = () => {
             errorTitle: 'Failed to create user',
             onSuccess: () => {
                 setFormData(INITIAL_FORM)
-                setTimeout(() => router.push('/admin/users'), 2000)
+                redirectTimeout.schedule(() => router.push('/admin/users'), 2000)
             },
         })
     }

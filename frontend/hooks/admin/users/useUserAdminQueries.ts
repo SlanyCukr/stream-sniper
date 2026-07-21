@@ -1,5 +1,8 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { useInvalidatingMutation } from '@/hooks/useInvalidatingMutation'
+import {
+    useInvalidatingMutation,
+    type MutationOptions,
+} from '@/hooks/useInvalidatingMutation'
 import {
     createAdminUser,
     deleteUser,
@@ -29,13 +32,7 @@ interface UserParams {
     pageSize?: number
 }
 
-// queryKey/queryFn stay accepted-but-untyped: both hooks below always overwrite
-// them with their own key/fetcher (matching runtime behavior), so a caller
-// passing either does not influence what actually runs.
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'> & {
-    queryKey?: unknown
-    queryFn?: unknown
-}
+type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'>
 
 const normalizeUserParams = ({
     pageIndex = 0,
@@ -139,7 +136,9 @@ export const useAdminUsers = (
     })
 }
 
-export const useCreateAdminUser = (options = {}) => useInvalidatingMutation(
+export const useCreateAdminUser = (
+    options: MutationOptions<AdminUser, CreateAdminUserCommand> = {},
+) => useInvalidatingMutation(
     async (user: CreateAdminUserCommand): Promise<AdminUser> => (
         mapAdminUser((await createAdminUser(user)).data)
     ),
@@ -147,7 +146,14 @@ export const useCreateAdminUser = (options = {}) => useInvalidatingMutation(
     options,
 )
 
-export const useUpdateAdminUser = (options = {}) => useInvalidatingMutation(
+type UpdateAdminUserVariables = {
+    userId: number
+    changes: UpdateAdminUserCommand
+}
+
+export const useUpdateAdminUser = (
+    options: MutationOptions<AdminUser, UpdateAdminUserVariables> = {},
+) => useInvalidatingMutation(
     async (command: { userId: number, changes: UpdateAdminUserCommand }): Promise<AdminUser> => (
         mapAdminUser((await updateUser(command.userId, command.changes)).data)
     ),
@@ -155,7 +161,14 @@ export const useUpdateAdminUser = (options = {}) => useInvalidatingMutation(
     options,
 )
 
-export const useUpdateAdminUserRole = (options = {}) => useInvalidatingMutation(
+type UpdateAdminUserRoleVariables = {
+    userId: number
+    role: AdminUserDto['role']
+}
+
+export const useUpdateAdminUserRole = (
+    options: MutationOptions<AdminUser, UpdateAdminUserRoleVariables> = {},
+) => useInvalidatingMutation(
     async (command: { userId: number, role: AdminUserDto['role'] }): Promise<AdminUser> => (
         mapAdminUser((await updateUserRole(command.userId, command.role)).data)
     ),
@@ -163,7 +176,14 @@ export const useUpdateAdminUserRole = (options = {}) => useInvalidatingMutation(
     options,
 )
 
-export const useSetAdminUserActive = (options = {}) => useInvalidatingMutation(
+type SetAdminUserActiveVariables = {
+    userId: number
+    isActive: boolean
+}
+
+export const useSetAdminUserActive = (
+    options: MutationOptions<AdminUser, SetAdminUserActiveVariables> = {},
+) => useInvalidatingMutation(
     async (command: { userId: number, isActive: boolean }): Promise<AdminUser> => (
         mapAdminUser((await setUserActive(command.userId, command.isActive)).data)
     ),
@@ -171,7 +191,9 @@ export const useSetAdminUserActive = (options = {}) => useInvalidatingMutation(
     options,
 )
 
-export const useDeleteAdminUser = (options = {}) => useInvalidatingMutation(
+export const useDeleteAdminUser = (
+    options: MutationOptions<void, number> = {},
+) => useInvalidatingMutation(
     async (userId: number): Promise<void> => (await deleteUser(userId)).data,
     userAdminKeys.all,
     options,

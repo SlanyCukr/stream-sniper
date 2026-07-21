@@ -78,7 +78,7 @@ describe('API hook contract boundaries', () => {
     expect((hook.result.current as any).error).toBeInstanceOf(TypeError)
   })
 
-  it('keeps hook-owned query functions and keys authoritative', async () => {
+  it('accepts supported query options without altering the owned request', async () => {
     api.retrieveDetailedHealth.mockResolvedValue({
       status: 'healthy',
       timestamp: 'now',
@@ -86,15 +86,13 @@ describe('API hook contract boundaries', () => {
       system: { memory_usage_percent: 5 },
       components: {},
     })
-    const foreignQuery = vi.fn(async () => ({ status: 'foreign' }))
     const hook = renderHook(
-      () => useDetailedHealth({ queryKey: ['foreign'], queryFn: foreignQuery }),
+      () => useDetailedHealth({ staleTime: 0 }),
       { wrapper: createWrapper() },
     )
 
     await waitFor(() => expect(hook.result.current.isSuccess).toBe(true))
     expect(api.retrieveDetailedHealth).toHaveBeenCalledOnce()
-    expect(foreignQuery).not.toHaveBeenCalled()
     expect(hook.result.current.data?.status).toBe('healthy')
   })
 

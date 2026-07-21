@@ -1,5 +1,4 @@
 'use client'
-import type { ChangeEvent } from 'react'
 import {
     Alert, Button, Form, Spinner,
 } from 'react-bootstrap'
@@ -18,11 +17,6 @@ const CreateUserForm = () => {
         dismissValidationError,
         cancel,
     } = useCreateUserForm()
-
-    // useCreateUserForm types handleInputChange for HTMLInputElement only; it reads
-    // target.name/value/type/checked, all of which also exist on a select change
-    // event, so this reuses the same handler for the role <Form.Select>.
-    const handleRoleChange = handleInputChange as unknown as (event: ChangeEvent<HTMLSelectElement>) => void
 
     return (
         <>
@@ -93,7 +87,7 @@ const CreateUserForm = () => {
 
                 <Form.Group className="mb-3" controlId="create-user-role">
                     <Form.Label>Role</Form.Label>
-                    <Form.Select name="role" value={formData.role} onChange={handleRoleChange}>
+                    <Form.Select name="role" value={formData.role} onChange={handleInputChange}>
                         {USER_ROLE_OPTIONS.map(option => (
                             <option key={option.value} value={option.value}>{option.label}</option>
                         ))}

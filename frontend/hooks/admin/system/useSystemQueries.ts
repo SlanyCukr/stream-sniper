@@ -1,5 +1,8 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { useInvalidatingMutation } from '@/hooks/useInvalidatingMutation'
+import {
+    useInvalidatingMutation,
+    type MutationOptions,
+} from '@/hooks/useInvalidatingMutation'
 import {
     flushCache,
     retrieveCacheStats,
@@ -56,13 +59,7 @@ export interface CacheStats {
     streamSniperKeys: number
 }
 
-// queryKey/queryFn stay accepted-but-untyped: the hooks below always overwrite
-// them with their own key/fetcher (matching runtime behavior), so a caller
-// passing either does not influence what actually runs.
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'> & {
-    queryKey?: unknown
-    queryFn?: unknown
-}
+type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'>
 
 export const mapDetailedHealth = (value: unknown): DetailedHealth => {
     const data = requireRecord(value, 'detailed health')
@@ -194,7 +191,7 @@ export const useCacheStats = (options: QueryOptions<CacheStats> = {}) => useQuer
 
 const flushCacheMutation = async (): Promise<FlushCacheDto> => (await flushCache()).data
 
-export const useFlushCache = (options = {}) => {
+export const useFlushCache = (options: MutationOptions<FlushCacheDto> = {}) => {
     return useInvalidatingMutation(
         flushCacheMutation,
         systemKeys.all,

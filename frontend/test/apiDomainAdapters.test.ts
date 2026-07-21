@@ -3,10 +3,9 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { api } from '@/lib/api/client'
 import {
   retrieveChatterMessages,
-  type ChatterMessagePageDto,
 } from '@/lib/api/chatter'
-import { retrieveStreams, type StreamListDto } from '@/lib/api/streams'
-import { retrieveScenePulse, type ScenePulseDto } from '@/lib/api/scene'
+import { retrieveStreams } from '@/lib/api/streams'
+import { retrieveScenePulse } from '@/lib/api/scene'
 import {
   createAdminUser,
   updateUser,
@@ -58,9 +57,9 @@ describe('domain API adapters', () => {
       is_active: false,
     })
 
-    expectTypeOf(chatterResponse).toEqualTypeOf<ChatterMessagePageDto>()
-    expectTypeOf(streamResponse).toEqualTypeOf<StreamListDto>()
-    expectTypeOf(pulseResponse).toEqualTypeOf<ScenePulseDto>()
+    expectTypeOf(chatterResponse).toEqualTypeOf<unknown>()
+    expectTypeOf(streamResponse).toEqualTypeOf<unknown>()
+    expectTypeOf(pulseResponse).toEqualTypeOf<unknown>()
     expectTypeOf(userResponse.data).toEqualTypeOf<AdminUserDto>()
   })
 })

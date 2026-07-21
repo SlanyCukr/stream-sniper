@@ -1,10 +1,10 @@
 'use client'
 import React from 'react'
-import ErrorAlert, { type DetailedError } from '../../common/error/ErrorAlert'
+import ErrorAlert from '../../common/error/ErrorAlert'
 
 interface ErrorDisplayProps {
-    streamsError: DetailedError | null
-    creatorsError: DetailedError | null
+    streamsError: unknown
+    creatorsError: unknown
     onRetryStreams: () => unknown
     onRetryCreators: () => unknown
 }
@@ -24,7 +24,7 @@ const ErrorDisplay = React.memo(({
 
     return (
         <div className="mb-3">
-            {streamsError && (
+            {Boolean(streamsError) && (
                 <ErrorAlert
                     error={streamsError}
                     title="Failed to load streams"
@@ -32,7 +32,7 @@ const ErrorDisplay = React.memo(({
                     className="mb-2"
                 />
             )}
-            {creatorsError && (
+            {Boolean(creatorsError) && (
                 <ErrorAlert
                     error={creatorsError}
                     title="Failed to load creators"

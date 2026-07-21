@@ -51,9 +51,9 @@ interface UpdateAdminUserRequest extends Omit<UpdateAdminUserCommand, 'isActive'
   is_active?: boolean
 }
 
-export const retrieveAdminSystemStats = () => getJson<AdminStatsDto>('/auth/admin/stats')
+export const retrieveAdminSystemStats = () => getJson('/auth/admin/stats')
 
-export const retrieveUsers = (request: UserListRequest = {}) => getJson<UserListDto>(
+export const retrieveUsers = (request: UserListRequest = {}) => getJson(
   '/auth/users',
   { offset: request.rowOffset, limit: request.pageSize },
 )

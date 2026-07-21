@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { normalizeApiError } from '@/utils/errorUtils'
 import { validateEmail } from '@/utils/validationUtils'
 import type { PasswordChangeData } from '@/utils/validationUtils'
+import { useOwnedTimeout } from '@/hooks/useOwnedTimeout'
 
 export const useUserProfile = () => {
     const {
@@ -14,11 +15,12 @@ export const useUserProfile = () => {
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
     const [showPasswordModal, setShowPasswordModal] = useState(false)
+    const successTimeout = useOwnedTimeout()
     const formData = { email: emailDraft ?? user?.email ?? '' }
 
     const showSuccess = (message: string) => {
         setSuccess(message)
-        setTimeout(() => setSuccess(''), 5000)
+        successTimeout.schedule(() => setSuccess(''), 5000)
     }
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {

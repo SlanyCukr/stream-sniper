@@ -98,7 +98,7 @@ export interface MomentReviewDto {
 }
 
 export const retrieveMomentsQueue = (request: MomentsQueueRequest = {}) =>
-  getJson<MomentsQueueDto>('/moments', {
+  getJson('/moments', {
     status: request.status,
     creator_id: request.creatorId,
     limit: request.pageSize,

@@ -1,7 +1,7 @@
 'use client'
 import type { ReactNode } from 'react'
 import LoadingSpinner, { type LoadingSize } from '@/components/common/LoadingSpinner'
-import ErrorAlert, { type DetailedError } from '@/components/common/error/ErrorAlert'
+import ErrorAlert from '@/components/common/error/ErrorAlert'
 import EmptyState from '@/components/common/EmptyState'
 
 /**
@@ -84,9 +84,7 @@ const QueryState = <TData,>({
     if (error && isEmptyResult) {
         return (
             <ErrorAlert
-                // Query errors are caller-defined (Axios, native, etc.); narrowing
-                // happens inside normalizeApiError, so this boundary cast is safe.
-                error={error as DetailedError}
+                error={error}
                 title={errorTitle}
                 onRetry={retry || undefined}
                 showDetails={detailsVisible}

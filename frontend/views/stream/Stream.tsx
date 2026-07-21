@@ -7,7 +7,7 @@ import { useStreamTimeline } from '@/hooks/stream/timeline/useStreamTimelineQuer
 import { useStreamReplayController } from '@/hooks/stream/replay/useStreamReplayController'
 import CardLinkButton from '@/components/common/CardLinkButton'
 import QueryState from '@/components/common/QueryState'
-import ErrorAlert, { type DetailedError } from '@/components/common/error/ErrorAlert'
+import ErrorAlert from '@/components/common/error/ErrorAlert'
 import { uiError } from '@/utils/errorUtils'
 import StreamInfoCard from '@/components/stream/StreamInfoCard'
 import StreamDownloadMenu from '@/components/stream/StreamDownloadMenu'
@@ -90,9 +90,7 @@ const Stream = ({ streamId }: StreamProps) => {
 
                     {replay.navigation.jumpFailure && (
                         <ErrorAlert
-                            // UiFailure.error is unknown by design; ErrorAlert narrows
-                            // internally via normalizeApiError, so this boundary cast is safe.
-                            error={replay.navigation.jumpFailure.error as DetailedError}
+                            error={replay.navigation.jumpFailure.error}
                             title="Failed to load replay target" />
                     )}
 
