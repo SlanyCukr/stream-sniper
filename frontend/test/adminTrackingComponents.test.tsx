@@ -84,4 +84,50 @@ describe('AddTrackedStreamerModal', () => {
     expect(onHide).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Add Streamer' })).toBeEnabled()
   })
+
+  it('blocks every dismissal control while creation is pending', () => {
+    const onHide = vi.fn()
+    const { rerender } = render(
+      <AddTrackedStreamerModal
+        show
+        pending
+        onHide={onHide}
+        onCreate={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onHide).not.toHaveBeenCalled()
+
+    rerender(
+      <AddTrackedStreamerModal
+        show
+        pending={false}
+        onHide={onHide}
+        onCreate={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onHide).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the modal locked until its create promise settles', async () => {
+    let finishCreate: (outcome: { ok: boolean }) => void = () => undefined
+    const onCreate = vi.fn(() => new Promise<{ ok: boolean }>((resolve) => {
+      finishCreate = resolve
+    }))
+    const onHide = vi.fn()
+    render(<AddTrackedStreamerModal show onHide={onHide} onCreate={onCreate} />)
+    act(() => searchProps!.onChange({ value: 'operator' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Streamer' }))
+    expect(await screen.findByRole('button', { name: 'Adding...' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
+    expect(onHide).not.toHaveBeenCalled()
+
+    finishCreate({ ok: true })
+    await waitFor(() => expect(onHide).toHaveBeenCalledOnce())
+  })
 })

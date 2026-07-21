@@ -1,4 +1,5 @@
-import type { ScenePulseRequest, SceneCopypastaRequest } from '@/lib/api/scene'
+import type { ScenePulseRequest } from '@/lib/api/scene'
+import type { SceneCopypastaRequest } from '@/lib/models/sceneFilters'
 
 export type SceneCopypastaFilters = SceneCopypastaRequest & { pageIndex?: number, pageSize?: number }
 

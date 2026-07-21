@@ -25,6 +25,7 @@ const INITIAL_DRAFT: StreamerDraft = {
 
 interface AddTrackedStreamerModalProps {
     show: boolean
+    pending?: boolean
     onHide: () => void
     onCreate: (streamer: CreateTrackedStreamerCommand) => Promise<{ ok: boolean }>
     loadOptions?: (query: string) => Promise<SearchOption[]>
@@ -39,15 +40,16 @@ const creatableSelectExtras: Record<string, unknown> = {
 }
 
 const AddTrackedStreamerModal = ({
-    show, onHide, onCreate, loadOptions = loadTrackedStreamerOptions,
+    show, pending = false, onHide, onCreate, loadOptions = loadTrackedStreamerOptions,
 }: AddTrackedStreamerModalProps) => {
     const [draft, setDraft] = useState<StreamerDraft>(INITIAL_DRAFT)
     const [submitting, setSubmitting] = useState(false)
 
     const close = useCallback(() => {
+        if (submitting || pending) return
         setDraft(INITIAL_DRAFT)
         onHide()
-    }, [onHide])
+    }, [onHide, pending, submitting])
 
     const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -61,8 +63,8 @@ const AddTrackedStreamerModal = ({
     }
 
     return (
-        <Modal show={show} onHide={close}>
-            <Modal.Header closeButton>
+        <Modal show={show} onHide={close} backdrop={submitting || pending ? 'static' : true} keyboard={!submitting && !pending}>
+            <Modal.Header closeButton={!submitting && !pending}>
                 <Modal.Title>Add Streamer to Tracking</Modal.Title>
             </Modal.Header>
             <Form onSubmit={submit}>
@@ -118,11 +120,11 @@ const AddTrackedStreamerModal = ({
                     </Form.Group>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="outline-primary" onClick={close}>Cancel</Button>
+                    <Button variant="outline-primary" onClick={close} disabled={submitting || pending}>Cancel</Button>
                     <Button
                         variant="primary"
                         type="submit"
-                        disabled={submitting || !draft.twitchUsername.trim()}>
+                        disabled={submitting || pending || !draft.twitchUsername.trim()}>
                         {submitting ? (
                             <><Spinner animation="border" size="sm" className="me-2" />Adding...</>
                         ) : 'Add Streamer'}

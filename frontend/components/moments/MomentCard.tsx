@@ -8,7 +8,7 @@ import MomentReviewControls, {
 import ErrorAlert from '@/components/common/error/ErrorAlert'
 import StatusChip, { type StatusChipVariant } from '@/components/common/StatusChip'
 import type { MomentQueueItem } from '@/hooks/moments/useMomentsQueries'
-import type { MomentReviewStatus } from '@/lib/api/moments'
+import type { MomentReviewStatus } from '@/lib/models/momentQueue'
 
 const clock = (timestamp: unknown): string => (
     typeof timestamp === 'string' && timestamp.length >= 16

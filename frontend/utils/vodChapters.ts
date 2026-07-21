@@ -4,16 +4,6 @@
  * never need casts.
  */
 
-/**
- * Build a twitch.tv VOD deep link that seeks to a moment's offset.
- *
- * @param twitchVodId - The VOD id
- * @param streamStart - ISO timestamp of the stream start (nullable on the wire)
- * @param momentTs - ISO timestamp of the moment to seek to
- * @returns A twitch.tv/videos deep-link, or null when there is no VOD id or no
- *   usable start time (an offset computed against a missing start would seek
- *   to a nonsense position).
- */
 const offsetSeconds = (streamStart: string, momentTs: string): number => {
     const startMs = new Date(streamStart).getTime()
     const momentMs = new Date(momentTs).getTime()
@@ -39,6 +29,16 @@ const vodUrl = (twitchVodId: string | number, offset: number): string => (
     `https://www.twitch.tv/videos/${twitchVodId}?t=${twitchOffset(offset)}`
 )
 
+/**
+ * Build a twitch.tv VOD deep link that seeks to a moment's offset.
+ *
+ * @param twitchVodId - The VOD id
+ * @param streamStart - ISO timestamp of the stream start (nullable on the wire)
+ * @param momentTs - ISO timestamp of the moment to seek to
+ * @returns A twitch.tv/videos deep-link, or null when there is no VOD id or no
+ *   usable start time (an offset computed against a missing start would seek
+ *   to a nonsense position).
+ */
 export const vodDeepLink = (
     twitchVodId: string | number | null | undefined,
     streamStart: string | null | undefined,
@@ -50,7 +50,7 @@ export const vodDeepLink = (
     return vodUrl(twitchVodId, offsetSeconds(streamStart, momentTs))
 }
 
-import type { MomentPhrase } from '@/lib/api/moments'
+import type { MomentPhrase } from '@/lib/models/momentQueue'
 
 interface VodChaptersTimeline {
     twitchVodId: string | number | null

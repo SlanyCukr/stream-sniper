@@ -2,7 +2,9 @@ import MomentCard from './MomentCard'
 import type { MomentReviewMetadata } from './MomentReviewControls'
 import Pagination from '@/components/common/pagination/Pagination'
 import type { MomentQueueItem } from '@/hooks/moments/useMomentsQueries'
-import type { MomentReviewDto, MomentReviewStatus } from '@/lib/api/moments'
+import type {
+    MomentReviewResult, MomentReviewStatus,
+} from '@/lib/models/momentQueue'
 
 const EMPTY_HINT: Record<string, string> = {
     all: 'No highlights detected yet. Moments appear here after streams are processed.',
@@ -30,7 +32,7 @@ interface MomentQueueProps {
         moment: MomentQueueItem,
         nextStatus: MomentReviewStatus | null,
         metadata?: MomentReviewMetadata,
-    ) => Promise<MomentReviewDto | void>
+    ) => Promise<MomentReviewResult | void>
     pageIndex: number
     pageCount: number
     onPageChange: (pageIndex: number) => void

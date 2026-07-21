@@ -4,11 +4,11 @@ import StatusChip from '@/components/common/StatusChip'
 import { formatTimelineClock } from './timelinePresentation'
 import type { TimelineMoment } from '@/hooks/stream/timeline/useStreamTimelineQuery'
 import type { useMomentReview } from '@/hooks/moments/useMomentsQueries'
-import type { MomentReviewStatus } from '@/lib/api/moments'
+import type {
+    MomentPhrase, MomentReviewStatus, MomentSampleMessage,
+} from '@/lib/models/momentQueue'
 
 type ReviewMutation = ReturnType<typeof useMomentReview>
-
-import type { MomentPhrase, MomentSampleMessage } from '@/lib/api/moments'
 
 const pct = (value: number): string => `${(value * 100).toLocaleString(undefined, {
     minimumFractionDigits: 1,

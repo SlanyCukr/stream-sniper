@@ -79,6 +79,7 @@ export const useStreamerTrackingController = () => {
         },
         addModalProps: {
             show: showAddModal,
+            pending: actions.pending.create,
             onHide: () => setShowAddModal(false),
             onCreate: actions.commands.addStreamer,
         },

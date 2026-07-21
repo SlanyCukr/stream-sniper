@@ -1,4 +1,4 @@
-import { api } from '@/lib/api/client'
+import { api, postJson, putJson } from '@/lib/api/client'
 import type { AdminUserDto } from '@/lib/api/users'
 import {
     requireBooleanField,
@@ -7,11 +7,6 @@ import {
     requireStringField,
 } from '@/lib/api/contractGuards'
 import { USER_ROLES, type UserRole } from '@/lib/auth/roles'
-
-interface TokenDto {
-    access_token: string
-    token_type: string
-}
 
 interface MessageDto {
     message: string
@@ -49,8 +44,11 @@ export const fetchUserProfile = async (token: string): Promise<AuthUser> => mapA
 ).data)
 
 export const authenticate = async (username: string, password: string) => {
-    const { data } = await api.post<TokenDto>('/auth/login', { username, password })
-    const token = data.access_token
+    const response = requireRecord(
+        await postJson('/auth/login', { username, password }),
+        'authentication response',
+    )
+    const token = requireStringField(response, 'access_token', 'authentication response')
     return {
         token,
         profile: await fetchUserProfile(token),
@@ -69,9 +67,13 @@ export const updateProfile = async (userData: { email: string }): Promise<AuthUs
 export const requestPasswordChange = async (
     currentPassword: string,
     newPassword: string,
-): Promise<MessageDto> => (
-    await api.put<MessageDto>(
-        '/auth/me/password',
-        { current_password: currentPassword, new_password: newPassword },
+): Promise<MessageDto> => {
+    const response = requireRecord(
+        await putJson(
+            '/auth/me/password',
+            { current_password: currentPassword, new_password: newPassword },
+        ),
+        'password change response',
     )
-).data
+    return { message: requireStringField(response, 'message', 'password change response') }
+}

@@ -101,17 +101,38 @@ describe('SceneSearch orchestration', () => {
       })
     })
 
-    const { user } = renderWithQueryClient(<SceneSearch />)
+    const { user, rerender } = renderWithQueryClient(<SceneSearch />)
 
     expect(await screen.findByRole('link', { name: 'viewer-1' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Load more' }))
     expect(await screen.findByRole('link', { name: 'viewer-2' })).toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText('Time window'), '7')
+    expect(router.replace).toHaveBeenLastCalledWith('/search?q=pog&days=7', { scroll: false })
+    navigationState.searchParams = new URLSearchParams('q=pog&days=7')
+    rerender(<SceneSearch />)
     expect(await screen.findByRole('link', { name: 'viewer-7' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'viewer-1' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'viewer-2' })).not.toBeInTheDocument()
-    expect(router.replace).toHaveBeenLastCalledWith('/search?q=pog&days=7', { scroll: false })
+  })
+
+  it('adopts URL state when navigation changes after mount', async () => {
+    navigationState.searchParams = new URLSearchParams('q=first')
+    searchApi.retrieveSearchMessages.mockImplementation(({ q }) => Promise.resolve({
+      query: q,
+      has_more: false,
+      items: [searchHit(q === 'first' ? 1 : 2, q)],
+    }))
+
+    const view = renderWithQueryClient(<SceneSearch />)
+    expect(await screen.findByText('first')).toBeInTheDocument()
+
+    navigationState.searchParams = new URLSearchParams('q=second&days=7')
+    view.rerender(<SceneSearch />)
+
+    expect(await screen.findByText('second')).toBeInTheDocument()
+    expect(screen.getByRole('searchbox')).toHaveValue('second')
+    expect(screen.getByLabelText('Time window')).toHaveValue('7')
   })
 
   it('renders resolved-empty and failed searches as distinct states', async () => {

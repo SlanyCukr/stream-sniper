@@ -1,4 +1,4 @@
-import type { SceneCopypastaRequest } from '@/lib/api/scene'
+import type { SceneCopypastaRequest } from '@/lib/models/sceneFilters'
 
 export const COPYPASTA_SORT_OPTIONS = [
     { value: 'usage', label: 'Most used' },

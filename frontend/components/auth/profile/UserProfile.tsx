@@ -4,6 +4,7 @@ import {
     Alert, Card, Form,
 } from 'react-bootstrap'
 import { AuthenticationLoadingState } from '@/components/auth/guards/AuthenticatedGuard'
+import ErrorAlert from '@/components/common/error/ErrorAlert'
 import { useUserProfile } from '@/hooks/auth/useUserProfile'
 import ProfileInfo from './ProfileInfo'
 import ProfileActions from './ProfileActions'
@@ -20,7 +21,14 @@ const UserProfile = () => {
         <Card>
             <Card.Header><h4>User Profile</h4></Card.Header>
             <Card.Body>
-                {profile.error ? <Alert variant="danger" className="mb-3">{profile.error}</Alert> : null}
+                {profile.validationError ? <Alert variant="danger" className="mb-3">{profile.validationError}</Alert> : null}
+                {profile.failure ? (
+                    <ErrorAlert
+                        error={profile.failure.error}
+                        title="Failed to update profile"
+                        className="mb-3"
+                    />
+                ) : null}
                 {profile.success ? <Alert variant="success" className="mb-3">{profile.success}</Alert> : null}
                 <Form onSubmit={profile.handleSubmit}>
                     <ProfileInfo

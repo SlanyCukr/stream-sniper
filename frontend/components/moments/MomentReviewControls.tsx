@@ -2,7 +2,7 @@
 import {
     useState, type ChangeEvent, type FormEvent, type ReactNode,
 } from 'react'
-import type { MomentReviewStatus } from '@/lib/api/moments'
+import type { MomentReviewStatus } from '@/lib/models/momentQueue'
 
 export interface MomentReviewMetadata {
     clipUrl?: string | null

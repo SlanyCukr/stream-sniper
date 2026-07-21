@@ -2,8 +2,8 @@ import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import {
     retrieveTrendingCopypastas,
     retrieveTrendingEmotes,
-    type SceneTrendingRequest,
 } from '@/lib/api/scene'
+import type { SceneTrendingRequest } from '@/lib/models/sceneFilters'
 import {
     requireArrayField,
     requireFiniteNumberField,

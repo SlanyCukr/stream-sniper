@@ -5,13 +5,12 @@ import {
 } from '@tanstack/react-query'
 import {
     retrieveSceneHighlights,
-    type HighlightsSort,
-    type HighlightsWindow,
 } from '@/lib/api/scene'
 import {
     requireNullableMomentReviewStatus,
-    type MomentReviewStatus,
 } from '@/lib/api/moments'
+import type { MomentReviewStatus } from '@/lib/models/momentQueue'
+import type { HighlightsSort, HighlightsWindow } from '@/lib/models/sceneFilters'
 import {
     requireArray,
     requireArrayField,

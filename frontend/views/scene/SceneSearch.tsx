@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import {
+  useCallback, useEffect, useMemo, useState,
+} from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import EmptyState from '@/components/common/EmptyState'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
@@ -28,21 +30,34 @@ const SceneSearch = () => {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  // Hydrate initial filter state straight from the shareable URL (once, lazily).
-  const [input, setInput] = useState(() => readSearchState(searchParams).q)
-  const [creatorId, setCreatorId] = useState<number | null>(() => readSearchState(searchParams).creatorId)
-  const [days, setDays] = useState<number | null>(() => readSearchState(searchParams).days)
+  const urlState = useMemo(() => readSearchState(searchParams), [searchParams])
+  const { creatorId, days } = urlState
+  const [inputDraft, setInputDraft] = useState({
+    sourceQuery: urlState.q,
+    value: urlState.q,
+  })
+  const input = inputDraft.sourceQuery === urlState.q ? inputDraft.value : urlState.q
 
   const debouncedInput = useDebouncedValue(input, 400)
-  const committed = debouncedInput.trim()
+  const committed = urlState.q.trim()
   const isSearchable = committed.length >= MIN_QUERY_LENGTH
 
-  // Reflect the committed search into the URL so results are shareable.
+  const replaceSearchState = useCallback((nextState: {
+    q: string
+    creatorId: number | null
+    days: number | null
+  }) => {
+    const qs = buildSearchQueryString(nextState)
+    if (qs === searchParams.toString()) return
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
+
+  // The input is an editable draft; its debounced value becomes committed by
+  // navigating, after which useSearchParams is the sole result/filter source.
   useEffect(() => {
-    const qs = buildSearchQueryString({ q: committed, creatorId, days })
-    const next = qs ? `${pathname}?${qs}` : pathname
-    router.replace(next, { scroll: false })
-  }, [committed, creatorId, days, pathname, router])
+    if (debouncedInput.trim() === committed) return
+    replaceSearchState({ q: debouncedInput, creatorId, days })
+  }, [committed, creatorId, days, debouncedInput, replaceSearchState])
 
   const creatorsQuery = useCreators()
   const creators = useMemo(
@@ -55,10 +70,10 @@ const SceneSearch = () => {
   )
 
   const messagesQuery = useSearchMessages({
-    q: debouncedInput, creatorId, days, limit: PAGE_SIZE,
+    q: committed, creatorId, days, limit: PAGE_SIZE,
   })
-  const firstQuery = useSearchFirst({ q: debouncedInput, creatorId })
-  const frequencyQuery = useSearchFrequency({ q: debouncedInput, days: days ?? 90, creatorId })
+  const firstQuery = useSearchFirst({ q: committed, creatorId })
+  const frequencyQuery = useSearchFrequency({ q: committed, days: days ?? 90, creatorId })
 
   const accumulated = useMemo(
     () => messagesQuery.data?.pages.flatMap(page => page.items) ?? [],
@@ -115,12 +130,20 @@ const SceneSearch = () => {
 
       <SearchToolbar
         input={input}
-        onInputChange={setInput}
+        onInputChange={value => setInputDraft({ sourceQuery: urlState.q, value })}
         creators={creators}
         selectedCreator={selectedCreator}
-        onCreatorChange={option => setCreatorId(option?.value ?? null)}
+        onCreatorChange={option => replaceSearchState({
+          q: committed,
+          creatorId: option?.value ?? null,
+          days,
+        })}
         days={days}
-        onDaysChange={setDays}
+        onDaysChange={nextDays => replaceSearchState({
+          q: committed,
+          creatorId,
+          days: nextDays,
+        })}
       />
 
       {!isSearchable ? (

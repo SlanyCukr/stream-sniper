@@ -80,8 +80,13 @@ export const useChatterHeadToHead = (
     chatterB: number | null,
 ) => useQuery({
     queryKey: chatterVersusKeys.pair(chatterA ?? 0, chatterB ?? 0),
-    queryFn: async () => mapChatterHeadToHead(
-        await retrieveChatterHeadToHead(chatterA as number, chatterB as number),
-    ),
+    queryFn: async () => {
+        if (chatterA === null || chatterB === null || chatterA === chatterB) {
+            throw new TypeError('chatter head-to-head requires two distinct chatter IDs')
+        }
+        return mapChatterHeadToHead(
+            await retrieveChatterHeadToHead(chatterA, chatterB),
+        )
+    },
     enabled: Boolean(chatterA) && Boolean(chatterB) && chatterA !== chatterB,
 })

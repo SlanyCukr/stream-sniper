@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
   api,
+  postJson,
+  putJson,
   removeUnauthorizedInterceptor,
   installUnauthorizedInterceptor,
 } = vi.hoisted(() => {
@@ -14,6 +16,8 @@ const {
       post: vi.fn(),
       put: vi.fn(),
     },
+    postJson: vi.fn(),
+    putJson: vi.fn(),
     removeUnauthorizedInterceptor: remove,
     installUnauthorizedInterceptor: vi.fn(() => remove),
   }
@@ -21,6 +25,8 @@ const {
 
 vi.mock('@/lib/api/client', () => ({
   api,
+  postJson,
+  putJson,
   installUnauthorizedInterceptor,
 }))
 
@@ -78,7 +84,7 @@ describe('AuthProvider session boundary', () => {
   })
 
   it('reports login failure and leaves no session when profile hydration fails', async () => {
-    api.post.mockResolvedValueOnce({ data: { access_token: validToken } })
+    postJson.mockResolvedValueOnce({ access_token: validToken })
     api.get.mockRejectedValueOnce(Object.assign(new Error('profile unavailable'), {
       response: { status: 503 },
     }))
@@ -105,7 +111,7 @@ describe('AuthProvider session boundary', () => {
   })
 
   it('publishes the session only after the profile is available', async () => {
-    api.post.mockResolvedValueOnce({ data: { access_token: validToken } })
+    postJson.mockResolvedValueOnce({ access_token: validToken })
     api.get.mockResolvedValueOnce({
       data: {
         id: 7,
@@ -211,11 +217,31 @@ describe('AuthProvider session boundary', () => {
   })
 
   it('unwraps the password-change response at the auth service boundary', async () => {
-    api.put.mockResolvedValueOnce({ data: { message: 'password changed' } })
+    putJson.mockResolvedValueOnce({ message: 'password changed' })
 
     await expect(requestPasswordChange('old-secret', 'new-secret')).resolves.toEqual({
       message: 'password changed',
     })
+  })
+
+  it('rejects malformed authentication success payloads at the service boundary', async () => {
+    postJson.mockResolvedValueOnce({ access_token: 7 })
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    )
+    await act(async () => {
+      screen.getByRole('button', { name: 'login' }).click()
+    })
+    await waitFor(() => expect(screen.getByTestId('result')).toHaveTextContent('"success":false'))
+    expect(api.get).not.toHaveBeenCalled()
+
+    putJson.mockResolvedValueOnce({ message: 42 })
+    await expect(requestPasswordChange('old-secret', 'new-secret')).rejects.toThrow(
+      'password change response.message must be a string',
+    )
   })
 
   it('maps profile updates to the authenticated-user domain model', async () => {

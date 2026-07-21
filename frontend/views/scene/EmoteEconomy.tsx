@@ -11,7 +11,7 @@ import {
     useSceneTrendingEmotes,
     type TrendingEmote,
 } from '@/hooks/scene/useSceneTrendingQueries'
-import type { TrendingWindow } from '@/lib/api/scene'
+import type { TrendingWindow } from '@/lib/models/sceneFilters'
 import { formatCompactNumber, magnitudeBarWidth } from '@/utils/numberUtils'
 import { formatDateOrDash } from '@/utils/dateUtils'
 

@@ -3,7 +3,8 @@ import {
     type InfiniteData,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query'
-import { retrieveSceneRankings, type RankingsWindow } from '@/lib/api/scene'
+import { retrieveSceneRankings } from '@/lib/api/scene'
+import type { RankingsWindow } from '@/lib/models/sceneFilters'
 import {
     requireArrayField,
     requireBooleanField,

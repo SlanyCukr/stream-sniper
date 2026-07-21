@@ -75,6 +75,7 @@ export const useStreamerTrackingActions = () => {
     return {
         feedback,
         pending: {
+            create: createStreamer.isPending,
             update: updateStreamer.isPending,
             delete: deleteStreamer.isPending,
         },

@@ -9,7 +9,7 @@ import {
     useSceneHighlights,
     type SceneHighlight,
 } from '@/hooks/scene/useSceneHighlightsQueries'
-import type { HighlightsSort, HighlightsWindow } from '@/lib/api/scene'
+import type { HighlightsSort, HighlightsWindow } from '@/lib/models/sceneFilters'
 
 const PAGE_SIZE = 24
 

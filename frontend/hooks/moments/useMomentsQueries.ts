@@ -9,12 +9,15 @@ import {
     putMomentReview,
     requireNullableMomentReviewStatus,
     retrieveMomentsQueue,
-    type MomentReviewDto,
-    type MomentPhrase,
-    type MomentReviewStatus,
-    type MomentSampleMessage,
-    type MomentsQueueRequest,
 } from '@/lib/api/moments'
+import type {
+    MomentPhrase,
+    MomentReviewCommand,
+    MomentReviewResult,
+    MomentReviewStatus,
+    MomentSampleMessage,
+    MomentsQueueRequest,
+} from '@/lib/models/momentQueue'
 import { streamTimelineKeys } from '../queryKeys'
 import {
     createPage, getRowOffset, normalizePagination,
@@ -137,37 +140,18 @@ export const useMomentsQueue = (
     })
 }
 
-export interface SetMomentReviewCommand {
-    action: 'set'
-    streamId: number
-    bucketMinute: string
-    status: MomentReviewStatus
-    /** null explicitly clears the clip URL */
-    clipUrl?: string | null
-    /** null explicitly clears the curator note */
-    note?: string | null
-}
-
-export interface ClearMomentReviewCommand {
-    action: 'clear'
-    streamId: number
-    bucketMinute: string
-}
-
-export type MomentReviewCommand = SetMomentReviewCommand | ClearMomentReviewCommand
-
 type MomentReviewMutationOptions = Omit<
-    UseMutationOptions<MomentReviewDto | void, Error, MomentReviewCommand>,
+    UseMutationOptions<MomentReviewResult | void, Error, MomentReviewCommand>,
     'mutationFn'
 >
 
-export const mapMomentReview = (value: unknown): MomentReviewDto => {
+export const mapMomentReview = (value: unknown): MomentReviewResult => {
     const review = requireRecord(value, 'moment review')
     return {
         status: requireNullableMomentReviewStatus(review.status, 'moment review.status'),
-        clip_url: requireNullableStringField(review, 'clip_url', 'moment review'),
+        clipUrl: requireNullableStringField(review, 'clip_url', 'moment review'),
         note: requireNullableStringField(review, 'note', 'moment review'),
-        updated_at: requireNullableStringField(review, 'updated_at', 'moment review'),
+        updatedAt: requireNullableStringField(review, 'updated_at', 'moment review'),
     }
 }
 

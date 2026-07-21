@@ -1,13 +1,12 @@
 import { getJson } from './client'
 import type { HomeChannelDto } from './sharedDtos'
-
-export interface SceneCopypastaRequest {
-  days?: number
-  creatorId?: number
-  sort?: 'usage' | 'spread' | 'recent'
-  pageSize?: number
-  rowOffset?: number
-}
+import type {
+  HighlightsSort,
+  HighlightsWindow,
+  RankingsWindow,
+  SceneCopypastaRequest,
+  SceneTrendingRequest,
+} from '@/lib/models/sceneFilters'
 
 export interface ScenePulseRequest {
   days?: number
@@ -156,8 +155,6 @@ export const retrieveSceneDigest = (days = 7) =>
 // Scene power rankings (chatter leaderboard) — GET /scene/chatter-rankings
 // ---------------------------------------------------------------------------
 
-export type RankingsWindow = 'all' | '7' | '30'
-
 export interface SceneRankingsRequest {
   window?: RankingsWindow
   limit?: number
@@ -188,9 +185,6 @@ export const retrieveSceneRankings = (request: SceneRankingsRequest = {}) =>
 // ---------------------------------------------------------------------------
 // Scene highlights wall (hype-ranked moments) — GET /scene/highlights
 // ---------------------------------------------------------------------------
-
-export type HighlightsWindow = 'all' | '7' | '30'
-export type HighlightsSort = 'hype' | 'recent'
 
 export interface SceneHighlightsRequest {
   window?: HighlightsWindow
@@ -237,14 +231,6 @@ export const retrieveSceneHighlights = (request: SceneHighlightsRequest = {}) =>
 // ---------------------------------------------------------------------------
 // Scene trending velocity — GET /scene/trending/{copypastas,emotes}
 // ---------------------------------------------------------------------------
-
-export type TrendingWindow = 7 | 14 | 30
-
-export interface SceneTrendingRequest {
-  window?: TrendingWindow
-  creatorId?: number
-  limit?: number
-}
 
 export interface TrendingCopypastasDto {
   window: number

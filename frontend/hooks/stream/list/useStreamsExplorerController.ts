@@ -6,12 +6,12 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { AVAILABLE_ORDERING, DEFAULT_ORDERING } from '@/lib/stream/config'
 import { useStreams } from './useStreamsQuery'
 
-interface OrderingOption {
+export interface OrderingOption {
     label: string
     value: string
 }
 
-interface StreamFilters {
+export interface StreamFilters {
     creator: CreatorOption | null
     order: OrderingOption | null
     dir: 'asc' | 'desc'
@@ -21,7 +21,11 @@ interface StreamFilters {
     minMessages: string
 }
 
-type StreamFilterKey = keyof StreamFilters
+export type StreamFilterKey = keyof StreamFilters
+export type StreamFilterChange = <K extends StreamFilterKey>(
+    key: K,
+    value: StreamFilters[K],
+) => void
 
 const DEFAULT_FILTERS: StreamFilters = {
     creator: null,
@@ -69,15 +73,9 @@ export const useStreamsExplorerController = () => {
     const streams = streamsQuery.data?.items || []
     const pageCount = streamsQuery.data?.pageCount || 0
 
-    const handleFilterChange = useCallback((
-        key: StreamFilterKey,
-        value: StreamFilters[StreamFilterKey],
-    ) => {
+    const handleFilterChange: StreamFilterChange = useCallback((key, value) => {
         setFilters(current => ({
             ...current,
-            // Key and value are correlated by the caller; TS can't verify a
-            // generic-key computed assignment without threading a generic
-            // through useCallback, so this cast reflects the guaranteed pairing.
             [key]: value,
         } as StreamFilters))
         setPageIndex(0)

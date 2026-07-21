@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { normalizeApiError } from '@/utils/errorUtils'
+import { toUiFailure, type UiFailure } from '@/utils/errorUtils'
 import { validateEmail } from '@/utils/validationUtils'
 import type { PasswordChangeData } from '@/utils/validationUtils'
 import { useOwnedTimeout } from '@/hooks/useOwnedTimeout'
@@ -12,7 +12,8 @@ export const useUserProfile = () => {
     const [emailDraft, setEmailDraft] = useState<string | null>(null)
     const [isEditing, setIsEditing] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [error, setError] = useState('')
+    const [validationError, setValidationError] = useState('')
+    const [failure, setFailure] = useState<UiFailure | null>(null)
     const [success, setSuccess] = useState('')
     const [showPasswordModal, setShowPasswordModal] = useState(false)
     const successTimeout = useOwnedTimeout()
@@ -25,13 +26,15 @@ export const useUserProfile = () => {
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
         if (event.target.name === 'email') setEmailDraft(event.target.value)
-        setError('')
+        setValidationError('')
+        setFailure(null)
     }
 
     const handleEditToggle = () => {
         if (isEditing) {
             setEmailDraft(null)
-            setError('')
+            setValidationError('')
+            setFailure(null)
         }
         setIsEditing(previous => !previous)
     }
@@ -40,19 +43,20 @@ export const useUserProfile = () => {
         event.preventDefault()
         const emailError = validateEmail(formData.email)
         if (emailError) {
-            setError(emailError)
+            setValidationError(emailError)
             return
         }
 
         setIsSubmitting(true)
-        setError('')
+        setValidationError('')
+        setFailure(null)
         try {
             await updateUser({ email: formData.email })
             showSuccess('Profile updated successfully!')
             setIsEditing(false)
             setEmailDraft(null)
         } catch (updateError) {
-            setError(normalizeApiError(updateError, 'Failed to update profile').message)
+            setFailure(toUiFailure(updateError, 'Failed to update profile'))
         } finally {
             setIsSubmitting(false)
         }
@@ -69,7 +73,8 @@ export const useUserProfile = () => {
         formData,
         isEditing,
         isSubmitting,
-        error,
+        validationError,
+        failure,
         success,
         showPasswordModal,
         handleChange,

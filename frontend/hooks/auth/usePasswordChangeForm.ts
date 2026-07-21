@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { normalizeApiError } from '@/utils/errorUtils'
+import { toUiFailure, type UiFailure } from '@/utils/errorUtils'
 import { validatePasswordChange, type PasswordChangeData } from '@/utils/validationUtils'
 import { useFormFieldChange } from './useFormFieldChange'
 
@@ -18,31 +18,38 @@ export const usePasswordChangeForm = ({
     onPasswordChange, onHide,
 }: UsePasswordChangeFormOptions) => {
     const [passwordData, setPasswordData] = useState<PasswordChangeData>(INITIAL_PASSWORD_DATA)
-    const [error, setError] = useState('')
+    const [validationError, setValidationError] = useState('')
+    const [failure, setFailure] = useState<UiFailure | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const reset = () => {
         setPasswordData(INITIAL_PASSWORD_DATA)
-        setError('')
+        setValidationError('')
+        setFailure(null)
     }
 
-    const handleChange = useFormFieldChange(setPasswordData, setError)
+    const handleChange = useFormFieldChange(setPasswordData, (message) => {
+        setValidationError(message)
+        setFailure(null)
+    })
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         const validationError = validatePasswordChange(passwordData)
         if (validationError) {
-            setError(validationError)
+            setValidationError(validationError)
             return
         }
 
         setIsSubmitting(true)
+        setValidationError('')
+        setFailure(null)
         try {
             await onPasswordChange(passwordData)
             reset()
             onHide()
         } catch (changeError) {
-            setError(normalizeApiError(changeError, 'Failed to change password').message)
+            setFailure(toUiFailure(changeError, 'Failed to change password'))
         } finally {
             setIsSubmitting(false)
         }
@@ -56,7 +63,8 @@ export const usePasswordChangeForm = ({
 
     return {
         passwordData,
-        error,
+        validationError,
+        failure,
         isSubmitting,
         handleChange,
         handleSubmit,

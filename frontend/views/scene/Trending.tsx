@@ -10,7 +10,7 @@ import {
 } from '@/hooks/scene/useSceneTrendingQueries'
 import TrendingBoard from '@/components/scene/TrendingBoard'
 import type { TrendingRowModel } from '@/components/scene/trending/presentationModel'
-import type { TrendingWindow } from '@/lib/api/scene'
+import type { TrendingWindow } from '@/lib/models/sceneFilters'
 
 const WINDOW_TABS: Array<{ key: TrendingWindow, label: string }> = [
     { key: 7, label: '7 days' },

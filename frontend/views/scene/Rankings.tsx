@@ -9,7 +9,7 @@ import {
     useSceneRankings,
     type RankingsRow,
 } from '@/hooks/scene/useSceneRankingsQueries'
-import type { RankingsWindow } from '@/lib/api/scene'
+import type { RankingsWindow } from '@/lib/models/sceneFilters'
 
 const PAGE_SIZE = 25
 

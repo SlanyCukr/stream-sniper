@@ -4,10 +4,10 @@ import {
     mapNullableMomentPhrases,
     mapNullableMomentSamples,
     requireNullableMomentReviewStatus,
-    type MomentPhrase,
-    type MomentReviewStatus,
-    type MomentSampleMessage,
 } from '@/lib/api/moments'
+import type {
+    MomentPhrase, MomentReviewStatus, MomentSampleMessage,
+} from '@/lib/models/momentQueue'
 import {
     requireArray,
     requireArrayField,
@@ -188,7 +188,7 @@ const mapStreamTimeline = (value: unknown): StreamTimeline => {
  * are preserved as null/undefined — null means "not yet computed under the 0008 rollup",
  * NOT a real 0, so consumers can hide the corresponding tile/series instead of showing 0.
  * peakViewers is folded into the metrics object so StreamMetrics (which receives only
- * `metrics`) can surface it without a new prop from views/Stream.jsx.
+ * `metrics`) can surface it without a new prop from views/stream/Stream.tsx.
  */
 export const useStreamTimeline = (
     streamId: number,

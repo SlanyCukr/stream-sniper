@@ -116,6 +116,23 @@ describe('PasswordChangeModal', () => {
     }))
     expect(onHide).toHaveBeenCalledOnce()
   })
+
+  it('renders structured password failures through the shared error boundary', async () => {
+    const failure = Object.assign(new Error('request failed'), {
+      response: { status: 429, data: { detail: 'slow down' }, headers: { 'retry-after': '5' } },
+    })
+    const onPasswordChange = vi.fn().mockRejectedValue(failure)
+    render(
+      <PasswordChangeModal show onHide={vi.fn()} onPasswordChange={onPasswordChange} />,
+    )
+    fireEvent.change(screen.getByLabelText('Current Password'), { target: { value: 'old-secret' } })
+    fireEvent.change(screen.getByLabelText('New Password'), { target: { value: 'newpass1' } })
+    fireEvent.change(screen.getByLabelText('Confirm New Password'), { target: { value: 'newpass1' } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Change Password' }).at(-1)!)
+
+    expect(await screen.findByText("You're doing that too fast. Try again in 5 seconds.")).toBeInTheDocument()
+    expect(screen.getByText('429')).toBeInTheDocument()
+  })
 })
 
 describe('UserProfile', () => {
@@ -145,5 +162,18 @@ describe('UserProfile', () => {
 
     await waitFor(() => expect(auth.changePassword).toHaveBeenCalledWith('old-secret', 'newpass1'))
     expect(await screen.findByText('Password changed successfully!')).toBeInTheDocument()
+  })
+
+  it('renders structured profile failures through the shared error boundary', async () => {
+    auth.updateUser.mockRejectedValue(Object.assign(new Error('request failed'), {
+      response: { status: 503, data: {} },
+    }))
+    render(<UserProfile />)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }))
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@example.test' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(await screen.findByText('The server hit a problem. Try again in a moment.')).toBeInTheDocument()
+    expect(screen.getByText('503')).toBeInTheDocument()
   })
 })

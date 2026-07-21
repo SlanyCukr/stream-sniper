@@ -5,12 +5,15 @@ import {
 } from '@/hooks/creator/useCreatorsQuery'
 import {
     useMomentReview, useMomentsQueue,
-    type MomentQueueItem, type MomentReviewCommand,
+    type MomentQueueItem,
 } from './useMomentsQueries'
 import { useAuth } from '@/contexts/AuthContext'
 import { PAGINATION } from '@/lib/pagination/constants'
-import { MOMENT_STATUS_TABS } from '@/lib/models/momentQueue'
-import type { MomentReviewStatus } from '@/lib/api/moments'
+import {
+    MOMENT_STATUS_TABS,
+    type MomentReviewCommand,
+    type MomentReviewStatus,
+} from '@/lib/models/momentQueue'
 
 interface ReviewFailure {
     key: string

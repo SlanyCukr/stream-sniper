@@ -5,10 +5,12 @@ import {
   requireRecord,
   requireStringField,
 } from './contractGuards'
-
-export type MomentReviewStatus = 'bookmarked' | 'rejected' | 'clipped' | 'published'
-export interface MomentPhrase { phrase: string, count: number }
-export interface MomentSampleMessage { text: string, count: number }
+import type {
+  MomentPhrase,
+  MomentReviewStatus,
+  MomentSampleMessage,
+  MomentsQueueRequest,
+} from '@/lib/models/momentQueue'
 
 const REVIEW_STATUSES = new Set<MomentReviewStatus>([
   'bookmarked', 'rejected', 'clipped', 'published',
@@ -55,13 +57,6 @@ export const mapNullableMomentSamples = (
   })
 }
 
-export interface MomentsQueueRequest {
-  status?: 'pending' | MomentReviewStatus
-  creatorId?: number
-  pageSize?: number
-  rowOffset?: number
-}
-
 export interface MomentQueueItemDto {
   stream_id: number
   title: string
@@ -88,13 +83,6 @@ export interface MomentsQueueDto {
   total: number
   limit: number
   offset: number
-}
-
-export interface MomentReviewDto {
-  status: MomentReviewStatus | null
-  clip_url: string | null
-  note: string | null
-  updated_at: string | null
 }
 
 export const retrieveMomentsQueue = (request: MomentsQueueRequest = {}) =>

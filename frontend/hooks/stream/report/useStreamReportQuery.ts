@@ -2,8 +2,8 @@ import { keepPreviousData, useQuery, type UseQueryOptions } from '@tanstack/reac
 import { retrieveStreamReport } from '@/lib/api/streams'
 import {
     requireNullableMomentReviewStatus,
-    type MomentReviewStatus,
 } from '@/lib/api/moments'
+import type { MomentReviewStatus } from '@/lib/models/momentQueue'
 import {
     requireArrayField,
     requireFiniteNumberField,

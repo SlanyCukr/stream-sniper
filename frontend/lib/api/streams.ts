@@ -67,11 +67,11 @@ export interface TimelineMomentDto {
   message_count: number
   ratio: number | null
   persisted: boolean
-  status: import('./moments').MomentReviewStatus | null
+  status: import('../models/momentQueue').MomentReviewStatus | null
   sub_share: number | null
   emote_share: number | null
-  top_phrases: import('./moments').MomentPhrase[] | null
-  sample_messages: import('./moments').MomentSampleMessage[] | null
+  top_phrases: import('../models/momentQueue').MomentPhrase[] | null
+  sample_messages: import('../models/momentQueue').MomentSampleMessage[] | null
 }
 
 export interface TimelineMetricsDto {
