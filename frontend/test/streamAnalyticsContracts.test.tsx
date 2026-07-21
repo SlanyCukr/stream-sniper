@@ -40,6 +40,55 @@ function createWrapper(queryClient: QueryClient) {
   }
 }
 
+const timelinePayload = () => ({
+  stream_id: 42,
+  stream_start: '2026-07-14T10:00:00Z',
+  twitch_id: 'vod-42',
+  bucket_seconds: 60,
+  buckets: [{
+    bucket_minute: '2026-07-14T10:01:00Z',
+    message_count: 12,
+    unique_chatters: 7,
+    sub_messages: null,
+    emote_messages: 3,
+  }],
+  moments: [{
+    bucket_minute: '2026-07-14T10:01:00Z',
+    offset_seconds: 60,
+    message_count: 12,
+    ratio: null,
+    persisted: false,
+    status: null,
+    sub_share: null,
+    emote_share: 0.25,
+    top_phrases: null,
+    sample_messages: [{ text: 'wow', count: 1 }],
+  }],
+  metrics: {
+    unique_chatters: 7,
+    messages_per_minute: null,
+    peak_bucket_minute: '2026-07-14T10:01:00Z',
+    new_chatters: 2,
+    returning_chatters: 5,
+    total_messages: 12,
+    duration_seconds: null,
+    peak_messages: 12,
+    sub_messages: null,
+    emote_messages: 3,
+  },
+  viewer_samples: [{ t: '2026-07-14T10:01:00Z', viewer_count: 99 }],
+  context_changes: [{
+    t: '2026-07-14T10:01:00Z',
+    title: 'New title',
+    category_id: null,
+    category_name: null,
+    language: 'en',
+    tags: null,
+    is_mature: false,
+  }],
+  peak_viewers: null,
+})
+
 describe('stream analytics query contracts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -61,54 +110,7 @@ describe('stream analytics query contracts', () => {
   })
 
   it('maps the complete timeline payload while preserving nullable rollup fields', async () => {
-    streamApi.retrieveStreamTimeline.mockResolvedValue({
-      stream_id: 42,
-      stream_start: '2026-07-14T10:00:00Z',
-      twitch_id: 'vod-42',
-      bucket_seconds: 60,
-      buckets: [{
-        bucket_minute: '2026-07-14T10:01:00Z',
-        message_count: 12,
-        unique_chatters: 7,
-        sub_messages: null,
-        emote_messages: 3,
-      }],
-      moments: [{
-        bucket_minute: '2026-07-14T10:01:00Z',
-        offset_seconds: 60,
-        message_count: 12,
-        ratio: null,
-        persisted: false,
-        status: null,
-        sub_share: null,
-        emote_share: 0.25,
-        top_phrases: null,
-        sample_messages: [{ text: 'wow' }],
-      }],
-      metrics: {
-        unique_chatters: 7,
-        messages_per_minute: null,
-        peak_bucket_minute: '2026-07-14T10:01:00Z',
-        new_chatters: 2,
-        returning_chatters: 5,
-        total_messages: 12,
-        duration_seconds: null,
-        peak_messages: 12,
-        sub_messages: null,
-        emote_messages: 3,
-      },
-      viewer_samples: [{ t: '2026-07-14T10:01:00Z', viewer_count: 99 }],
-      context_changes: [{
-        t: '2026-07-14T10:01:00Z',
-        title: 'New title',
-        category_id: null,
-        category_name: null,
-        language: 'en',
-        tags: null,
-        is_mature: false,
-      }],
-      peak_viewers: null,
-    })
+    streamApi.retrieveStreamTimeline.mockResolvedValue(timelinePayload())
 
     const result = renderHook(() => (
       useStreamTimeline(42) as UseQueryResult<StreamTimeline, Error>
@@ -141,7 +143,7 @@ describe('stream analytics query contracts', () => {
         subShare: null,
         emoteShare: 0.25,
         topPhrases: null,
-        sampleMessages: [{ text: 'wow' }],
+        sampleMessages: [{ text: 'wow', count: 1 }],
       }],
       metrics: {
         uniqueChatters: 7,
@@ -169,6 +171,24 @@ describe('stream analytics query contracts', () => {
       }],
       peakViewers: null,
     })
+  })
+
+  it.each([
+    ['phrase', { top_phrases: [{ phrase: 'wow', count: 'many' }] }],
+    ['sample', { sample_messages: [{ text: 7, count: 1 }] }],
+    ['status', { status: 'pending-review' }],
+  ])('rejects an invalid nested timeline moment %s', async (_label, override) => {
+    const payload = timelinePayload()
+    streamApi.retrieveStreamTimeline.mockResolvedValue({
+      ...payload,
+      moments: [{ ...payload.moments[0], ...override }],
+    })
+    const result = renderHook(() => useStreamTimeline(42), {
+      wrapper: createWrapper(createClient()),
+    })
+
+    await waitFor(() => expect(result.result.current.isError).toBe(true))
+    expect(result.result.current.error).toBeInstanceOf(TypeError)
   })
 
   it('maps report metrics and optional highlights without converting unknowns to zero', async () => {

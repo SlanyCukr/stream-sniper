@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { CreateTrackedStreamerRequest } from '@/lib/api/tracking'
+import type { CreateTrackedStreamerCommand } from '@/lib/api/tracking'
 import { useActionFeedback } from '../shared/useActionFeedback'
 import {
     useCreateTrackedStreamer,
@@ -20,7 +20,7 @@ export const useStreamerTrackingActions = () => {
     const [probeResults, setProbeResults] = useState<Record<number, TwitchProbeResult>>({})
     const [probingId, setProbingId] = useState<number | null>(null)
 
-    const handleAddStreamer = (streamer: CreateTrackedStreamerRequest) => feedback.runAction({
+    const handleAddStreamer = (streamer: CreateTrackedStreamerCommand) => feedback.runAction({
         action: () => createStreamer.mutateAsync(streamer),
         successMessage: 'Streamer added successfully',
         errorTitle: 'Failed to add streamer',
@@ -30,7 +30,7 @@ export const useStreamerTrackingActions = () => {
         action: () => updateStreamer.mutateAsync({
             streamerId,
             changes: {
-                is_active: !currentStatus,
+                isActive: !currentStatus,
             },
         }),
         successMessage: 'Streamer updated successfully',
@@ -41,7 +41,7 @@ export const useStreamerTrackingActions = () => {
         action: () => updateStreamer.mutateAsync({
             streamerId,
             changes: {
-                processing_enabled: !currentStatus,
+                processingEnabled: !currentStatus,
             },
         }),
         successMessage: 'Streamer updated successfully',

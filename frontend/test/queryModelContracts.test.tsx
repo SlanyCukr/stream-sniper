@@ -109,7 +109,7 @@ const createClient = () => new QueryClient({
 
 type TrackingUpdateCommand = {
   streamerId: number
-  changes: { is_active: boolean }
+  changes: { isActive: boolean }
 }
 
 type UserUpdateCommand = {
@@ -213,6 +213,19 @@ describe('query view-model contracts', () => {
       nextCursor: { afterTs: 'next', afterId: 6 },
       hasMore: true,
     })
+    expect(() => mapStreamMessagesPage({
+      messages: [{
+        id: 5,
+        time: '2026-07-14T10:00:00Z',
+        chatter_id: 11,
+        nick: 'viewer',
+        text: 'hello',
+        is_subscriber: true,
+        badges: ['subscriber/1', 42],
+      }],
+      next_cursor: null,
+      has_more: false,
+    })).toThrow('stream messages.messages[0].badges[1] must be a string')
   })
 
   it('normalizes named creator catalog rows before consumers receive them', async () => {
@@ -431,7 +444,17 @@ describe('query view-model contracts', () => {
   })
 
   it('awaits owned tracking and system invalidation before consumer callbacks', async () => {
-    const trackingData = { id: 7, is_active: false }
+    const trackingData = {
+      id: 7,
+      twitch_username: 'operator',
+      display_name: 'Operator',
+      is_active: false,
+      processing_enabled: true,
+      last_stream_check: null,
+      created_at: '2026-07-15T08:00:00Z',
+      total_streams_collected: 3,
+      last_collected_stream_start: null,
+    }
     const systemData = { message: 'flushed', timestamp: 'now' }
     const userData = {
       id: 3,
@@ -465,7 +488,7 @@ describe('query view-model contracts', () => {
         unknown, Error, TrackingUpdateCommand, unknown
       >)({
         streamerId: 7,
-        changes: { is_active: false },
+        changes: { isActive: false },
       })
       systemResult = await system.result.current.mutateAsync()
       userResult = await (user.result.current.mutateAsync as unknown as UseMutateAsyncFunction<
@@ -476,11 +499,11 @@ describe('query view-model contracts', () => {
       })
     })
 
-    expect(trackingResult).toBe(trackingData)
+    expect(trackingResult).toEqual(mapTrackedStreamer(trackingData))
     expect(systemResult).toBe(systemData)
     expect(userResult).toEqual(mapAdminUser(userData))
     expect(trackingSuccess).toHaveBeenCalledWith(
-      trackingData,
+      mapTrackedStreamer(trackingData),
       expect.anything(),
       undefined,
       expect.anything(),

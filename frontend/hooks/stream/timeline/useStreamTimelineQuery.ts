@@ -1,6 +1,14 @@
 import { keepPreviousData, useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveStreamTimeline } from '@/lib/api/streams'
 import {
+    mapNullableMomentPhrases,
+    mapNullableMomentSamples,
+    requireNullableMomentReviewStatus,
+    type MomentPhrase,
+    type MomentReviewStatus,
+    type MomentSampleMessage,
+} from '@/lib/api/moments'
+import {
     requireArray,
     requireArrayField,
     requireBooleanField,
@@ -35,11 +43,11 @@ export interface TimelineMoment {
     score: number | null
     kind: 'spike'
     isPersisted: boolean
-    status: string | null
+    status: MomentReviewStatus | null
     subShare: number | null
     emoteShare: number | null
-    topPhrases: unknown[] | null
-    sampleMessages: unknown[] | null
+    topPhrases: MomentPhrase[] | null
+    sampleMessages: MomentSampleMessage[] | null
 }
 
 export interface TimelineMetrics {
@@ -83,15 +91,6 @@ export interface StreamTimeline {
     viewerSamples: ViewerSample[]
     contextChanges: TimelineContextChange[]
     peakViewers: number | null
-}
-
-const nullableArrayField = (
-    record: Record<string, unknown>,
-    field: string,
-    label: string,
-): unknown[] | null => {
-    const value = record[field]
-    return value === null ? null : requireArray(value, `${label}.${field}`)
 }
 
 const mapStreamTimeline = (value: unknown): StreamTimeline => {
@@ -144,11 +143,11 @@ const mapStreamTimeline = (value: unknown): StreamTimeline => {
                 score: requireNullableFiniteNumberField(moment, 'ratio', label),
                 kind: 'spike' as const,
                 isPersisted: requireBooleanField(moment, 'persisted', label),
-                status: requireNullableStringField(moment, 'status', label),
+                status: requireNullableMomentReviewStatus(moment.status, `${label}.status`),
                 subShare: requireNullableFiniteNumberField(moment, 'sub_share', label),
                 emoteShare: requireNullableFiniteNumberField(moment, 'emote_share', label),
-                topPhrases: nullableArrayField(moment, 'top_phrases', label),
-                sampleMessages: nullableArrayField(moment, 'sample_messages', label),
+                topPhrases: mapNullableMomentPhrases(moment.top_phrases, `${label}.top_phrases`),
+                sampleMessages: mapNullableMomentSamples(moment.sample_messages, `${label}.sample_messages`),
             }
         }),
         metrics,

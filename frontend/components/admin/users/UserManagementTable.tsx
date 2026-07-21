@@ -5,11 +5,11 @@ import {
 import { USER_ROLE_OPTIONS, type UserRole } from '@/lib/auth/roles'
 import StatusChip from '@/components/common/StatusChip'
 import type { AdminUser } from '@/hooks/admin/users/useUserAdminQueries'
-import type { AdminUserDto } from '@/lib/api/users'
+import type { AuthUser } from '@/lib/auth/service'
 
 interface UserManagementTableProps {
     users: AdminUser[]
-    authenticatedUser: AdminUserDto | null
+    authenticatedUser: AuthUser | null
     onEdit: (user: AdminUser) => void
     onActivationChange: (userId: number, isActive: boolean) => void
     onDelete: (user: AdminUser) => void

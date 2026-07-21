@@ -7,6 +7,7 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+import { creatorKeys } from './creatorKeys'
 
 export interface CreatorTrendPoint {
     streamId: number
@@ -28,23 +29,6 @@ type QueryOptions = Omit<
     UseQueryOptions<CreatorTrends, Error, CreatorTrends, readonly unknown[]>,
     'queryKey' | 'queryFn'
 >
-
-/**
- * Query key factory for creator per-stream trend queries
- */
-export const creatorTrendsKeys = {
-    all: [
-        'creator-trends',
-    ],
-    details: () => [
-        ...creatorTrendsKeys.all,
-        'detail',
-    ],
-    detail: (creatorId: number) => [
-        ...creatorTrendsKeys.details(),
-        creatorId,
-    ],
-}
 
 const mapCreatorTrends = (value: unknown): CreatorTrends => {
     const data = requireRecord(value, 'creator trends')
@@ -77,7 +61,7 @@ export const useCreatorTrends = (
     { enabled = true, ...options }: QueryOptions & { enabled?: boolean } = {},
 ) => useQuery({
     ...options,
-    queryKey: creatorTrendsKeys.detail(creatorId),
+    queryKey: creatorKeys.trends(creatorId),
     queryFn: async () => {
         const response = await retrieveCreatorTrends(creatorId)
         return mapCreatorTrends(response)

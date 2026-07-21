@@ -29,17 +29,25 @@ export interface AdminStatsDto {
   recent_registrations: number
 }
 
-export interface CreateAdminUserRequest {
+export interface CreateAdminUserCommand {
   username: string
   email: string
   password: string
   role: AdminUserDto['role']
+  isActive: boolean
+}
+
+export interface UpdateAdminUserCommand {
+  email?: string
+  role?: AdminUserDto['role']
+  isActive?: boolean
+}
+
+interface CreateAdminUserRequest extends Omit<CreateAdminUserCommand, 'isActive'> {
   is_active: boolean
 }
 
-export interface UpdateAdminUserRequest {
-  email?: string
-  role?: AdminUserDto['role']
+interface UpdateAdminUserRequest extends Omit<UpdateAdminUserCommand, 'isActive'> {
   is_active?: boolean
 }
 
@@ -50,11 +58,20 @@ export const retrieveUsers = (request: UserListRequest = {}) => getJson<UserList
   { offset: request.rowOffset, limit: request.pageSize },
 )
 
-export const createAdminUser = (user: CreateAdminUserRequest) =>
-  api.post<AdminUserDto>('/auth/users', user)
+export const createAdminUser = (command: CreateAdminUserCommand) => {
+  const { isActive, ...user } = command
+  const request: CreateAdminUserRequest = { ...user, is_active: isActive }
+  return api.post<AdminUserDto>('/auth/users', request)
+}
 
-export const updateUser = (userId: number, changes: UpdateAdminUserRequest) =>
-  api.put<AdminUserDto>(`/auth/users/${userId}`, changes)
+export const updateUser = (userId: number, command: UpdateAdminUserCommand) => {
+  const { isActive, ...changes } = command
+  const request: UpdateAdminUserRequest = {
+    ...changes,
+    ...(isActive === undefined ? {} : { is_active: isActive }),
+  }
+  return api.put<AdminUserDto>(`/auth/users/${userId}`, request)
+}
 
 export const updateUserRole = (userId: number, role: AdminUserDto['role']) =>
   api.put<AdminUserDto>(`/auth/users/${userId}/role?${buildQuery({ new_role: role })}`)

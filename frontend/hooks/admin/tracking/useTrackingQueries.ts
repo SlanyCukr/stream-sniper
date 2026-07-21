@@ -9,9 +9,8 @@ import {
     retrieveTrackingStats,
     retrieveTwitchChannelSearch,
     updateTrackedStreamer,
-    type CreateTrackedStreamerRequest,
-    type TrackedStreamerDto,
-    type UpdateTrackedStreamerRequest,
+    type CreateTrackedStreamerCommand,
+    type UpdateTrackedStreamerCommand,
 } from '@/lib/api/tracking'
 import {
     createPage, getRowOffset, normalizePagination,
@@ -336,20 +335,18 @@ export const useProcessingJobs = (
     })
 }
 
-// NOTE: unlike useUserAdminQueries' create/update mutations, these resolve to
-// the raw wire DTO rather than a mapped camelCase model — preserved as-is.
 export const useCreateTrackedStreamer = (options = {}) => useInvalidatingMutation(
-    async (streamer: CreateTrackedStreamerRequest): Promise<TrackedStreamerDto> => (
-        await createTrackedStreamer(streamer)
-    ).data,
+    async (streamer: CreateTrackedStreamerCommand): Promise<TrackedStreamer> => (
+        mapTrackedStreamer((await createTrackedStreamer(streamer)).data)
+    ),
     trackingKeys.all,
     options,
 )
 
 export const useUpdateTrackedStreamer = (options = {}) => useInvalidatingMutation(
-    async (command: { streamerId: number, changes: UpdateTrackedStreamerRequest }): Promise<TrackedStreamerDto> => (
-        await updateTrackedStreamer(command.streamerId, command.changes)
-    ).data,
+    async (command: { streamerId: number, changes: UpdateTrackedStreamerCommand }): Promise<TrackedStreamer> => (
+        mapTrackedStreamer((await updateTrackedStreamer(command.streamerId, command.changes)).data)
+    ),
     trackingKeys.all,
     options,
 )

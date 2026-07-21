@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   useCreators: vi.fn(),
@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   useCreatorNeighbors: vi.fn(),
   useMomentsQueue: vi.fn(),
   useMomentReview: vi.fn(),
+  useScenePulse: vi.fn(),
+  useSceneDigest: vi.fn(),
   mutateAsync: vi.fn(),
 }))
 
@@ -35,6 +37,10 @@ vi.mock('@/hooks/moments/useMomentsQueries', () => ({
   useMomentsQueue: mocks.useMomentsQueue,
   useMomentReview: mocks.useMomentReview,
 }))
+vi.mock('@/hooks/scene/useScenePulseQueries', () => ({
+  useScenePulse: mocks.useScenePulse,
+  useSceneDigest: mocks.useSceneDigest,
+}))
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ isAdmin: true }) }))
 vi.mock('@/components/creator/TrendsPanel', () => ({ default: () => <div>Trajectory panel</div> }))
 vi.mock('@/components/creator/RegularsPanel', () => ({ default: () => <div>Regulars panel</div> }))
@@ -44,6 +50,8 @@ import CreatorDossier from '@/views/creator/CreatorDossier'
 import LiveNow from '@/views/scene/LiveNow'
 import Moments from '@/views/moments/Moments'
 import Scene from '@/views/scene/Scene'
+import SceneDigest from '@/views/scene/SceneDigest'
+import ScenePulse from '@/views/scene/ScenePulse'
 
 const ready = (data: unknown) => ({
   data,
@@ -59,7 +67,17 @@ describe('scene product surfaces', () => {
     mocks.useCreators.mockReturnValue(ready([{ creatorId: 1, nick: 'alpha' }]))
     mocks.mutateAsync.mockResolvedValue({ status: 'bookmarked' })
     mocks.useMomentReview.mockReturnValue({ mutateAsync: mocks.mutateAsync, isPending: false, variables: null })
+    mocks.useScenePulse.mockReturnValue(ready({
+      total: 0,
+      days: 7,
+      limit: 100,
+      offset: 0,
+      items: [],
+    }))
+    mocks.useSceneDigest.mockReturnValue(ready(''))
   })
+
+  afterEach(() => vi.unstubAllGlobals())
 
   it('renders copypasta usage/spread metadata and trace links', () => {
     mocks.useSceneCopypastas.mockReturnValue(ready({
@@ -219,5 +237,104 @@ describe('scene product surfaces', () => {
     expect(screen.getByRole('region', { name: 'Scene leaderboard' })).toHaveTextContent('--')
     fireEvent.click(screen.getByRole('tab', { name: '30 days' }))
     expect(mocks.useSceneLeaderboard).toHaveBeenLastCalledWith({ windowDays: 30 })
+  })
+
+  it('threads pulse filters into queries and renders event links', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+    mocks.useScenePulse.mockReturnValue(ready({
+      total: 1,
+      days: 7,
+      limit: 100,
+      offset: 0,
+      items: [{
+        id: 9,
+        eventType: 'copypasta_spread',
+        occurredAt: '2026-07-20T12:00:00Z',
+        creatorId: 3,
+        creatorNick: 'alpha',
+        creatorDisplayName: 'Alpha',
+        streamId: 42,
+        messageTextId: 81,
+        title: 'Phrase crossed the scene',
+        summary: 'Three channels repeated it.',
+        metadata: {},
+      }],
+    }))
+    mocks.useSceneDigest.mockReturnValue(ready('## Scene digest'))
+    render(<ScenePulse />)
+
+    expect(mocks.useScenePulse).toHaveBeenCalledWith({ days: 7, eventType: undefined, limit: 100 })
+    expect(screen.getByRole('link', { name: 'Creator dossier' })).toHaveAttribute('href', '/creator/3')
+    expect(screen.getByRole('link', { name: 'Stream' })).toHaveAttribute('href', '/stream/42')
+    expect(screen.getByRole('link', { name: 'Trace copypasta' })).toHaveAttribute('href', '/copypasta/81')
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Records' }))
+    expect(mocks.useScenePulse).toHaveBeenLastCalledWith({
+      days: 7,
+      eventType: 'personal_record',
+      limit: 100,
+    })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '30' } })
+    expect(mocks.useScenePulse).toHaveBeenLastCalledWith({
+      days: 30,
+      eventType: 'personal_record',
+      limit: 100,
+    })
+    expect(mocks.useSceneDigest).toHaveBeenLastCalledWith({ days: 30 })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy digest' }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('## Scene digest'))
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+  })
+
+  it('routes pulse loading, error, and empty results through QueryState', () => {
+    mocks.useScenePulse.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      error: null,
+      refetch: vi.fn(),
+    })
+    const { rerender } = render(<ScenePulse />)
+    expect(screen.getByRole('status', { name: 'Reading the scene...' })).toBeInTheDocument()
+
+    mocks.useScenePulse.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: new Error('pulse unavailable'),
+      refetch: vi.fn(),
+    })
+    rerender(<ScenePulse />)
+    expect(screen.getByText('Scene pulse failed')).toBeInTheDocument()
+
+    mocks.useScenePulse.mockReturnValue(ready({
+      total: 0,
+      days: 7,
+      limit: 100,
+      offset: 0,
+      items: [],
+    }))
+    rerender(<ScenePulse />)
+    expect(screen.getByText('No events yet')).toBeInTheDocument()
+  })
+
+  it('controls digest availability, window changes, and denied clipboard feedback', async () => {
+    const writeText = vi.fn().mockRejectedValue(new DOMException('denied', 'NotAllowedError'))
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+    mocks.useSceneDigest.mockReturnValue(ready(''))
+    const { rerender } = render(<SceneDigest />)
+
+    expect(screen.getByRole('button', { name: 'Copy as markdown' })).toBeDisabled()
+    expect(screen.getByText('Nothing to report')).toBeInTheDocument()
+
+    mocks.useSceneDigest.mockReturnValue(ready('## Weekly scene\n- **Alpha** rose'))
+    rerender(<SceneDigest />)
+    expect(screen.getByRole('heading', { name: 'Weekly scene' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '30 days' }))
+    expect(mocks.useSceneDigest).toHaveBeenLastCalledWith({ days: 30 })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy as markdown' }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('## Weekly scene\n- **Alpha** rose'))
+    expect(screen.getByRole('button', { name: 'Copy as markdown' })).toBeInTheDocument()
   })
 })

@@ -12,19 +12,19 @@ import {
 } from 'react-bootstrap'
 import { useAuth } from '@/contexts/AuthContext'
 import { isAdminRole } from '@/lib/auth/roles'
-import type { AdminUserDto } from '@/lib/api/users'
+import type { AuthUser } from '@/lib/auth/service'
 
 interface AdminMenuItemsProps {
-    navigate: (path: string) => void
+    onNavigate: (path: string) => void
 }
 
-const AdminMenuItems = ({ navigate }: AdminMenuItemsProps) => (
+const AdminMenuItems = ({ onNavigate }: AdminMenuItemsProps) => (
     <>
         <Dropdown.Divider role="separator" />
         <Dropdown.Item
             role="menuitem"
             tabIndex={0}
-            onClick={() => navigate('/admin/dashboard')}
+            onClick={() => onNavigate('/admin/dashboard')}
         >
             <i className="bi bi-speedometer2 me-2"></i>
             Admin Dashboard
@@ -32,7 +32,7 @@ const AdminMenuItems = ({ navigate }: AdminMenuItemsProps) => (
         <Dropdown.Item
             role="menuitem"
             tabIndex={0}
-            onClick={() => navigate('/admin/users')}
+            onClick={() => onNavigate('/admin/users')}
         >
             <i className="bi bi-person-gear me-2"></i>
             User Management
@@ -40,7 +40,7 @@ const AdminMenuItems = ({ navigate }: AdminMenuItemsProps) => (
         <Dropdown.Item
             role="menuitem"
             tabIndex={0}
-            onClick={() => navigate('/admin/system')}
+            onClick={() => onNavigate('/admin/system')}
         >
             <i className="bi bi-cpu me-2"></i>
             System Information
@@ -49,20 +49,20 @@ const AdminMenuItems = ({ navigate }: AdminMenuItemsProps) => (
 )
 
 interface UserDropdownProps {
-    user: AdminUserDto | null
+    user: AuthUser | null
     dropdownOpen: boolean
-    toggle: () => void
-    handleProfile: () => void
-    handleLogout: () => void
-    navigate: (path: string) => void
+    onOpenChange: () => void
+    onProfileSelect: () => void
+    onLogout: () => void
+    onNavigate: (path: string) => void
 }
 
 const UserDropdown = ({
-    user, dropdownOpen, toggle, handleProfile, handleLogout, navigate,
+    user, dropdownOpen, onOpenChange, onProfileSelect, onLogout, onNavigate,
 }: UserDropdownProps) => (
     <Dropdown
         show={dropdownOpen}
-        onToggle={toggle}
+        onToggle={onOpenChange}
         align="end">
         <Dropdown.Toggle
             variant="dark"
@@ -97,16 +97,16 @@ const UserDropdown = ({
             <Dropdown.Item
                 role="menuitem"
                 tabIndex={0}
-                onClick={handleProfile}>
+                onClick={onProfileSelect}>
                 <i className="bi bi-person me-2"></i>
                 My Profile
             </Dropdown.Item>
-            {isAdminRole(user?.role) && <AdminMenuItems navigate={navigate} />}
+            {isAdminRole(user?.role) && <AdminMenuItems onNavigate={onNavigate} />}
             <Dropdown.Divider role="separator" />
             <Dropdown.Item
                 role="menuitem"
                 tabIndex={0}
-                onClick={handleLogout}>
+                onClick={onLogout}>
                 <i className="bi bi-box-arrow-right me-2"></i>
                 Logout
             </Dropdown.Item>
@@ -208,10 +208,10 @@ const Header = ({ isSidebarOpen = false, onToggleSidebar = () => {} }: HeaderPro
                     <UserDropdown
                         user={user}
                         dropdownOpen={dropdownOpen}
-                        toggle={toggle}
-                        handleProfile={handleProfile}
-                        handleLogout={handleLogout}
-                        navigate={router.push}
+                        onOpenChange={toggle}
+                        onProfileSelect={handleProfile}
+                        onLogout={handleLogout}
+                        onNavigate={router.push}
                     />
                 ) : (
                     <Button

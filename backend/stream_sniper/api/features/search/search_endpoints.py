@@ -1,18 +1,13 @@
 """Public read endpoints for scene-wide chat search."""
 
-from datetime import UTC, datetime, timedelta
-
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
-from ....application.streams.message_models import MessageItem
-from ....database.gateways.chat.message_replay_gateway import (
-    select_message_window_db,
-    select_stream_context_db,
-)
-from ....database.gateways.chat.message_search_gateway import (
-    search_messages_db,
-    select_first_messages_db,
-    select_term_frequency_db,
+from ....application.scenes import search_query
+from ....application.scenes.search_models import (
+    ContextResponse,
+    FirstMatchResponse,
+    FrequencyResponse,
+    SearchMessagesResponse,
 )
 from ....logging_config import get_logger
 from ...caching.cache import CacheTTL
@@ -20,15 +15,6 @@ from ...caching.model_cache import ModelCachePolicy
 from ...dependencies import get_cache
 from ...security.rate_limiter import limiter, rate_limits
 from ...transport.models import ErrorOrValidationResponse, ErrorResponse, RateLimitErrorResponse
-from .search_models import (
-    ContextResponse,
-    ContextStream,
-    FirstMatchResponse,
-    FrequencyPoint,
-    FrequencyResponse,
-    SearchHit,
-    SearchMessagesResponse,
-)
 
 logger = get_logger(__name__)
 
@@ -96,12 +82,7 @@ def search_messages(
         if cached is not None:
             return cached
 
-        rows, has_more = search_messages_db(term, creator_id, days, limit, offset)
-        result = SearchMessagesResponse(
-            query=term,
-            items=[SearchHit.from_row(row) for row in rows],
-            has_more=has_more,
-        )
+        result = search_query.search_messages(term, creator_id, days, limit, offset)
         _MESSAGES_CACHE.store(cache, response, cache_key, result)
         return result
 
@@ -136,13 +117,7 @@ def search_first(
         if cached is not None:
             return cached
 
-        found = select_first_messages_db(term, creator_id)
-        result = FirstMatchResponse(
-            query=term,
-            first=SearchHit.from_row(found.first) if found.first is not None else None,
-            by_creator=[SearchHit.from_row(row) for row in found.by_creator],
-            total_matches=found.total_matches,
-        )
+        result = search_query.find_first_match(term, creator_id)
         _FIRST_CACHE.store(cache, response, cache_key, result)
         return result
 
@@ -175,17 +150,7 @@ def search_frequency(
         if cached is not None:
             return cached
 
-        counts = {row.day: row.matches for row in select_term_frequency_db(term, days, creator_id)}
-        today = datetime.now(UTC).date()
-        start = today - timedelta(days=days - 1)
-        points: list[FrequencyPoint] = []
-        current = start
-        while current <= today:
-            iso = current.isoformat()
-            points.append(FrequencyPoint(date=iso, count=counts.get(iso, 0)))
-            current += timedelta(days=1)
-
-        result = FrequencyResponse(query=term, days=days, points=points)
+        result = search_query.search_frequency(term, days, creator_id)
         _FREQUENCY_CACHE.store(cache, response, cache_key, result)
         return result
 
@@ -216,17 +181,9 @@ def search_context(
         if cached is not None:
             return cached
 
-        rows = select_message_window_db(stream_id, message_id, radius)
-        stream = select_stream_context_db(stream_id)
-        if not rows or stream is None:
-            raise HTTPException(status_code=404, detail="We couldn't find that message in this stream.")
-
-        messages = [MessageItem.from_row(row) for row in rows]
         try:
-            hit_index = next(i for i, item in enumerate(messages) if item.id == message_id)
-        except StopIteration:
+            result = search_query.get_search_context(stream_id, message_id, radius)
+        except search_query.SearchContextNotFoundError:
             raise HTTPException(status_code=404, detail="We couldn't find that message in this stream.") from None
-
-        result = ContextResponse(stream=ContextStream.from_row(stream), messages=messages, hit_index=hit_index)
         _CONTEXT_CACHE.store(cache, response, cache_key, result)
         return result

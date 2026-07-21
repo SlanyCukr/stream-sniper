@@ -9,8 +9,8 @@ import {
     updateUser,
     updateUserRole,
     type AdminUserDto,
-    type CreateAdminUserRequest,
-    type UpdateAdminUserRequest,
+    type CreateAdminUserCommand,
+    type UpdateAdminUserCommand,
 } from '@/lib/api/users'
 import {
     createPage, getRowOffset, normalizePagination,
@@ -140,7 +140,7 @@ export const useAdminUsers = (
 }
 
 export const useCreateAdminUser = (options = {}) => useInvalidatingMutation(
-    async (user: CreateAdminUserRequest): Promise<AdminUser> => (
+    async (user: CreateAdminUserCommand): Promise<AdminUser> => (
         mapAdminUser((await createAdminUser(user)).data)
     ),
     userAdminKeys.all,
@@ -148,7 +148,7 @@ export const useCreateAdminUser = (options = {}) => useInvalidatingMutation(
 )
 
 export const useUpdateAdminUser = (options = {}) => useInvalidatingMutation(
-    async (command: { userId: number, changes: UpdateAdminUserRequest }): Promise<AdminUser> => (
+    async (command: { userId: number, changes: UpdateAdminUserCommand }): Promise<AdminUser> => (
         mapAdminUser((await updateUser(command.userId, command.changes)).data)
     ),
     userAdminKeys.all,

@@ -1,12 +1,10 @@
-'use client'
-import { use } from 'react'
 import ChatterExplorer from '@/views/chatter/ChatterExplorer'
 
-export default function ChatterPage({
+export default async function ChatterPage({
   searchParams,
 }: {
   searchParams: Promise<{ view?: string }>
 }) {
-  const { view } = use(searchParams)
+  const { view } = await searchParams
   return <ChatterExplorer initialView={view === 'messages' ? 'messages' : 'footprint'} />
 }

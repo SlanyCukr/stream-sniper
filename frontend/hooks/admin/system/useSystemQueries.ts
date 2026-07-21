@@ -6,10 +6,12 @@ import {
     retrieveDetailedHealth,
     retrieveMetrics,
     type FlushCacheDto,
-    type HealthComponentDto,
 } from '@/lib/api/system'
 import {
-    requireFiniteNumberField, requireRecord, requireStringField,
+    requireFiniteNumberField,
+    requireNullableFiniteNumberField,
+    requireRecord,
+    requireStringField,
 } from '@/lib/api/contractGuards'
 
 export interface DetailedHealthComponent {
@@ -66,21 +68,34 @@ export const mapDetailedHealth = (value: unknown): DetailedHealth => {
     const data = requireRecord(value, 'detailed health')
     const system = requireRecord(data.system, 'detailed health.system')
     const components = requireRecord(data.components, 'detailed health.components')
+    if (data.version !== undefined && typeof data.version !== 'string') {
+        throw new TypeError('detailed health.version must be a string when present')
+    }
+    const memoryUsagePercent = system.memory_usage_percent === undefined
+        ? null
+        : requireNullableFiniteNumberField(system, 'memory_usage_percent', 'detailed health.system')
     return {
-    status: requireStringField(data, 'status', 'detailed health'),
-    timestamp: requireStringField(data, 'timestamp', 'detailed health'),
-    uptimeSeconds: requireFiniteNumberField(data, 'uptime_seconds', 'detailed health'),
-    version: data.version as string | undefined, // optional field, not runtime-validated (matches DetailedHealthDto.version)
-    memoryUsagePercent: (system.memory_usage_percent as number | null | undefined) ?? null,
-    components: Object.entries(components).map(([name, component]) => {
-        const item = component as HealthComponentDto // per-entry shape trusted, not runtime-validated (matches original traversal)
-        return {
-            name,
-            status: item.status,
-            responseTimeMs: item.response_time_ms ?? null,
-            details: item.details ?? null,
-        }
-    }),
+        status: requireStringField(data, 'status', 'detailed health'),
+        timestamp: requireStringField(data, 'timestamp', 'detailed health'),
+        uptimeSeconds: requireFiniteNumberField(data, 'uptime_seconds', 'detailed health'),
+        version: data.version,
+        memoryUsagePercent,
+        components: Object.entries(components).map(([name, component]) => {
+            const label = `detailed health.components.${name}`
+            const item = requireRecord(component, label)
+            const responseTimeMs = item.response_time_ms === undefined
+                ? null
+                : requireNullableFiniteNumberField(item, 'response_time_ms', label)
+            const details = item.details === undefined || item.details === null
+                ? null
+                : requireRecord(item.details, `${label}.details`)
+            return {
+                name,
+                status: requireStringField(item, 'status', label),
+                responseTimeMs,
+                details,
+            }
+        }),
     }
 }
 
@@ -94,7 +109,11 @@ export const mapSystemMetrics = (value: unknown): SystemMetrics => {
             totalRequests: requireFiniteNumberField(requests, 'total_requests', 'system metrics.requests'),
             successfulRequests: requireFiniteNumberField(requests, 'successful_requests', 'system metrics.requests'),
             failedRequests: requireFiniteNumberField(requests, 'failed_requests', 'system metrics.requests'),
-            averageResponseTimeMs: (requests.average_response_time_ms as number | null | undefined) ?? null,
+            averageResponseTimeMs: requireNullableFiniteNumberField(
+                requests,
+                'average_response_time_ms',
+                'system metrics.requests',
+            ),
         },
         cache: {
             hitRate: requireFiniteNumberField(cache, 'hit_rate', 'system metrics.cache'),

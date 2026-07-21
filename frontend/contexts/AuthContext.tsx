@@ -10,26 +10,27 @@ import {
     registerAndAuthenticate,
     requestPasswordChange,
     updateProfile,
+    type AuthUser,
 } from '@/lib/auth/service'
 import {
     isExpiredToken, readStoredToken, removeStoredToken, storeToken,
 } from '@/lib/auth/session'
 import { toUiFailure } from '@/utils/errorUtils'
 import { isAdminRole } from '@/lib/auth/roles'
-import type { AdminUserDto } from '@/lib/api/users'
 
 type SessionFailure = ReturnType<typeof toUiFailure> | null
 
 /** Shape resolved by `authenticate`/`registerAndAuthenticate` once the profile is hydrated. */
 interface AuthSession {
     token: string
-    profile: AdminUserDto
+    profile: AuthUser
 }
 
 interface AuthContextValue {
-    user: AdminUserDto | null
+    user: AuthUser | null
     isInitializing: boolean
     sessionError: SessionFailure
+    dismissSessionError: () => void
     isAuthenticated: boolean
     isAdmin: boolean
     login: (username: string, password: string) => Promise<void>
@@ -48,10 +49,11 @@ export const useAuth = (): AuthContextValue => {
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<AdminUserDto | null>(null)
+    const [user, setUser] = useState<AuthUser | null>(null)
     const [token, setToken] = useState<string | null>(null)
     const [isInitializing, setIsInitializing] = useState(true)
     const [sessionError, setSessionError] = useState<SessionFailure>(null)
+    const dismissSessionError = useCallback(() => setSessionError(null), [])
 
     const clearSession = useCallback((): SessionFailure => {
         let storageFailure: SessionFailure = null
@@ -143,6 +145,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         isInitializing,
         sessionError,
+        dismissSessionError,
         isAuthenticated: Boolean(token && user && !isExpiredToken(token)),
         isAdmin: isAdminRole(user?.role),
         login,
@@ -150,7 +153,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         updateUser,
         changePassword,
-    }), [user, isInitializing, sessionError, token, login, register, logout, updateUser, changePassword])
+    }), [
+        user, isInitializing, sessionError, token, login, register, logout, updateUser,
+        changePassword, dismissSessionError,
+    ])
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -3,6 +3,7 @@ import { retrieveAllCreators } from '@/lib/api/creators'
 import {
     requireArray, requireFiniteNumberField, requireRecord, requireStringField,
 } from '@/lib/api/contractGuards'
+import { creatorKeys } from './creatorKeys'
 
 export interface Creator {
     creatorId: number
@@ -18,11 +19,6 @@ type CreatorQueryOptions = Omit<
     UseQueryOptions<Creator[], Error, Creator[], readonly unknown[]>,
     'queryKey' | 'queryFn'
 >
-
-const creatorKeys = {
-    all: ['creators'],
-    list: () => [...creatorKeys.all, 'list'],
-}
 
 export const mapCreatorRow = (value: unknown): Creator => {
     const row = requireRecord(value, 'creator')
@@ -41,7 +37,7 @@ export const useCreators = (
     { enabled = true, ...options }: CreatorQueryOptions & { enabled?: boolean } = {},
 ) => useQuery({
     ...options,
-    queryKey: creatorKeys.list(),
+    queryKey: creatorKeys.catalog(),
     queryFn: async () => {
         const response = await retrieveAllCreators()
         return requireArray(response, 'creators').map(mapCreatorRow)

@@ -69,7 +69,7 @@ type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'q
  * @param options - Additional query options
  * @returns useQuery result with data ({items, total, pageIndex, pageSize, pageCount})
  */
-export const useMessages = (
+export const useChatterMessages = (
     chatterId: number,
     {
         pageIndex = 0,

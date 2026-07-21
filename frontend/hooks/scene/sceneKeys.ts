@@ -5,7 +5,6 @@ export type SceneCopypastaFilters = SceneCopypastaRequest & { pageIndex?: number
 interface RankingsFilters {
     window?: string
     limit?: number
-    offset?: number
 }
 
 interface HighlightsFilters {
@@ -13,38 +12,12 @@ interface HighlightsFilters {
     creatorId?: number | null
     sort?: string
     limit?: number
-    offset?: number
 }
 
 interface TrendingFilters {
     window?: number
     creatorId?: number | null
     limit?: number
-}
-
-interface SearchMessagesKeyFilters {
-    q: string
-    creatorId: number | null
-    days: number | null
-    limit: number
-    offset: number
-}
-
-interface SearchFirstKeyFilters {
-    q: string
-    creatorId: number | null
-}
-
-interface SearchFrequencyKeyFilters {
-    q: string
-    days: number | null
-    creatorId: number | null
-}
-
-interface SearchContextKeyFilters {
-    streamId: number | null
-    messageId: number | null
-    radius: number | null
 }
 
 export const sceneKeys = {
@@ -79,8 +52,4 @@ export const sceneKeys = {
     emoteDetail: (emoteId: number) => [...sceneKeys.all, 'emote', { emoteId }] as const,
     wrapped: (days: number) => [...sceneKeys.all, 'wrapped', { days }] as const,
     radar: () => [...sceneKeys.all, 'radar'] as const,
-    searchMessages: (filters: SearchMessagesKeyFilters) => [...sceneKeys.all, 'search', 'messages', filters] as const,
-    searchFirst: (filters: SearchFirstKeyFilters) => [...sceneKeys.all, 'search', 'first', filters] as const,
-    searchFrequency: (filters: SearchFrequencyKeyFilters) => [...sceneKeys.all, 'search', 'frequency', filters] as const,
-    searchContext: (params: SearchContextKeyFilters) => [...sceneKeys.all, 'search', 'context', params] as const,
 }

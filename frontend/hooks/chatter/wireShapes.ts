@@ -5,13 +5,18 @@
  * names cannot drift between the three hooks that consume them.
  */
 
-import type { ArchetypeBadge } from '@/components/chatter/ArchetypeBadges'
 import {
     requireArrayField,
     requireFiniteNumberField,
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+
+export interface ArchetypeBadge {
+    key: string
+    label: string
+    description: string
+}
 
 /** A chatter's dominant channel as the API emits it (null = none dominates). */
 export interface ChatterHomeChannel {

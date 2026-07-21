@@ -9,7 +9,7 @@ import {
     type TrendingEmote,
 } from '@/hooks/scene/useSceneTrendingQueries'
 import TrendingBoard from '@/components/scene/TrendingBoard'
-import type { TrendingRowModel } from '@/components/scene/TrendingRow'
+import type { TrendingRowModel } from '@/components/scene/trending/presentationModel'
 import type { TrendingWindow } from '@/lib/api/scene'
 
 const WINDOW_TABS: Array<{ key: TrendingWindow, label: string }> = [

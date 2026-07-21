@@ -14,14 +14,27 @@ export interface ProcessingJobListRequest {
   trackedStreamerId?: number
 }
 
-export interface CreateTrackedStreamerRequest {
+export interface CreateTrackedStreamerCommand {
+  twitchUsername: string
+  notes?: string | null
+  isActive: boolean
+  processingEnabled: boolean
+}
+
+interface CreateTrackedStreamerRequest {
   twitch_username: string
   notes?: string | null
   is_active: boolean
   processing_enabled: boolean
 }
 
-export interface UpdateTrackedStreamerRequest {
+export interface UpdateTrackedStreamerCommand {
+  isActive?: boolean
+  processingEnabled?: boolean
+  notes?: string | null
+}
+
+interface UpdateTrackedStreamerRequest {
   is_active?: boolean
   processing_enabled?: boolean
   notes?: string | null
@@ -124,13 +137,22 @@ export const retrieveTrackedStreamers = (request: TrackedStreamerListRequest = {
     processing_enabled: request.processingEnabled,
   })
 
-export const createTrackedStreamer = (streamer: CreateTrackedStreamerRequest) =>
-  api.post<TrackedStreamerDto>('/admin/tracking/streamers', streamer)
+export const createTrackedStreamer = (streamer: CreateTrackedStreamerCommand) =>
+  api.post<TrackedStreamerDto>('/admin/tracking/streamers', {
+    twitch_username: streamer.twitchUsername,
+    notes: streamer.notes,
+    is_active: streamer.isActive,
+    processing_enabled: streamer.processingEnabled,
+  } satisfies CreateTrackedStreamerRequest)
 
 export const updateTrackedStreamer = (
   streamerId: number,
-  changes: UpdateTrackedStreamerRequest,
-) => api.put<TrackedStreamerDto>(`/admin/tracking/streamers/${streamerId}`, changes)
+  changes: UpdateTrackedStreamerCommand,
+) => api.put<TrackedStreamerDto>(`/admin/tracking/streamers/${streamerId}`, {
+  is_active: changes.isActive,
+  processing_enabled: changes.processingEnabled,
+  notes: changes.notes,
+} satisfies UpdateTrackedStreamerRequest)
 
 export const deleteTrackedStreamer = (streamerId: number) =>
   api.delete<void>(`/admin/tracking/streamers/${streamerId}`)

@@ -1,5 +1,6 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveCreatorWrapped } from '@/lib/api/creators'
+import { creatorKeys } from './creatorKeys'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -144,11 +145,6 @@ export const isCreatorWrappedEmpty = (wrapped: CreatorWrapped): boolean => (
     && wrapped.topEmotes.length === 0
 )
 
-export const creatorWrappedKeys = {
-    all: ['creator-wrapped'] as const,
-    detail: (creatorId: number, days: number) => [...creatorWrappedKeys.all, { creatorId, days }] as const,
-}
-
 type CreatorWrappedQueryOptions = Omit<
     UseQueryOptions<CreatorWrapped, Error, CreatorWrapped, readonly unknown[]>,
     'queryKey' | 'queryFn'
@@ -161,7 +157,7 @@ export const useCreatorWrapped = (
     { enabled = true, ...options }: CreatorWrappedQueryOptions = {},
 ) => useQuery({
     ...options,
-    queryKey: creatorWrappedKeys.detail(creatorId, days),
+    queryKey: creatorKeys.wrapped(creatorId, days),
     queryFn: async () => mapCreatorWrapped(await retrieveCreatorWrapped(creatorId, days)),
     // Positive safe integer, not just truthy: the route boundary already 404s
     // invalid segments, but a fractional/NaN id reaching here must never fire

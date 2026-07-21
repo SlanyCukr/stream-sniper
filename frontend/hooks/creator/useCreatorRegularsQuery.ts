@@ -1,8 +1,9 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { retrieveCreatorRegulars, type CreatorRegularsDto } from '@/lib/api/creators'
+import { retrieveCreatorRegulars } from '@/lib/api/creators'
 import {
-    requireArrayField, requireFiniteNumberField, requireRecord,
+    requireArrayField, requireFiniteNumberField, requireRecord, requireStringField,
 } from '@/lib/api/contractGuards'
+import { creatorKeys } from './creatorKeys'
 
 export interface CreatorRegular {
     chatterId: number
@@ -32,26 +33,6 @@ type QueryOptions = Omit<
 >
 
 /**
- * Query key factory for creator "regulars" queries
- */
-export const creatorRegularsKeys = {
-    all: [
-        'creator-regulars',
-    ],
-    lists: () => [
-        ...creatorRegularsKeys.all,
-        'list',
-    ],
-    list: (creatorId: number, filters: CreatorRegularsFilters) => [
-        ...creatorRegularsKeys.lists(),
-        {
-            creatorId,
-            ...filters,
-        },
-    ],
-}
-
-/**
  * Custom hook for a creator's recurring chatters ("regulars"), mapped to camelCase.
  * @param creatorId - The normalized creator ID
  * @param filters - Sort/threshold filters
@@ -66,7 +47,7 @@ export const useCreatorRegulars = (creatorId: number, {
     limit,
 }: CreatorRegularsFilters = {}, { enabled = true, ...options }: QueryOptions & { enabled?: boolean } = {}) => useQuery({
     ...options,
-    queryKey: creatorRegularsKeys.list(creatorId, {
+    queryKey: creatorKeys.regulars(creatorId, {
         minStreams,
         sort,
         dir,
@@ -81,19 +62,17 @@ export const useCreatorRegulars = (creatorId: number, {
         })
         const data = requireRecord(response, 'creator regulars')
         return {
-            regulars: requireArrayField(data, 'regulars', 'creator regulars').map(raw => {
-                // requireArrayField only checks the collection shape; individual rows
-                // are trusted against the wire DTO rather than guarded field-by-field
-                // (matches existing behavior).
-                const r = raw as CreatorRegularsDto['regulars'][number]
+            regulars: requireArrayField(data, 'regulars', 'creator regulars').map((raw, index) => {
+                const label = `creator regulars.regulars[${index}]`
+                const regular = requireRecord(raw, label)
                 return {
-                    chatterId: r.chatter_id,
-                    nick: r.nick,
-                    streamsAttended: r.streams_attended,
-                    attendanceRate: r.attendance_rate,
-                    firstSeen: r.first_seen,
-                    lastSeen: r.last_seen,
-                    messageCount: r.message_count,
+                    chatterId: requireFiniteNumberField(regular, 'chatter_id', label),
+                    nick: requireStringField(regular, 'nick', label),
+                    streamsAttended: requireFiniteNumberField(regular, 'streams_attended', label),
+                    attendanceRate: requireFiniteNumberField(regular, 'attendance_rate', label),
+                    firstSeen: requireStringField(regular, 'first_seen', label),
+                    lastSeen: requireStringField(regular, 'last_seen', label),
+                    messageCount: requireFiniteNumberField(regular, 'message_count', label),
                 }
             }),
             totalStreams: requireFiniteNumberField(data, 'total_streams', 'creator regulars'),

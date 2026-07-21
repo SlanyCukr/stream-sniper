@@ -1,6 +1,10 @@
 import { keepPreviousData, useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveStreamReport } from '@/lib/api/streams'
 import {
+    requireNullableMomentReviewStatus,
+    type MomentReviewStatus,
+} from '@/lib/api/moments'
+import {
     requireArrayField,
     requireFiniteNumberField,
     requireNullableFiniteNumberField,
@@ -57,7 +61,7 @@ export interface ReportMoment {
     offsetSeconds: number | null
     messageCount: number
     ratio: number | null
-    status: string | null
+    status: MomentReviewStatus | null
 }
 
 export interface StreamReport {
@@ -133,7 +137,7 @@ const mapReportMoment = (value: unknown, index: number): ReportMoment => {
         offsetSeconds: requireNullableFiniteNumberField(moment, 'offset_seconds', label),
         messageCount: requireFiniteNumberField(moment, 'message_count', label),
         ratio: requireNullableFiniteNumberField(moment, 'ratio', label),
-        status: requireNullableStringField(moment, 'status', label),
+        status: requireNullableMomentReviewStatus(moment.status, `${label}.status`),
     }
 }
 

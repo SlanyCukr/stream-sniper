@@ -19,14 +19,6 @@ import MentionsPanel from '@/components/stream/insights/MentionsPanel'
 import EmotesPanel from '@/components/stream/insights/EmotesPanel'
 import PhrasesPanel from '@/components/stream/insights/PhrasesPanel'
 import StreamReplayCard from '@/components/stream/replay/StreamReplayCard'
-import type { StreamInfo } from '@/hooks/stream/list/useStreamsQuery'
-
-// never[] is a subtype of every element type, so this single fallback covers
-// the four differently-typed arrays below without one empty literal each.
-const EMPTY_LIST: never[] = []
-// Only reachable before streamDetails loads; QueryState never invokes the
-// render prop below (where this value is consumed) until real data exists.
-const EMPTY_STREAM_INFO = {} as StreamInfo
 
 interface StreamProps {
     streamId: number
@@ -48,13 +40,6 @@ const Stream = ({ streamId }: StreamProps) => {
 
     const replay = useStreamReplayController(streamId)
 
-    const streamInfoData = streamDetails?.info || EMPTY_STREAM_INFO
-
-    const mostActiveChatters = streamDetails?.mostActiveChatters || EMPTY_LIST
-    const mostTaggedChatters = streamDetails?.mostTaggedChatters || EMPTY_LIST
-    const otherCreatorsThatWrote = streamDetails?.otherCreators || EMPTY_LIST
-    const chattersInStream = streamDetails?.chatterOptions || EMPTY_LIST
-
     return (
         <QueryState
             query={{
@@ -70,10 +55,10 @@ const Stream = ({ streamId }: StreamProps) => {
                 />
             )}
         >
-            {() => (
+            {(details) => (
                 <>
                     <StreamInfoCard
-                        streamInfoData={streamInfoData}
+                        streamInfoData={details.info}
                         downloadMenu={(
                             <>
                                 <CardLinkButton
@@ -82,7 +67,7 @@ const Stream = ({ streamId }: StreamProps) => {
                                 />
                                 <StreamDownloadMenu
                                     streamId={streamId}
-                                    title={streamInfoData.title}
+                                    title={details.info.title}
                                 />
                             </>
                         )}
@@ -112,9 +97,9 @@ const Stream = ({ streamId }: StreamProps) => {
                     )}
 
                     <StreamStatsCard
-                        mostActiveChatters={mostActiveChatters}
-                        mostTaggedChatters={mostTaggedChatters}
-                        otherCreators={otherCreatorsThatWrote}
+                        mostActiveChatters={details.mostActiveChatters}
+                        mostTaggedChatters={details.mostTaggedChatters}
+                        otherCreators={details.otherCreators}
                     />
 
                     <Row className="g-4">
@@ -130,7 +115,7 @@ const Stream = ({ streamId }: StreamProps) => {
                     </Row>
 
                     <StreamReplayCard
-                        chatterOptions={chattersInStream}
+                        chatterOptions={details.chatterOptions}
                         replay={replay}
                     />
                 </>

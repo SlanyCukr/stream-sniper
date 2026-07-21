@@ -9,7 +9,8 @@ const { deleteMomentReview, putMomentReview, retrieveMomentsQueue } = vi.hoisted
   retrieveMomentsQueue: vi.fn(),
 }))
 
-vi.mock('@/lib/api/moments', () => ({
+vi.mock('@/lib/api/moments', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/api/moments')>(),
   deleteMomentReview,
   putMomentReview,
   retrieveMomentsQueue,
@@ -18,6 +19,27 @@ vi.mock('@/lib/api/moments', () => ({
 import { momentsQueueKeys, useMomentReview, useMomentsQueue } from '@/hooks/moments/useMomentsQueries'
 import { streamTimelineKeys } from '@/hooks/queryKeys'
 import MomentReviewControls from '@/components/moments/MomentReviewControls'
+
+const queueItem = () => ({
+  stream_id: 42,
+  title: 'Stream',
+  start: '2026-07-14T10:00:00Z',
+  twitch_id: null,
+  creator_display_name: 'Creator',
+  bucket_minute: '2026-07-14T10:30:00Z',
+  offset_seconds: 1800,
+  message_count: 30,
+  baseline: 10,
+  ratio: 3,
+  unique_chatters: 20,
+  sub_share: null,
+  emote_share: null,
+  top_phrases: [{ phrase: 'wow', count: 4 }],
+  sample_messages: [{ text: 'wow', count: 2 }],
+  status: 'bookmarked',
+  clip_url: null,
+  note: null,
+})
 
 function createWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: PropsWithChildren) {
@@ -51,6 +73,37 @@ describe('useMomentReview', () => {
       pageSize: 20,
       pageCount: 5,
     })
+  })
+
+  it('rejects malformed nested queue items', async () => {
+    retrieveMomentsQueue.mockResolvedValue({
+      items: [{}],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    })
+    const { result } = renderHook(() => useMomentsQueue(), {
+      wrapper: createWrapper(new QueryClient({ defaultOptions: { queries: { retry: false } } })),
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toBeInstanceOf(TypeError)
+  })
+
+  it.each([
+    ['phrase', { top_phrases: [{ phrase: 7, count: 1 }] }],
+    ['sample', { sample_messages: [{ text: 'wow', count: 'many' }] }],
+    ['status', { status: 'pending-review' }],
+  ])('rejects an invalid nested %s contract', async (_label, override) => {
+    retrieveMomentsQueue.mockResolvedValue({
+      items: [{ ...queueItem(), ...override }], total: 1, limit: 20, offset: 0,
+    })
+    const { result } = renderHook(() => useMomentsQueue(), {
+      wrapper: createWrapper(new QueryClient({ defaultOptions: { queries: { retry: false } } })),
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toBeInstanceOf(TypeError)
   })
 
   it('sets a review, awaits owned invalidation, then calls the consumer callback', async () => {

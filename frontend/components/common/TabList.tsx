@@ -6,7 +6,7 @@ interface Tab<K extends string> {
 }
 
 interface TabListProps<K extends string> {
-    tabs: Array<Tab<K>>
+    tabs: ReadonlyArray<Tab<K>>
     activeKey: K
     idPrefix: string
     ariaLabel: string

@@ -98,6 +98,31 @@ describe('API hook contract boundaries', () => {
     expect(hook.result.current.data?.status).toBe('healthy')
   })
 
+  it.each([
+    ['community row', () => {
+      api.retrieveCommunityOverlap.mockResolvedValue({
+        creators: [{ creator_id: 1, nick: 'alpha' }],
+        pairs: [],
+        computed_at: null,
+      })
+      return renderHook(() => useCommunityOverlap(), { wrapper: createWrapper() })
+    }],
+    ['health component', () => {
+      api.retrieveDetailedHealth.mockResolvedValue({
+        status: 'healthy',
+        timestamp: 'now',
+        uptime_seconds: 12,
+        system: {},
+        components: { database: { status: 200 } },
+      })
+      return renderHook(() => useDetailedHealth(), { wrapper: createWrapper() })
+    }],
+  ])('rejects a malformed nested %s', async (_name, render) => {
+    const hook = render()
+    await waitFor(() => expect(hook.result.current.isError).toBe(true))
+    expect(hook.result.current.error).toBeInstanceOf(TypeError)
+  })
+
   it('does not let callers enable a query whose required resource ID is absent', async () => {
     const hook = renderHook(() => useStreamDetails(0, { enabled: true }), { wrapper: createWrapper() })
     await waitFor(() => expect((hook.result.current as any).fetchStatus).toBe('idle'))

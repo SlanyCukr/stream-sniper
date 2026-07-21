@@ -10,7 +10,7 @@ interface CreateUserFormData {
     password: string
     confirmPassword: string
     role: UserRole
-    is_active: boolean
+    isActive: boolean
 }
 
 const INITIAL_FORM: CreateUserFormData = {
@@ -19,7 +19,7 @@ const INITIAL_FORM: CreateUserFormData = {
     password: '',
     confirmPassword: '',
     role: USER_ROLES.USER,
-    is_active: true,
+    isActive: true,
 }
 
 const validate = (form: CreateUserFormData): string | null => {
@@ -69,7 +69,7 @@ export const useCreateUserForm = () => {
                 email: formData.email,
                 password: formData.password,
                 role: formData.role,
-                is_active: formData.is_active,
+                isActive: formData.isActive,
             }),
             successMessage: user => `User "${user.username}" created successfully!`,
             errorTitle: 'Failed to create user',

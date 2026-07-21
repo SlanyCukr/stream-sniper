@@ -22,6 +22,7 @@ vi.mock('react-virtuoso', () => ({
 
 import StreamChatReplay from '@/components/stream/replay/StreamChatReplay'
 import type { StreamMessage } from '@/hooks/stream/replay/useStreamMessagesQuery'
+import { parseBadges } from '@/utils/chatRender'
 
 const messages: StreamMessage[] = [
   {
@@ -39,6 +40,27 @@ describe('StreamChatReplay virtualization boundary', () => {
   })
 
   afterEach(() => vi.useRealTimers())
+
+  it('projects known and unknown validated badge tokens into presentation metadata', () => {
+    expect(parseBadges(['moderator/1', 'custom/2'])).toEqual([
+      {
+        name: 'moderator',
+        version: '1',
+        raw: 'moderator/1',
+        icon: 'bi-shield-fill',
+        className: 'chat-badge--moderator',
+        label: 'Moderator',
+      },
+      {
+        name: 'custom',
+        version: '2',
+        raw: 'custom/2',
+        icon: null,
+        className: 'chat-badge--other',
+        label: 'custom',
+      },
+    ])
+  })
 
   it('scrolls once per nonce and clears the target flash', () => {
     const props = {

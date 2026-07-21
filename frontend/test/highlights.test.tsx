@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, renderHook, screen, waitFor } from '@testing-library/react'
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react'
 import type { PropsWithChildren } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -139,6 +139,15 @@ describe('mapSceneHighlights', () => {
       items: [{ ...fullItem, ratio: Number.NaN }],
     })).toThrow(TypeError)
   })
+
+  it('rejects an unsupported review status at the mapper boundary', () => {
+    expect(() => mapSceneHighlights({
+      window: 'all',
+      sort: 'hype',
+      has_more: false,
+      items: [{ ...fullItem, review_status: 'pending-review' }],
+    })).toThrow('scene highlights.items[0].review_status must be a supported review status or null')
+  })
 })
 
 describe('highlightVodHref', () => {
@@ -182,30 +191,47 @@ describe('HighlightCard', () => {
 describe('useSceneHighlights', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('requests the mandated filter tuple and maps the envelope', async () => {
-    api.retrieveSceneHighlights.mockResolvedValue({
+  it('owns offset progression and maps each page', async () => {
+    api.retrieveSceneHighlights.mockResolvedValueOnce({
       window: '30', sort: 'recent', has_more: true, items: [fullItem],
+    }).mockResolvedValueOnce({
+      window: '30', sort: 'recent', has_more: false, items: [nullItem],
     })
 
     const { result } = renderHook(
-      () => useSceneHighlights({ window: '30', sort: 'recent', limit: 24, offset: 24 }),
+      () => useSceneHighlights({ window: '30', sort: 'recent', limit: 24 }),
       { wrapper: createWrapper() },
     )
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(api.retrieveSceneHighlights).toHaveBeenCalledWith({
+    expect(api.retrieveSceneHighlights).toHaveBeenNthCalledWith(1, {
+      window: '30',
+      creatorId: undefined,
+      sort: 'recent',
+      limit: 24,
+      offset: 0,
+    })
+    expect(result.current.data?.pages[0]).toMatchObject({
+      window: '30',
+      sort: 'recent',
+      hasMore: true,
+      items: [{ streamId: 42, ratio: 4.25 }],
+    })
+
+    await act(async () => {
+      await result.current.fetchNextPage()
+    })
+    await waitFor(() => expect(result.current.data?.pages).toHaveLength(2))
+
+    expect(api.retrieveSceneHighlights).toHaveBeenNthCalledWith(2, {
       window: '30',
       creatorId: undefined,
       sort: 'recent',
       limit: 24,
       offset: 24,
     })
-    expect(result.current.data).toMatchObject({
-      window: '30',
-      sort: 'recent',
-      hasMore: true,
-      items: [{ streamId: 42, ratio: 4.25 }],
-    })
+    expect(result.current.data?.pages[1].items[0]).toMatchObject({ streamId: 9, ratio: null })
+    expect(result.current.hasNextPage).toBe(false)
   })
 
   it('surfaces a malformed payload as a TypeError instead of empty success', async () => {

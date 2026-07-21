@@ -1,8 +1,6 @@
-'use client'
-import { use } from 'react'
 import CopypastaPropagation from '@/views/scene/CopypastaPropagation'
 
-export default function CopypastaPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default async function CopypastaPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   return <CopypastaPropagation messageTextId={Number(id)} />
 }

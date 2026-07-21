@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios'
+import { readStoredToken } from '@/lib/auth/session'
 
 export const api: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -7,7 +8,7 @@ export const api: AxiosInstance = axios.create({
 
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token')
+    const token = readStoredToken()
     if (token) config.headers.Authorization = `Bearer ${token}`
   }
   return config
@@ -62,4 +63,3 @@ export const getJson = async <T>(
   const response = config ? await api.get<T>(url, config) : await api.get<T>(url)
   return response.data
 }
-

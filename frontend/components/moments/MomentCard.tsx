@@ -30,19 +30,6 @@ const statusVariant = (status: MomentReviewStatus | null): StatusChipVariant => 
     return 'neutral'
 }
 
-// The wire DTO leaves top_phrases/sample_messages as untyped records (never
-// validated field-by-field, see useMomentsQueries mapMomentsQueue); these
-// narrow the shape actually produced by the backend for rendering.
-interface MomentTopPhrase {
-    phrase?: string
-    count?: number
-}
-
-interface MomentSampleMessage {
-    text?: string
-    count?: number
-}
-
 interface MomentCardProps {
     moment: MomentQueueItem
     isAdmin: boolean
@@ -80,8 +67,8 @@ const MomentCard = ({
         note,
     } = moment
     const vodHref = vodDeepLink(twitchVodId, streamStart, t)
-    const topPhrase = (topPhrases?.[0] as MomentTopPhrase | undefined) || null
-    const sample = (sampleMessages?.[0] as MomentSampleMessage | undefined) || null
+    const topPhrase = topPhrases?.[0] ?? null
+    const sample = sampleMessages?.[0] ?? null
     const subLabel = sharePct(subShare)
     const emoteLabel = sharePct(emoteShare)
     const reviewStatus = status || 'pending'

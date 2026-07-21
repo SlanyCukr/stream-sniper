@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { retrieveChatterSearch } from '@/lib/api/chatter'
+import type { ChatterView } from '@/lib/models/chatterExplorer'
 
 export interface ChatterOption {
     value: number
     label: string
     isBot: boolean | null
 }
-
-type ChatterView = 'messages' | 'footprint'
 
 /** Async chatter-picker option loader shared by every chatter search select. */
 export const loadChatterOptions = async (query: string): Promise<ChatterOption[]> => {

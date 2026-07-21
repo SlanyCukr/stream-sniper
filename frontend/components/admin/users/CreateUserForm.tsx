@@ -103,8 +103,8 @@ const CreateUserForm = () => {
                 <Form.Group className="mb-3">
                     <Form.Check
                         type="checkbox"
-                        name="is_active"
-                        checked={formData.is_active}
+                        name="isActive"
+                        checked={formData.isActive}
                         onChange={handleInputChange}
                         label="Active User"
                     />

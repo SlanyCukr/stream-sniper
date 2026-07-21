@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import type { ArchetypeBadge } from '@/components/chatter/ArchetypeBadges'
 import { retrieveChatterHeadToHead } from '@/lib/api/chatter'
 import {
     requireFiniteNumberField,
@@ -8,7 +7,12 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
-import { mapArchetypeBadges, mapHomeChannel, type ChatterHomeChannel } from './wireShapes'
+import {
+    mapArchetypeBadges,
+    mapHomeChannel,
+    type ArchetypeBadge,
+    type ChatterHomeChannel,
+} from './wireShapes'
 
 export type ChatterVersusHomeChannel = ChatterHomeChannel
 

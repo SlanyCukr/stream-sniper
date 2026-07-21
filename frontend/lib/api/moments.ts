@@ -1,6 +1,59 @@
 import { api, getJson } from './client'
+import {
+  requireArray,
+  requireFiniteNumberField,
+  requireRecord,
+  requireStringField,
+} from './contractGuards'
 
 export type MomentReviewStatus = 'bookmarked' | 'rejected' | 'clipped' | 'published'
+export interface MomentPhrase { phrase: string, count: number }
+export interface MomentSampleMessage { text: string, count: number }
+
+const REVIEW_STATUSES = new Set<MomentReviewStatus>([
+  'bookmarked', 'rejected', 'clipped', 'published',
+])
+
+export const requireNullableMomentReviewStatus = (
+  value: unknown,
+  label: string,
+): MomentReviewStatus | null => {
+  if (value === null) return null
+  if (typeof value === 'string' && REVIEW_STATUSES.has(value as MomentReviewStatus)) {
+    return value as MomentReviewStatus
+  }
+  throw new TypeError(`${label} must be a supported review status or null`)
+}
+
+export const mapNullableMomentPhrases = (
+  value: unknown,
+  label: string,
+): MomentPhrase[] | null => {
+  if (value === null) return null
+  return requireArray(value, label).map((item, index) => {
+    const rowLabel = `${label}[${index}]`
+    const row = requireRecord(item, rowLabel)
+    return {
+      phrase: requireStringField(row, 'phrase', rowLabel),
+      count: requireFiniteNumberField(row, 'count', rowLabel),
+    }
+  })
+}
+
+export const mapNullableMomentSamples = (
+  value: unknown,
+  label: string,
+): MomentSampleMessage[] | null => {
+  if (value === null) return null
+  return requireArray(value, label).map((item, index) => {
+    const rowLabel = `${label}[${index}]`
+    const row = requireRecord(item, rowLabel)
+    return {
+      text: requireStringField(row, 'text', rowLabel),
+      count: requireFiniteNumberField(row, 'count', rowLabel),
+    }
+  })
+}
 
 export interface MomentsQueueRequest {
   status?: 'pending' | MomentReviewStatus
@@ -23,8 +76,8 @@ export interface MomentQueueItemDto {
   unique_chatters: number
   sub_share: number | null
   emote_share: number | null
-  top_phrases: Array<Record<string, unknown>> | null
-  sample_messages: Array<Record<string, unknown>> | null
+  top_phrases: MomentPhrase[] | null
+  sample_messages: MomentSampleMessage[] | null
   status: MomentReviewStatus | null
   clip_url: string | null
   note: string | null

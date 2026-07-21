@@ -1,6 +1,6 @@
 /**
  * Twitch VOD deep-link + chapter-list helpers, typed to the timeline wire
- * contract (nullable stream start, unknown-typed phrase payloads) so callers
+ * contract (nullable stream start, validated phrase payloads) so callers
  * never need casts.
  */
 
@@ -34,16 +34,17 @@ export const vodDeepLink = (
     return `https://www.twitch.tv/videos/${twitchVodId}?t=${h}h${m}m${s}s`
 }
 
+import type { MomentPhrase } from '@/lib/api/moments'
+
 interface VodChaptersTimeline {
     twitchVodId: string | number | null
     streamStart: string | null
-    moments: Array<{ t: string, count: number, topPhrases?: unknown[] | null }>
+    moments: Array<{ t: string, count: number, topPhrases?: MomentPhrase[] | null }>
 }
 
-/** First phrase of a moment when it is a non-empty string; the wire types phrases as unknown[]. */
-const momentLabel = (topPhrases: unknown[] | null | undefined): string => {
+const momentLabel = (topPhrases: MomentPhrase[] | null | undefined): string => {
     const first = topPhrases?.[0]
-    return typeof first === 'string' && first ? first : 'chat spike'
+    return first?.phrase || 'chat spike'
 }
 
 /**

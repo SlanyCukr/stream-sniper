@@ -7,14 +7,14 @@ import {
 interface ProfileActionsProps {
     isEditing: boolean
     isSubmitting: boolean
-    handleEditToggle: () => void
+    onEditToggle: () => void
     onChangePassword: () => void
 }
 
 const ProfileActions = ({
     isEditing,
     isSubmitting,
-    handleEditToggle,
+    onEditToggle,
     onChangePassword,
 }: ProfileActionsProps) => (
     <div className="d-flex gap-2">
@@ -43,7 +43,7 @@ const ProfileActions = ({
                 </Button>
                 <Button
                     variant="secondary"
-                    onClick={handleEditToggle}
+                    onClick={onEditToggle}
                     disabled={isSubmitting}
                 >
                     Cancel
@@ -53,7 +53,7 @@ const ProfileActions = ({
             <>
                 <Button
                     variant="outline-primary"
-                    onClick={handleEditToggle}
+                    onClick={onEditToggle}
                 >
                     <i className="bi bi-pencil me-2"></i>
                     Edit Profile

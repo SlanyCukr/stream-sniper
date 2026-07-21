@@ -2,7 +2,7 @@ import { jwtDecode } from 'jwt-decode'
 
 const TOKEN_KEY = 'token'
 
-class SessionStorageError extends Error {
+export class SessionStorageError extends Error {
     operation: string
     userFacing: true
 

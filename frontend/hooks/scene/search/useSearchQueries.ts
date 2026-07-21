@@ -1,4 +1,10 @@
-import { keepPreviousData, useQuery, type UseQueryOptions } from '@tanstack/react-query'
+import {
+    useInfiniteQuery,
+    useQuery,
+    type InfiniteData,
+    type UseInfiniteQueryOptions,
+    type UseQueryOptions,
+} from '@tanstack/react-query'
 import {
     retrieveSearchContext,
     retrieveSearchFirst,
@@ -19,8 +25,8 @@ import type {
     SearchFirstVM,
     SearchFrequencyPoint,
     SearchHitVM,
-} from '@/components/scene/searchTypes'
-import { sceneKeys } from './sceneKeys'
+} from './searchTypes'
+import { searchKeys } from './searchKeys'
 
 type QueryOptions<T> = Omit<
     UseQueryOptions<T, Error, T, readonly unknown[]>,
@@ -150,27 +156,41 @@ interface SearchMessagesFilters {
     creatorId?: number | null
     days?: number | null
     limit?: number
-    offset?: number
 }
 
+type SearchMessagesQueryOptions = Omit<
+    UseInfiniteQueryOptions<
+        SearchMessagesVM,
+        Error,
+        InfiniteData<SearchMessagesVM, number>,
+        ReturnType<typeof searchKeys.messages>,
+        number
+    >,
+    'queryKey' | 'queryFn' | 'initialPageParam' | 'getNextPageParam'
+> & { enabled?: boolean }
+
 export const useSearchMessages = ({
-    q = '', creatorId, days, limit = 50, offset = 0,
-}: SearchMessagesFilters = {}, options: QueryOptions<SearchMessagesVM> = {}) => {
+    q = '', creatorId, days, limit = 50,
+}: SearchMessagesFilters = {}, options: SearchMessagesQueryOptions = {}) => {
     const enabledQuery = isSearchableQuery(q)
-    return useQuery({
-        placeholderData: keepPreviousData,
-        ...options,
-        queryKey: sceneKeys.searchMessages({
-            q: q.trim(), creatorId: creatorId ?? null, days: days ?? null, limit, offset,
+    const { enabled = true, ...queryOptions } = options
+    return useInfiniteQuery({
+        ...queryOptions,
+        queryKey: searchKeys.messages({
+            q: q.trim(), creatorId: creatorId ?? null, days: days ?? null, limit,
         }),
-        queryFn: async () => mapSearchMessages(await retrieveSearchMessages({
+        queryFn: async ({ pageParam }) => mapSearchMessages(await retrieveSearchMessages({
             q: q.trim(),
             creatorId: creatorId ?? undefined,
             days: days ?? undefined,
             limit,
-            offset,
+            offset: pageParam,
         })),
-        enabled: enabledQuery && (options.enabled ?? true),
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _pages, lastPageParam) => (
+            lastPage.hasMore ? lastPageParam + limit : undefined
+        ),
+        enabled: enabledQuery && enabled,
     })
 }
 
@@ -186,7 +206,7 @@ export const useSearchFirst = (
     const enabledQuery = isSearchableQuery(q)
     return useQuery({
         ...options,
-        queryKey: sceneKeys.searchFirst({ q: q.trim(), creatorId: creatorId ?? null }),
+        queryKey: searchKeys.first({ q: q.trim(), creatorId: creatorId ?? null }),
         queryFn: async () => mapSearchFirst(await retrieveSearchFirst({
             q: q.trim(),
             creatorId: creatorId ?? undefined,
@@ -208,7 +228,7 @@ export const useSearchFrequency = (
     const enabledQuery = isSearchableQuery(q)
     return useQuery({
         ...options,
-        queryKey: sceneKeys.searchFrequency({
+        queryKey: searchKeys.frequency({
             q: q.trim(), days: days ?? null, creatorId: creatorId ?? null,
         }),
         queryFn: async () => mapSearchFrequency(await retrieveSearchFrequency({
@@ -232,7 +252,7 @@ export const useSearchContext = ({
     const enabledQuery = Boolean(streamId) && Boolean(messageId)
     return useQuery({
         ...options,
-        queryKey: sceneKeys.searchContext({ streamId: streamId ?? null, messageId: messageId ?? null, radius: radius ?? null }),
+        queryKey: searchKeys.context({ streamId: streamId ?? null, messageId: messageId ?? null, radius: radius ?? null }),
         queryFn: async () => mapSearchContext(await retrieveSearchContext({
             // Guarded by `enabled` below; streamId/messageId are non-null whenever the query runs.
             streamId: streamId as number,

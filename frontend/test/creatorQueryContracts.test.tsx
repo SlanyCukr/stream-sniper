@@ -14,21 +14,12 @@ const api = vi.hoisted(() => ({
 vi.mock('@/lib/api/creators', () => api)
 
 import TrendsPanel from '@/components/creator/TrendsPanel'
-import {
-  audienceMovementKeys, useAudienceMovement,
-} from '@/hooks/creator/useAudienceMovementQuery'
-import {
-  creatorRegularsKeys, useCreatorRegulars,
-} from '@/hooks/creator/useCreatorRegularsQuery'
-import {
-  creatorSummaryKeys, useCreatorSummary,
-} from '@/hooks/creator/useCreatorSummaryQuery'
-import {
-  creatorTrendsKeys, useCreatorTrends,
-} from '@/hooks/creator/useCreatorTrendsQuery'
-import {
-  creatorWrappedKeys, useCreatorWrapped,
-} from '@/hooks/creator/useCreatorWrappedQuery'
+import { useAudienceMovement } from '@/hooks/creator/useAudienceMovementQuery'
+import { useCreatorRegulars } from '@/hooks/creator/useCreatorRegularsQuery'
+import { useCreatorSummary } from '@/hooks/creator/useCreatorSummaryQuery'
+import { useCreatorTrends } from '@/hooks/creator/useCreatorTrendsQuery'
+import { useCreatorWrapped } from '@/hooks/creator/useCreatorWrappedQuery'
+import { creatorKeys } from '@/hooks/creator/creatorKeys'
 import { createTestQueryClient, renderWithQueryClient } from './render'
 
 const createWrapper = () => {
@@ -42,13 +33,13 @@ describe('creator query contracts', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('keeps IDs and filters in keys and suppresses every invalid resource request', async () => {
-    expect(audienceMovementKeys.detail(7, 14)).toEqual(['audience-movement', { creatorId: 7, days: 14 }])
-    expect(creatorSummaryKeys.detail(7)).toEqual(['creator-summary', { creatorId: 7 }])
-    expect(creatorRegularsKeys.list(7, { minStreams: 3 })).toEqual([
-      'creator-regulars', 'list', { creatorId: 7, minStreams: 3 },
+    expect(creatorKeys.audienceMovement(7, 14)).toEqual(['creator', 'audience-movement', { creatorId: 7, days: 14 }])
+    expect(creatorKeys.summary(7)).toEqual(['creator', 'summary', { creatorId: 7 }])
+    expect(creatorKeys.regulars(7, { minStreams: 3 })).toEqual([
+      'creator', 'regulars', { creatorId: 7, minStreams: 3 },
     ])
-    expect(creatorTrendsKeys.detail(7)).toEqual(['creator-trends', 'detail', 7])
-    expect(creatorWrappedKeys.detail(7, 30)).toEqual(['creator-wrapped', { creatorId: 7, days: 30 }])
+    expect(creatorKeys.trends(7)).toEqual(['creator', 'trends', { creatorId: 7 }])
+    expect(creatorKeys.wrapped(7, 30)).toEqual(['creator', 'wrapped', { creatorId: 7, days: 30 }])
 
     const hooks = renderHook(() => ({
       movement: useAudienceMovement(0),
@@ -157,6 +148,17 @@ describe('creator query contracts', () => {
       }],
       totalStreams: 4,
     })
+  })
+
+  it('rejects malformed nested regular rows', async () => {
+    api.retrieveCreatorRegulars.mockResolvedValue({
+      regulars: [{ chatter_id: 5, nick: 42 }],
+      total_streams: 4,
+    })
+    const hook = renderHook(() => useCreatorRegulars(7), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(hook.result.current.isError).toBe(true))
+    expect(hook.result.current.error).toBeInstanceOf(TypeError)
   })
 
   it('renders a creator trend surface through the real query mapper', async () => {

@@ -3,8 +3,14 @@ import {
     retrieveCommunityOverlap,
     retrieveCreatorNeighbors,
 } from '@/lib/api/community'
-import type { OverlapCreatorDto, OverlapPairDto, CreatorNeighborDto } from '@/lib/api/community'
-import { requireArrayField, requireRecord } from '@/lib/api/contractGuards'
+import {
+    requireArrayField,
+    requireFiniteNumberField,
+    requireNullableFiniteNumberField,
+    requireNullableStringField,
+    requireRecord,
+    requireStringField,
+} from '@/lib/api/contractGuards'
 
 export type OverlapMetric = 'chatters' | 'regulars'
 
@@ -64,27 +70,31 @@ export const useCommunityOverlap = (
     queryFn: async (): Promise<CommunityOverlap> => {
         const response = await retrieveCommunityOverlap(limit)
         const data = requireRecord(response, 'community overlap')
-        // Element shape isn't re-validated per item here, matching pre-migration behavior.
-        const creators = requireArrayField(data, 'creators', 'community overlap') as OverlapCreatorDto[]
-        const pairs = requireArrayField(data, 'pairs', 'community overlap') as OverlapPairDto[]
         return {
-            creators: creators.map(c => ({
-                creatorId: c.creator_id,
-                nick: c.nick,
-                displayName: c.display_name,
-                chatters: c.chatters,
-                regulars: c.regulars,
-            })),
-            pairs: pairs.map(p => ({
-                a: p.a,
-                b: p.b,
-                sharedChatters: p.shared_chatters,
-                sharedRegulars: p.shared_regulars,
-                jaccardChatters: p.jaccard_chatters,
-                jaccardRegulars: p.jaccard_regulars,
-            })),
-            // Not validated pre-migration either — cast preserves that.
-            computedAt: data.computed_at as string | null,
+            creators: requireArrayField(data, 'creators', 'community overlap').map((value, index) => {
+                const label = `community overlap.creators[${index}]`
+                const creator = requireRecord(value, label)
+                return {
+                    creatorId: requireFiniteNumberField(creator, 'creator_id', label),
+                    nick: requireStringField(creator, 'nick', label),
+                    displayName: requireStringField(creator, 'display_name', label),
+                    chatters: requireFiniteNumberField(creator, 'chatters', label),
+                    regulars: requireFiniteNumberField(creator, 'regulars', label),
+                }
+            }),
+            pairs: requireArrayField(data, 'pairs', 'community overlap').map((value, index) => {
+                const label = `community overlap.pairs[${index}]`
+                const pair = requireRecord(value, label)
+                return {
+                    a: requireFiniteNumberField(pair, 'a', label),
+                    b: requireFiniteNumberField(pair, 'b', label),
+                    sharedChatters: requireFiniteNumberField(pair, 'shared_chatters', label),
+                    sharedRegulars: requireFiniteNumberField(pair, 'shared_regulars', label),
+                    jaccardChatters: requireNullableFiniteNumberField(pair, 'jaccard_chatters', label),
+                    jaccardRegulars: requireNullableFiniteNumberField(pair, 'jaccard_regulars', label),
+                }
+            }),
+            computedAt: requireNullableStringField(data, 'computed_at', 'community overlap'),
         }
     },
 })
@@ -100,15 +110,18 @@ export const useCreatorNeighbors = (
         // creatorId is guaranteed non-null here — `enabled` below gates the query.
         const response = await retrieveCreatorNeighbors(creatorId as number, { metric, limit })
         const data = requireRecord(response, 'creator neighbors')
-        const neighbors = requireArrayField(data, 'neighbors', 'creator neighbors') as CreatorNeighborDto[]
         return {
-            neighbors: neighbors.map(n => ({
-                creatorId: n.creator_id,
-                nick: n.nick,
-                displayName: n.display_name,
-                sharedChatters: n.shared_chatters,
-                sharedRegulars: n.shared_regulars,
-            })),
+            neighbors: requireArrayField(data, 'neighbors', 'creator neighbors').map((value, index) => {
+                const label = `creator neighbors.neighbors[${index}]`
+                const neighbor = requireRecord(value, label)
+                return {
+                    creatorId: requireFiniteNumberField(neighbor, 'creator_id', label),
+                    nick: requireStringField(neighbor, 'nick', label),
+                    displayName: requireStringField(neighbor, 'display_name', label),
+                    sharedChatters: requireFiniteNumberField(neighbor, 'shared_chatters', label),
+                    sharedRegulars: requireFiniteNumberField(neighbor, 'shared_regulars', label),
+                }
+            }),
         }
     },
     enabled: Boolean(creatorId) && enabled,

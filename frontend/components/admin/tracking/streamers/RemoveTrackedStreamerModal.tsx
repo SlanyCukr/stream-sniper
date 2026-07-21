@@ -5,7 +5,7 @@ import type { TrackedStreamer } from '@/hooks/admin/tracking/useTrackingQueries'
 interface RemoveTrackedStreamerModalProps {
     target: TrackedStreamer | null
     onHide: () => void
-    onConfirm: (streamerId: number | undefined) => void
+    onConfirm: (streamerId: number) => void
 }
 
 const RemoveTrackedStreamerModal = ({ target, onHide, onConfirm }: RemoveTrackedStreamerModalProps) => (
@@ -22,7 +22,10 @@ const RemoveTrackedStreamerModal = ({ target, onHide, onConfirm }: RemoveTracked
             <Button variant="outline-primary" onClick={onHide}>Cancel</Button>
             <Button
                 variant="outline-danger"
-                onClick={() => onConfirm(target?.id)}>
+                disabled={target === null}
+                onClick={() => {
+                    if (target) onConfirm(target.id)
+                }}>
                 Remove
             </Button>
         </Modal.Footer>

@@ -1,9 +1,17 @@
-import { keepPreviousData, useQuery, type UseQueryOptions } from '@tanstack/react-query'
+import {
+    useInfiniteQuery,
+    type InfiniteData,
+    type UseInfiniteQueryOptions,
+} from '@tanstack/react-query'
 import {
     retrieveSceneHighlights,
     type HighlightsSort,
     type HighlightsWindow,
 } from '@/lib/api/scene'
+import {
+    requireNullableMomentReviewStatus,
+    type MomentReviewStatus,
+} from '@/lib/api/moments'
 import {
     requireArray,
     requireArrayField,
@@ -44,7 +52,7 @@ export interface SceneHighlight {
     topPhrases: HighlightPhrase[] | null
     sampleMessages: HighlightSample[] | null
     clipUrl: string | null
-    reviewStatus: string | null
+    reviewStatus: MomentReviewStatus | null
 }
 
 interface SceneHighlights {
@@ -103,7 +111,7 @@ const mapHighlight = (value: unknown, label: string): SceneHighlight => {
         topPhrases: mapPhrases(item.top_phrases, `${label}.top_phrases`),
         sampleMessages: mapSamples(item.sample_messages, `${label}.sample_messages`),
         clipUrl: requireNullableStringField(item, 'clip_url', label),
-        reviewStatus: requireNullableStringField(item, 'review_status', label),
+        reviewStatus: requireNullableMomentReviewStatus(item.review_status, `${label}.review_status`),
     }
 }
 
@@ -124,37 +132,39 @@ interface SceneHighlightsFilters {
     creatorId?: number | null
     sort?: HighlightsSort
     limit?: number
-    offset?: number
 }
 
 type HighlightsQueryOptions = Omit<
-    UseQueryOptions<SceneHighlights, Error, SceneHighlights, ReturnType<typeof sceneKeys.highlights>>,
-    'queryKey' | 'queryFn'
+    UseInfiniteQueryOptions<
+        SceneHighlights,
+        Error,
+        InfiniteData<SceneHighlights, number>,
+        ReturnType<typeof sceneKeys.highlights>,
+        number
+    >,
+    'queryKey' | 'queryFn' | 'initialPageParam' | 'getNextPageParam'
 >
 
-/**
- * Hype-ranked scene highlights, keyed by the full filter tuple so each
- * window/sort/offset page caches independently. `keepPreviousData` keeps the
- * prior page visible while a "Load more" fetch is in flight.
- */
 export const useSceneHighlights = (
     {
         window = 'all',
         creatorId = null,
         sort = 'hype',
         limit = 24,
-        offset = 0,
     }: SceneHighlightsFilters = {},
     options: HighlightsQueryOptions = {},
-) => useQuery({
-    placeholderData: keepPreviousData,
+) => useInfiniteQuery({
     ...options,
-    queryKey: sceneKeys.highlights({ window, creatorId, sort, limit, offset }),
-    queryFn: async () => mapSceneHighlights(await retrieveSceneHighlights({
+    queryKey: sceneKeys.highlights({ window, creatorId, sort, limit }),
+    queryFn: async ({ pageParam }) => mapSceneHighlights(await retrieveSceneHighlights({
         window,
         creatorId: creatorId ?? undefined,
         sort,
         limit,
-        offset,
+        offset: pageParam,
     })),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _pages, lastPageParam) => (
+        lastPage.hasMore ? lastPageParam + limit : undefined
+    ),
 })

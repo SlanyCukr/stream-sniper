@@ -67,7 +67,7 @@ export const useStreamComparison = (
     ...options,
     queryKey: streamComparisonKeys.detail(streamIds),
     queryFn: async (): Promise<StreamComparison> => {
-        const { data: value } = await retrieveStreamComparison(streamIds)
+        const value = await retrieveStreamComparison(streamIds)
         const data = requireRecord(value, 'stream comparison')
         return {
             streams: requireArrayField(data, 'streams', 'stream comparison').map((value, index) => {

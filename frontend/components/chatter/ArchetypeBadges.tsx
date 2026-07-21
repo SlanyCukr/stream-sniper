@@ -1,12 +1,7 @@
 'use client'
 
 import StatusChip from '@/components/common/StatusChip'
-
-export interface ArchetypeBadge {
-    key: string
-    label: string
-    description: string
-}
+import type { ArchetypeBadge } from '@/hooks/chatter/wireShapes'
 
 /**
  * Renders the passport's rule-based identity badges as a row of neutral status

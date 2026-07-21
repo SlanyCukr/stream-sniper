@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import EmptyState from '@/components/common/EmptyState'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
@@ -10,7 +10,7 @@ import SearchResultsList from '@/components/scene/SearchResultsList'
 import SearchFirstCard from '@/components/scene/SearchFirstCard'
 import SearchFrequencySparkline from '@/components/scene/SearchFrequencySparkline'
 import SearchContextModal from '@/components/scene/SearchContextModal'
-import type { SearchHitVM } from '@/components/scene/searchTypes'
+import type { SearchHitVM } from '@/hooks/scene/search/searchTypes'
 import { mapCreatorOption, useCreators } from '@/hooks/creator/useCreatorsQuery'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import {
@@ -18,8 +18,8 @@ import {
   useSearchFirst,
   useSearchFrequency,
   useSearchMessages,
-} from '@/hooks/scene/useSearchQueries'
-import { buildSearchQueryString, readSearchState } from '@/hooks/scene/searchUrlState'
+} from '@/hooks/scene/search/useSearchQueries'
+import { buildSearchQueryString, readSearchState } from '@/hooks/scene/search/searchUrlState'
 
 const PAGE_SIZE = 50
 
@@ -54,42 +54,22 @@ const SceneSearch = () => {
     [creators, creatorId],
   )
 
-  // Offset-based accumulation for "Load more" (append pages, dedupe on reset).
-  const [offset, setOffset] = useState(0)
-  const [accumulated, setAccumulated] = useState<SearchHitVM[]>([])
-  const appendedOffsetRef = useRef(-1)
-
   const messagesQuery = useSearchMessages({
-    q: debouncedInput, creatorId, days, limit: PAGE_SIZE, offset,
+    q: debouncedInput, creatorId, days, limit: PAGE_SIZE,
   })
   const firstQuery = useSearchFirst({ q: debouncedInput, creatorId })
   const frequencyQuery = useSearchFrequency({ q: debouncedInput, days: days ?? 90, creatorId })
 
-  // Reset the accumulated page window whenever the search identity changes.
-  useEffect(() => {
-    setOffset(0)
-    setAccumulated([])
-    appendedOffsetRef.current = -1
-  }, [committed, creatorId, days])
-
-  // Fold each freshly-arrived page into the accumulated result list.
-  useEffect(() => {
-    const data = messagesQuery.data
-    if (!data || messagesQuery.isPlaceholderData) return
-    if (offset === 0) {
-      setAccumulated(data.items)
-      appendedOffsetRef.current = 0
-    } else if (appendedOffsetRef.current !== offset) {
-      setAccumulated(prev => [...prev, ...data.items])
-      appendedOffsetRef.current = offset
-    }
-  }, [messagesQuery.data, messagesQuery.isPlaceholderData, offset])
+  const accumulated = useMemo(
+    () => messagesQuery.data?.pages.flatMap(page => page.items) ?? [],
+    [messagesQuery.data],
+  )
 
   const [contextHit, setContextHit] = useState<SearchHitVM | null>(null)
 
-  const hasMore = Boolean(messagesQuery.data?.hasMore)
-  const isFetchingMore = offset > 0 && messagesQuery.isFetching
-  const isRefetching = offset === 0 && messagesQuery.isPlaceholderData
+  const hasMore = Boolean(messagesQuery.hasNextPage)
+  const isFetchingMore = messagesQuery.isFetchingNextPage
+  const isRefetching = messagesQuery.isFetching && !isFetchingMore && accumulated.length > 0
 
   const renderResults = () => {
     if (messagesQuery.isError && accumulated.length === 0) {
@@ -101,8 +81,6 @@ const SceneSearch = () => {
         />
       )
     }
-    // isFetching (not just isLoading) so a keepPreviousData refetch for a new term
-    // shows the spinner instead of flashing a false "no matches" empty state.
     if ((messagesQuery.isLoading || messagesQuery.isFetching) && accumulated.length === 0) {
       return <LoadingSpinner text="Searching chat…" centered />
     }
@@ -120,7 +98,7 @@ const SceneSearch = () => {
         hasMore={hasMore}
         isFetchingMore={isFetchingMore}
         isRefetching={isRefetching}
-        onLoadMore={() => setOffset(current => current + PAGE_SIZE)}
+        onLoadMore={() => void messagesQuery.fetchNextPage()}
         onOpenContext={setContextHit}
       />
     )

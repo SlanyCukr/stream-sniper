@@ -26,7 +26,7 @@ const UserProfile = () => {
                     <ProfileInfo
                         user={profile.user}
                         formData={profile.formData}
-                        handleChange={profile.handleChange}
+                        onEmailChange={profile.handleChange}
                         isEditing={profile.isEditing}
                         isSubmitting={profile.isSubmitting}
                     />
@@ -34,7 +34,7 @@ const UserProfile = () => {
                         <ProfileActions
                             isEditing={profile.isEditing}
                             isSubmitting={profile.isSubmitting}
-                            handleEditToggle={profile.handleEditToggle}
+                            onEditToggle={profile.handleEditToggle}
                             onChangePassword={profile.openPasswordModal}
                         />
                     </div>

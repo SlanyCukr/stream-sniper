@@ -26,7 +26,6 @@ import EmptyState from '@/components/common/EmptyState'
  * as a data-section slot inside persistent page chrome.
  */
 
-/** The React Query result object. */
 interface QueryStateQuery<TData> {
     data?: TData
     error?: unknown
@@ -37,25 +36,16 @@ interface QueryStateQuery<TData> {
 
 interface QueryStateProps<TData> {
     query: QueryStateQuery<TData>
-    /** Title for the ErrorAlert. */
     errorTitle?: string
-    /** Text for the LoadingSpinner. */
     loadingText?: string
     loadingSize?: LoadingSize
-    /** Render the spinner inside a card. */
     loadingCard?: boolean
-    /** Predicate deciding the empty slot; defaults to never-empty. */
     isEmpty?: (data: TData) => boolean
-    /** Custom empty node; overrides emptyTitle/emptyHint. */
     emptyState?: ReactNode
-    /** Shorthand empty-state title (used when emptyState is absent). */
     emptyTitle?: string
     emptyHint?: ReactNode
-    /** Retry handler; defaults to query.refetch. */
     onRetry?: (() => unknown) | null
-    /** Show the ErrorAlert details toggle; defaults to dev only. */
     showErrorDetails?: boolean
-    /** Render prop for resolved data. */
     children: (data: TData) => ReactNode
 }
 
@@ -73,13 +63,13 @@ const QueryState = <TData,>({
     showErrorDetails = undefined,
     children,
 }: QueryStateProps<TData>) => {
-    const data = query?.data
-    const error = query?.error
+    const data = query.data
+    const error = query.error
     // RQ v5 exposes both; isLoading == isPending && isFetching (no data yet).
-    const isLoading = query?.isLoading ?? query?.isPending ?? false
+    const isLoading = query.isLoading ?? query.isPending ?? false
     const hasData = data !== undefined && data !== null
     const isEmptyResult = !hasData || (isEmpty ? isEmpty(data) : false)
-    const retry = onRetry === undefined ? query?.refetch : onRetry
+    const retry = onRetry === undefined ? query.refetch : onRetry
     const detailsVisible = showErrorDetails === undefined
         ? process.env.NODE_ENV === 'development'
         : showErrorDetails

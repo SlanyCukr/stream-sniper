@@ -10,7 +10,7 @@ import {
 import QueryState from '@/components/common/QueryState'
 import { useTableSort, type SortDirection } from '@/hooks/useTableSort'
 import CreatorPanelEmpty from './CreatorPanelEmpty'
-import RegularsTable, { RegularsControls } from './RegularsPresentation'
+import RegularsTable, { RegularsControls } from './RegularsTable'
 
 const defaultSortDirection = (): SortDirection => 'desc'
 

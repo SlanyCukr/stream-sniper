@@ -81,7 +81,7 @@ describe('UserManagement action lifecycle', () => {
     await waitFor(() => expect(screen.getByText('User updated successfully')).toBeInTheDocument())
     expect(updateUser.mutateAsync).toHaveBeenCalledWith({
       userId: 7,
-      changes: { email: 'a@b.test', role: 'admin', is_active: true },
+      changes: { email: 'a@b.test', role: 'admin', isActive: true },
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'change role' }))

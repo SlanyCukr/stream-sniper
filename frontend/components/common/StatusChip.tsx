@@ -15,15 +15,8 @@ import type { ReactNode, HTMLAttributes } from 'react'
 export type StatusChipVariant = 'ok' | 'warn' | 'err' | 'neutral'
 
 interface StatusChipProps extends HTMLAttributes<HTMLSpanElement> {
-    /** Selects the modifier class; 'neutral' (default) renders the bare `.status-chip` with no `.is-*` modifier. */
     variant?: StatusChipVariant
-    /** Chip label/content. */
     children?: ReactNode
-    /**
-     * Extra classes appended after the variant modifier (e.g. spacing utilities
-     * like `me-2`, or a one-off visual modifier like `live-chip` that isn't part
-     * of the shared ok/warn/err vocabulary).
-     */
     className?: string
 }
 

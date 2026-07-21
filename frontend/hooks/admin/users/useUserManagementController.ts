@@ -49,7 +49,7 @@ export const useUserManagementController = () => {
             changes: {
                 email: updatedUser.email,
                 role: updatedUser.role,
-                is_active: updatedUser.isActive,
+                isActive: updatedUser.isActive,
             },
         }),
         successMessage: 'User updated successfully',

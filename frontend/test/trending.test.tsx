@@ -21,7 +21,7 @@ import {
   formatDeltaPct,
   trendIndicator,
   type TrendingRowModel,
-} from '@/components/scene/TrendingRow'
+} from '@/components/scene/trending/presentationModel'
 
 const createWrapper = (queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },

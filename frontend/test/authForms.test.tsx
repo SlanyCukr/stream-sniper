@@ -12,8 +12,8 @@ const auth = vi.hoisted(() => ({
     username: 'operator',
     email: 'old@example.test',
     role: 'user',
-    is_active: true,
-    created_at: '2026-01-01T00:00:00Z',
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00Z',
   },
 }))
 

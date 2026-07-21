@@ -16,6 +16,8 @@ import {
   type SceneWrapped,
 } from '@/hooks/scene/useSceneWrappedQuery'
 import WrappedRecap from '@/components/scene/WrappedRecap'
+import CreatorWrappedRecap from '@/components/creator/CreatorWrappedRecap'
+import type { CreatorWrapped } from '@/hooks/creator/useCreatorWrappedQuery'
 
 const createWrapper = (queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -292,5 +294,41 @@ describe('WrappedRecap rendering', () => {
     expect(screen.queryByText('Notable events')).not.toBeInTheDocument()
     // A populated section still renders.
     expect(screen.getByText('Top creators')).toBeInTheDocument()
+  })
+})
+
+describe('CreatorWrappedRecap rendering', () => {
+  it('uses the shared recap sections without scene-only creator metadata', () => {
+    const wrapped: CreatorWrapped = {
+      creatorId: 3,
+      days: 30,
+      totals: { streams: 4, hoursStreamed: 10, messages: 500, activeChatters: 40 },
+      topChatters: [{
+        rank: 1, chatterId: 7, nick: 'regular', totalMessages: 200, streamsAttended: 4,
+      }],
+      topMoments: [{
+        streamId: 100,
+        streamTitle: 'Creator peak',
+        twitchId: null,
+        bucketMinute: '2026-07-10T20:15:00Z',
+        offsetSeconds: 60,
+        ratio: 3.2,
+        messageCount: 90,
+      }],
+      topCopypastas: [{
+        messageTextId: 55, text: 'creator pasta', usageCount: 12, streamCount: 3,
+      }],
+      topEmotes: [{
+        emoteId: 11, name: 'PogU', source: '7tv', usage: 80, chatterReach: 20,
+      }],
+    }
+
+    render(<CreatorWrappedRecap wrapped={wrapped} />)
+
+    expect(screen.getByRole('link', { name: 'regular' })).toHaveAttribute('href', '/chatter/7')
+    expect(screen.getByRole('link', { name: 'Creator peak' })).toHaveAttribute('href', '/stream/100')
+    expect(screen.getByRole('link', { name: 'creator pasta' })).toHaveAttribute('href', '/copypasta/55')
+    expect(screen.queryByText('Creators', { selector: '.stat-label' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/channels/)).not.toBeInTheDocument()
   })
 })

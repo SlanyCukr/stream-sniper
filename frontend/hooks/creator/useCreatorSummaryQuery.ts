@@ -7,6 +7,7 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+import { creatorKeys } from './creatorKeys'
 
 export interface CreatorSummaryLatestStream {
     streamId: number
@@ -36,17 +37,12 @@ type QueryOptions = Omit<
     'queryKey' | 'queryFn'
 >
 
-export const creatorSummaryKeys = {
-    all: ['creator-summary'],
-    detail: (creatorId: number) => [...creatorSummaryKeys.all, { creatorId }],
-}
-
 export const useCreatorSummary = (
     creatorId: number,
     { enabled = true, ...options }: QueryOptions & { enabled?: boolean } = {},
 ) => useQuery({
     ...options,
-    queryKey: creatorSummaryKeys.detail(creatorId),
+    queryKey: creatorKeys.summary(creatorId),
     queryFn: async () => {
         const value = await retrieveCreatorSummary(creatorId)
         const data = requireRecord(value, 'creator summary')

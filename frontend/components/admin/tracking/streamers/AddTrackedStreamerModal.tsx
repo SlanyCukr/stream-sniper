@@ -6,30 +6,27 @@ import {
 } from 'react-bootstrap'
 import AsyncSearchSelect from '@/components/common/search/AsyncSearchSelect'
 import { loadTrackedStreamerOptions } from '@/hooks/admin/tracking/useTrackingQueries'
-import type { CreateTrackedStreamerRequest } from '@/lib/api/tracking'
+import type { CreateTrackedStreamerCommand } from '@/lib/api/tracking'
 import type { SearchOption } from '@/hooks/useAsyncSearchLoader'
 
 interface StreamerDraft {
-    twitch_username: string
+    twitchUsername: string
     notes: string
-    is_active: boolean
-    processing_enabled: boolean
+    isActive: boolean
+    processingEnabled: boolean
 }
 
 const INITIAL_DRAFT: StreamerDraft = {
-    twitch_username: '',
+    twitchUsername: '',
     notes: '',
-    is_active: true,
-    processing_enabled: true,
+    isActive: true,
+    processingEnabled: true,
 }
 
 interface AddTrackedStreamerModalProps {
     show: boolean
     onHide: () => void
-    // onCreate resolves to a value the caller only checks for truthiness (see
-    // useActionFeedback's runAction, which always resolves to a truthy outcome
-    // object regardless of success/failure).
-    onCreate: (streamer: CreateTrackedStreamerRequest) => Promise<unknown>
+    onCreate: (streamer: CreateTrackedStreamerCommand) => Promise<{ ok: boolean }>
     loadOptions?: (query: string) => Promise<SearchOption[]>
 }
 
@@ -56,8 +53,8 @@ const AddTrackedStreamerModal = ({
         event.preventDefault()
         setSubmitting(true)
         try {
-            const created = await onCreate(draft)
-            if (created) close()
+            const outcome = await onCreate(draft)
+            if (outcome.ok) close()
         } finally {
             setSubmitting(false)
         }
@@ -77,8 +74,8 @@ const AddTrackedStreamerModal = ({
                             instanceId="add-streamer-username-select"
                             inputId="add-streamer-username"
                             loadOptions={loadOptions}
-                            value={draft.twitch_username
-                                ? { value: draft.twitch_username, label: draft.twitch_username }
+                            value={draft.twitchUsername
+                                ? { value: draft.twitchUsername, label: draft.twitchUsername }
                                 : null}
                             onChange={(newValue: SingleValue<SearchOption> | MultiValue<SearchOption>) => {
                                 // isMulti isn't set on this select, so newValue is always a single
@@ -86,7 +83,7 @@ const AddTrackedStreamerModal = ({
                                 const option = newValue as SingleValue<SearchOption>
                                 setDraft(current => ({
                                     ...current,
-                                    twitch_username: (option?.value as string | undefined) ?? '',
+                                    twitchUsername: (option?.value as string | undefined) ?? '',
                                 }))
                             }}
                             placeholder="Search Twitch or type a username"
@@ -106,17 +103,17 @@ const AddTrackedStreamerModal = ({
                         <Form.Check
                             type="checkbox"
                             label="Active"
-                            checked={draft.is_active}
-                            onChange={event => setDraft(current => ({ ...current, is_active: event.target.checked }))} />
+                            checked={draft.isActive}
+                            onChange={event => setDraft(current => ({ ...current, isActive: event.target.checked }))} />
                     </Form.Group>
                     <Form.Group className="mb-3">
                         <Form.Check
                             type="checkbox"
                             label="Processing Enabled"
-                            checked={draft.processing_enabled}
+                            checked={draft.processingEnabled}
                             onChange={event => setDraft(current => ({
                                 ...current,
-                                processing_enabled: event.target.checked,
+                                processingEnabled: event.target.checked,
                             }))} />
                     </Form.Group>
                 </Modal.Body>
@@ -125,7 +122,7 @@ const AddTrackedStreamerModal = ({
                     <Button
                         variant="primary"
                         type="submit"
-                        disabled={submitting || !draft.twitch_username.trim()}>
+                        disabled={submitting || !draft.twitchUsername.trim()}>
                         {submitting ? (
                             <><Spinner animation="border" size="sm" className="me-2" />Adding...</>
                         ) : 'Add Streamer'}

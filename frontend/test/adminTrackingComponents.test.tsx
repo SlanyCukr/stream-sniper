@@ -42,7 +42,7 @@ describe('AddTrackedStreamerModal', () => {
   })
 
   it('owns search, draft, submit, and reset behavior', async () => {
-    const onCreate = vi.fn().mockResolvedValue(true)
+    const onCreate = vi.fn().mockResolvedValue({ ok: true })
     const onHide = vi.fn()
     trackingHooks.loadTrackedStreamerOptions.mockImplementation(async (query: string) => (
       query.trim().length < 2 ? [] : [{ value: 'operator', label: 'Operator (operator)' }]
@@ -62,16 +62,16 @@ describe('AddTrackedStreamerModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Streamer' }))
 
     await waitFor(() => expect(onCreate).toHaveBeenCalledWith({
-      twitch_username: 'operator',
+      twitchUsername: 'operator',
       notes: 'priority',
-      is_active: true,
-      processing_enabled: true,
+      isActive: true,
+      processingEnabled: true,
     }))
     expect(onHide).toHaveBeenCalledOnce()
   })
 
   it('propagates channel-search failures and leaves failed creates open', async () => {
-    const onCreate = vi.fn().mockResolvedValue(false)
+    const onCreate = vi.fn().mockResolvedValue({ ok: false })
     const onHide = vi.fn()
     trackingHooks.loadTrackedStreamerOptions.mockRejectedValue(new Error('search failed'))
     render(<AddTrackedStreamerModal show onHide={onHide} onCreate={onCreate} />)

@@ -41,12 +41,13 @@ export const useStreamerTrackingController = () => {
     }, [])
 
     const handleRemoveStreamer = async (streamerId: number) => {
-        const succeeded = await actions.commands.removeStreamer(streamerId)
-        if (succeeded && streamers.length === 1) {
+        const outcome = await actions.commands.removeStreamer(streamerId)
+        if (!outcome.ok) return outcome
+        if (streamers.length === 1) {
             setPageIndex(current => Math.max(current - 1, 0))
         }
         setRemoveTarget(null)
-        return succeeded
+        return outcome
     }
 
     return {

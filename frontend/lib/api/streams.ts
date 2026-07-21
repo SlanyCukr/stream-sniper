@@ -67,11 +67,11 @@ export interface TimelineMomentDto {
   message_count: number
   ratio: number | null
   persisted: boolean
-  status: string | null
+  status: import('./moments').MomentReviewStatus | null
   sub_share: number | null
   emote_share: number | null
-  top_phrases: Array<Record<string, unknown>> | null
-  sample_messages: Array<Record<string, unknown>> | null
+  top_phrases: import('./moments').MomentPhrase[] | null
+  sample_messages: import('./moments').MomentSampleMessage[] | null
 }
 
 export interface TimelineMetricsDto {
@@ -254,7 +254,7 @@ export const retrieveStreamTimeline = (streamId: number) =>
 export const retrieveStreamComparison = (streamIds: number[]) => {
   const params = new URLSearchParams()
   streamIds.forEach((id) => params.append('stream_ids', String(id)))
-  return api.get<StreamComparisonDto>(`/streams/compare?${params}`)
+  return getJson<StreamComparisonDto>(`/streams/compare?${params}`)
 }
 
 export const retrieveStreamMentions = (streamId: number, limit = 20) =>

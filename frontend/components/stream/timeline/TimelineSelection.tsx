@@ -8,18 +8,7 @@ import type { MomentReviewStatus } from '@/lib/api/moments'
 
 type ReviewMutation = ReturnType<typeof useMomentReview>
 
-// The timeline query mapper types topPhrases/sampleMessages as unknown[] |
-// null (see useStreamTimelineQuery.ts), but the API actually returns these
-// shapes (mirrored by the stricter scene.ts DTO for the same payload).
-interface TimelinePhraseItem {
-    phrase: string
-    count: number
-}
-
-interface TimelineSampleItem {
-    text: string
-    count: number
-}
+import type { MomentPhrase, MomentSampleMessage } from '@/lib/api/moments'
 
 const pct = (value: number): string => `${(value * 100).toLocaleString(undefined, {
     minimumFractionDigits: 1,
@@ -46,7 +35,7 @@ const TimelineShares = ({ moment }: { moment: TimelineMoment }) => {
     )
 }
 
-const TimelinePhrases = ({ phrases }: { phrases: TimelinePhraseItem[] }) => phrases.length ? (
+const TimelinePhrases = ({ phrases }: { phrases: MomentPhrase[] }) => phrases.length ? (
     <div className="timeline-phrases">
         {phrases.map(phrase => (
             <span key={phrase.phrase} className="timeline-phrase-chip">
@@ -57,7 +46,7 @@ const TimelinePhrases = ({ phrases }: { phrases: TimelinePhraseItem[] }) => phra
     </div>
 ) : null
 
-const TimelineSamples = ({ samples }: { samples: TimelineSampleItem[] }) => samples.length ? (
+const TimelineSamples = ({ samples }: { samples: MomentSampleMessage[] }) => samples.length ? (
     <ul className="timeline-samples">
         {samples.map((sample, index) => (
             <li key={`${index}-${sample.text}`} className="timeline-sample">
@@ -107,8 +96,8 @@ const TimelineSelection = ({
     onReview,
 }: TimelineSelectionProps) => {
     if (!activeMoment) return null
-    const topPhrases = (activeMoment.topPhrases || []) as TimelinePhraseItem[]
-    const sampleMessages = (activeMoment.sampleMessages || []) as TimelineSampleItem[]
+    const topPhrases = activeMoment.topPhrases ?? []
+    const sampleMessages = activeMoment.sampleMessages ?? []
     return (
         <div className="timeline-selection">
             <div className="timeline-selection-head">

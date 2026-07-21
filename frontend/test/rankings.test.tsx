@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { PropsWithChildren } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -145,23 +145,34 @@ describe('scene rankings view-model contract', () => {
     expect(() => mapSceneRankings(payload)).toThrow(TypeError)
   })
 
-  it('fetches a page through the offset-aware hook and maps it', async () => {
-    sceneApi.retrieveSceneRankings.mockResolvedValue(rankingsPayload)
+  it('owns offset progression and maps each ranking page', async () => {
+    sceneApi.retrieveSceneRankings
+      .mockResolvedValueOnce(rankingsPayload)
+      .mockResolvedValueOnce({ ...rankingsPayload, has_more: false })
     const { result } = renderHook(
-      () => useSceneRankings({ window: '7', limit: 25, offset: 50 }),
+      () => useSceneRankings({ window: '7', limit: 25 }),
       { wrapper: createWrapper() },
     )
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(sceneApi.retrieveSceneRankings).toHaveBeenCalledWith({ window: '7', limit: 25, offset: 50 })
-    expect(result.current.data?.hasMore).toBe(true)
-    expect(result.current.data?.items[0]).toMatchObject({
+    expect(sceneApi.retrieveSceneRankings).toHaveBeenNthCalledWith(1, { window: '7', limit: 25, offset: 0 })
+    expect(result.current.data?.pages[0].hasMore).toBe(true)
+    expect(result.current.data?.pages[0].items[0]).toMatchObject({
       chatterId: 7,
       homeChannel: { creatorId: 3 },
       archetypes: [{ key: 'loyalist', label: 'Loyalist', description: 'Sticks to one home channel.' }],
     })
-    expect(result.current.data?.items[1].homeChannel).toBeNull()
-    expect(result.current.data?.items[1].archetypes).toEqual([])
+    expect(result.current.data?.pages[0].items[1].homeChannel).toBeNull()
+    expect(result.current.data?.pages[0].items[1].archetypes).toEqual([])
+
+    await act(async () => {
+      await result.current.fetchNextPage()
+    })
+    await waitFor(() => expect(result.current.data?.pages).toHaveLength(2))
+
+    expect(sceneApi.retrieveSceneRankings).toHaveBeenNthCalledWith(2, { window: '7', limit: 25, offset: 25 })
+    expect(result.current.data?.pages).toHaveLength(2)
+    expect(result.current.hasNextPage).toBe(false)
   })
 
   it('surfaces a malformed rankings response as a boundary TypeError', async () => {

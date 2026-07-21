@@ -4,7 +4,7 @@ import Link from 'next/link'
 import StatusChip from '@/components/common/StatusChip'
 import { formatDate, formatTimeAgo } from '@/utils/dateUtils'
 import HighlightedText from './HighlightedText'
-import type { SearchHitVM } from './searchTypes'
+import type { SearchHitVM } from '@/hooks/scene/search/searchTypes'
 
 interface SearchResultsListProps {
   hits: SearchHitVM[]

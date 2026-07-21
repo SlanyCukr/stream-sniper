@@ -79,20 +79,8 @@ export interface ParsedBadge {
     label: string
 }
 
-/**
- * Parses raw Twitch badges into structured, render-ready entries. The wire
- * sends an array of badge tokens ("moderator/1"); legacy call sites pass the
- * comma-joined string form — both stringify to the same "a/1,b/2" shape.
- * Returns [] for null/empty (legacy rows collected before badge capture) so
- * callers render nothing rather than a placeholder.
- */
-export const parseBadges = (badges: unknown[] | string | null | undefined): ParsedBadge[] => {
-    if (!badges) {
-        return []
-    }
-
-    return String(badges)
-        .split(',')
+/** Parses validated Twitch badge tokens into structured, render-ready entries. */
+export const parseBadges = (badges: string[]): ParsedBadge[] => badges
         .map(part => part.trim())
         .filter(Boolean)
         .map(part => {
@@ -110,7 +98,6 @@ export const parseBadges = (badges: unknown[] | string | null | undefined): Pars
             }
         })
         .filter(badge => badge.name)
-}
 
 export const renderMessageWithBetterTtvEmotes = (message: string): JSX.Element[] | null => {
     if (!message) {

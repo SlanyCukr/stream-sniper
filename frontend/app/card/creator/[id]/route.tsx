@@ -5,11 +5,6 @@ import { OgCard } from '@/lib/og/ogCard'
 // The prod frontend is an output:'standalone' Node server — render on Node, not edge.
 export const runtime = 'nodejs'
 
-/**
- * Embeddable creator card: a stable, linkable PNG of the OG card for pasting
- * into Discord/docs without relying on unfurl crawlers. Degrades to the
- * generic branded card for unknown ids or a dead backend — never a 500.
- */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const data = (await fetchCreatorOgData(id)) ?? GENERIC_OG_CARD

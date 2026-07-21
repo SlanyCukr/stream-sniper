@@ -6,7 +6,7 @@ import Link from 'next/link'
 import FilterPills from '@/components/common/FilterPills'
 import QueryState from '@/components/common/QueryState'
 import StatusChip from '@/components/common/StatusChip'
-import { trendIndicator } from '@/components/scene/TrendingRow'
+import { trendIndicator } from '@/components/scene/trending/presentationModel'
 import {
     useSceneTrendingEmotes,
     type TrendingEmote,

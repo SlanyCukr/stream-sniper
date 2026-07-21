@@ -1,12 +1,15 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import {
     retrieveAudienceMovement,
-    type AudienceAssociationDto,
-    type AudienceMovementDto,
 } from '@/lib/api/creators'
 import {
-    requireArrayField, requireRecord,
+    requireArrayField,
+    requireFiniteNumberField,
+    requireNullableFiniteNumberField,
+    requireRecord,
+    requireStringField,
 } from '@/lib/api/contractGuards'
+import { creatorKeys } from './creatorKeys'
 
 export interface AudienceAssociation {
     creatorId: number
@@ -34,17 +37,15 @@ type QueryOptions = Omit<
     'queryKey' | 'queryFn'
 >
 
-export const audienceMovementKeys = {
-    all: ['audience-movement'],
-    detail: (creatorId: number, days: number) => [...audienceMovementKeys.all, { creatorId, days }],
+const mapAssociation = (value: unknown, label: string): AudienceAssociation => {
+    const item = requireRecord(value, label)
+    return {
+        creatorId: requireFiniteNumberField(item, 'creator_id', label),
+        nick: requireStringField(item, 'nick', label),
+        displayName: requireStringField(item, 'display_name', label),
+        chatterCount: requireFiniteNumberField(item, 'chatter_count', label),
+    }
 }
-
-const mapAssociation = (item: AudienceAssociationDto): AudienceAssociation => ({
-    creatorId: item.creator_id,
-    nick: item.nick,
-    displayName: item.display_name,
-    chatterCount: item.chatter_count,
-})
 
 export const useAudienceMovement = (
     creatorId: number,
@@ -52,30 +53,26 @@ export const useAudienceMovement = (
     { enabled = true, ...options }: QueryOptions & { enabled?: boolean } = {},
 ) => useQuery({
     ...options,
-    queryKey: audienceMovementKeys.detail(creatorId, days),
+    queryKey: creatorKeys.audienceMovement(creatorId, days),
     queryFn: async () => {
         const value = await retrieveAudienceMovement(creatorId, days)
         const record = requireRecord(value, 'audience movement')
-        // requireRecord only checks the value is a plain object; individual fields
-        // are trusted against the wire DTO rather than guarded field-by-field
-        // (matches existing behavior).
-        const data = record as unknown as AudienceMovementDto
         return {
-            creatorId: data.creator_id,
-            windowDays: data.window_days,
-            currentAudience: data.current_audience,
-            previousAudience: data.previous_audience,
-            retained: data.retained,
-            gained: data.gained,
-            lapsed: data.lapsed,
-            retentionRate: data.retention_rate ?? null,
-            gainRate: data.gain_rate ?? null,
+            creatorId: requireFiniteNumberField(record, 'creator_id', 'audience movement'),
+            windowDays: requireFiniteNumberField(record, 'window_days', 'audience movement'),
+            currentAudience: requireFiniteNumberField(record, 'current_audience', 'audience movement'),
+            previousAudience: requireFiniteNumberField(record, 'previous_audience', 'audience movement'),
+            retained: requireFiniteNumberField(record, 'retained', 'audience movement'),
+            gained: requireFiniteNumberField(record, 'gained', 'audience movement'),
+            lapsed: requireFiniteNumberField(record, 'lapsed', 'audience movement'),
+            retentionRate: requireNullableFiniteNumberField(record, 'retention_rate', 'audience movement'),
+            gainRate: requireNullableFiniteNumberField(record, 'gain_rate', 'audience movement'),
             priorChannelsForGained: requireArrayField(
                 record, 'prior_channels_for_gained', 'audience movement',
-            ).map(item => mapAssociation(item as AudienceAssociationDto)),
+            ).map((item, index) => mapAssociation(item, `audience movement.prior_channels_for_gained[${index}]`)),
             currentChannelsForLapsed: requireArrayField(
                 record, 'current_channels_for_lapsed', 'audience movement',
-            ).map(item => mapAssociation(item as AudienceAssociationDto)),
+            ).map((item, index) => mapAssociation(item, `audience movement.current_channels_for_lapsed[${index}]`)),
         }
     },
     enabled: Boolean(creatorId) && enabled,

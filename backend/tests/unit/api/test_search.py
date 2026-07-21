@@ -61,7 +61,7 @@ def _hit(message_id=1, time="2026-07-01T10:05:00.000000", creator=("alpha", "Alp
 
 class TestSearchMessages:
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
-    @patch("stream_sniper.api.features.search.search_endpoints.search_messages_db")
+    @patch("stream_sniper.application.scenes.search_query.search_messages_db")
     def test_shapes_hits_and_has_more(self, mock_search, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_search.return_value = ([_hit(1), _hit(2)], True)
@@ -85,7 +85,7 @@ class TestSearchMessages:
         mock_search.assert_called_once_with("pog", None, None, 50, 0)
 
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
-    @patch("stream_sniper.api.features.search.search_endpoints.search_messages_db")
+    @patch("stream_sniper.application.scenes.search_query.search_messages_db")
     def test_forwards_filters_and_pagination(self, mock_search, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_search.return_value = ([], False)
@@ -122,7 +122,7 @@ class TestSearchMessages:
         assert resp.status_code == 422
 
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
-    @patch("stream_sniper.api.features.search.search_endpoints.search_messages_db")
+    @patch("stream_sniper.application.scenes.search_query.search_messages_db")
     def test_gateway_error_returns_500(self, mock_search, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_search.side_effect = Exception("db down")
@@ -136,7 +136,7 @@ class TestSearchMessages:
 
 class TestSearchFirst:
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
-    @patch("stream_sniper.api.features.search.search_endpoints.select_first_messages_db")
+    @patch("stream_sniper.application.scenes.search_query.select_first_messages_db")
     def test_shapes_first_by_creator_and_total(self, mock_first, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_first.return_value = FirstMatchResult(
@@ -160,7 +160,7 @@ class TestSearchFirst:
         mock_first.assert_called_once_with("cafe", None)
 
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
-    @patch("stream_sniper.api.features.search.search_endpoints.select_first_messages_db")
+    @patch("stream_sniper.application.scenes.search_query.select_first_messages_db")
     def test_no_matches_returns_null_first(self, mock_first, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_first.return_value = FirstMatchResult(first=None, by_creator=[], total_matches=0)
@@ -178,7 +178,7 @@ class TestSearchFirst:
 
 class TestSearchFrequency:
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
-    @patch("stream_sniper.api.features.search.search_endpoints.select_term_frequency_db")
+    @patch("stream_sniper.application.scenes.search_query.select_term_frequency_db")
     def test_zero_fills_continuous_window(self, mock_freq, mock_get_cache):
         from datetime import UTC, datetime, timedelta
 
@@ -217,7 +217,7 @@ class TestSearchFrequency:
         assert resp.status_code == 422
 
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
-    @patch("stream_sniper.api.features.search.search_endpoints.select_term_frequency_db")
+    @patch("stream_sniper.application.scenes.search_query.select_term_frequency_db")
     def test_default_days_is_90(self, mock_freq, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_freq.return_value = []
@@ -233,8 +233,8 @@ class TestSearchFrequency:
 
 class TestSearchContext:
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
-    @patch("stream_sniper.api.features.search.search_endpoints.select_stream_context_db")
-    @patch("stream_sniper.api.features.search.search_endpoints.select_message_window_db")
+    @patch("stream_sniper.application.scenes.search_query.select_stream_context_db")
+    @patch("stream_sniper.application.scenes.search_query.select_message_window_db")
     def test_shapes_window_and_hit_index(self, mock_window, mock_ctx, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_window.return_value = [
@@ -262,8 +262,8 @@ class TestSearchContext:
         mock_window.assert_called_once_with(2, 4, 1)
 
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
-    @patch("stream_sniper.api.features.search.search_endpoints.select_stream_context_db")
-    @patch("stream_sniper.api.features.search.search_endpoints.select_message_window_db")
+    @patch("stream_sniper.application.scenes.search_query.select_stream_context_db")
+    @patch("stream_sniper.application.scenes.search_query.select_message_window_db")
     def test_empty_window_is_404(self, mock_window, mock_ctx, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         mock_window.return_value = []
@@ -275,8 +275,8 @@ class TestSearchContext:
         assert resp.status_code == 404
 
     @patch("stream_sniper.api.features.search.search_endpoints.get_cache")
-    @patch("stream_sniper.api.features.search.search_endpoints.select_stream_context_db")
-    @patch("stream_sniper.api.features.search.search_endpoints.select_message_window_db")
+    @patch("stream_sniper.application.scenes.search_query.select_stream_context_db")
+    @patch("stream_sniper.application.scenes.search_query.select_message_window_db")
     def test_hit_not_in_window_is_404(self, mock_window, mock_ctx, mock_get_cache):
         mock_get_cache.return_value = _miss_cache()
         # window returned rows but none match the requested id
