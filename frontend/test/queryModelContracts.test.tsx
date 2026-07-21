@@ -449,6 +449,19 @@ describe('query view-model contracts', () => {
     expect(api.retrieveCreatorTrends).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['message', { message: 7, timestamp: 'now' }],
+    ['timestamp', { message: 'flushed', timestamp: null }],
+  ])('rejects a malformed successful flush-cache %s field', async (_field, payload) => {
+    api.flushCache.mockResolvedValue(payload)
+    const queryClient = createClient()
+    const hook = renderHook(() => useFlushCache(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await expect(hook.result.current.mutateAsync()).rejects.toBeInstanceOf(TypeError)
+  })
+
   it('awaits owned tracking and system invalidation before consumer callbacks', async () => {
     const trackingData = {
       id: 7,
@@ -470,9 +483,9 @@ describe('query view-model contracts', () => {
       is_active: true,
       created_at: '2026-07-15T08:00:00Z',
     }
-    api.updateTrackedStreamer.mockResolvedValue({ data: trackingData })
-    api.flushCache.mockResolvedValue({ data: systemData })
-    api.updateUser.mockResolvedValue({ data: userData })
+    api.updateTrackedStreamer.mockResolvedValue(trackingData)
+    api.flushCache.mockResolvedValue(systemData)
+    api.updateUser.mockResolvedValue(userData)
     const queryClient = createClient()
     const events: string[] = []
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
@@ -514,7 +527,7 @@ describe('query view-model contracts', () => {
     })
 
     expect(trackingResult).toEqual(mapTrackedStreamer(trackingData))
-    expect(systemResult).toBe(systemData)
+    expect(systemResult).toEqual(systemData)
     expect(userResult).toEqual(mapAdminUser(userData))
     expect(trackingSuccess).toHaveBeenCalledWith(
       mapTrackedStreamer(trackingData),

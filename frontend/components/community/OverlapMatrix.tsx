@@ -25,8 +25,8 @@ const OverlapMatrix = ({
     const {
         cell, labelWidth, labelHeight,
     } = MATRIX_GEOMETRY
-    const width = labelWidth + model.sorted.length * cell
-    const height = labelHeight + model.sorted.length * cell
+    const width = labelWidth + model.sortedCreators.length * cell
+    const height = labelHeight + model.sortedCreators.length * cell
     const tooltipLeft = model.hover
         ? labelWidth + model.hover.columnIndex * cell + cell / 2
         : 0
@@ -89,7 +89,7 @@ const OverlapMatrix = ({
                         viewBox={`0 0 ${width} ${height}`}
                         role="img"
                         aria-label="Audience overlap matrix. Use the table below for a keyboard-friendly reading of every pair.">
-                        {model.sorted.map((creator, columnIndex) => {
+                        {model.sortedCreators.map((creator, columnIndex) => {
                             const x = labelWidth + columnIndex * cell + cell / 2
                             const y = labelHeight - 6
                             return (
@@ -105,7 +105,7 @@ const OverlapMatrix = ({
                                 </text>
                             )
                         })}
-                        {model.sorted.map((creator, rowIndex) => (
+                        {model.sortedCreators.map((creator, rowIndex) => (
                             <text
                                 key={`row-${creator.creatorId}`}
                                 className={model.hover?.rowIndex === rowIndex ? 'overlap-axis-label is-active' : 'overlap-axis-label'}
@@ -117,7 +117,7 @@ const OverlapMatrix = ({
                                 <title>{model.nameOf(creator)}</title>
                             </text>
                         ))}
-                        {model.sorted.map((row, rowIndex) => model.sorted.map(
+                        {model.sortedCreators.map((row, rowIndex) => model.sortedCreators.map(
                             (column, columnIndex) => renderCell(
                                 row,
                                 rowIndex,

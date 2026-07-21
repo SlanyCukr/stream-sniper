@@ -1,4 +1,6 @@
-import { api, buildQuery, getJson } from './client'
+import {
+  buildQuery, deleteJson, getJson, postJson, putJson,
+} from './client'
 import type { UserRole } from '@/lib/auth/roles'
 
 export interface UserListRequest {
@@ -61,7 +63,7 @@ export const retrieveUsers = (request: UserListRequest = {}) => getJson(
 export const createAdminUser = (command: CreateAdminUserCommand) => {
   const { isActive, ...user } = command
   const request: CreateAdminUserRequest = { ...user, is_active: isActive }
-  return api.post<AdminUserDto>('/auth/users', request)
+  return postJson('/auth/users', request)
 }
 
 export const updateUser = (userId: number, command: UpdateAdminUserCommand) => {
@@ -70,14 +72,14 @@ export const updateUser = (userId: number, command: UpdateAdminUserCommand) => {
     ...changes,
     ...(isActive === undefined ? {} : { is_active: isActive }),
   }
-  return api.put<AdminUserDto>(`/auth/users/${userId}`, request)
+  return putJson(`/auth/users/${userId}`, request)
 }
 
 export const updateUserRole = (userId: number, role: AdminUserDto['role']) =>
-  api.put<AdminUserDto>(`/auth/users/${userId}/role?${buildQuery({ new_role: role })}`)
+  putJson(`/auth/users/${userId}/role?${buildQuery({ new_role: role })}`)
 
 export const setUserActive = (userId: number, isActive: boolean) =>
-  api.put<AdminUserDto>(`/auth/users/${userId}/${isActive ? 'activate' : 'deactivate'}`)
+  putJson(`/auth/users/${userId}/${isActive ? 'activate' : 'deactivate'}`)
 
 export const deleteUser = (userId: number) =>
-  api.delete<void>(`/auth/users/${userId}`)
+  deleteJson(`/auth/users/${userId}`)

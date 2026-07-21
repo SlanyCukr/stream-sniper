@@ -78,4 +78,15 @@ describe('buildVodChapters', () => {
 
         expect(chapters).toContain('0:00:00 — chat spike (5 msgs)')
     })
+
+    it('uses zero consistently when a moment timestamp is invalid', () => {
+        const chapters = buildVodChapters({
+            ...timeline,
+            moments: [{ t: 'not-a-date', count: 5, topPhrases: [] }],
+        })
+
+        expect(chapters).toBe(
+            '0:00:00 — chat spike (5 msgs) https://www.twitch.tv/videos/123456?t=0h0m0s',
+        )
+    })
 })

@@ -336,7 +336,7 @@ export const useCreateTrackedStreamer = (
     options: MutationOptions<TrackedStreamer, CreateTrackedStreamerCommand> = {},
 ) => useInvalidatingMutation(
     async (streamer: CreateTrackedStreamerCommand): Promise<TrackedStreamer> => (
-        mapTrackedStreamer((await createTrackedStreamer(streamer)).data)
+        mapTrackedStreamer(await createTrackedStreamer(streamer))
     ),
     trackingKeys.all,
     options,
@@ -351,7 +351,7 @@ export const useUpdateTrackedStreamer = (
     options: MutationOptions<TrackedStreamer, UpdateTrackedStreamerVariables> = {},
 ) => useInvalidatingMutation(
     async (command: { streamerId: number, changes: UpdateTrackedStreamerCommand }): Promise<TrackedStreamer> => (
-        mapTrackedStreamer((await updateTrackedStreamer(command.streamerId, command.changes)).data)
+        mapTrackedStreamer(await updateTrackedStreamer(command.streamerId, command.changes))
     ),
     trackingKeys.all,
     options,
@@ -360,7 +360,9 @@ export const useUpdateTrackedStreamer = (
 export const useDeleteTrackedStreamer = (
     options: MutationOptions<void, number> = {},
 ) => useInvalidatingMutation(
-    async (streamerId: number): Promise<void> => (await deleteTrackedStreamer(streamerId)).data,
+    async (streamerId: number): Promise<void> => {
+        await deleteTrackedStreamer(streamerId)
+    },
     trackingKeys.all,
     options,
 )
@@ -373,7 +375,7 @@ export const useProbeTwitchChannel = (
     options: MutationOptions<TwitchProbeResult, number> = {},
 ) => useMutation({
     mutationFn: async (streamerId: number) => (
-        mapTwitchProbeResult((await probeTwitchChannel(streamerId)).data)
+        mapTwitchProbeResult(await probeTwitchChannel(streamerId))
     ),
     ...options,
 })

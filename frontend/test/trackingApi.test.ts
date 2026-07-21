@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const client = vi.hoisted(() => ({
-  api: {
-    post: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-  },
+  deleteJson: vi.fn(),
   getJson: vi.fn(),
+  postJson: vi.fn(),
+  putJson: vi.fn(),
 }))
 
 vi.mock('@/lib/api/client', () => client)
@@ -24,7 +22,7 @@ describe('tracking mutation transport', () => {
       processingEnabled: false,
     })
 
-    expect(client.api.post).toHaveBeenCalledWith('/admin/tracking/streamers', {
+    expect(client.postJson).toHaveBeenCalledWith('/admin/tracking/streamers', {
       twitch_username: 'operator',
       notes: 'priority',
       is_active: true,
@@ -35,7 +33,7 @@ describe('tracking mutation transport', () => {
   it('serializes partial update commands at the API adapter boundary', () => {
     updateTrackedStreamer(7, { isActive: false, notes: null })
 
-    expect(client.api.put).toHaveBeenCalledWith('/admin/tracking/streamers/7', {
+    expect(client.putJson).toHaveBeenCalledWith('/admin/tracking/streamers/7', {
       is_active: false,
       processing_enabled: undefined,
       notes: null,

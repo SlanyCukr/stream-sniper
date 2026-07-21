@@ -64,3 +64,43 @@ export const getJson = async (
   const response = config ? await api.get<unknown>(url, config) : await api.get<unknown>(url)
   return response.data
 }
+
+/**
+ * JSON write helpers mirror getJson's transport boundary: callers receive an
+ * unknown payload and must validate it before publishing domain data.
+ */
+export const postJson = async (
+  path: string,
+  body?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<unknown> => {
+  const response = config
+    ? await api.post<unknown>(path, body, config)
+    : body === undefined
+      ? await api.post<unknown>(path)
+      : await api.post<unknown>(path, body)
+  return response.data
+}
+
+export const putJson = async (
+  path: string,
+  body?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<unknown> => {
+  const response = config
+    ? await api.put<unknown>(path, body, config)
+    : body === undefined
+      ? await api.put<unknown>(path)
+      : await api.put<unknown>(path, body)
+  return response.data
+}
+
+export const deleteJson = async (
+  path: string,
+  config?: AxiosRequestConfig,
+): Promise<unknown> => {
+  const response = config
+    ? await api.delete<unknown>(path, config)
+    : await api.delete<unknown>(path)
+  return response.data
+}

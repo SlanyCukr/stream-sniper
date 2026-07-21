@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setUser(profile)
                 setSessionError(null)
             } catch (restoreError) {
-                console.error('Unable to restore session')
+                console.error('Unable to restore session', restoreError)
                 if (active) {
                     const cleanupFailure = clearSession()
                     setSessionError(

@@ -14,6 +14,31 @@
  *   usable start time (an offset computed against a missing start would seek
  *   to a nonsense position).
  */
+const offsetSeconds = (streamStart: string, momentTs: string): number => {
+    const startMs = new Date(streamStart).getTime()
+    const momentMs = new Date(momentTs).getTime()
+    const offset = Math.floor((momentMs - startMs) / 1000)
+    return Number.isFinite(offset) ? Math.max(0, offset) : 0
+}
+
+const twitchOffset = (offset: number): string => {
+    const h = Math.floor(offset / 3600)
+    const m = Math.floor((offset % 3600) / 60)
+    const s = offset % 60
+    return `${h}h${m}m${s}s`
+}
+
+const chapterOffset = (offset: number): string => {
+    const h = Math.floor(offset / 3600)
+    const m = Math.floor((offset % 3600) / 60)
+    const s = offset % 60
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+const vodUrl = (twitchVodId: string | number, offset: number): string => (
+    `https://www.twitch.tv/videos/${twitchVodId}?t=${twitchOffset(offset)}`
+)
+
 export const vodDeepLink = (
     twitchVodId: string | number | null | undefined,
     streamStart: string | null | undefined,
@@ -22,16 +47,7 @@ export const vodDeepLink = (
     if (!twitchVodId || !streamStart) {
         return null
     }
-    const startMs = new Date(streamStart).getTime()
-    const momentMs = new Date(momentTs).getTime()
-    let offset = Math.max(0, Math.floor((momentMs - startMs) / 1000))
-    if (!Number.isFinite(offset)) {
-        offset = 0
-    }
-    const h = Math.floor(offset / 3600)
-    const m = Math.floor((offset % 3600) / 60)
-    const s = offset % 60
-    return `https://www.twitch.tv/videos/${twitchVodId}?t=${h}h${m}m${s}s`
+    return vodUrl(twitchVodId, offsetSeconds(streamStart, momentTs))
 }
 
 import type { MomentPhrase } from '@/lib/api/moments'
@@ -58,18 +74,12 @@ export const buildVodChapters = (timeline: VodChaptersTimeline | null | undefine
     if (!timeline?.twitchVodId || !timeline.streamStart || !timeline.moments?.length) {
         return null
     }
-    const startMs = new Date(timeline.streamStart).getTime()
+    const { streamStart, twitchVodId } = timeline
     const lines = timeline.moments.map(moment => {
-        let offset = Math.max(0, Math.floor((new Date(moment.t).getTime() - startMs) / 1000))
-        if (!Number.isFinite(offset)) {
-            offset = 0
-        }
-        const h = Math.floor(offset / 3600)
-        const m = Math.floor((offset % 3600) / 60)
-        const s = offset % 60
-        const stamp = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        const offset = offsetSeconds(streamStart, moment.t)
+        const stamp = chapterOffset(offset)
         const label = momentLabel(moment.topPhrases)
-        const link = vodDeepLink(timeline.twitchVodId, timeline.streamStart, moment.t)
+        const link = vodUrl(twitchVodId, offset)
         return `${stamp} — ${label} (${moment.count} msgs) ${link}`
     })
     return lines.join('\n')

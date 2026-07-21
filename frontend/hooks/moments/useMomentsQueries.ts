@@ -161,6 +161,16 @@ type MomentReviewMutationOptions = Omit<
     'mutationFn'
 >
 
+export const mapMomentReview = (value: unknown): MomentReviewDto => {
+    const review = requireRecord(value, 'moment review')
+    return {
+        status: requireNullableMomentReviewStatus(review.status, 'moment review.status'),
+        clip_url: requireNullableStringField(review, 'clip_url', 'moment review'),
+        note: requireNullableStringField(review, 'note', 'moment review'),
+        updated_at: requireNullableStringField(review, 'updated_at', 'moment review'),
+    }
+}
+
 /**
  * Admin-only review command. Owned cache invalidation always completes before
  * a caller-provided onSuccess callback runs.
@@ -179,8 +189,8 @@ export const useMomentReview = (options: MomentReviewMutationOptions = {}) => {
                 action, streamId, bucketMinute,
             } = command
             if (action === 'clear') {
-                const response = await deleteMomentReview(streamId, bucketMinute)
-                return response.data
+                await deleteMomentReview(streamId, bucketMinute)
+                return undefined
             }
             if (action !== 'set') {
                 throw new TypeError(`Unsupported moment review action: ${action}`)
@@ -195,7 +205,7 @@ export const useMomentReview = (options: MomentReviewMutationOptions = {}) => {
                 status,
                 { clipUrl: clipUrl ?? null, note: note ?? null },
             )
-            return response.data
+            return mapMomentReview(response)
         },
         onSuccess: async (...args: Parameters<NonNullable<typeof onSuccess>>) => {
             const command = args[1]

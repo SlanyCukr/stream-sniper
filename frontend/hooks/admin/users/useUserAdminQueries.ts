@@ -140,7 +140,7 @@ export const useCreateAdminUser = (
     options: MutationOptions<AdminUser, CreateAdminUserCommand> = {},
 ) => useInvalidatingMutation(
     async (user: CreateAdminUserCommand): Promise<AdminUser> => (
-        mapAdminUser((await createAdminUser(user)).data)
+        mapAdminUser(await createAdminUser(user))
     ),
     userAdminKeys.all,
     options,
@@ -155,7 +155,7 @@ export const useUpdateAdminUser = (
     options: MutationOptions<AdminUser, UpdateAdminUserVariables> = {},
 ) => useInvalidatingMutation(
     async (command: { userId: number, changes: UpdateAdminUserCommand }): Promise<AdminUser> => (
-        mapAdminUser((await updateUser(command.userId, command.changes)).data)
+        mapAdminUser(await updateUser(command.userId, command.changes))
     ),
     userAdminKeys.all,
     options,
@@ -170,7 +170,7 @@ export const useUpdateAdminUserRole = (
     options: MutationOptions<AdminUser, UpdateAdminUserRoleVariables> = {},
 ) => useInvalidatingMutation(
     async (command: { userId: number, role: AdminUserDto['role'] }): Promise<AdminUser> => (
-        mapAdminUser((await updateUserRole(command.userId, command.role)).data)
+        mapAdminUser(await updateUserRole(command.userId, command.role))
     ),
     userAdminKeys.all,
     options,
@@ -185,7 +185,7 @@ export const useSetAdminUserActive = (
     options: MutationOptions<AdminUser, SetAdminUserActiveVariables> = {},
 ) => useInvalidatingMutation(
     async (command: { userId: number, isActive: boolean }): Promise<AdminUser> => (
-        mapAdminUser((await setUserActive(command.userId, command.isActive)).data)
+        mapAdminUser(await setUserActive(command.userId, command.isActive))
     ),
     userAdminKeys.all,
     options,
@@ -194,7 +194,9 @@ export const useSetAdminUserActive = (
 export const useDeleteAdminUser = (
     options: MutationOptions<void, number> = {},
 ) => useInvalidatingMutation(
-    async (userId: number): Promise<void> => (await deleteUser(userId)).data,
+    async (userId: number): Promise<void> => {
+        await deleteUser(userId)
+    },
     userAdminKeys.all,
     options,
 )

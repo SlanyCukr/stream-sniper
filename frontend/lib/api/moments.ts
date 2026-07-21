@@ -1,4 +1,4 @@
-import { api, getJson } from './client'
+import { deleteJson, getJson, putJson } from './client'
 import {
   requireArray,
   requireFiniteNumberField,
@@ -110,7 +110,7 @@ export const putMomentReview = (
   bucketMinute: string,
   status: MomentReviewStatus,
   metadata: { clipUrl?: string | null, note?: string | null } = {},
-) => api.put<MomentReviewDto>(
+) => putJson(
   `/streams/${streamId}/moments/${encodeURIComponent(bucketMinute)}/review`,
   {
     status,
@@ -120,4 +120,4 @@ export const putMomentReview = (
 )
 
 export const deleteMomentReview = (streamId: number, bucketMinute: string) =>
-  api.delete<void>(`/streams/${streamId}/moments/${encodeURIComponent(bucketMinute)}/review`)
+  deleteJson(`/streams/${streamId}/moments/${encodeURIComponent(bucketMinute)}/review`)

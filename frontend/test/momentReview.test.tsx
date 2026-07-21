@@ -50,8 +50,13 @@ function createWrapper(queryClient: QueryClient) {
 describe('useMomentReview', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    putMomentReview.mockResolvedValue({ data: { status: 'clipped' } })
-    deleteMomentReview.mockResolvedValue({ data: undefined })
+    putMomentReview.mockResolvedValue({
+      status: 'clipped',
+      clip_url: null,
+      note: null,
+      updated_at: '2026-07-14T10:31:00Z',
+    })
+    deleteMomentReview.mockResolvedValue(undefined)
   })
 
   it('decodes the complete queue envelope and uses server pagination metadata', async () => {
@@ -159,6 +164,24 @@ describe('useMomentReview', () => {
 
     expect(deleteMomentReview).toHaveBeenCalledWith(42, '2026-07-14T10:30:00')
     expect(putMomentReview).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['status', { status: 'pending-review', clip_url: null, note: null, updated_at: null }],
+    ['clip URL', { status: 'clipped', clip_url: 7, note: null, updated_at: null }],
+    ['updated timestamp', { status: 'clipped', clip_url: null, note: null, updated_at: false }],
+  ])('rejects a malformed successful moment-review %s payload', async (_label, payload) => {
+    putMomentReview.mockResolvedValueOnce(payload)
+    const { result } = renderHook(() => useMomentReview(), {
+      wrapper: createWrapper(new QueryClient()),
+    })
+
+    await expect(result.current.mutateAsync({
+      action: 'set',
+      streamId: 42,
+      bucketMinute: '2026-07-14T10:30:00',
+      status: 'clipped',
+    })).rejects.toBeInstanceOf(TypeError)
   })
 
   it('keeps clip editing open until the review command succeeds', async () => {

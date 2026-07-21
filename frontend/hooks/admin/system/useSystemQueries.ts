@@ -144,6 +144,14 @@ export const mapCacheStats = (value: unknown): CacheStats => {
     }
 }
 
+export const mapFlushCache = (value: unknown): FlushCacheDto => {
+    const data = requireRecord(value, 'flush cache')
+    return {
+        message: requireStringField(data, 'message', 'flush cache'),
+        timestamp: requireStringField(data, 'timestamp', 'flush cache'),
+    }
+}
+
 export const systemKeys = {
     all: [
         'system',
@@ -189,7 +197,7 @@ export const useCacheStats = (options: QueryOptions<CacheStats> = {}) => useQuer
     },
 })
 
-const flushCacheMutation = async (): Promise<FlushCacheDto> => (await flushCache()).data
+const flushCacheMutation = async (): Promise<FlushCacheDto> => mapFlushCache(await flushCache())
 
 export const useFlushCache = (options: MutationOptions<FlushCacheDto> = {}) => {
     return useInvalidatingMutation(

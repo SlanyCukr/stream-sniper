@@ -10,7 +10,6 @@ import {
   createAdminUser,
   updateUser,
   updateUserRole,
-  type AdminUserDto,
 } from '@/lib/api/users'
 
 describe('domain API adapters', () => {
@@ -60,6 +59,6 @@ describe('domain API adapters', () => {
     expectTypeOf(chatterResponse).toEqualTypeOf<unknown>()
     expectTypeOf(streamResponse).toEqualTypeOf<unknown>()
     expectTypeOf(pulseResponse).toEqualTypeOf<unknown>()
-    expectTypeOf(userResponse.data).toEqualTypeOf<AdminUserDto>()
+    expectTypeOf(userResponse).toEqualTypeOf<unknown>()
   })
 })

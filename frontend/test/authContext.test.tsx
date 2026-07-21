@@ -26,6 +26,7 @@ vi.mock('@/lib/api/client', () => ({
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { requestPasswordChange, updateProfile } from '@/lib/auth/service'
+import { SessionStorageError } from '@/lib/auth/session'
 import SessionErrorAlert from '@/components/auth/SessionErrorAlert'
 
 const validToken = [
@@ -150,6 +151,7 @@ describe('AuthProvider session boundary', () => {
 
   it('finishes initialization and reports contextual storage read failures', async () => {
     const storageError = new DOMException('storage denied', 'SecurityError')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     const getItem = vi.spyOn(Storage.prototype, 'getItem')
       .mockImplementationOnce(() => { throw storageError })
 
@@ -174,7 +176,15 @@ describe('AuthProvider session boundary', () => {
       expect(screen.queryByText('Session problem')).not.toBeInTheDocument()
     })
     expect(screen.getByTestId('session')).toHaveTextContent('"isAuthenticated":false')
+    expect(consoleError).toHaveBeenCalledWith(
+      'Unable to restore session',
+      expect.any(SessionStorageError),
+    )
+    const loggedError = consoleError.mock.calls[0]?.[1]
+    expect(loggedError).toBeInstanceOf(SessionStorageError)
+    expect((loggedError as SessionStorageError).cause).toBe(storageError)
     getItem.mockRestore()
+    consoleError.mockRestore()
   })
 
   it('clears in-memory session state when persistent cleanup fails', async () => {

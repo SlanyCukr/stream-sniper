@@ -1,7 +1,7 @@
 'use client'
 import { normalizeApiError } from '@/utils/errorUtils'
 import StatusChip from '@/components/common/StatusChip'
-import { formatTimelineClock } from './TimelineMarkers'
+import { formatTimelineClock } from './timelinePresentation'
 import type { TimelineMoment } from '@/hooks/stream/timeline/useStreamTimelineQuery'
 import type { useMomentReview } from '@/hooks/moments/useMomentsQueries'
 import type { MomentReviewStatus } from '@/lib/api/moments'

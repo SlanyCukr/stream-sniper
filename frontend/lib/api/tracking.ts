@@ -1,4 +1,6 @@
-import { api, getJson } from './client'
+import {
+  deleteJson, getJson, postJson, putJson,
+} from './client'
 
 export interface TrackedStreamerListRequest {
   rowOffset?: number
@@ -138,7 +140,7 @@ export const retrieveTrackedStreamers = (request: TrackedStreamerListRequest = {
   })
 
 export const createTrackedStreamer = (streamer: CreateTrackedStreamerCommand) =>
-  api.post<TrackedStreamerDto>('/admin/tracking/streamers', {
+  postJson('/admin/tracking/streamers', {
     twitch_username: streamer.twitchUsername,
     notes: streamer.notes,
     is_active: streamer.isActive,
@@ -148,17 +150,17 @@ export const createTrackedStreamer = (streamer: CreateTrackedStreamerCommand) =>
 export const updateTrackedStreamer = (
   streamerId: number,
   changes: UpdateTrackedStreamerCommand,
-) => api.put<TrackedStreamerDto>(`/admin/tracking/streamers/${streamerId}`, {
+) => putJson(`/admin/tracking/streamers/${streamerId}`, {
   is_active: changes.isActive,
   processing_enabled: changes.processingEnabled,
   notes: changes.notes,
 } satisfies UpdateTrackedStreamerRequest)
 
 export const deleteTrackedStreamer = (streamerId: number) =>
-  api.delete<void>(`/admin/tracking/streamers/${streamerId}`)
+  deleteJson(`/admin/tracking/streamers/${streamerId}`)
 
 export const probeTwitchChannel = (streamerId: number) =>
-  api.post<TwitchProbeResultDto>(`/admin/tracking/streamers/${streamerId}/probe`)
+  postJson(`/admin/tracking/streamers/${streamerId}/probe`)
 
 export const retrieveProcessingJobs = (request: ProcessingJobListRequest = {}) =>
   getJson('/admin/tracking/jobs', {
