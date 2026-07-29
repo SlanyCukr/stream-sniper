@@ -117,7 +117,12 @@ export const mapEmoteDetail = (value: unknown): EmoteDetail => {
 }
 
 export const useEmoteDetail = (emoteId: number | null) => useQuery({
-    queryKey: sceneKeys.emoteDetail(emoteId ?? 0),
-    queryFn: async () => mapEmoteDetail(await retrieveEmoteDetail(emoteId as number)),
+    queryKey: sceneKeys.emoteDetail(emoteId),
+    queryFn: async () => {
+        if (emoteId === null || emoteId <= 0) {
+            throw new TypeError('emote detail requires a positive emote ID')
+        }
+        return mapEmoteDetail(await retrieveEmoteDetail(emoteId))
+    },
     enabled: emoteId !== null && emoteId > 0,
 })

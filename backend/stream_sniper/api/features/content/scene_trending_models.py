@@ -8,33 +8,35 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from ....analytics.calculations.delta import DeltaTrend, classify_delta, percent_change
 from ....database.gateways.analytics.scene_trends_gateway import (
     TrendingCopypastaRow,
     TrendingEmoteRow,
 )
 
+# Map the shared trend decision onto this endpoint's wire vocabulary; the math and
+# edge cases live in analytics.calculations.delta so the API and digest cannot drift.
+_TREND_LABELS = {
+    DeltaTrend.NO_CHANGE: "steady",
+    DeltaTrend.NEW: "new",
+    DeltaTrend.RISING: "rising",
+    DeltaTrend.FALLING: "falling",
+}
+
 
 def _classify_trend(current: int, prior: int) -> str:
     """Bucket an entity by how its current-window usage moved against the prior window.
 
-    "new" wins when there was no prior usage; otherwise rising/falling/steady by comparison.
-    (Current usage is always > 0 here — the gateway's floor guarantees it — so a zero prior
-    always means "new".)
+    "new" wins when there was prior usage of 0 but current growth; otherwise
+    rising/falling/steady by comparison. (Current usage is always > 0 here — the
+    gateway's floor guarantees it — so a zero prior always means "new".)
     """
-    if prior == 0:
-        return "new"
-    if current > prior:
-        return "rising"
-    if current < prior:
-        return "falling"
-    return "steady"
+    return _TREND_LABELS[classify_delta(current, prior)]
 
 
 def _delta_pct(current: int, prior: int) -> float | None:
     """Percent change from prior to current (1 dp), or None when there is no prior baseline."""
-    if prior <= 0:
-        return None
-    return round(100 * (current - prior) / prior, 1)
+    return percent_change(current, prior, digits=1)
 
 
 class TrendingCopypasta(BaseModel):

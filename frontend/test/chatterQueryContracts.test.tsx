@@ -32,9 +32,9 @@ describe('chatter query contracts', () => {
 
   it('does not call the activity adapter without a chatter ID', async () => {
     const wrapper = createWrapper(createClient())
-    renderHook(() => useChatterStreamActivity(0), { wrapper })
+    const hook = renderHook(() => useChatterStreamActivity(0), { wrapper })
 
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('idle'))
     expect(api.retrieveChatterStreamActivity).not.toHaveBeenCalled()
   })
 

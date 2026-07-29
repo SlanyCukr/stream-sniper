@@ -107,8 +107,10 @@ export const useCreatorNeighbors = (
     ...options,
     queryKey: communityKeys.neighbors(creatorId, metric, limit),
     queryFn: async (): Promise<CreatorNeighbors> => {
-        // creatorId is guaranteed non-null here — `enabled` below gates the query.
-        const response = await retrieveCreatorNeighbors(creatorId as number, { metric, limit })
+        if (creatorId === null || creatorId <= 0) {
+            throw new TypeError('creator neighbors require a positive creator ID')
+        }
+        const response = await retrieveCreatorNeighbors(creatorId, { metric, limit })
         const data = requireRecord(response, 'creator neighbors')
         return {
             neighbors: requireArrayField(data, 'neighbors', 'creator neighbors').map((value, index) => {
@@ -124,5 +126,5 @@ export const useCreatorNeighbors = (
             }),
         }
     },
-    enabled: Boolean(creatorId) && enabled,
+    enabled: creatorId !== null && creatorId > 0 && enabled,
 })

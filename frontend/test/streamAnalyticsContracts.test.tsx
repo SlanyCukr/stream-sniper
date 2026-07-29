@@ -393,20 +393,22 @@ describe('stream analytics query contracts', () => {
 
     vi.clearAllMocks()
     const disabledWrapper = createWrapper(createClient())
-    renderHook(() => useStreamTimeline(0), { wrapper: disabledWrapper })
-    renderHook(() => useStreamReport(0), { wrapper: disabledWrapper })
-    renderHook(() => useStreamMentions(0), { wrapper: disabledWrapper })
-    renderHook(() => useStreamEmotes(0), { wrapper: disabledWrapper })
-    renderHook(() => useStreamPhrases(0), { wrapper: disabledWrapper })
-    renderHook(() => useCreatorEmotes(0), { wrapper: disabledWrapper })
-    renderHook(() => useStreamTimeline(42, { enabled: false }), { wrapper: disabledWrapper })
-    renderHook(() => useStreamReport(42, { enabled: false }), { wrapper: disabledWrapper })
-    renderHook(() => useStreamMentions(42, { limit: 20 }, { enabled: false }), { wrapper: disabledWrapper })
-    renderHook(() => useStreamEmotes(42, { limit: 25 }, { enabled: false }), { wrapper: disabledWrapper })
-    renderHook(() => useStreamPhrases(42, { limit: 25 }, { enabled: false }), { wrapper: disabledWrapper })
-    renderHook(() => useCreatorEmotes(7, { limit: 25 }, { enabled: false }), { wrapper: disabledWrapper })
+    const queries = [
+      renderHook(() => useStreamTimeline(0), { wrapper: disabledWrapper }),
+      renderHook(() => useStreamReport(0), { wrapper: disabledWrapper }),
+      renderHook(() => useStreamMentions(0), { wrapper: disabledWrapper }),
+      renderHook(() => useStreamEmotes(0), { wrapper: disabledWrapper }),
+      renderHook(() => useStreamPhrases(0), { wrapper: disabledWrapper }),
+      renderHook(() => useCreatorEmotes(0), { wrapper: disabledWrapper }),
+      renderHook(() => useStreamTimeline(42, { enabled: false }), { wrapper: disabledWrapper }),
+      renderHook(() => useStreamReport(42, { enabled: false }), { wrapper: disabledWrapper }),
+      renderHook(() => useStreamMentions(42, { limit: 20 }, { enabled: false }), { wrapper: disabledWrapper }),
+      renderHook(() => useStreamEmotes(42, { limit: 25 }, { enabled: false }), { wrapper: disabledWrapper }),
+      renderHook(() => useStreamPhrases(42, { limit: 25 }, { enabled: false }), { wrapper: disabledWrapper }),
+      renderHook(() => useCreatorEmotes(7, { limit: 25 }, { enabled: false }), { wrapper: disabledWrapper }),
+    ]
 
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await waitFor(() => queries.forEach(query => expect(query.result.current.fetchStatus).toBe('idle')))
     expect(streamApi.retrieveStreamTimeline).not.toHaveBeenCalled()
     expect(streamApi.retrieveStreamReport).not.toHaveBeenCalled()
     expect(streamApi.retrieveStreamMentions).not.toHaveBeenCalled()

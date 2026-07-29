@@ -184,10 +184,10 @@ describe('scene rankings view-model contract', () => {
   })
 
   it('does not fetch when the query is disabled', async () => {
-    renderHook(() => useSceneRankings({ window: 'all' }, { enabled: false }), {
+    const hook = renderHook(() => useSceneRankings({ window: 'all' }, { enabled: false }), {
       wrapper: createWrapper(),
     })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('idle'))
     expect(sceneApi.retrieveSceneRankings).not.toHaveBeenCalled()
   })
 })

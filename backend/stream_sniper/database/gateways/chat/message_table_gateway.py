@@ -5,6 +5,7 @@ from psycopg2.extensions import connection as Connection
 from psycopg2.extensions import cursor as Cursor
 
 from ...core.decorators import with_cursor
+from ...core.wire_format import to_char_wire
 from .records import (
     ChatterIdentityRow,
     ChatterMessageRow,
@@ -22,9 +23,9 @@ def select_chatter_messages_db(
     offset: int,
 ) -> list[ChatterMessageRow]:
     cursor.execute(
-        """
+        f"""
         SELECT m.stream_id, s.title, cr.display_name, mt.text,
-               TO_CHAR(m.time, 'YYYY-MM-DD HH24:MI:SS')
+               {to_char_wire("m.time")}
         FROM message m
         JOIN stream s ON s.id = m.stream_id
         JOIN creator cr ON cr.id = s.creator_id

@@ -16,7 +16,7 @@ export const creatorKeys = {
     wrapped: (creatorId: number, days: number) => (
         [...creatorKeys.all, 'wrapped', { creatorId, days }] as const
     ),
-    audienceMovement: (creatorId: number, days: number) => (
+    audienceMovement: (creatorId: number | null, days: number) => (
         [...creatorKeys.all, 'audience-movement', { creatorId, days }] as const
     ),
 }

@@ -1,6 +1,7 @@
 import {
   deleteJson, getJson, postJson, putJson,
 } from './client'
+import type { CreateTrackedStreamerCommand } from '@/lib/models/tracking'
 
 export interface TrackedStreamerListRequest {
   rowOffset?: number
@@ -14,13 +15,6 @@ export interface ProcessingJobListRequest {
   pageSize?: number
   status?: string
   trackedStreamerId?: number
-}
-
-export interface CreateTrackedStreamerCommand {
-  twitchUsername: string
-  notes?: string | null
-  isActive: boolean
-  processingEnabled: boolean
 }
 
 interface CreateTrackedStreamerRequest {

@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { retrieveSceneDigest, retrieveScenePulse, type ScenePulseRequest } from '@/lib/api/scene'
+import { retrieveSceneDigest, retrieveScenePulse } from '@/lib/api/scene'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -8,6 +8,7 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+import type { ScenePulseRequest } from '@/lib/models/sceneFilters'
 import { sceneKeys } from './sceneKeys'
 
 type QueryOptions<T> = Omit<

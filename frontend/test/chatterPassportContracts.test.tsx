@@ -217,8 +217,8 @@ describe('useChatterPassport query', () => {
   })
 
   it('does not call the adapter for a non-positive chatter id', async () => {
-    renderHook(() => useChatterPassport(0), { wrapper: createWrapper(createClient()) })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const hook = renderHook(() => useChatterPassport(0), { wrapper: createWrapper(createClient()) })
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('idle'))
     expect(api.retrieveChatterPassport).not.toHaveBeenCalled()
   })
 })

@@ -137,9 +137,12 @@ describe('creator head-to-head contracts', () => {
   })
 
   it('stays idle without two distinct creators', async () => {
-    renderHook(() => useCreatorHeadToHead(null, 3), { wrapper: createWrapper() })
-    renderHook(() => useCreatorHeadToHead(4, 4), { wrapper: createWrapper() })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const missingCreator = renderHook(() => useCreatorHeadToHead(null, 3), { wrapper: createWrapper() })
+    const sameCreator = renderHook(() => useCreatorHeadToHead(4, 4), { wrapper: createWrapper() })
+    await waitFor(() => {
+      expect(missingCreator.result.current.fetchStatus).toBe('idle')
+      expect(sameCreator.result.current.fetchStatus).toBe('idle')
+    })
     expect(api.retrieveCreatorHeadToHead).not.toHaveBeenCalled()
   })
 })

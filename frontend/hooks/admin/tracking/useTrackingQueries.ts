@@ -12,9 +12,9 @@ import {
     retrieveTrackingStats,
     retrieveTwitchChannelSearch,
     updateTrackedStreamer,
-    type CreateTrackedStreamerCommand,
     type UpdateTrackedStreamerCommand,
 } from '@/lib/api/tracking'
+import type { CreateTrackedStreamerCommand } from '@/lib/models/tracking'
 import {
     createPage, getRowOffset, normalizePagination,
 } from '@/lib/pagination/page'

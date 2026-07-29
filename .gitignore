@@ -178,3 +178,6 @@ backend/logs/
 # Repowise tool state (machine-local)
 .repowise/
 scorecard.png
+
+# Claude Code local settings
+.claude/settings.local.json

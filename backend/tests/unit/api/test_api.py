@@ -108,8 +108,8 @@ class TestChattersEndpoints:
         """Test successful retrieval of paginated chatter messages with stream context."""
         mock_get_cache.return_value = _miss_cache()
         mock_select.return_value = [
-            ChatterMessageRow(7, "Epic Gaming Session", "SomeStreamer", "Hello everyone!", "2024-01-15 20:30:15"),
-            ChatterMessageRow(8, "Chill Stream", "OtherStreamer", "Great stream!", "2024-01-14 20:45:22"),
+            ChatterMessageRow(7, "Epic Gaming Session", "SomeStreamer", "Hello everyone!", "2024-01-15T20:30:15"),
+            ChatterMessageRow(8, "Chill Stream", "OtherStreamer", "Great stream!", "2024-01-14T20:45:22"),
         ]
         mock_count.return_value = 1234
 
@@ -125,7 +125,7 @@ class TestChattersEndpoints:
             "stream_title": "Epic Gaming Session",
             "creator_display_name": "SomeStreamer",
             "text": "Hello everyone!",
-            "timestamp": "2024-01-15 20:30:15",
+            "timestamp": "2024-01-15T20:30:15",
         }
         mock_select.assert_called_once_with(42, 50, 0)
         mock_count.assert_called_once_with(42)
@@ -206,8 +206,8 @@ class TestStreamsEndpoints:
     def test_get_streams_success(self, mock_streams, mock_count):
         """Test successful retrieval of streams."""
         mock_streams.return_value = [
-            StreamListRow(1, "Epic Gaming Session", "2024-01-15 20:00:00", "2024-01-15 23:30:00", "thumb.jpg", 1250),
-            StreamListRow(2, "Chill Stream", "2024-01-14 18:00:00", "2024-01-14 22:00:00", "thumb2.jpg", 856),
+            StreamListRow(1, "Epic Gaming Session", "2024-01-15T20:00:00", "2024-01-15T23:30:00", "thumb.jpg", 1250),
+            StreamListRow(2, "Chill Stream", "2024-01-14T18:00:00", "2024-01-14T22:00:00", "thumb2.jpg", 856),
         ]
         mock_count.return_value = 1000
 
@@ -224,8 +224,8 @@ class TestStreamsEndpoints:
         assert data["streams"][0] == {
             "stream_id": 1,
             "creator_name": "Epic Gaming Session",
-            "start": "2024-01-15 20:00:00",
-            "end": "2024-01-15 23:30:00",
+            "start": "2024-01-15T20:00:00",
+            "end": "2024-01-15T23:30:00",
             "thumbnail_url": "thumb.jpg",
             "message_count": 1250,
         }

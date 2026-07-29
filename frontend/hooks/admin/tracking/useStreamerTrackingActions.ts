@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { CreateTrackedStreamerCommand } from '@/lib/api/tracking'
+import type { CreateTrackedStreamerCommand } from '@/lib/models/tracking'
 import { useActionFeedback } from '../shared/useActionFeedback'
 import {
     useCreateTrackedStreamer,

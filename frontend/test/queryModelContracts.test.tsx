@@ -442,10 +442,10 @@ describe('query view-model contracts', () => {
   })
 
   it('lets callers disable valid creator trend queries', async () => {
-    renderHook(() => useCreatorTrends(7, { enabled: false }), {
+    const hook = renderHook(() => useCreatorTrends(7, { enabled: false }), {
       wrapper: createWrapper(createClient()),
     })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('idle'))
     expect(api.retrieveCreatorTrends).not.toHaveBeenCalled()
   })
 

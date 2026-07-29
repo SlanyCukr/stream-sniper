@@ -357,8 +357,8 @@ class TestStreamTableGatewayWithMocks:
         """Test select_stream_page_db with mocked database."""
         mock_pool, mock_connection, mock_cursor = mock_connection_pool
         mock_cursor.fetchall.return_value = [
-            (1, "Stream 1", "2024-01-15 20:00:00", "2024-01-15 23:00:00", "thumb1.jpg", 100),
-            (2, "Stream 2", "2024-01-16 20:00:00", "2024-01-16 22:00:00", "thumb2.jpg", 200),
+            (1, "Stream 1", "2024-01-15T20:00:00", "2024-01-15T23:00:00", "thumb1.jpg", 100),
+            (2, "Stream 2", "2024-01-16T20:00:00", "2024-01-16T22:00:00", "thumb2.jpg", 200),
         ]
 
         result = select_stream_page_db(1, 0)

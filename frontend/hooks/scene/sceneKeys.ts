@@ -1,5 +1,4 @@
-import type { ScenePulseRequest } from '@/lib/api/scene'
-import type { SceneCopypastaRequest } from '@/lib/models/sceneFilters'
+import type { SceneCopypastaRequest, ScenePulseRequest } from '@/lib/models/sceneFilters'
 
 export type SceneCopypastaFilters = SceneCopypastaRequest & { pageIndex?: number, pageSize?: number }
 
@@ -50,7 +49,7 @@ export const sceneKeys = {
     highlights: (filters: HighlightsFilters) => [...sceneKeys.all, 'highlights', filters] as const,
     trendingCopypastas: (filters: TrendingFilters) => [...sceneKeys.all, 'trending', 'copypastas', filters] as const,
     trendingEmotes: (filters: TrendingFilters) => [...sceneKeys.all, 'trending', 'emotes', filters] as const,
-    emoteDetail: (emoteId: number) => [...sceneKeys.all, 'emote', { emoteId }] as const,
+    emoteDetail: (emoteId: number | null) => [...sceneKeys.all, 'emote', { emoteId }] as const,
     wrapped: (days: number) => [...sceneKeys.all, 'wrapped', { days }] as const,
     radar: () => [...sceneKeys.all, 'radar'] as const,
 }

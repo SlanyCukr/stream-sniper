@@ -293,14 +293,21 @@ describe('scene query view-model contracts', () => {
   })
 
   it('lets callers disable valid scene resource queries', async () => {
-    renderHook(() => useSceneLive({ enabled: false, refetchInterval: false }), {
+    const live = renderHook(() => useSceneLive({ enabled: false, refetchInterval: false }), {
       wrapper: createWrapper(),
     })
-    renderHook(() => useSceneLeaderboard({ windowDays: 7 }, { enabled: false }), { wrapper: createWrapper() })
-    renderHook(() => useCopypastaPropagation(7, 90, { enabled: false }), {
+    const leaderboard = renderHook(
+      () => useSceneLeaderboard({ windowDays: 7 }, { enabled: false }),
+      { wrapper: createWrapper() },
+    )
+    const propagation = renderHook(() => useCopypastaPropagation(7, 90, { enabled: false }), {
       wrapper: createWrapper(),
     })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await waitFor(() => {
+      expect(live.result.current.fetchStatus).toBe('idle')
+      expect(leaderboard.result.current.fetchStatus).toBe('idle')
+      expect(propagation.result.current.fetchStatus).toBe('idle')
+    })
     expect(api.retrieveSceneLive).not.toHaveBeenCalled()
     expect(api.retrieveSceneLeaderboard).not.toHaveBeenCalled()
     expect(api.retrieveCopypastaPropagation).not.toHaveBeenCalled()

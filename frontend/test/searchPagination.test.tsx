@@ -62,8 +62,8 @@ describe('useSearchMessages pagination', () => {
   })
 
   it('does not fetch a query below the backend minimum', async () => {
-    renderHook(() => useSearchMessages({ q: 'ab' }), { wrapper: createWrapper() })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const hook = renderHook(() => useSearchMessages({ q: 'ab' }), { wrapper: createWrapper() })
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('idle'))
     expect(api.retrieveSearchMessages).not.toHaveBeenCalled()
   })
 })

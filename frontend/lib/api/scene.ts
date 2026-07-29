@@ -5,16 +5,9 @@ import type {
   HighlightsWindow,
   RankingsWindow,
   SceneCopypastaRequest,
+  ScenePulseRequest,
   SceneTrendingRequest,
 } from '@/lib/models/sceneFilters'
-
-export interface ScenePulseRequest {
-  days?: number
-  eventType?: string
-  creatorId?: number
-  limit?: number
-  offset?: number
-}
 
 export interface SceneLiveDto {
   live: Array<{

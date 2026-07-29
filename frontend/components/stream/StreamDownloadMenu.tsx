@@ -5,7 +5,7 @@ import { useStreamDownloads } from '@/hooks/stream/useStreamDownloads'
 
 interface StreamDownloadMenuProps {
     streamId: number
-    title?: string
+    title?: string | null
 }
 
 const StreamDownloadMenu = ({ streamId, title }: StreamDownloadMenuProps) => {

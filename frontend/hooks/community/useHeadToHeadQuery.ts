@@ -70,11 +70,19 @@ export const useCreatorHeadToHead = (
     creatorB: number | null,
     { enabled = true }: { enabled?: boolean } = {},
 ) => useQuery({
-    queryKey: creatorA && creatorB
+    queryKey: creatorA !== null && creatorB !== null
         ? headToHeadKeys.pair(creatorA, creatorB)
         : [...headToHeadKeys.all, { a: creatorA, b: creatorB }],
-    queryFn: async () => mapCreatorHeadToHead(
-        await retrieveCreatorHeadToHead(creatorA as number, creatorB as number),
-    ),
-    enabled: enabled && Boolean(creatorA) && Boolean(creatorB) && creatorA !== creatorB,
+    queryFn: async () => {
+        if (creatorA === null || creatorA <= 0 || creatorB === null || creatorB <= 0 || creatorA === creatorB) {
+            throw new TypeError('creator head-to-head requires two distinct positive creator IDs')
+        }
+        return mapCreatorHeadToHead(await retrieveCreatorHeadToHead(creatorA, creatorB))
+    },
+    enabled: enabled
+        && creatorA !== null
+        && creatorA > 0
+        && creatorB !== null
+        && creatorB > 0
+        && creatorA !== creatorB,
 })

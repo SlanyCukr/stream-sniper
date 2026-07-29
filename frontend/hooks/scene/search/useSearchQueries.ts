@@ -249,16 +249,26 @@ interface SearchContextFilters {
 export const useSearchContext = ({
     streamId, messageId, radius,
 }: SearchContextFilters = {}, options: QueryOptions<SearchContextVM> = {}) => {
-    const enabledQuery = Boolean(streamId) && Boolean(messageId)
+    const enabledQuery = streamId !== undefined
+        && streamId !== null
+        && streamId > 0
+        && messageId !== undefined
+        && messageId !== null
+        && messageId > 0
     return useQuery({
         ...options,
         queryKey: searchKeys.context({ streamId: streamId ?? null, messageId: messageId ?? null, radius: radius ?? null }),
-        queryFn: async () => mapSearchContext(await retrieveSearchContext({
-            // Guarded by `enabled` below; streamId/messageId are non-null whenever the query runs.
-            streamId: streamId as number,
-            messageId: messageId as number,
-            radius,
-        })),
+        queryFn: async () => {
+            if (streamId === undefined || streamId === null || streamId <= 0
+                || messageId === undefined || messageId === null || messageId <= 0) {
+                throw new TypeError('search context requires positive stream and message IDs')
+            }
+            return mapSearchContext(await retrieveSearchContext({
+                streamId,
+                messageId,
+                radius,
+            }))
+        },
         enabled: enabledQuery && (options.enabled ?? true),
     })
 }

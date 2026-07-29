@@ -1,16 +1,12 @@
-import { ImageResponse } from 'next/og'
-import { fetchCreatorOgData, GENERIC_OG_CARD } from '@/lib/og/fetchOgData'
-import { OgCard } from '@/lib/og/ogCard'
+import { buildOgImage } from '@/lib/og/buildOgImage'
+import { fetchCreatorOgData } from '@/lib/og/fetchOgData'
 
 // The prod frontend is an output:'standalone' Node server — render on Node, not edge.
 export const runtime = 'nodejs'
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const data = (await fetchCreatorOgData(id)) ?? GENERIC_OG_CARD
-  const image = new ImageResponse(<OgCard data={data} />, { width: 1200, height: 630 })
   // Stats move with the rollups, not per-request: cache briefly in the browser,
   // longer at the edge/proxy.
-  image.headers.set('Cache-Control', 'public, max-age=300, s-maxage=3600')
-  return image
+  return buildOgImage(fetchCreatorOgData, id, { width: 1200, height: 630 }, 'public, max-age=300, s-maxage=3600')
 }

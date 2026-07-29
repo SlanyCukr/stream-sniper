@@ -48,13 +48,16 @@ const mapAssociation = (value: unknown, label: string): AudienceAssociation => {
 }
 
 export const useAudienceMovement = (
-    creatorId: number,
+    creatorId: number | null,
     { days = 30 }: { days?: number } = {},
     { enabled = true, ...options }: QueryOptions & { enabled?: boolean } = {},
 ) => useQuery({
     ...options,
     queryKey: creatorKeys.audienceMovement(creatorId, days),
     queryFn: async () => {
+        if (creatorId === null || creatorId <= 0) {
+            throw new TypeError('audience movement requires a positive creator ID')
+        }
         const value = await retrieveAudienceMovement(creatorId, days)
         const record = requireRecord(value, 'audience movement')
         return {
@@ -75,5 +78,5 @@ export const useAudienceMovement = (
             ).map((item, index) => mapAssociation(item, `audience movement.current_channels_for_lapsed[${index}]`)),
         }
     },
-    enabled: Boolean(creatorId) && enabled,
+    enabled: creatorId !== null && creatorId > 0 && enabled,
 })

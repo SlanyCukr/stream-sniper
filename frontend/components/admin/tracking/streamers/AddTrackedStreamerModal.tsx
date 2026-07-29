@@ -6,7 +6,7 @@ import {
 } from 'react-bootstrap'
 import AsyncSearchSelect from '@/components/common/search/AsyncSearchSelect'
 import { loadTrackedStreamerOptions } from '@/hooks/admin/tracking/useTrackingQueries'
-import type { CreateTrackedStreamerCommand } from '@/lib/api/tracking'
+import type { CreateTrackedStreamerCommand } from '@/lib/models/tracking'
 import type { SearchOption } from '@/hooks/useAsyncSearchLoader'
 
 interface StreamerDraft {

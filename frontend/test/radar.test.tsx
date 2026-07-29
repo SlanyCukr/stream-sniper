@@ -144,8 +144,8 @@ describe('scene radar view-model contract', () => {
   })
 
   it('does not fetch when disabled', async () => {
-    renderHook(() => useSceneRadar({ enabled: false }), { wrapper: createWrapper() })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const hook = renderHook(() => useSceneRadar({ enabled: false }), { wrapper: createWrapper() })
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('idle'))
     expect(api.retrieveSceneRadar).not.toHaveBeenCalled()
   })
 })

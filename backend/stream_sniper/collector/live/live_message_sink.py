@@ -21,6 +21,7 @@ from ...database.gateways.chat.live_chat_table_gateway import (
 from ...database.gateways.chat.message_text_table_gateway import find_or_insert_message_text_id_db
 from ...logging_config import get_logger
 from ..badge_format import format_badge_pairs
+from ..mention import mention_token
 from .contracts import ChatMessage, LiveStream
 
 logger = get_logger(__name__)
@@ -135,10 +136,8 @@ class LiveMessageSink:
         return text_id
 
     def _tagged_chatter_id(self, text: str) -> int | None:
-        if "@" not in text:
-            return None
-        tagged = text.lower().split("@", 1)[1].split(" ", 1)[0].rstrip(".,:;!?")
-        return self._chatters.get(tagged)
+        token = mention_token(text)
+        return self._chatters.get(token) if token is not None else None
 
     def _message_row(
         self,

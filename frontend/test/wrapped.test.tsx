@@ -252,8 +252,8 @@ describe('scene wrapped view-model contract', () => {
   })
 
   it('does not fetch when the query is disabled', async () => {
-    renderHook(() => useSceneWrapped(30, { enabled: false }), { wrapper: createWrapper() })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const hook = renderHook(() => useSceneWrapped(30, { enabled: false }), { wrapper: createWrapper() })
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('idle'))
     expect(api.retrieveSceneWrapped).not.toHaveBeenCalled()
   })
 })

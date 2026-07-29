@@ -18,3 +18,11 @@ export interface SceneTrendingRequest {
     creatorId?: number
     limit?: number
 }
+
+export interface ScenePulseRequest {
+    days?: number
+    eventType?: string
+    creatorId?: number
+    limit?: number
+    offset?: number
+}

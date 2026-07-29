@@ -29,7 +29,7 @@ export interface StreamsParams {
 }
 
 export interface StreamInfo {
-    title: string
+    title: string | null
     start: string
     end: string | null
     thumbnailUrl: string | null
@@ -88,7 +88,7 @@ export const mapStreamListRow = (value: unknown): StreamListRow => {
 export const mapStreamInfo = (value: unknown): StreamInfo => {
     const row = requireRecord(value, 'stream detail.info')
     return {
-        title: requireStringField(row, 'title', 'stream detail.info'),
+        title: requireNullableStringField(row, 'title', 'stream detail.info'),
         start: requireStringField(row, 'start', 'stream detail.info'),
         end: requireNullableStringField(row, 'end', 'stream detail.info'),
         thumbnailUrl: requireNullableStringField(row, 'thumbnail_url', 'stream detail.info'),
