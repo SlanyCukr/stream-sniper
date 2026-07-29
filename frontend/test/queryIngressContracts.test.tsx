@@ -95,7 +95,7 @@ describe('nullable query ingress', () => {
     await act(async () => {
       const outcome = await hook.result.current.refetch()
       expect(outcome.error).toEqual(expect.objectContaining({
-        message: 'emote detail requires a positive emote ID',
+        message: 'emote detail requires valid arguments before fetching',
       }))
     })
     expect(api.retrieveEmoteDetail).not.toHaveBeenCalled()

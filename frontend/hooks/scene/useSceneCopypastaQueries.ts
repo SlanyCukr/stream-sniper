@@ -1,6 +1,6 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveCopypastaPropagation, retrieveSceneCopypastas } from '@/lib/api/scene'
 import { createPage, getRowOffset, normalizePagination } from '@/lib/pagination/page'
+import { defineGatedQuery, defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -9,11 +9,6 @@ import {
     requireStringField,
 } from '@/lib/api/contractGuards'
 import { sceneKeys, type SceneCopypastaFilters } from './sceneKeys'
-
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
 
 export interface ScenePasta {
     messageTextId: number
@@ -133,35 +128,41 @@ export const mapCopypastaPropagation = (value: unknown): CopypastaPropagation =>
     }
 }
 
+const sceneCopypastasQuery = defineQuery({
+    key: ({ days, creatorId, sort, pageIndex, pageSize }: Required<Pick<SceneCopypastaFilters, 'pageIndex' | 'pageSize'>> & SceneCopypastaFilters) => (
+        sceneKeys.copypastas({ days, creatorId, sort, ...normalizePagination(pageIndex, pageSize) })
+    ),
+    fetch: ({ days, creatorId, sort, pageIndex, pageSize }) => {
+        const pagination = normalizePagination(pageIndex, pageSize)
+        return retrieveSceneCopypastas({
+            days,
+            creatorId,
+            sort,
+            pageSize: pagination.pageSize,
+            rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
+        })
+    },
+    map: mapSceneCopypastaPage,
+})
+
 export const useSceneCopypastas = ({
     days, creatorId, sort, pageIndex = 0, pageSize = 50,
-}: SceneCopypastaFilters = {}, options: QueryOptions<SceneCopypastaPage> = {}) => {
-    const pagination = normalizePagination(pageIndex, pageSize)
-    return useQuery({
-        ...options,
-        queryKey: sceneKeys.copypastas({ days, creatorId, sort, ...pagination }),
-        queryFn: async () => {
-            const data = await retrieveSceneCopypastas({
-                days,
-                creatorId,
-                sort,
-                pageSize: pagination.pageSize,
-                rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
-            })
-            return mapSceneCopypastaPage(data)
-        },
-    })
-}
+}: SceneCopypastaFilters = {}, options: QueryOptions<SceneCopypastaPage> = {}) => (
+    sceneCopypastasQuery({ days, creatorId, sort, pageIndex, pageSize }, options)
+)
+
+const copypastaPropagationQuery = defineGatedQuery({
+    label: 'copypasta propagation',
+    key: ({ messageTextId, contextSeconds }: { messageTextId: number, contextSeconds: number }) => (
+        sceneKeys.copypasta(messageTextId, contextSeconds)
+    ),
+    validate: args => (args.messageTextId ? args : null),
+    fetch: ({ messageTextId, contextSeconds }) => retrieveCopypastaPropagation(messageTextId, contextSeconds),
+    map: mapCopypastaPropagation,
+})
 
 export const useCopypastaPropagation = (
     messageTextId: number,
     contextSeconds = 90,
-    { enabled = true, ...options }: QueryOptions<CopypastaPropagation> = {},
-) => useQuery({
-    ...options,
-    queryKey: sceneKeys.copypasta(messageTextId, contextSeconds),
-    queryFn: async () => mapCopypastaPropagation(
-        await retrieveCopypastaPropagation(messageTextId, contextSeconds),
-    ),
-    enabled: Boolean(messageTextId) && enabled,
-})
+    options: QueryOptions<CopypastaPropagation> = {},
+) => copypastaPropagationQuery({ messageTextId, contextSeconds }, options)

@@ -1,5 +1,5 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveSceneWrapped } from '@/lib/api/scene'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -207,18 +207,14 @@ export const isWrappedEmpty = (wrapped: SceneWrapped): boolean => (
     && wrapped.notableEvents.length === 0
 )
 
-type WrappedQueryOptions = Omit<
-    UseQueryOptions<SceneWrapped, Error, SceneWrapped, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
+const sceneWrappedQuery = defineQuery({
+    key: (days: number) => sceneKeys.wrapped(days),
+    fetch: retrieveSceneWrapped,
+    map: mapSceneWrapped,
+})
 
 /** Fetch the scene recap for a rolling window (default 30 days). */
 export const useSceneWrapped = (
     days = 30,
-    { enabled = true, ...options }: WrappedQueryOptions = {},
-) => useQuery({
-    ...options,
-    queryKey: sceneKeys.wrapped(days),
-    queryFn: async () => mapSceneWrapped(await retrieveSceneWrapped(days)),
-    enabled,
-})
+    options: QueryOptions<SceneWrapped> = {},
+) => sceneWrappedQuery(days, options)
