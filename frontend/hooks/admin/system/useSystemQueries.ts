@@ -1,8 +1,8 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import {
     useInvalidatingMutation,
     type MutationOptions,
 } from '@/hooks/useInvalidatingMutation'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     flushCache,
     retrieveCacheStats,
@@ -58,8 +58,6 @@ export interface CacheStats {
     status: string
     streamSniperKeys: number
 }
-
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'>
 
 export const mapDetailedHealth = (value: unknown): DetailedHealth => {
     const data = requireRecord(value, 'detailed health')
@@ -170,32 +168,35 @@ export const systemKeys = {
     ],
 }
 
-export const useDetailedHealth = (options: QueryOptions<DetailedHealth> = {}) => useQuery({
-    ...options,
-    queryKey: systemKeys.detailedHealth(),
-    queryFn: async () => {
-        const data = await retrieveDetailedHealth()
-        return mapDetailedHealth(data)
-    },
+const detailedHealthQuery = defineQuery({
+    key: () => systemKeys.detailedHealth(),
+    fetch: retrieveDetailedHealth,
+    map: mapDetailedHealth,
 })
 
-export const useSystemMetrics = (options: QueryOptions<SystemMetrics> = {}) => useQuery({
-    ...options,
-    queryKey: systemKeys.metrics(),
-    queryFn: async () => {
-        const data = await retrieveMetrics()
-        return mapSystemMetrics(data)
-    },
+export const useDetailedHealth = (options: QueryOptions<DetailedHealth> = {}) => (
+    detailedHealthQuery(undefined, options)
+)
+
+const systemMetricsQuery = defineQuery({
+    key: () => systemKeys.metrics(),
+    fetch: retrieveMetrics,
+    map: mapSystemMetrics,
 })
 
-export const useCacheStats = (options: QueryOptions<CacheStats> = {}) => useQuery({
-    ...options,
-    queryKey: systemKeys.cacheStats(),
-    queryFn: async () => {
-        const data = await retrieveCacheStats()
-        return mapCacheStats(data)
-    },
+export const useSystemMetrics = (options: QueryOptions<SystemMetrics> = {}) => (
+    systemMetricsQuery(undefined, options)
+)
+
+const cacheStatsQuery = defineQuery({
+    key: () => systemKeys.cacheStats(),
+    fetch: retrieveCacheStats,
+    map: mapCacheStats,
 })
+
+export const useCacheStats = (options: QueryOptions<CacheStats> = {}) => (
+    cacheStatsQuery(undefined, options)
+)
 
 const flushCacheMutation = async (): Promise<FlushCacheDto> => mapFlushCache(await flushCache())
 

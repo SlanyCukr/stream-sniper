@@ -1,10 +1,10 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import {
     retrieveStreamEmotes,
     retrieveStreamMentions,
     retrieveStreamPhrases,
 } from '@/lib/api/streams'
 import { retrieveCreatorEmotes } from '@/lib/api/creators'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -12,11 +12,6 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
-
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
->
 
 interface InsightParams {
     limit?: number
@@ -139,62 +134,66 @@ const mapStreamPhrases = (value: unknown): StreamPhrases => {
     }
 }
 
+const mapCreatorEmotes = (value: unknown): CreatorEmotes => {
+    const data = requireRecord(value, 'creator emotes')
+    return {
+        emotes: requireArrayField(data, 'emotes', 'creator emotes')
+            .map((emote, index) => mapEmote(emote, `creator emotes.emotes[${index}]`)),
+    }
+}
+
+const streamMentionsQuery = defineGatedQuery({
+    label: 'stream mentions',
+    key: ({ streamId, limit }: { streamId: number, limit: number }) => streamInsightsKeys.mentions(streamId, limit),
+    validate: args => (args.streamId ? args : null),
+    fetch: ({ streamId, limit }) => retrieveStreamMentions(streamId, limit),
+    map: mapStreamMentions,
+})
+
 export const useStreamMentions = (
     streamId: number,
     { limit = 20 }: InsightParams = {},
-    { enabled = true, ...options }: QueryOptions<StreamMentions> & { enabled?: boolean } = {},
-) => useQuery({
-    ...options,
-    queryKey: streamInsightsKeys.mentions(streamId, limit),
-    queryFn: async () => {
-        const response = await retrieveStreamMentions(streamId, limit)
-        return mapStreamMentions(response)
-    },
-    enabled: Boolean(streamId) && enabled,
+    options: QueryOptions<StreamMentions> = {},
+) => streamMentionsQuery({ streamId, limit }, options)
+
+const streamEmotesQuery = defineGatedQuery({
+    label: 'stream emotes',
+    key: ({ streamId, limit }: { streamId: number, limit: number }) => streamInsightsKeys.emotes(streamId, limit),
+    validate: args => (args.streamId ? args : null),
+    fetch: ({ streamId, limit }) => retrieveStreamEmotes(streamId, limit),
+    map: mapStreamEmotes,
 })
 
 export const useStreamEmotes = (
     streamId: number,
     { limit = 25 }: InsightParams = {},
-    { enabled = true, ...options }: QueryOptions<StreamEmotes> & { enabled?: boolean } = {},
-) => useQuery({
-    ...options,
-    queryKey: streamInsightsKeys.emotes(streamId, limit),
-    queryFn: async () => {
-        const response = await retrieveStreamEmotes(streamId, limit)
-        return mapStreamEmotes(response)
-    },
-    enabled: Boolean(streamId) && enabled,
+    options: QueryOptions<StreamEmotes> = {},
+) => streamEmotesQuery({ streamId, limit }, options)
+
+const streamPhrasesQuery = defineGatedQuery({
+    label: 'stream phrases',
+    key: ({ streamId, limit }: { streamId: number, limit: number }) => streamInsightsKeys.phrases(streamId, limit),
+    validate: args => (args.streamId ? args : null),
+    fetch: ({ streamId, limit }) => retrieveStreamPhrases(streamId, limit),
+    map: mapStreamPhrases,
 })
 
 export const useStreamPhrases = (
     streamId: number,
     { limit = 25 }: InsightParams = {},
-    { enabled = true, ...options }: QueryOptions<StreamPhrases> & { enabled?: boolean } = {},
-) => useQuery({
-    ...options,
-    queryKey: streamInsightsKeys.phrases(streamId, limit),
-    queryFn: async () => {
-        const response = await retrieveStreamPhrases(streamId, limit)
-        return mapStreamPhrases(response)
-    },
-    enabled: Boolean(streamId) && enabled,
+    options: QueryOptions<StreamPhrases> = {},
+) => streamPhrasesQuery({ streamId, limit }, options)
+
+const creatorEmotesQuery = defineGatedQuery({
+    label: 'creator emotes',
+    key: ({ creatorId, limit }: { creatorId: number, limit: number }) => streamInsightsKeys.creatorEmotes(creatorId, limit),
+    validate: args => (args.creatorId ? args : null),
+    fetch: ({ creatorId, limit }) => retrieveCreatorEmotes(creatorId, limit),
+    map: mapCreatorEmotes,
 })
 
 export const useCreatorEmotes = (
     creatorId: number,
     { limit = 25 }: InsightParams = {},
-    { enabled = true, ...options }: QueryOptions<CreatorEmotes> & { enabled?: boolean } = {},
-) => useQuery({
-    ...options,
-    queryKey: streamInsightsKeys.creatorEmotes(creatorId, limit),
-    queryFn: async () => {
-        const response = await retrieveCreatorEmotes(creatorId, limit)
-        const data = requireRecord(response, 'creator emotes')
-        return {
-            emotes: requireArrayField(data, 'emotes', 'creator emotes')
-                .map((emote, index) => mapEmote(emote, `creator emotes.emotes[${index}]`)),
-        }
-    },
-    enabled: Boolean(creatorId) && enabled,
-})
+    options: QueryOptions<CreatorEmotes> = {},
+) => creatorEmotesQuery({ creatorId, limit }, options)

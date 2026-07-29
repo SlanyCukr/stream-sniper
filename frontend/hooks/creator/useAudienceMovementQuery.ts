@@ -1,4 +1,3 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import {
     retrieveAudienceMovement,
 } from '@/lib/api/creators'
@@ -9,6 +8,7 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 import { creatorKeys } from './creatorKeys'
 
 export interface AudienceAssociation {
@@ -32,11 +32,6 @@ export interface AudienceMovement {
     currentChannelsForLapsed: AudienceAssociation[]
 }
 
-type QueryOptions = Omit<
-    UseQueryOptions<AudienceMovement, Error, AudienceMovement, readonly unknown[]>,
-    'queryKey' | 'queryFn'
->
-
 const mapAssociation = (value: unknown, label: string): AudienceAssociation => {
     const item = requireRecord(value, label)
     return {
@@ -47,36 +42,39 @@ const mapAssociation = (value: unknown, label: string): AudienceAssociation => {
     }
 }
 
+const mapAudienceMovement = (value: unknown): AudienceMovement => {
+    const record = requireRecord(value, 'audience movement')
+    return {
+        creatorId: requireFiniteNumberField(record, 'creator_id', 'audience movement'),
+        windowDays: requireFiniteNumberField(record, 'window_days', 'audience movement'),
+        currentAudience: requireFiniteNumberField(record, 'current_audience', 'audience movement'),
+        previousAudience: requireFiniteNumberField(record, 'previous_audience', 'audience movement'),
+        retained: requireFiniteNumberField(record, 'retained', 'audience movement'),
+        gained: requireFiniteNumberField(record, 'gained', 'audience movement'),
+        lapsed: requireFiniteNumberField(record, 'lapsed', 'audience movement'),
+        retentionRate: requireNullableFiniteNumberField(record, 'retention_rate', 'audience movement'),
+        gainRate: requireNullableFiniteNumberField(record, 'gain_rate', 'audience movement'),
+        priorChannelsForGained: requireArrayField(
+            record, 'prior_channels_for_gained', 'audience movement',
+        ).map((item, index) => mapAssociation(item, `audience movement.prior_channels_for_gained[${index}]`)),
+        currentChannelsForLapsed: requireArrayField(
+            record, 'current_channels_for_lapsed', 'audience movement',
+        ).map((item, index) => mapAssociation(item, `audience movement.current_channels_for_lapsed[${index}]`)),
+    }
+}
+
+const audienceMovementQuery = defineGatedQuery({
+    label: 'audience movement',
+    key: ({ creatorId, days }: { creatorId: number | null, days: number }) => (
+        creatorKeys.audienceMovement(creatorId, days)
+    ),
+    validate: ({ creatorId, days }) => (creatorId !== null && creatorId > 0 ? { creatorId, days } : null),
+    fetch: ({ creatorId, days }) => retrieveAudienceMovement(creatorId, days),
+    map: mapAudienceMovement,
+})
+
 export const useAudienceMovement = (
     creatorId: number | null,
     { days = 30 }: { days?: number } = {},
-    { enabled = true, ...options }: QueryOptions & { enabled?: boolean } = {},
-) => useQuery({
-    ...options,
-    queryKey: creatorKeys.audienceMovement(creatorId, days),
-    queryFn: async () => {
-        if (creatorId === null || creatorId <= 0) {
-            throw new TypeError('audience movement requires a positive creator ID')
-        }
-        const value = await retrieveAudienceMovement(creatorId, days)
-        const record = requireRecord(value, 'audience movement')
-        return {
-            creatorId: requireFiniteNumberField(record, 'creator_id', 'audience movement'),
-            windowDays: requireFiniteNumberField(record, 'window_days', 'audience movement'),
-            currentAudience: requireFiniteNumberField(record, 'current_audience', 'audience movement'),
-            previousAudience: requireFiniteNumberField(record, 'previous_audience', 'audience movement'),
-            retained: requireFiniteNumberField(record, 'retained', 'audience movement'),
-            gained: requireFiniteNumberField(record, 'gained', 'audience movement'),
-            lapsed: requireFiniteNumberField(record, 'lapsed', 'audience movement'),
-            retentionRate: requireNullableFiniteNumberField(record, 'retention_rate', 'audience movement'),
-            gainRate: requireNullableFiniteNumberField(record, 'gain_rate', 'audience movement'),
-            priorChannelsForGained: requireArrayField(
-                record, 'prior_channels_for_gained', 'audience movement',
-            ).map((item, index) => mapAssociation(item, `audience movement.prior_channels_for_gained[${index}]`)),
-            currentChannelsForLapsed: requireArrayField(
-                record, 'current_channels_for_lapsed', 'audience movement',
-            ).map((item, index) => mapAssociation(item, `audience movement.current_channels_for_lapsed[${index}]`)),
-        }
-    },
-    enabled: creatorId !== null && creatorId > 0 && enabled,
-})
+    options: QueryOptions<AudienceMovement> = {},
+) => audienceMovementQuery({ creatorId, days }, options)

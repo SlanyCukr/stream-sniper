@@ -1,4 +1,3 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveChatterMessages } from '@/lib/api/chatter'
 import { PAGINATION } from '@/lib/pagination/constants'
 import {
@@ -7,6 +6,7 @@ import {
 import {
     requireArrayField, requireFiniteNumberField, requireRecord, requireStringField,
 } from '@/lib/api/contractGuards'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 
 export interface ChatterMessage {
     streamId: number
@@ -60,7 +60,39 @@ const messagesKeys = {
     ] as const,
 }
 
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'>
+const mapChatterMessagesPage = (value: unknown): Page<ChatterMessage> => {
+    const data = requireRecord(value, 'chatter messages')
+    const responseOffset = requireFiniteNumberField(data, 'offset', 'chatter messages')
+    const responseLimit = requireFiniteNumberField(data, 'limit', 'chatter messages')
+    return createPage(
+        requireArrayField(data, 'messages', 'chatter messages').map(mapChatterMessage),
+        requireFiniteNumberField(data, 'total', 'chatter messages'),
+        Math.floor(responseOffset / responseLimit),
+        responseLimit,
+    )
+}
+
+interface ChatterMessagesArgs {
+    chatterId: number
+    pageIndex: number
+    pageSize: number
+}
+
+const chatterMessagesQuery = defineGatedQuery({
+    label: 'chatter messages',
+    key: ({ chatterId, pageIndex, pageSize }: ChatterMessagesArgs) => (
+        messagesKeys.list(chatterId, normalizePagination(pageIndex, pageSize))
+    ),
+    validate: args => (args.chatterId ? args : null),
+    fetch: ({ chatterId, pageIndex, pageSize }) => {
+        const params = normalizePagination(pageIndex, pageSize)
+        return retrieveChatterMessages(chatterId, {
+            rowOffset: getRowOffset(params.pageIndex, params.pageSize),
+            pageSize: params.pageSize,
+        })
+    },
+    map: mapChatterMessagesPage,
+})
 
 /**
  * Custom hook for fetching a page of a chatter's cross-stream message log using TanStack Query
@@ -75,27 +107,5 @@ export const useChatterMessages = (
         pageIndex = 0,
         pageSize = PAGINATION.MESSAGES_PER_PAGE,
     }: { pageIndex?: number, pageSize?: number } = {},
-    { enabled = true, ...options }: QueryOptions<Page<ChatterMessage>> & { enabled?: boolean } = {},
-) => {
-    const params = normalizePagination(pageIndex, pageSize)
-    return useQuery({
-        ...options,
-        queryKey: messagesKeys.list(chatterId, params),
-        queryFn: async () => {
-            const response = await retrieveChatterMessages(chatterId, {
-                rowOffset: getRowOffset(params.pageIndex, params.pageSize),
-                pageSize: params.pageSize,
-            })
-            const data = requireRecord(response, 'chatter messages')
-            const responseOffset = requireFiniteNumberField(data, 'offset', 'chatter messages')
-            const responseLimit = requireFiniteNumberField(data, 'limit', 'chatter messages')
-            return createPage(
-                requireArrayField(data, 'messages', 'chatter messages').map(mapChatterMessage),
-                requireFiniteNumberField(data, 'total', 'chatter messages'),
-                Math.floor(responseOffset / responseLimit),
-                responseLimit,
-            )
-        },
-        enabled: Boolean(chatterId) && enabled,
-    })
-}
+    options: QueryOptions<Page<ChatterMessage>> = {},
+) => chatterMessagesQuery({ chatterId, pageIndex, pageSize }, options)

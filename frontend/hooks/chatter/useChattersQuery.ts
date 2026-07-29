@@ -1,4 +1,3 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveChatterStreamActivity } from '@/lib/api/chatter'
 import {
     requireArray,
@@ -7,8 +6,7 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
-
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'>
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 
 export interface ChatterStreamActivity {
     streamId: number
@@ -34,6 +32,10 @@ const mapChatterActivity = (value: unknown, index = 0): ChatterStreamActivity =>
     }
 }
 
+const mapChatterStreamActivities = (value: unknown): ChatterStreamActivity[] => (
+    requireArray(value, 'chatter stream activity').map((item, index) => mapChatterActivity(item, index))
+)
+
 export const chattersKeys = {
     all: [
         'chatters',
@@ -45,15 +47,15 @@ export const chattersKeys = {
     ] as const,
 }
 
+const chatterStreamActivityQuery = defineGatedQuery({
+    label: 'chatter stream activity',
+    key: (chatterId: number) => chattersKeys.streamActivity(chatterId),
+    validate: chatterId => (chatterId ? chatterId : null),
+    fetch: chatterId => retrieveChatterStreamActivity(chatterId),
+    map: mapChatterStreamActivities,
+})
+
 export const useChatterStreamActivity = (
     chatterId: number,
-    { enabled = true, ...options }: QueryOptions<ChatterStreamActivity[]> & { enabled?: boolean } = {},
-) => useQuery({
-    ...options,
-    queryKey: chattersKeys.streamActivity(chatterId),
-    queryFn: async () => {
-        const response = await retrieveChatterStreamActivity(chatterId)
-        return requireArray(response, 'chatter stream activity').map((value, index) => mapChatterActivity(value, index))
-    },
-    enabled: Boolean(chatterId) && enabled,
-})
+    options: QueryOptions<ChatterStreamActivity[]> = {},
+) => chatterStreamActivityQuery(chatterId, options)

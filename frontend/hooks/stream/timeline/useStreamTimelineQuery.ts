@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery, type UseQueryOptions } from '@tanstack/react-query'
+import { keepPreviousData } from '@tanstack/react-query'
 import { retrieveStreamTimeline } from '@/lib/api/streams'
 import {
     mapNullableMomentPhrases,
@@ -8,6 +8,7 @@ import {
 import type {
     MomentPhrase, MomentReviewStatus, MomentSampleMessage,
 } from '@/lib/models/momentQueue'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArray,
     requireArrayField,
@@ -20,11 +21,6 @@ import {
     requireStringField,
 } from '@/lib/api/contractGuards'
 import { streamTimelineKeys } from '../../queryKeys'
-
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
 
 export { streamTimelineKeys } from '../../queryKeys'
 
@@ -190,17 +186,18 @@ const mapStreamTimeline = (value: unknown): StreamTimeline => {
  * peakViewers is folded into the metrics object so StreamMetrics (which receives only
  * `metrics`) can surface it without a new prop from views/stream/Stream.tsx.
  */
+const streamTimelineQuery = defineGatedQuery({
+    label: 'stream timeline',
+    key: (streamId: number) => streamTimelineKeys.detail(streamId),
+    validate: streamId => (streamId ? streamId : null),
+    fetch: retrieveStreamTimeline,
+    map: mapStreamTimeline,
+})
+
 export const useStreamTimeline = (
     streamId: number,
-    { enabled = true, ...options }: QueryOptions<StreamTimeline> = {},
-) => useQuery({
-    ...options,
-    queryKey: streamTimelineKeys.detail(streamId),
-    queryFn: async () => {
-        const response = await retrieveStreamTimeline(streamId)
-        return mapStreamTimeline(response)
-    },
-    enabled: Boolean(streamId) && enabled,
-    // Hold the previous render during refetch (moment-review invalidation) — no skeleton flash.
-    placeholderData: keepPreviousData,
-})
+    options: QueryOptions<StreamTimeline> = {},
+    // Hard merge, matching the pre-seam behavior: holding the previous render
+    // across moment-review invalidation (no skeleton flash) is part of this
+    // hook's contract, not a caller-tunable option.
+) => streamTimelineQuery(streamId, { ...options, placeholderData: keepPreviousData })

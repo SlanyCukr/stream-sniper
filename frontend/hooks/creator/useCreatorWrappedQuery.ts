@@ -1,5 +1,5 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveCreatorWrapped } from '@/lib/api/creators'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 import { creatorKeys } from './creatorKeys'
 import {
     requireArrayField,
@@ -145,22 +145,20 @@ export const isCreatorWrappedEmpty = (wrapped: CreatorWrapped): boolean => (
     && wrapped.topEmotes.length === 0
 )
 
-type CreatorWrappedQueryOptions = Omit<
-    UseQueryOptions<CreatorWrapped, Error, CreatorWrapped, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
+const creatorWrappedQuery = defineGatedQuery({
+    label: 'creator wrapped',
+    key: ({ creatorId, days }: { creatorId: number, days: number }) => creatorKeys.wrapped(creatorId, days),
+    // Positive safe integer, not just truthy: the route boundary already 404s
+    // invalid segments, but a fractional/NaN id reaching here must never fire
+    // a request that can only produce a misleading generic API error.
+    validate: args => (Number.isSafeInteger(args.creatorId) && args.creatorId > 0 ? args : null),
+    fetch: ({ creatorId, days }) => retrieveCreatorWrapped(creatorId, days),
+    map: mapCreatorWrapped,
+})
 
 /** Fetch one creator's recap for a rolling window (default 30 days). */
 export const useCreatorWrapped = (
     creatorId: number,
     days = 30,
-    { enabled = true, ...options }: CreatorWrappedQueryOptions = {},
-) => useQuery({
-    ...options,
-    queryKey: creatorKeys.wrapped(creatorId, days),
-    queryFn: async () => mapCreatorWrapped(await retrieveCreatorWrapped(creatorId, days)),
-    // Positive safe integer, not just truthy: the route boundary already 404s
-    // invalid segments, but a fractional/NaN id reaching here must never fire
-    // a request that can only produce a misleading generic API error.
-    enabled: Number.isSafeInteger(creatorId) && creatorId > 0 && enabled,
-})
+    options: QueryOptions<CreatorWrapped> = {},
+) => creatorWrappedQuery({ creatorId, days }, options)

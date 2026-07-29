@@ -1,5 +1,5 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveStreamComparison } from '@/lib/api/streams'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -50,71 +50,70 @@ export interface StreamComparison {
     retention: StreamComparisonRetention[]
 }
 
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
->
-
 const streamComparisonKeys = {
     all: ['stream-comparison'],
     detail: (streamIds: number[]) => [...streamComparisonKeys.all, streamIds],
 }
 
+const mapStreamComparison = (value: unknown): StreamComparison => {
+    const data = requireRecord(value, 'stream comparison')
+    return {
+        streams: requireArrayField(data, 'streams', 'stream comparison').map((value, index) => {
+            const label = `stream comparison.streams[${index}]`
+            const stream = requireRecord(value, label)
+            return {
+                streamId: requireFiniteNumberField(stream, 'stream_id', label),
+                creatorId: requireFiniteNumberField(stream, 'creator_id', label),
+                creatorNick: requireStringField(stream, 'creator_nick', label),
+                creatorDisplayName: requireStringField(stream, 'creator_display_name', label),
+                title: requireStringField(stream, 'title', label),
+                start: requireNullableStringField(stream, 'start', label),
+                durationSeconds: requireNullableFiniteNumberField(stream, 'duration_seconds', label),
+                totalMessages: requireNullableFiniteNumberField(stream, 'total_messages', label),
+                messagesPerMinute: requireNullableFiniteNumberField(stream, 'messages_per_minute', label),
+                uniqueChatters: requireNullableFiniteNumberField(stream, 'unique_chatters', label),
+                newChatters: requireNullableFiniteNumberField(stream, 'new_chatters', label),
+                returningChatters: requireNullableFiniteNumberField(stream, 'returning_chatters', label),
+                subShare: requireNullableFiniteNumberField(stream, 'sub_share', label),
+                emoteShare: requireNullableFiniteNumberField(stream, 'emote_share', label),
+                peakMessages: requireNullableFiniteNumberField(stream, 'peak_messages', label),
+                peakBucketMinute: requireNullableStringField(stream, 'peak_bucket_minute', label),
+                peakViewers: requireNullableFiniteNumberField(stream, 'peak_viewers', label),
+                curve: requireArrayField(stream, 'curve', label).map((value, pointIndex) => {
+                    const pointLabel = `${label}.curve[${pointIndex}]`
+                    const point = requireRecord(value, pointLabel)
+                    return {
+                        percent: requireFiniteNumberField(point, 'percent', pointLabel),
+                        messageCount: requireFiniteNumberField(point, 'message_count', pointLabel),
+                        uniqueChatters: requireFiniteNumberField(point, 'unique_chatters', pointLabel),
+                    }
+                }),
+            }
+        }),
+        retention: requireArrayField(data, 'retention', 'stream comparison').map((value, index) => {
+            const label = `stream comparison.retention[${index}]`
+            const item = requireRecord(value, label)
+            return {
+                fromStreamId: requireFiniteNumberField(item, 'from_stream_id', label),
+                toStreamId: requireFiniteNumberField(item, 'to_stream_id', label),
+                fromAudience: requireFiniteNumberField(item, 'from_audience', label),
+                toAudience: requireFiniteNumberField(item, 'to_audience', label),
+                retained: requireFiniteNumberField(item, 'retained', label),
+                retentionRate: requireNullableFiniteNumberField(item, 'retention_rate', label),
+            }
+        }),
+    }
+}
+
+const streamComparisonQuery = defineGatedQuery({
+    label: 'stream comparison',
+    key: (streamIds: number[]) => streamComparisonKeys.detail(streamIds),
+    validate: streamIds => (streamIds.length >= 2 && streamIds.length <= 4 ? streamIds : null),
+    fetch: retrieveStreamComparison,
+    map: mapStreamComparison,
+})
+
 export const useStreamComparison = (
     streamIds: number[],
-    { enabled = true, ...options }: QueryOptions<StreamComparison> & { enabled?: boolean } = {},
-) => useQuery({
-    ...options,
-    queryKey: streamComparisonKeys.detail(streamIds),
-    queryFn: async (): Promise<StreamComparison> => {
-        const value = await retrieveStreamComparison(streamIds)
-        const data = requireRecord(value, 'stream comparison')
-        return {
-            streams: requireArrayField(data, 'streams', 'stream comparison').map((value, index) => {
-                const label = `stream comparison.streams[${index}]`
-                const stream = requireRecord(value, label)
-                return {
-                    streamId: requireFiniteNumberField(stream, 'stream_id', label),
-                    creatorId: requireFiniteNumberField(stream, 'creator_id', label),
-                    creatorNick: requireStringField(stream, 'creator_nick', label),
-                    creatorDisplayName: requireStringField(stream, 'creator_display_name', label),
-                    title: requireStringField(stream, 'title', label),
-                    start: requireNullableStringField(stream, 'start', label),
-                    durationSeconds: requireNullableFiniteNumberField(stream, 'duration_seconds', label),
-                    totalMessages: requireNullableFiniteNumberField(stream, 'total_messages', label),
-                    messagesPerMinute: requireNullableFiniteNumberField(stream, 'messages_per_minute', label),
-                    uniqueChatters: requireNullableFiniteNumberField(stream, 'unique_chatters', label),
-                    newChatters: requireNullableFiniteNumberField(stream, 'new_chatters', label),
-                    returningChatters: requireNullableFiniteNumberField(stream, 'returning_chatters', label),
-                    subShare: requireNullableFiniteNumberField(stream, 'sub_share', label),
-                    emoteShare: requireNullableFiniteNumberField(stream, 'emote_share', label),
-                    peakMessages: requireNullableFiniteNumberField(stream, 'peak_messages', label),
-                    peakBucketMinute: requireNullableStringField(stream, 'peak_bucket_minute', label),
-                    peakViewers: requireNullableFiniteNumberField(stream, 'peak_viewers', label),
-                    curve: requireArrayField(stream, 'curve', label).map((value, pointIndex) => {
-                        const pointLabel = `${label}.curve[${pointIndex}]`
-                        const point = requireRecord(value, pointLabel)
-                        return {
-                            percent: requireFiniteNumberField(point, 'percent', pointLabel),
-                            messageCount: requireFiniteNumberField(point, 'message_count', pointLabel),
-                            uniqueChatters: requireFiniteNumberField(point, 'unique_chatters', pointLabel),
-                        }
-                    }),
-                }
-            }),
-            retention: requireArrayField(data, 'retention', 'stream comparison').map((value, index) => {
-                const label = `stream comparison.retention[${index}]`
-                const item = requireRecord(value, label)
-                return {
-                    fromStreamId: requireFiniteNumberField(item, 'from_stream_id', label),
-                    toStreamId: requireFiniteNumberField(item, 'to_stream_id', label),
-                    fromAudience: requireFiniteNumberField(item, 'from_audience', label),
-                    toAudience: requireFiniteNumberField(item, 'to_audience', label),
-                    retained: requireFiniteNumberField(item, 'retained', label),
-                    retentionRate: requireNullableFiniteNumberField(item, 'retention_rate', label),
-                }
-            }),
-        }
-    },
-    enabled: streamIds.length >= 2 && streamIds.length <= 4 && enabled,
-})
+    options: QueryOptions<StreamComparison> = {},
+) => streamComparisonQuery(streamIds, options)

@@ -1,9 +1,7 @@
 import {
     useInfiniteQuery,
-    useQuery,
     type InfiniteData,
     type UseInfiniteQueryOptions,
-    type UseQueryOptions,
 } from '@tanstack/react-query'
 import {
     retrieveSearchContext,
@@ -11,6 +9,7 @@ import {
     retrieveSearchFrequency,
     retrieveSearchMessages,
 } from '@/lib/api/search'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArrayField,
     requireBooleanField,
@@ -27,11 +26,6 @@ import type {
     SearchHitVM,
 } from './searchTypes'
 import { searchKeys } from './searchKeys'
-
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
 
 /** Minimum trimmed query length the backend accepts before it 422s (mirrors the
  * backend's 3-char floor — pg_trgm needs 3 chars to use the trigram index). */
@@ -199,21 +193,23 @@ interface SearchFirstFilters {
     creatorId?: number | null
 }
 
+const searchFirstQuery = defineGatedQuery({
+    label: 'search first',
+    key: ({ q, creatorId }: Required<SearchFirstFilters>) => (
+        searchKeys.first({ q: q.trim(), creatorId: creatorId ?? null })
+    ),
+    validate: args => (isSearchableQuery(args.q) ? args : null),
+    fetch: ({ q, creatorId }) => retrieveSearchFirst({
+        q: q.trim(),
+        creatorId: creatorId ?? undefined,
+    }),
+    map: mapSearchFirst,
+})
+
 export const useSearchFirst = (
-    { q = '', creatorId }: SearchFirstFilters = {},
+    { q = '', creatorId = null }: SearchFirstFilters = {},
     options: QueryOptions<SearchFirstVM> = {},
-) => {
-    const enabledQuery = isSearchableQuery(q)
-    return useQuery({
-        ...options,
-        queryKey: searchKeys.first({ q: q.trim(), creatorId: creatorId ?? null }),
-        queryFn: async () => mapSearchFirst(await retrieveSearchFirst({
-            q: q.trim(),
-            creatorId: creatorId ?? undefined,
-        })),
-        enabled: enabledQuery && (options.enabled ?? true),
-    })
-}
+) => searchFirstQuery({ q, creatorId }, options)
 
 interface SearchFrequencyFilters {
     q?: string
@@ -221,24 +217,24 @@ interface SearchFrequencyFilters {
     creatorId?: number | null
 }
 
+const searchFrequencyQuery = defineGatedQuery({
+    label: 'search frequency',
+    key: ({ q, days, creatorId }: Required<SearchFrequencyFilters>) => (
+        searchKeys.frequency({ q: q.trim(), days: days ?? null, creatorId: creatorId ?? null })
+    ),
+    validate: args => (isSearchableQuery(args.q) ? args : null),
+    fetch: ({ q, days, creatorId }) => retrieveSearchFrequency({
+        q: q.trim(),
+        days: days ?? undefined,
+        creatorId: creatorId ?? undefined,
+    }),
+    map: mapSearchFrequency,
+})
+
 export const useSearchFrequency = (
-    { q = '', days, creatorId }: SearchFrequencyFilters = {},
+    { q = '', days = null, creatorId = null }: SearchFrequencyFilters = {},
     options: QueryOptions<SearchFrequencyVM> = {},
-) => {
-    const enabledQuery = isSearchableQuery(q)
-    return useQuery({
-        ...options,
-        queryKey: searchKeys.frequency({
-            q: q.trim(), days: days ?? null, creatorId: creatorId ?? null,
-        }),
-        queryFn: async () => mapSearchFrequency(await retrieveSearchFrequency({
-            q: q.trim(),
-            days: days ?? undefined,
-            creatorId: creatorId ?? undefined,
-        })),
-        enabled: enabledQuery && (options.enabled ?? true),
-    })
-}
+) => searchFrequencyQuery({ q, days, creatorId }, options)
 
 interface SearchContextFilters {
     streamId?: number | null
@@ -246,29 +242,28 @@ interface SearchContextFilters {
     radius?: number
 }
 
-export const useSearchContext = ({
-    streamId, messageId, radius,
-}: SearchContextFilters = {}, options: QueryOptions<SearchContextVM> = {}) => {
-    const enabledQuery = streamId !== undefined
-        && streamId !== null
-        && streamId > 0
-        && messageId !== undefined
-        && messageId !== null
-        && messageId > 0
-    return useQuery({
-        ...options,
-        queryKey: searchKeys.context({ streamId: streamId ?? null, messageId: messageId ?? null, radius: radius ?? null }),
-        queryFn: async () => {
-            if (streamId === undefined || streamId === null || streamId <= 0
-                || messageId === undefined || messageId === null || messageId <= 0) {
-                throw new TypeError('search context requires positive stream and message IDs')
-            }
-            return mapSearchContext(await retrieveSearchContext({
-                streamId,
-                messageId,
-                radius,
-            }))
-        },
-        enabled: enabledQuery && (options.enabled ?? true),
-    })
+interface ValidSearchContextArgs {
+    streamId: number
+    messageId: number
+    radius?: number
 }
+
+const searchContextQuery = defineGatedQuery({
+    label: 'search context',
+    key: ({ streamId, messageId, radius }: SearchContextFilters) => searchKeys.context({
+        streamId: streamId ?? null, messageId: messageId ?? null, radius: radius ?? null,
+    }),
+    validate: ({ streamId, messageId, radius }: SearchContextFilters): ValidSearchContextArgs | null => (
+        streamId !== undefined && streamId !== null && streamId > 0
+            && messageId !== undefined && messageId !== null && messageId > 0
+            ? { streamId, messageId, radius }
+            : null
+    ),
+    fetch: ({ streamId, messageId, radius }) => retrieveSearchContext({ streamId, messageId, radius }),
+    map: mapSearchContext,
+})
+
+export const useSearchContext = (
+    filters: SearchContextFilters = {},
+    options: QueryOptions<SearchContextVM> = {},
+) => searchContextQuery(filters, options)

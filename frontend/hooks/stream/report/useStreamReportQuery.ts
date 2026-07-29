@@ -1,9 +1,10 @@
-import { keepPreviousData, useQuery, type UseQueryOptions } from '@tanstack/react-query'
+import { keepPreviousData } from '@tanstack/react-query'
 import { retrieveStreamReport } from '@/lib/api/streams'
 import {
     requireNullableMomentReviewStatus,
 } from '@/lib/api/moments'
 import type { MomentReviewStatus } from '@/lib/models/momentQueue'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -12,11 +13,6 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
-
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
 
 /**
  * Query key factory for stream report-card queries
@@ -184,17 +180,17 @@ const mapStreamReport = (value: unknown): StreamReport => {
  * value means the rollup has not run, and null delta/percentile means the
  * baseline was too small (< 2 rolled-up previous streams).
  */
+const streamReportQuery = defineGatedQuery({
+    label: 'stream report',
+    key: (streamId: number) => streamReportKeys.detail(streamId),
+    validate: streamId => (streamId ? streamId : null),
+    fetch: retrieveStreamReport,
+    map: mapStreamReport,
+})
+
 export const useStreamReport = (
     streamId: number,
-    { enabled = true, ...options }: QueryOptions<StreamReport> = {},
-) => useQuery({
-    ...options,
-    queryKey: streamReportKeys.detail(streamId),
-    queryFn: async () => {
-        const response = await retrieveStreamReport(streamId)
-        return mapStreamReport(response)
-    },
-    enabled: Boolean(streamId) && enabled,
-    // Hold the previous render during refetch — no skeleton flash.
-    placeholderData: keepPreviousData,
-})
+    options: QueryOptions<StreamReport> = {},
+    // Hard merge, matching the pre-seam behavior: holding the previous render is
+    // part of this hook's contract, not a caller-tunable option.
+) => streamReportQuery(streamId, { ...options, placeholderData: keepPreviousData })

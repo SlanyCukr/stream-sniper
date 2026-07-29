@@ -1,7 +1,8 @@
 import {
-    useMutation, useQuery, useQueryClient,
-    type UseMutationOptions, type UseQueryOptions,
+    useMutation, useQueryClient,
+    type UseMutationOptions,
 } from '@tanstack/react-query'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     deleteMomentReview,
     mapNullableMomentPhrases,
@@ -104,11 +105,6 @@ const mapMomentsQueue = (value: unknown) => {
 
 type MomentsQueuePage = ReturnType<typeof mapMomentsQueue>
 
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
-
 interface UseMomentsQueueParams {
     status?: MomentsQueueRequest['status']
     creatorId?: number
@@ -116,29 +112,37 @@ interface UseMomentsQueueParams {
     pageSize?: number
 }
 
+interface MomentsQueueArgs {
+    status?: MomentsQueueRequest['status']
+    creatorId?: number
+    pageIndex: number
+    pageSize: number
+}
+
+const momentsQueueQuery = defineQuery({
+    key: ({ status, creatorId, pageIndex, pageSize }: MomentsQueueArgs) => (
+        momentsQueueKeys.list({ status, creatorId, ...normalizePagination(pageIndex, pageSize) })
+    ),
+    fetch: ({ status, creatorId, pageIndex, pageSize }: MomentsQueueArgs) => {
+        const pagination = normalizePagination(pageIndex, pageSize)
+        return retrieveMomentsQueue({
+            status,
+            creatorId,
+            pageSize: pagination.pageSize,
+            rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
+        })
+    },
+    map: mapMomentsQueue,
+})
+
 export const useMomentsQueue = (
     {
         status, creatorId, pageIndex = 0, pageSize = 50,
     }: UseMomentsQueueParams = {},
     options: QueryOptions<MomentsQueuePage> = {},
-) => {
-    const pagination = normalizePagination(pageIndex, pageSize)
-    return useQuery({
-        ...options,
-        queryKey: momentsQueueKeys.list({
-            status, creatorId, ...pagination,
-        }),
-        queryFn: async () => {
-            const response = await retrieveMomentsQueue({
-                status,
-                creatorId,
-                pageSize: pagination.pageSize,
-                rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
-            })
-            return mapMomentsQueue(response)
-        },
-    })
-}
+) => momentsQueueQuery({
+    status, creatorId, pageIndex, pageSize,
+}, options)
 
 type MomentReviewMutationOptions = Omit<
     UseMutationOptions<MomentReviewResult | void, Error, MomentReviewCommand>,

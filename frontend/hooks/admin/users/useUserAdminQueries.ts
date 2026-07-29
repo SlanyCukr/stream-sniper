@@ -1,8 +1,8 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import {
     useInvalidatingMutation,
     type MutationOptions,
 } from '@/hooks/useInvalidatingMutation'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     createAdminUser,
     deleteUser,
@@ -31,8 +31,6 @@ interface UserParams {
     pageIndex?: number
     pageSize?: number
 }
-
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'>
 
 const normalizeUserParams = ({
     pageIndex = 0,
@@ -109,32 +107,41 @@ const mapAdminUsersPage = (value: unknown, pagination: { pageIndex: number, page
     )
 }
 
-export const useAdminSystemStats = (options: QueryOptions<AdminSystemStats> = {}) => useQuery({
-    ...options,
-    queryKey: userAdminKeys.stats(),
-    queryFn: async () => {
-        const data = await retrieveAdminSystemStats()
-        return mapAdminSystemStats(data)
+const adminSystemStatsQuery = defineQuery({
+    key: () => userAdminKeys.stats(),
+    fetch: retrieveAdminSystemStats,
+    map: mapAdminSystemStats,
+})
+
+export const useAdminSystemStats = (options: QueryOptions<AdminSystemStats> = {}) => (
+    adminSystemStatsQuery(undefined, options)
+)
+
+interface AdminUsersFetchResult {
+    value: unknown
+    pagination: { pageIndex: number, pageSize: number }
+}
+
+const adminUsersQuery = defineQuery({
+    key: (params: UserParams) => userAdminKeys.list(params),
+    fetch: async (params: UserParams): Promise<AdminUsersFetchResult> => {
+        const pagination = normalizeUserParams(params)
+        const value = await retrieveUsers({
+            rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
+            pageSize: pagination.pageSize,
+        })
+        return { value, pagination }
+    },
+    map: (result: unknown) => {
+        const { value, pagination } = result as AdminUsersFetchResult
+        return mapAdminUsersPage(value, pagination)
     },
 })
 
 export const useAdminUsers = (
     params: UserParams = {},
     options: QueryOptions<ReturnType<typeof mapAdminUsersPage>> = {},
-) => {
-    const normalizedParams = normalizeUserParams(params)
-    return useQuery({
-        ...options,
-        queryKey: userAdminKeys.list(normalizedParams),
-        queryFn: async () => {
-            const value = await retrieveUsers({
-                rowOffset: getRowOffset(normalizedParams.pageIndex, normalizedParams.pageSize),
-                pageSize: normalizedParams.pageSize,
-            })
-            return mapAdminUsersPage(value, normalizedParams)
-        },
-    })
-}
+) => adminUsersQuery(params, options)
 
 export const useCreateAdminUser = (
     options: MutationOptions<AdminUser, CreateAdminUserCommand> = {},

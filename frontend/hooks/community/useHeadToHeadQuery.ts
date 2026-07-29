@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { retrieveCreatorHeadToHead } from '@/lib/api/community'
 import {
     requireFiniteNumberField,
@@ -7,6 +6,7 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+import { defineGatedQuery } from '@/hooks/defineQuery'
 
 export interface HeadToHeadSide {
     creatorId: number
@@ -65,24 +65,24 @@ export const mapCreatorHeadToHead = (value: unknown): CreatorHeadToHead => {
     }
 }
 
+const headToHeadQuery = defineGatedQuery({
+    label: 'creator head-to-head',
+    key: ({ creatorA, creatorB }: { creatorA: number | null, creatorB: number | null }) => (
+        creatorA !== null && creatorB !== null
+            ? headToHeadKeys.pair(creatorA, creatorB)
+            : [...headToHeadKeys.all, { a: creatorA, b: creatorB }]
+    ),
+    validate: ({ creatorA, creatorB }) => (
+        creatorA !== null && creatorA > 0 && creatorB !== null && creatorB > 0 && creatorA !== creatorB
+            ? { creatorA, creatorB }
+            : null
+    ),
+    fetch: ({ creatorA, creatorB }) => retrieveCreatorHeadToHead(creatorA, creatorB),
+    map: mapCreatorHeadToHead,
+})
+
 export const useCreatorHeadToHead = (
     creatorA: number | null,
     creatorB: number | null,
     { enabled = true }: { enabled?: boolean } = {},
-) => useQuery({
-    queryKey: creatorA !== null && creatorB !== null
-        ? headToHeadKeys.pair(creatorA, creatorB)
-        : [...headToHeadKeys.all, { a: creatorA, b: creatorB }],
-    queryFn: async () => {
-        if (creatorA === null || creatorA <= 0 || creatorB === null || creatorB <= 0 || creatorA === creatorB) {
-            throw new TypeError('creator head-to-head requires two distinct positive creator IDs')
-        }
-        return mapCreatorHeadToHead(await retrieveCreatorHeadToHead(creatorA, creatorB))
-    },
-    enabled: enabled
-        && creatorA !== null
-        && creatorA > 0
-        && creatorB !== null
-        && creatorB > 0
-        && creatorA !== creatorB,
-})
+) => headToHeadQuery({ creatorA, creatorB }, { enabled })

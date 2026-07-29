@@ -1,8 +1,9 @@
-import { useMutation, useQuery, type UseQueryOptions } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import {
     useInvalidatingMutation,
     type MutationOptions,
 } from '@/hooks/useInvalidatingMutation'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     createTrackedStreamer,
     deleteTrackedStreamer,
@@ -29,8 +30,6 @@ import {
     requireStringField,
     requireStringOrFiniteNumberField,
 } from '@/lib/api/contractGuards'
-
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'>
 
 interface StreamerParams {
     pageIndex?: number
@@ -271,66 +270,81 @@ export const trackingKeys = {
     ],
 }
 
-export const useTrackingStats = (options: QueryOptions<TrackingStats> = {}) => useQuery({
-    ...options,
-    queryKey: trackingKeys.stats(),
-    queryFn: async () => {
-        const data = await retrieveTrackingStats()
-        return mapTrackingStats(data)
+const trackingStatsQuery = defineQuery({
+    key: () => trackingKeys.stats(),
+    fetch: retrieveTrackingStats,
+    map: mapTrackingStats,
+})
+
+export const useTrackingStats = (options: QueryOptions<TrackingStats> = {}) => (
+    trackingStatsQuery(undefined, options)
+)
+
+interface TrackedStreamersFetchResult {
+    value: unknown
+    pagination: { pageIndex: number, pageSize: number }
+}
+
+const trackedStreamersQuery = defineQuery({
+    key: (params: StreamerParams) => trackingKeys.streamersList(params),
+    fetch: async (params: StreamerParams): Promise<TrackedStreamersFetchResult> => {
+        const pagination = normalizeStreamerParams(params)
+        const value = await retrieveTrackedStreamers({
+            rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
+            pageSize: pagination.pageSize,
+            isActive: pagination.isActive,
+            processingEnabled: pagination.processingEnabled,
+        })
+        return { value, pagination }
+    },
+    map: (result: unknown) => {
+        const { value, pagination } = result as TrackedStreamersFetchResult
+        return mapTrackedStreamersPage(value, pagination)
     },
 })
 
 export const useTrackedStreamers = (
     params: StreamerParams = {},
     options: QueryOptions<ReturnType<typeof mapTrackedStreamersPage>> = {},
-) => {
-    const normalizedParams = normalizeStreamerParams(params)
-    return useQuery({
-        ...options,
-        queryKey: trackingKeys.streamersList(normalizedParams),
-        queryFn: async () => {
-            const value = await retrieveTrackedStreamers({
-                rowOffset: getRowOffset(normalizedParams.pageIndex, normalizedParams.pageSize),
-                pageSize: normalizedParams.pageSize,
-                isActive: normalizedParams.isActive,
-                processingEnabled: normalizedParams.processingEnabled,
-            })
-            return mapTrackedStreamersPage(value, normalizedParams)
-        },
-    })
-}
+) => trackedStreamersQuery(params, options)
+
+const trackedStreamerOptionsQuery = defineQuery({
+    key: () => trackingKeys.streamerOptions(),
+    fetch: () => retrieveTrackedStreamers({ pageSize: 1000 }),
+    map: mapTrackedStreamerOptions,
+})
 
 export const useTrackedStreamerOptions = (
     options: QueryOptions<ReturnType<typeof mapTrackedStreamerOptions>> = {},
-) => useQuery({
-    ...options,
-    queryKey: trackingKeys.streamerOptions(),
-    queryFn: async () => {
-        const value = await retrieveTrackedStreamers({ pageSize: 1000 })
-        return mapTrackedStreamerOptions(value)
+) => trackedStreamerOptionsQuery(undefined, { ...options, staleTime: 1000 * 60 * 10 })
+
+interface ProcessingJobsFetchResult {
+    value: unknown
+    pagination: { pageIndex: number, pageSize: number }
+}
+
+const processingJobsQuery = defineQuery({
+    key: (params: JobParams) => trackingKeys.jobsList(params),
+    fetch: async (params: JobParams): Promise<ProcessingJobsFetchResult> => {
+        const pagination = normalizeJobParams(params)
+        const value = await retrieveProcessingJobs({
+            rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
+            pageSize: pagination.pageSize,
+            status: pagination.status,
+            trackedStreamerId: pagination.trackedStreamerId,
+        })
+        return { value, pagination }
     },
-    staleTime: 1000 * 60 * 10,
+    map: (result: unknown) => {
+        const { value, pagination } = result as ProcessingJobsFetchResult
+        return mapProcessingJobsPage(value, pagination)
+    },
 })
 
 export const useProcessingJobs = (
     params: JobParams = {},
     options: QueryOptions<ReturnType<typeof mapProcessingJobsPage>> = {},
-) => {
-    const normalizedParams = normalizeJobParams(params)
-    return useQuery({
-        ...options,
-        queryKey: trackingKeys.jobsList(normalizedParams),
-        queryFn: async () => {
-            const value = await retrieveProcessingJobs({
-                rowOffset: getRowOffset(normalizedParams.pageIndex, normalizedParams.pageSize),
-                pageSize: normalizedParams.pageSize,
-                status: normalizedParams.status,
-                trackedStreamerId: normalizedParams.trackedStreamerId,
-            })
-            return mapProcessingJobsPage(value, normalizedParams)
-        },
-    })
-}
+) => processingJobsQuery(params, options)
 
 export const useCreateTrackedStreamer = (
     options: MutationOptions<TrackedStreamer, CreateTrackedStreamerCommand> = {},

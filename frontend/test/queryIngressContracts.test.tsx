@@ -54,7 +54,7 @@ describe('nullable query ingress', () => {
     await act(async () => {
       const outcome = await hook.result.current.refetch()
       expect(outcome.error).toEqual(expect.objectContaining({
-        message: 'creator head-to-head requires two distinct positive creator IDs',
+        message: 'creator head-to-head requires valid arguments before fetching',
       }))
     })
     expect(api.retrieveCreatorHeadToHead).not.toHaveBeenCalled()
@@ -67,7 +67,7 @@ describe('nullable query ingress', () => {
     await act(async () => {
       const outcome = await hook.result.current.refetch()
       expect(outcome.error).toEqual(expect.objectContaining({
-        message: 'creator neighbors require a positive creator ID',
+        message: 'creator neighbors requires valid arguments before fetching',
       }))
     })
     expect(api.retrieveCreatorNeighbors).not.toHaveBeenCalled()
@@ -82,7 +82,7 @@ describe('nullable query ingress', () => {
     await act(async () => {
       const outcome = await hook.result.current.refetch()
       expect(outcome.error).toEqual(expect.objectContaining({
-        message: 'search context requires positive stream and message IDs',
+        message: 'search context requires valid arguments before fetching',
       }))
     })
     expect(api.retrieveSearchContext).not.toHaveBeenCalled()
@@ -108,7 +108,7 @@ describe('nullable query ingress', () => {
     await act(async () => {
       const outcome = await hook.result.current.refetch()
       expect(outcome.error).toEqual(expect.objectContaining({
-        message: 'audience movement requires a positive creator ID',
+        message: 'audience movement requires valid arguments before fetching',
       }))
     })
     expect(api.retrieveAudienceMovement).not.toHaveBeenCalled()
