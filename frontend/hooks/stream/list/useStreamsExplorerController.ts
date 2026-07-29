@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react'
 import {
     mapCreatorOption, useCreators, type CreatorOption,
 } from '@/hooks/creator/useCreatorsQuery'
+import { usePagedFilters } from '@/hooks/usePagedFilters'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { AVAILABLE_ORDERING, DEFAULT_ORDERING } from '@/lib/stream/config'
 import { useStreams } from './useStreamsQuery'
@@ -54,8 +54,9 @@ const hasActiveFilters = (filters: StreamFilters): boolean => (
 )
 
 export const useStreamsExplorerController = () => {
-    const [pageIndex, setPageIndex] = useState(0)
-    const [filters, setFilters] = useState(DEFAULT_FILTERS)
+    const {
+        pageIndex, setPageIndex, filters, setFilter, resetFilters,
+    } = usePagedFilters(DEFAULT_FILTERS)
     const debouncedTitle = useDebouncedValue(filters.title, 300)
     const dateRangeInvalid = hasInvalidDateRange(filters)
 
@@ -73,18 +74,8 @@ export const useStreamsExplorerController = () => {
     const streams = streamsQuery.data?.items || []
     const pageCount = streamsQuery.data?.pageCount || 0
 
-    const handleFilterChange: StreamFilterChange = useCallback((key, value) => {
-        setFilters(current => ({
-            ...current,
-            [key]: value,
-        } as StreamFilters))
-        setPageIndex(0)
-    }, [])
-
-    const handleReset = useCallback(() => {
-        setFilters(DEFAULT_FILTERS)
-        setPageIndex(0)
-    }, [])
+    const handleFilterChange: StreamFilterChange = setFilter
+    const handleReset = resetFilters
 
     return {
         errorDisplayProps: {
