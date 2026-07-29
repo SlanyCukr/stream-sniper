@@ -11,7 +11,7 @@ from collections import Counter
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 
-from stream_sniper.database.core.wire_format import WIRE_TS_FORMAT
+from stream_sniper.database.core.wire_format import parse_wire_ts
 from stream_sniper.database.gateways.analytics.records import StreamBucketRow
 from stream_sniper.database.gateways.chat.records import MomentWindowRow
 from stream_sniper.database.gateways.content.records import (
@@ -36,8 +36,8 @@ def _stream_span_minutes(buckets: Sequence[StreamBucketRow]) -> float:
     """Observed minutes between the first and last bucket (>= 1), for per-minute frequency."""
     if not buckets:
         return 1.0
-    first = datetime.strptime(buckets[0].bucket_minute, WIRE_TS_FORMAT)
-    last = datetime.strptime(buckets[-1].bucket_minute, WIRE_TS_FORMAT)
+    first = parse_wire_ts(buckets[0].bucket_minute)
+    last = parse_wire_ts(buckets[-1].bucket_minute)
     return max((last - first).total_seconds() / 60.0 + 1.0, 1.0)
 
 
@@ -116,7 +116,7 @@ def enrich_moments(
 
     windows: list[tuple[datetime, datetime]] = []
     for moment in moments:
-        center = datetime.strptime(moment.bucket_minute, WIRE_TS_FORMAT)
+        center = parse_wire_ts(moment.bucket_minute)
         windows.append((center - _WINDOW_BEFORE, center + _WINDOW_AFTER))
 
     messages_by_window = _partition_window_messages(select_moment_window_messages_db(stream_id, windows), windows)

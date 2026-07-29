@@ -1,22 +1,10 @@
 """Build typed database rows from normalized Twitch chat batches."""
 
 from dataclasses import dataclass
-from datetime import datetime
 
+from ...database.gateways.chat.message_table_gateway import MessageInsertRow
 from ..mention import mention_token
 from .chat_parser import ParsedChatBatch
-
-MessageInsertRow = tuple[
-    int,
-    int | None,
-    int,
-    int,
-    datetime,
-    bool | None,
-    str | None,
-    int | None,
-    str | None,
-]
 
 
 @dataclass(frozen=True)

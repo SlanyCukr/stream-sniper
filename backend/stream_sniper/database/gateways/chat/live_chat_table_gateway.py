@@ -9,8 +9,7 @@ from psycopg2.extensions import cursor as Cursor
 
 from ...core.connection_pool import get_active_pool
 from ...core.decorators import with_cursor, with_cursor_connection
-
-LiveMessageRow = tuple[int, int | None, int, int, datetime, bool, str | None, int, str]
+from .message_table_gateway import MessageInsertRow, insert_message_db
 
 
 @with_cursor_connection
@@ -57,29 +56,18 @@ def ensure_live_stream_db(
     return int(row[0]) if row else None
 
 
-def insert_live_messages_db(items: Sequence[LiveMessageRow], cursor: Cursor, connection: Connection) -> None:
-    """Bulk-insert IRC messages, idempotently keyed by Twitch message UUID."""
-    cursor.executemany(
-        """
-        INSERT INTO stream_sniper.message
-            (chatter_id, tagged_chatter_id, stream_id, message_text_id, time,
-             is_subscriber, badges, emote_count, source_message_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (source_message_id) WHERE source_message_id IS NOT NULL DO NOTHING
-        """,
-        items,
-    )
-    connection.commit()
+def bulk_insert_live_messages_db(items: Sequence[MessageInsertRow]) -> None:
+    """Write one detached async-sink batch through the shared connection pool.
 
-
-def bulk_insert_live_messages_db(items: Sequence[LiveMessageRow]) -> None:
-    """Write one detached async-sink batch through the shared connection pool."""
+    Delegates to the archived path's ``insert_message_db`` — the single owner of the
+    ``message`` INSERT and its idempotent conflict policy.
+    """
     if not items:
         return
     with get_active_pool().get_connection() as connection:
         cursor = connection.cursor()
         try:
-            insert_live_messages_db(items, cursor, connection)
+            insert_message_db(items, cursor, connection)
         finally:
             cursor.close()
 

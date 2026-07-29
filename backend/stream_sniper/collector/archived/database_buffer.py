@@ -10,15 +10,22 @@ from ...database.core.connection_pool import get_active_pool
 logger = logging.getLogger(__name__)
 
 
-class DatabaseBuffer:
+class DatabaseBuffer[RowT]:
+    """Batches typed rows and flushes them through one persist callback.
+
+    Generic over the row type so a buffer built on a typed gateway insert (e.g.
+    ``insert_message_db`` taking ``MessageInsertRow``) keeps that contract —
+    ``add_item`` only accepts the rows the callback can persist.
+    """
+
     def __init__(
         self,
-        persist_batch: Callable[[list[tuple[object, ...]], Cursor, Connection], None],
+        persist_batch: Callable[[list[RowT], Cursor, Connection], None],
         buffer_len: int = 7500,
     ) -> None:
         self.persist_batch = persist_batch
         self.buffer_len = buffer_len
-        self.items: list[tuple[object, ...]] = []
+        self.items: list[RowT] = []
         self.pool = get_active_pool()
 
     def flush(self) -> int:
@@ -43,7 +50,7 @@ class DatabaseBuffer:
         del self.items[: len(pending)]
         return len(pending)
 
-    def add_item(self, item: tuple[object, ...]) -> None:
+    def add_item(self, item: RowT) -> None:
         self.items.append(item)
 
         if len(self.items) >= self.buffer_len:

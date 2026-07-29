@@ -13,11 +13,11 @@ from ...database.core.connection_pool import (
 )
 from ...database.gateways.chat.chatter_table_gateway import find_or_insert_chatter_id_db
 from ...database.gateways.chat.live_chat_table_gateway import (
-    LiveMessageRow,
     bulk_insert_live_messages_db,
     ensure_live_stream_db,
     finalize_live_stream_db,
 )
+from ...database.gateways.chat.message_table_gateway import MessageInsertRow
 from ...database.gateways.chat.message_text_table_gateway import find_or_insert_message_text_id_db
 from ...logging_config import get_logger
 from ..badge_format import format_badge_pairs
@@ -62,7 +62,7 @@ def _badge_text(raw: object | None) -> str | None:
 class LiveMessageSink:
     def __init__(self, buffer_size: int = DEFAULT_BUFFER_SIZE):
         self.buffer_size = max(10, buffer_size)
-        self._items: list[LiveMessageRow] = []
+        self._items: list[MessageInsertRow] = []
         self._streams: dict[str, tuple[int, int]] = {}
         self._chatters: dict[str, int] = {}
         self._texts: dict[str, int] = {}
@@ -146,7 +146,7 @@ class LiveMessageSink:
         chatter_id: int,
         stream_id: int,
         text_id: int,
-    ) -> LiveMessageRow:
+    ) -> MessageInsertRow:
         source_message_id = message.id
         if source_message_id is None:
             raise ValueError("Live message row requires a Twitch source message ID")

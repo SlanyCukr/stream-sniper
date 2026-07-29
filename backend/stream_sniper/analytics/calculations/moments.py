@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from statistics import median
 
-from stream_sniper.database.core.wire_format import WIRE_TS_FORMAT
+from stream_sniper.database.core.wire_format import format_wire_ts, parse_wire_ts
 from stream_sniper.database.gateways.analytics.records import StreamBucketRow
 
 WINDOW = 10
@@ -44,7 +44,7 @@ class _MomentCandidate:
 
 def _parse_buckets(buckets: Sequence[StreamBucketRow]) -> list[tuple[datetime, int, int]]:
     return [
-        (datetime.strptime(row.bucket_minute, WIRE_TS_FORMAT), row.message_count, row.unique_chatters)
+        (parse_wire_ts(row.bucket_minute), row.message_count, row.unique_chatters)
         for row in buckets
     ]
 
@@ -101,7 +101,7 @@ def _collapse_candidates(
 
 def _as_detected_moment(candidate: _MomentCandidate, base: datetime) -> DetectedMoment:
     return DetectedMoment(
-        bucket_minute=candidate.minute.strftime(WIRE_TS_FORMAT),
+        bucket_minute=format_wire_ts(candidate.minute),
         offset_seconds=int((candidate.minute - base).total_seconds()),
         message_count=candidate.count,
         baseline=candidate.baseline,
@@ -122,7 +122,7 @@ def detect_moments(buckets: Sequence[StreamBucketRow], stream_start: str | None)
         return []
 
     first_minute = parsed[0][0]
-    base = datetime.strptime(stream_start, WIRE_TS_FORMAT) if stream_start else first_minute
+    base = parse_wire_ts(stream_start) if stream_start else first_minute
     minutes, counts, uniques = _zero_filled_series(parsed)
     candidates = _find_candidates(minutes, counts, uniques)
     return [_as_detected_moment(candidate, base) for candidate in _collapse_candidates(candidates)]
