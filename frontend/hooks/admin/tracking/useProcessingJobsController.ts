@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { usePagedFilters } from '@/hooks/usePagedFilters'
 import {
     useProcessingJobs,
     useTrackedStreamerOptions,
@@ -13,8 +13,9 @@ interface JobFilterState {
 }
 
 export const useProcessingJobsController = () => {
-    const [pageIndex, setPageIndex] = useState(0)
-    const [filters, setFilters] = useState<JobFilterState>({
+    const {
+        pageIndex, setPageIndex, filters, setFilter,
+    } = usePagedFilters<JobFilterState>({
         status: '',
         trackedStreamerId: '',
     })
@@ -30,13 +31,7 @@ export const useProcessingJobsController = () => {
     const pageCount = jobsQuery.data?.pageCount || 0
     const streamerOptions = streamerOptionsQuery.data || []
 
-    const handleFilterChange = useCallback((key: keyof JobFilterState, value: string | number) => {
-        setFilters(current => ({
-            ...current,
-            [key]: value,
-        }))
-        setPageIndex(0)
-    }, [])
+    const handleFilterChange = setFilter
 
     return {
         jobsQueryState: {

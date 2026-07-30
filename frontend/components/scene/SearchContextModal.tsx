@@ -4,9 +4,9 @@ import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Modal } from 'react-bootstrap'
 import QueryState from '@/components/common/QueryState'
-import { useSearchContext } from '@/hooks/scene/useSearchQueries'
+import { useSearchContext } from '@/hooks/scene/search/useSearchQueries'
 import HighlightedText from './HighlightedText'
-import type { SearchContextVM } from './searchTypes'
+import type { SearchContextVM } from '@/hooks/scene/search/searchTypes'
 
 interface SearchContextModalProps {
   streamId: number | null

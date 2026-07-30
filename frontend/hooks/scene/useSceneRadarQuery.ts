@@ -1,5 +1,5 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveSceneRadar } from '@/lib/api/scene'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArrayField,
     requireBooleanField,
@@ -74,25 +74,21 @@ export const mapSceneRadar = (value: unknown): SceneRadar => {
     }
 }
 
-type RadarQueryOptions = Omit<
-    UseQueryOptions<SceneRadar, Error, SceneRadar, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean, refetchInterval?: number }
+const sceneRadarQuery = defineQuery({
+    key: () => sceneKeys.radar(),
+    fetch: retrieveSceneRadar,
+    map: mapSceneRadar,
+})
 
 /**
  * Poll the live moment radar. Mirrors `useSceneLive`'s polling contract exactly:
- * `refetchInterval` defaults to 30s and `enabled` is a passthrough, so React
- * Query pauses fetching while the window/tab is hidden and resumes on focus. A
- * failed poll after data exists keeps the last successful payload (RQ default),
- * so the grid never blanks mid-session.
+ * `refetchInterval` defaults to 30s, so React Query pauses fetching while the
+ * window/tab is hidden and resumes on focus. A failed poll after data exists
+ * keeps the last successful payload (RQ default), so the grid never blanks
+ * mid-session.
  */
-export const useSceneRadar = (options: RadarQueryOptions = {}) => {
-    const { enabled = true, refetchInterval = 30000, ...queryOptions } = options
-    return useQuery({
-        ...queryOptions,
-        queryKey: sceneKeys.radar(),
-        queryFn: async () => mapSceneRadar(await retrieveSceneRadar()),
-        enabled,
-        refetchInterval,
-    })
-}
+export const useSceneRadar = (
+    // Destructured default (not a spread) so an explicit `refetchInterval:
+    // undefined` from composed options still polls at 30s.
+    { refetchInterval = 30000, ...options }: QueryOptions<SceneRadar> = {},
+) => sceneRadarQuery(undefined, { ...options, refetchInterval })

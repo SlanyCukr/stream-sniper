@@ -1,8 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type { UseMutateAsyncFunction } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { PropsWithChildren } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 const api = vi.hoisted(() => ({
   createTrackedStreamer: vi.fn(),
@@ -77,6 +76,7 @@ import {
   useProcessingJobs,
   useTrackedStreamers,
   useTrackingStats,
+  useCreateTrackedStreamer,
   useUpdateTrackedStreamer,
 } from '@/hooks/admin/tracking/useTrackingQueries'
 import {
@@ -93,6 +93,7 @@ import {
   userAdminKeys,
   useAdminSystemStats,
   useAdminUsers,
+  useCreateAdminUser,
   useUpdateAdminUser,
 } from '@/hooks/admin/users/useUserAdminQueries'
 import { useCreatorTrends } from '@/hooks/creator/useCreatorTrendsQuery'
@@ -107,15 +108,20 @@ const createClient = () => new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })
 
-type TrackingUpdateCommand = {
-  streamerId: number
-  changes: { is_active: boolean }
-}
+type DetailedHealthOptions = NonNullable<Parameters<typeof useDetailedHealth>[0]>
+type TrackingStatsOptions = NonNullable<Parameters<typeof useTrackingStats>[0]>
+type AdminSystemStatsOptions = NonNullable<Parameters<typeof useAdminSystemStats>[0]>
 
-type UserUpdateCommand = {
-  userId: number
-  changes: { email: string }
-}
+// @ts-expect-error useDetailedHealth owns its query key.
+const invalidDetailedHealthOptions: DetailedHealthOptions = { queryKey: ['override'] }
+// @ts-expect-error useTrackingStats owns its query function.
+const invalidTrackingStatsOptions: TrackingStatsOptions = { queryFn: async () => ({}) }
+// @ts-expect-error useAdminSystemStats owns both query configuration fields.
+const invalidAdminStatsOptions: AdminSystemStatsOptions = { queryKey: ['override'], queryFn: async () => ({}) }
+
+void invalidDetailedHealthOptions
+void invalidTrackingStatsOptions
+void invalidAdminStatsOptions
 
 describe('query view-model contracts', () => {
   beforeEach(() => {
@@ -213,6 +219,19 @@ describe('query view-model contracts', () => {
       nextCursor: { afterTs: 'next', afterId: 6 },
       hasMore: true,
     })
+    expect(() => mapStreamMessagesPage({
+      messages: [{
+        id: 5,
+        time: '2026-07-14T10:00:00Z',
+        chatter_id: 11,
+        nick: 'viewer',
+        text: 'hello',
+        is_subscriber: true,
+        badges: ['subscriber/1', 42],
+      }],
+      next_cursor: null,
+      has_more: false,
+    })).toThrow('stream messages.messages[0].badges[1] must be a string')
   })
 
   it('normalizes named creator catalog rows before consumers receive them', async () => {
@@ -423,15 +442,38 @@ describe('query view-model contracts', () => {
   })
 
   it('lets callers disable valid creator trend queries', async () => {
-    renderHook(() => useCreatorTrends(7, { enabled: false }), {
+    const hook = renderHook(() => useCreatorTrends(7, { enabled: false }), {
       wrapper: createWrapper(createClient()),
     })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('idle'))
     expect(api.retrieveCreatorTrends).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['message', { message: 7, timestamp: 'now' }],
+    ['timestamp', { message: 'flushed', timestamp: null }],
+  ])('rejects a malformed successful flush-cache %s field', async (_field, payload) => {
+    api.flushCache.mockResolvedValue(payload)
+    const queryClient = createClient()
+    const hook = renderHook(() => useFlushCache(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await expect(hook.result.current.mutateAsync()).rejects.toBeInstanceOf(TypeError)
+  })
+
   it('awaits owned tracking and system invalidation before consumer callbacks', async () => {
-    const trackingData = { id: 7, is_active: false }
+    const trackingData = {
+      id: 7,
+      twitch_username: 'operator',
+      display_name: 'Operator',
+      is_active: false,
+      processing_enabled: true,
+      last_stream_check: null,
+      created_at: '2026-07-15T08:00:00Z',
+      total_streams_collected: 3,
+      last_collected_stream_start: null,
+    }
     const systemData = { message: 'flushed', timestamp: 'now' }
     const userData = {
       id: 3,
@@ -441,9 +483,9 @@ describe('query view-model contracts', () => {
       is_active: true,
       created_at: '2026-07-15T08:00:00Z',
     }
-    api.updateTrackedStreamer.mockResolvedValue({ data: trackingData })
-    api.flushCache.mockResolvedValue({ data: systemData })
-    api.updateUser.mockResolvedValue({ data: userData })
+    api.updateTrackedStreamer.mockResolvedValue(trackingData)
+    api.flushCache.mockResolvedValue(systemData)
+    api.updateUser.mockResolvedValue(userData)
     const queryClient = createClient()
     const events: string[] = []
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockImplementation(async (filters) => {
@@ -457,30 +499,38 @@ describe('query view-model contracts', () => {
     const system = renderHook(() => useFlushCache({ onSuccess: systemSuccess }), { wrapper })
     const user = renderHook(() => useUpdateAdminUser({ onSuccess: userSuccess }), { wrapper })
 
+    expectTypeOf(useCreateTrackedStreamer).parameter(0).not.toHaveProperty('mutationFn')
+    expectTypeOf(useCreateAdminUser).parameter(0).not.toHaveProperty('mutationFn')
+    expectTypeOf(tracking.result.current.mutateAsync).parameter(0).toEqualTypeOf<{
+      streamerId: number
+      changes: { isActive?: boolean, processingEnabled?: boolean, notes?: string | null }
+    }>()
+    expectTypeOf(system.result.current.mutateAsync).returns.toEqualTypeOf<Promise<{ message: string, timestamp: string }>>()
+    expectTypeOf(user.result.current.mutateAsync).parameter(0).toEqualTypeOf<{
+      userId: number
+      changes: { email?: string, role?: 'user' | 'admin', isActive?: boolean }
+    }>()
+
     let trackingResult: unknown
     let systemResult: unknown
     let userResult: unknown
     await act(async () => {
-      trackingResult = await (tracking.result.current.mutateAsync as unknown as UseMutateAsyncFunction<
-        unknown, Error, TrackingUpdateCommand, unknown
-      >)({
+      trackingResult = await tracking.result.current.mutateAsync({
         streamerId: 7,
-        changes: { is_active: false },
+        changes: { isActive: false },
       })
       systemResult = await system.result.current.mutateAsync()
-      userResult = await (user.result.current.mutateAsync as unknown as UseMutateAsyncFunction<
-        unknown, Error, UserUpdateCommand, unknown
-      >)({
+      userResult = await user.result.current.mutateAsync({
         userId: 3,
         changes: { email: 'operator@example.test' },
       })
     })
 
-    expect(trackingResult).toBe(trackingData)
-    expect(systemResult).toBe(systemData)
+    expect(trackingResult).toEqual(mapTrackedStreamer(trackingData))
+    expect(systemResult).toEqual(systemData)
     expect(userResult).toEqual(mapAdminUser(userData))
     expect(trackingSuccess).toHaveBeenCalledWith(
-      trackingData,
+      mapTrackedStreamer(trackingData),
       expect.anything(),
       undefined,
       expect.anything(),

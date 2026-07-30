@@ -51,12 +51,7 @@ const StreamerTracking = () => {
             <TrackedStreamerFilters {...filterProps} />
             <TrackedStreamerTable {...tableProps} />
             <AddTrackedStreamerModal {...addModalProps} />
-            <RemoveTrackedStreamerModal
-                {...removeModalProps}
-                // RemoveTrackedStreamerModal declares onConfirm as (id: number | undefined) => void
-                // (it only ever calls it with target?.id while shown, i.e. non-null); the controller's
-                // handler requires a defined number. Cast bridges that pre-existing signature mismatch.
-                onConfirm={removeModalProps.onConfirm as (streamerId: number | undefined) => void} />
+            <RemoveTrackedStreamerModal {...removeModalProps} />
         </>
     )
 }

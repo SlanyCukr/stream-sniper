@@ -1,4 +1,3 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveCreatorTrends } from '@/lib/api/creators'
 import {
     requireArrayField,
@@ -7,6 +6,8 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
+import { creatorKeys } from './creatorKeys'
 
 export interface CreatorTrendPoint {
     streamId: number
@@ -22,28 +23,6 @@ export interface CreatorTrendPoint {
 
 export interface CreatorTrends {
     streams: CreatorTrendPoint[]
-}
-
-type QueryOptions = Omit<
-    UseQueryOptions<CreatorTrends, Error, CreatorTrends, readonly unknown[]>,
-    'queryKey' | 'queryFn'
->
-
-/**
- * Query key factory for creator per-stream trend queries
- */
-export const creatorTrendsKeys = {
-    all: [
-        'creator-trends',
-    ],
-    details: () => [
-        ...creatorTrendsKeys.all,
-        'detail',
-    ],
-    detail: (creatorId: number) => [
-        ...creatorTrendsKeys.details(),
-        creatorId,
-    ],
 }
 
 const mapCreatorTrends = (value: unknown): CreatorTrends => {
@@ -67,6 +46,14 @@ const mapCreatorTrends = (value: unknown): CreatorTrends => {
     }
 }
 
+const creatorTrendsQuery = defineGatedQuery({
+    label: 'creator trends',
+    key: (creatorId: number) => creatorKeys.trends(creatorId),
+    validate: creatorId => (creatorId ? creatorId : null),
+    fetch: retrieveCreatorTrends,
+    map: mapCreatorTrends,
+})
+
 /**
  * Custom hook for a creator's recent per-stream metric series (ascending by start).
  * @param creatorId - The normalized creator ID
@@ -74,13 +61,5 @@ const mapCreatorTrends = (value: unknown): CreatorTrends => {
  */
 export const useCreatorTrends = (
     creatorId: number,
-    { enabled = true, ...options }: QueryOptions & { enabled?: boolean } = {},
-) => useQuery({
-    ...options,
-    queryKey: creatorTrendsKeys.detail(creatorId),
-    queryFn: async () => {
-        const response = await retrieveCreatorTrends(creatorId)
-        return mapCreatorTrends(response)
-    },
-    enabled: Boolean(creatorId) && enabled,
-})
+    options: QueryOptions<CreatorTrends> = {},
+) => creatorTrendsQuery(creatorId, options)

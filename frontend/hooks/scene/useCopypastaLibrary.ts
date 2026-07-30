@@ -7,7 +7,6 @@ import {
 } from '@/hooks/creator/useCreatorsQuery'
 import { useSceneCopypastas } from './useSceneCopypastaQueries'
 import { COPYPASTA_SORT_OPTIONS } from '@/lib/models/copypastaLibrary'
-import type { SceneCopypastaRequest } from '@/lib/api/scene'
 
 type SortOption = typeof COPYPASTA_SORT_OPTIONS[number]
 
@@ -24,9 +23,7 @@ export const useCopypastaLibrary = () => {
     )
     const copypastasQuery = useSceneCopypastas({
         creatorId: selectedCreator?.value || undefined,
-        // COPYPASTA_SORT_OPTIONS.value widens to `string`; the runtime values
-        // always match the API's sort enum.
-        sort: (selectedSort?.value || 'usage') as SceneCopypastaRequest['sort'],
+        sort: selectedSort?.value || 'usage',
         pageIndex,
         pageSize: PAGE_SIZE,
     }, { placeholderData: keepPreviousData })

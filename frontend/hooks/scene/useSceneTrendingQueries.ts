@@ -1,9 +1,9 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import {
     retrieveTrendingCopypastas,
     retrieveTrendingEmotes,
-    type SceneTrendingRequest,
 } from '@/lib/api/scene'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
+import type { SceneTrendingRequest } from '@/lib/models/sceneFilters'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -102,31 +102,28 @@ export const mapTrendingEmotes = (value: unknown): TrendingEmotes => {
     }
 }
 
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
+const trendingCopypastasQuery = defineQuery({
+    key: ({ window, creatorId, limit }: Required<Pick<SceneTrendingRequest, 'window' | 'limit'>> & SceneTrendingRequest) => (
+        sceneKeys.trendingCopypastas({ window, creatorId: creatorId ?? null, limit })
+    ),
+    fetch: retrieveTrendingCopypastas,
+    map: mapTrendingCopypastas,
+})
 
 export const useSceneTrendingCopypastas = (
     { window = 7, creatorId, limit = 20 }: SceneTrendingRequest = {},
-    { enabled = true, ...options }: QueryOptions<TrendingCopypastas> = {},
-) => useQuery({
-    ...options,
-    queryKey: sceneKeys.trendingCopypastas({ window, creatorId: creatorId ?? null, limit }),
-    queryFn: async () => mapTrendingCopypastas(
-        await retrieveTrendingCopypastas({ window, creatorId, limit }),
+    options: QueryOptions<TrendingCopypastas> = {},
+) => trendingCopypastasQuery({ window, creatorId, limit }, options)
+
+const trendingEmotesQuery = defineQuery({
+    key: ({ window, creatorId, limit }: Required<Pick<SceneTrendingRequest, 'window' | 'limit'>> & SceneTrendingRequest) => (
+        sceneKeys.trendingEmotes({ window, creatorId: creatorId ?? null, limit })
     ),
-    enabled,
+    fetch: retrieveTrendingEmotes,
+    map: mapTrendingEmotes,
 })
 
 export const useSceneTrendingEmotes = (
     { window = 7, creatorId, limit = 20 }: SceneTrendingRequest = {},
-    { enabled = true, ...options }: QueryOptions<TrendingEmotes> = {},
-) => useQuery({
-    ...options,
-    queryKey: sceneKeys.trendingEmotes({ window, creatorId: creatorId ?? null, limit }),
-    queryFn: async () => mapTrendingEmotes(
-        await retrieveTrendingEmotes({ window, creatorId, limit }),
-    ),
-    enabled,
-})
+    options: QueryOptions<TrendingEmotes> = {},
+) => trendingEmotesQuery({ window, creatorId, limit }, options)

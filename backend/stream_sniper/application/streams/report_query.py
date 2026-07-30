@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from stream_sniper.database.core.wire_format import WIRE_TS_FORMAT
+from stream_sniper.database.core.wire_format import format_wire_ts
 from stream_sniper.database.gateways.analytics.records import (
     CreatorReportRow,
     StreamMetricsRow,
@@ -108,7 +108,7 @@ def _build_metrics(
 def _iso(value: str | datetime | None) -> str | None:
     if value is None or isinstance(value, str):
         return value
-    return value.strftime(WIRE_TS_FORMAT)
+    return format_wire_ts(value)
 
 
 def _sub_share(sub_messages: int | None, total_messages: int | None) -> float | None:

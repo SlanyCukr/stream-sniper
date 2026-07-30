@@ -5,13 +5,13 @@ import {
   SEARCH_DAY_WINDOWS,
   buildSearchQueryString,
   readSearchState,
-} from '@/hooks/scene/searchUrlState'
+} from '@/hooks/scene/search/searchUrlState'
 import {
   isSearchableQuery,
   mapSearchFirst,
   mapSearchFrequency,
   mapSearchMessages,
-} from '@/hooks/scene/useSearchQueries'
+} from '@/hooks/scene/search/useSearchQueries'
 
 describe('splitHighlight', () => {
   it('splits a match out of surrounding text', () => {

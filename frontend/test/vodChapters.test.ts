@@ -11,8 +11,8 @@ const timeline = {
             t: '2026-07-16T17:12:00',
             count: 312,
             topPhrases: [
-                'LETS GO',
-                'W',
+                { phrase: 'LETS GO', count: 20 },
+                { phrase: 'W', count: 8 },
             ],
         },
         {
@@ -48,12 +48,12 @@ describe('buildVodChapters', () => {
         expect(vodDeepLink(123456, null, '2026-07-16T17:12:00')).toBeNull()
     })
 
-    it('labels non-string phrase payloads as chat spike instead of stringifying', () => {
+    it('uses the first validated phrase object as the chapter label', () => {
         const chapters = buildVodChapters({
             ...timeline,
-            moments: [{ t: '2026-07-16T17:12:00', count: 9, topPhrases: [{ phrase: 'obj' }] }],
+            moments: [{ t: '2026-07-16T17:12:00', count: 9, topPhrases: [{ phrase: 'obj', count: 2 }] }],
         })
-        expect(chapters).toContain('— chat spike (9 msgs)')
+        expect(chapters).toContain('— obj (9 msgs)')
     })
 
     it('returns null without moments', () => {
@@ -77,5 +77,16 @@ describe('buildVodChapters', () => {
         })
 
         expect(chapters).toContain('0:00:00 — chat spike (5 msgs)')
+    })
+
+    it('uses zero consistently when a moment timestamp is invalid', () => {
+        const chapters = buildVodChapters({
+            ...timeline,
+            moments: [{ t: 'not-a-date', count: 5, topPhrases: [] }],
+        })
+
+        expect(chapters).toBe(
+            '0:00:00 — chat spike (5 msgs) https://www.twitch.tv/videos/123456?t=0h0m0s',
+        )
     })
 })

@@ -49,7 +49,7 @@ export const useUserManagementController = () => {
             changes: {
                 email: updatedUser.email,
                 role: updatedUser.role,
-                is_active: updatedUser.isActive,
+                isActive: updatedUser.isActive,
             },
         }),
         successMessage: 'User updated successfully',
@@ -57,9 +57,8 @@ export const useUserManagementController = () => {
         onSuccess: () => setDialog(null),
     })
 
-    const handleUserDelete = () => feedback.runAction({
-        // handleUserDelete is only reachable from the delete dialog, which always sets dialog.user first.
-        action: () => deleteUser.mutateAsync(dialog!.user.id),
+    const handleUserDelete = (userId: number) => feedback.runAction({
+        action: () => deleteUser.mutateAsync(userId),
         successMessage: 'User deleted successfully',
         errorTitle: 'Failed to delete user',
         onSuccess: () => {
@@ -113,6 +112,8 @@ export const useUserManagementController = () => {
             onClose: () => setDialog(null),
             onUpdate: handleUserUpdate,
             onDelete: handleUserDelete,
+            updatePending: updateUser.isPending,
+            deletePending: deleteUser.isPending,
         },
         feedback,
     }

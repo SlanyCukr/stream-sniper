@@ -13,8 +13,10 @@ type UserManagementDialog =
 interface UserManagementModalsProps {
     dialog: UserManagementDialog
     onClose: () => void
-    onUpdate: (user: AdminUser) => void
-    onDelete: () => void
+    onUpdate: (user: AdminUser) => Promise<unknown>
+    onDelete: (userId: number) => Promise<unknown>
+    updatePending: boolean
+    deletePending: boolean
 }
 
 const UserManagementModals = ({
@@ -22,50 +24,61 @@ const UserManagementModals = ({
     onClose,
     onUpdate,
     onDelete,
+    updatePending,
+    deletePending,
 }: UserManagementModalsProps) => (
     <>
-        <Modal
-            show={dialog?.type === 'edit'}
-            onHide={onClose}>
-            <Modal.Header closeButton>
-                <Modal.Title>Edit User</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-                {dialog?.type === 'edit' && (
+        {dialog?.type === 'edit' ? (
+            <Modal
+                show
+                onHide={() => {
+                    if (!updatePending) onClose()
+                }}>
+                <Modal.Header closeButton={!updatePending}>
+                    <Modal.Title>Edit User</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
                     <EditUserForm
                         user={dialog.user}
                         onSave={onUpdate}
                         onCancel={onClose}
+                        isPending={updatePending}
                     />
-                )}
-            </Modal.Body>
-        </Modal>
+                </Modal.Body>
+            </Modal>
+        ) : null}
 
-        <Modal
-            show={dialog?.type === 'delete'}
-            onHide={onClose}>
-            <Modal.Header closeButton>
-                <Modal.Title>Confirm Delete</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-                Are you sure you want to delete user &quot;{dialog?.user?.username}&quot;? This action cannot be undone.
-            </Modal.Body>
-            <Modal.Footer>
-                <Button
-                    variant="outline-primary"
-                    onClick={onClose}>
-                    Cancel
-                </Button>
-                <Button
-                    variant="outline-danger"
-                    onClick={onDelete}>
-                    <i
-                        className="bi bi-trash me-2"
-                        aria-hidden="true" />
-                    Delete user
-                </Button>
-            </Modal.Footer>
-        </Modal>
+        {dialog?.type === 'delete' ? (
+            <Modal
+                show
+                onHide={() => {
+                    if (!deletePending) onClose()
+                }}>
+                <Modal.Header closeButton={!deletePending}>
+                    <Modal.Title>Confirm Delete</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    Are you sure you want to delete user &quot;{dialog.user.username}&quot;? This action cannot be undone.
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button
+                        variant="outline-primary"
+                        onClick={onClose}
+                        disabled={deletePending}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="outline-danger"
+                        onClick={() => void onDelete(dialog.user.id)}
+                        disabled={deletePending}>
+                        <i
+                            className="bi bi-trash me-2"
+                            aria-hidden="true" />
+                        Delete user
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+        ) : null}
     </>
 )
 

@@ -4,12 +4,14 @@ import type { PropsWithChildren } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const api = vi.hoisted(() => ({
+  retrieveChatterSearch: vi.fn(),
   retrieveChatterStreamActivity: vi.fn(),
 }))
 
 vi.mock('@/lib/api/chatter', () => api)
 
 import ChatterFootprintPanel from '@/components/chatter/ChatterFootprintPanel'
+import { loadChatterOptions } from '@/hooks/chatter/useChatterExplorer'
 import {
   chattersKeys,
   useChatterStreamActivity,
@@ -30,10 +32,18 @@ describe('chatter query contracts', () => {
 
   it('does not call the activity adapter without a chatter ID', async () => {
     const wrapper = createWrapper(createClient())
-    renderHook(() => useChatterStreamActivity(0), { wrapper })
+    const hook = renderHook(() => useChatterStreamActivity(0), { wrapper })
 
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await waitFor(() => expect(hook.result.current.fetchStatus).toBe('idle'))
     expect(api.retrieveChatterStreamActivity).not.toHaveBeenCalled()
+  })
+
+  it('validates chatter search payloads before exposing picker options', async () => {
+    api.retrieveChatterSearch.mockResolvedValue([{ chatter_id: '7', nick: 'alice', is_bot: false }])
+
+    await expect(loadChatterOptions('alice')).rejects.toThrow(
+      'chatter search result[0].chatter_id must be a finite number',
+    )
   })
 
   it('rejects malformed activity payloads', async () => {

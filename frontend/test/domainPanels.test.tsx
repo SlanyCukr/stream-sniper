@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   useChatterStreamActivity: vi.fn(),
-  useMessages: vi.fn(),
+  useChatterMessages: vi.fn(),
   useCommunityOverlap: vi.fn(),
   useCreatorNeighbors: vi.fn(),
   useCreatorRegulars: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('@/hooks/creator/useCreatorsQuery', () => ({
     label: creator.nick,
   }),
 }))
-vi.mock('@/hooks/chatter/useMessagesQuery', () => ({ useMessages: mocks.useMessages }))
+vi.mock('@/hooks/chatter/useMessagesQuery', () => ({ useChatterMessages: mocks.useChatterMessages }))
 vi.mock('@/hooks/community/useCommunityQuery', () => ({
   useCommunityOverlap: mocks.useCommunityOverlap,
   useCreatorNeighbors: mocks.useCreatorNeighbors,
@@ -70,7 +70,7 @@ describe('chatter explorer', () => {
   })
 
   it('renders paginated chatter messages with stream context', () => {
-    mocks.useMessages.mockReturnValue(ready({
+    mocks.useChatterMessages.mockReturnValue(ready({
       items: [{
         streamId: 10,
         streamTitle: 'Launch stream',
@@ -89,7 +89,7 @@ describe('chatter explorer', () => {
 
   it('preserves the requested initial tab and switches panel ownership', () => {
     mocks.useChatterStreamActivity.mockReturnValue(ready([]))
-    mocks.useMessages.mockReturnValue(ready({ items: [], total: 0, pageCount: 0 }))
+    mocks.useChatterMessages.mockReturnValue(ready({ items: [], total: 0, pageCount: 0 }))
     render(<ChatterExplorer initialView="messages" />)
 
     expect(screen.getByRole('tab', { name: 'Messages' })).toHaveAttribute('aria-selected', 'true')

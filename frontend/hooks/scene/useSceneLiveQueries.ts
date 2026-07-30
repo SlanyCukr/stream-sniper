@@ -1,5 +1,5 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveSceneLeaderboard, retrieveSceneLive } from '@/lib/api/scene'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -9,11 +9,6 @@ import {
     requireStringField,
 } from '@/lib/api/contractGuards'
 import { sceneKeys } from './sceneKeys'
-
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
 
 export interface SceneLiveChannel {
     creatorId: number
@@ -99,23 +94,25 @@ const mapSceneLeaderboard = (value: unknown): SceneLeaderboard => {
     }
 }
 
-export const useSceneLive = (options: QueryOptions<SceneLive> = {}) => {
-    const { enabled = true, refetchInterval = 30000, ...queryOptions } = options
-    return useQuery({
-        ...queryOptions,
-        queryKey: sceneKeys.live(),
-        queryFn: async () => mapSceneLive(await retrieveSceneLive()),
-        enabled,
-        refetchInterval,
-    })
-}
+const sceneLiveQuery = defineQuery({
+    key: () => sceneKeys.live(),
+    fetch: retrieveSceneLive,
+    map: mapSceneLive,
+})
+
+export const useSceneLive = (
+    // Destructured default (not a spread) so an explicit `refetchInterval:
+    // undefined` from composed options still polls at 30s.
+    { refetchInterval = 30000, ...options }: QueryOptions<SceneLive> = {},
+) => sceneLiveQuery(undefined, { ...options, refetchInterval })
+
+const sceneLeaderboardQuery = defineQuery({
+    key: (windowDays: 7 | 30) => sceneKeys.leaderboard(windowDays),
+    fetch: retrieveSceneLeaderboard,
+    map: mapSceneLeaderboard,
+})
 
 export const useSceneLeaderboard = (
     { windowDays = 7 }: { windowDays?: 7 | 30 } = {},
-    { enabled = true, ...options }: QueryOptions<SceneLeaderboard> = {},
-) => useQuery({
-    ...options,
-    queryKey: sceneKeys.leaderboard(windowDays),
-    queryFn: async () => mapSceneLeaderboard(await retrieveSceneLeaderboard(windowDays)),
-    enabled: Boolean(windowDays) && enabled,
-})
+    options: QueryOptions<SceneLeaderboard> = {},
+) => sceneLeaderboardQuery(windowDays, options)

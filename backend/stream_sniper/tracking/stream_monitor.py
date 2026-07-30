@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -41,9 +42,18 @@ class StreamStatus:
 
 
 class StreamMonitor:
-    def __init__(self, check_interval: int = 300, *, discord_webhook_url: str | None = None):  # 5 minutes default
+    def __init__(
+        self,
+        check_interval: int = 300,  # 5 minutes default
+        *,
+        discord_webhook_url: str | None = None,
+        twitch_api_factory: Callable[[], TwitchAPI] = TwitchAPI,
+    ):
+        # Injection seam mirroring TwitchCollectorFacade's factory params: tests
+        # construct real monitors around fake Twitch clients instead of
+        # monkeypatching this module's imported names.
         self.check_interval = check_interval
-        self.twitch_api = TwitchAPI()
+        self.twitch_api = twitch_api_factory()
         self.logger = get_logger(__name__)
         self._running = False
         self._last_stream_states: dict[str, StreamObservation] = {}

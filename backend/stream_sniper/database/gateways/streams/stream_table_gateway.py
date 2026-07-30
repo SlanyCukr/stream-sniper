@@ -19,6 +19,7 @@ from stream_sniper.database.gateways.streams.records import (
 
 from ...core.decorators import with_cursor, with_cursor_connection
 from ...core.query_ordering import sql_direction
+from ...core.wire_format import to_char_wire
 
 # Hardcoded whitelists — user-supplied ordering values map through these fixed
 # fragments so no request string is ever interpolated into SQL. FastAPI validates
@@ -115,8 +116,8 @@ def select_stream_page_db(
     SELECT
         stream.id,
         display_name,
-        TO_CHAR(start, 'YYYY-MM-DD HH24:MI:SS') AS start,
-        TO_CHAR("end", 'YYYY-MM-DD HH24:MI:SS') AS "end",
+        {to_char_wire("start")} AS start,
+        {to_char_wire('"end"')} AS "end",
         thumbnail_url,
         message_count
     FROM stream

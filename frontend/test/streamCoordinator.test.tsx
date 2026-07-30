@@ -120,6 +120,17 @@ describe('Stream query and replay coordination', () => {
     expect(screen.getByText('End').nextElementSibling).toHaveTextContent('Live')
   })
 
+  it('renders an explicit fallback for an unknown stream title', () => {
+    hooks.useStreamDetails.mockReturnValue({
+      data: { ...streamInfo, info: { ...streamInfo.info, title: null } },
+      isLoading: false,
+      error: null,
+      refetch: refetchStream,
+    })
+    render(<Stream streamId={7} />)
+    expect(screen.getByRole('heading', { name: 'Untitled stream' })).toBeInTheDocument()
+  })
+
   it('fetches later pages until the jump target is present', async () => {
     fetchNextPage.mockResolvedValue({
       data: { pages: [{ messages: [{ ts: '2026-07-14T10:06:00Z' }] }] },

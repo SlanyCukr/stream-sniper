@@ -4,6 +4,7 @@ import {
     Alert, Button, Form, Modal, Spinner,
 } from 'react-bootstrap'
 import { usePasswordChangeForm } from '@/hooks/auth/usePasswordChangeForm'
+import ErrorAlert from '@/components/common/error/ErrorAlert'
 import type { PasswordChangeData } from '@/utils/validationUtils'
 import PasswordChangeFields from './PasswordChangeFields'
 
@@ -27,7 +28,14 @@ const PasswordChangeModal = ({
             <Modal.Header closeButton><Modal.Title>Change Password</Modal.Title></Modal.Header>
             <Form onSubmit={form.handleSubmit}>
                 <Modal.Body>
-                    {form.error ? <Alert variant="danger" className="mb-3">{form.error}</Alert> : null}
+                    {form.validationError ? <Alert variant="danger" className="mb-3">{form.validationError}</Alert> : null}
+                    {form.failure ? (
+                        <ErrorAlert
+                            error={form.failure.error}
+                            title="Failed to change password"
+                            className="mb-3"
+                        />
+                    ) : null}
                     <PasswordChangeFields
                         passwordData={form.passwordData}
                         onChange={form.handleChange}

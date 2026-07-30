@@ -3,9 +3,8 @@ import AsyncSearchSelect from '@/components/common/search/AsyncSearchSelect'
 import TabList from '@/components/common/TabList'
 import StatusChip from '@/components/common/StatusChip'
 import { CHATTER_VIEWS } from '@/lib/models/chatterExplorer'
+import type { ChatterView } from '@/lib/models/chatterExplorer'
 import type { ChatterOption } from '@/hooks/chatter/useChatterExplorer'
-
-type ChatterView = 'messages' | 'footprint'
 
 interface ChatterExplorerControlsProps {
     selectedChatter: ChatterOption | null
@@ -31,15 +30,12 @@ const ChatterExplorerControls = ({
                 <label htmlFor="chatter-explorer-nick-input" className="visually-hidden">
                     Chatter nickname
                 </label>
-                <AsyncSearchSelect
+                <AsyncSearchSelect<ChatterOption>
                     instanceId="chatter-explorer-nick-select"
                     inputId="chatter-explorer-nick-input"
                     loadOptions={loadOptions}
                     value={selectedChatter}
-                    // AsyncSearchSelect is untyped legacy JS wrapping react-select; its
-                    // Option generic can't be narrowed from here, but the runtime value
-                    // shape matches ChatterOption.
-                    onChange={newValue => onChatterChange(newValue as ChatterOption | null)}
+                    onChange={onChatterChange}
                     noOptionsMessage={noOptionsMessage}
                     placeholder="Search for a chatter..."
                     isClearable
@@ -55,9 +51,7 @@ const ChatterExplorerControls = ({
             activeKey={view}
             idPrefix="chatter"
             ariaLabel="Chatter view"
-            // TabList is untyped legacy JS; its tab key is a plain string at that
-            // boundary, but CHATTER_VIEWS keys are always a ChatterView.
-            onChange={(key: string) => onViewChange(key as ChatterView)}
+            onChange={onViewChange}
         />
     </>
 )

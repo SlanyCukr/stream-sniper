@@ -74,6 +74,35 @@ describe('StreamerTracking pagination', () => {
     await waitFor(() => expect(queryParams.at(-1)).toMatchObject({ pageIndex: 0 }))
   })
 
+  it('keeps the current page and removal target when deletion fails', async () => {
+    deleteStreamer.mutateAsync.mockRejectedValue({ response: { status: 500, data: { detail: 'delete offline' } } })
+    const queryParams: Array<Record<string, unknown>> = []
+    hooks.useTrackedStreamers.mockImplementation((params) => {
+      queryParams.push(params)
+      return {
+        data: {
+          items: [streamer],
+          total: 21,
+          pageIndex: params.pageIndex,
+          pageSize: 20,
+          pageCount: 2,
+        },
+        error: null,
+        isPending: false,
+      }
+    })
+
+    render(<StreamerTracking />)
+    fireEvent.click(screen.getByLabelText('Go to page 2'))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    const removeButtons = await screen.findAllByRole('button', { name: 'Remove' })
+    fireEvent.click(removeButtons.at(-1)!)
+
+    await waitFor(() => expect(screen.getByText('delete offline')).toBeInTheDocument())
+    expect(queryParams.at(-1)).toMatchObject({ pageIndex: 1 })
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
   it('emits normalized filters and row update commands', async () => {
     const queryParams: Array<Record<string, unknown>> = []
     hooks.useTrackedStreamers.mockImplementation((params) => {
@@ -92,13 +121,13 @@ describe('StreamerTracking pagination', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }))
     await waitFor(() => expect(updateStreamer.mutateAsync).toHaveBeenCalledWith({
       streamerId: 7,
-      changes: { is_active: false },
+      changes: { isActive: false },
     }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Disable' }))
     await waitFor(() => expect(updateStreamer.mutateAsync).toHaveBeenCalledWith({
       streamerId: 7,
-      changes: { processing_enabled: false },
+      changes: { processingEnabled: false },
     }))
   })
 

@@ -35,7 +35,7 @@ export const formatDate = (date: DateInput, formatPattern: string = DATE_FORMATS
 export const formatDateOrDash = (
     date: DateInput | null | undefined,
     formatPattern = 'MMM d, yyyy',
-): string => (date ? formatDate(date, formatPattern) : '—')
+): string => (date == null ? '—' : formatDate(date, formatPattern))
 
 export const formatTimeAgo = (
     date: DateInput,
@@ -72,7 +72,7 @@ export const formatDurationBetween = (startDate: DateInput, endDate: DateInput |
 
 /**
  * Locale-formatted date+time via `Date#toLocaleString`, or a fallback when
- * the input is falsy. Distinct from formatDate (fixed date-fns pattern):
+ * the input is missing. Distinct from formatDate (fixed date-fns pattern):
  * this defers to the browser/runtime locale, matching admin table cells
  * that previously called `toLocaleString()` directly.
  *
@@ -84,7 +84,7 @@ export const formatDateTime = (
     date: DateInput | null | undefined,
     fallback = 'N/A',
 ): string => (
-    date ? parseDate(date).toLocaleString() : fallback
+    date == null ? fallback : parseDate(date).toLocaleString()
 )
 
 /**
@@ -97,10 +97,11 @@ export const formatDurationSeconds = (
     endDate: DateInput | null | undefined,
     fallback = 'N/A',
 ): string => {
-    if (!startDate || !endDate) return fallback
-    const seconds = Math.floor(
-        (parseDate(endDate).getTime() - parseDate(startDate).getTime()) / 1000,
-    )
+    if (startDate == null || endDate == null) return fallback
+    const startTime = parseDate(startDate).getTime()
+    const endTime = parseDate(endDate).getTime()
+    if (Number.isNaN(startTime) || Number.isNaN(endTime)) return fallback
+    const seconds = Math.floor((endTime - startTime) / 1000)
     return `${seconds}s`
 }
 

@@ -107,7 +107,7 @@ class TestStreamsFiltering:
     def test_count_respects_filters(self, mock_streams, mock_count, mock_get_cache):
         """total is the filtered count returned by the count gateway."""
         mock_get_cache.return_value = _miss_cache()
-        mock_streams.return_value = [StreamListRow(1, "S", "2024-01-15 20:00:00", "2024-01-15 22:00:00", "t.jpg", 42)]
+        mock_streams.return_value = [StreamListRow(1, "S", "2024-01-15T20:00:00", "2024-01-15T22:00:00", "t.jpg", 42)]
         mock_count.return_value = 1
 
         with TestClient(app) as client:

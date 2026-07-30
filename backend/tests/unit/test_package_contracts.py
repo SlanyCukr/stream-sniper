@@ -93,7 +93,7 @@ def test_analytics_modules_are_grouped_by_change_boundary() -> None:
 
     assert {path.name for path in analytics_root.glob("*.py")} == {"__init__.py"}
     expected_modules = {
-        "calculations": {"__init__.py", "moments.py", "report_stats.py", "text_stats.py"},
+        "calculations": {"__init__.py", "delta.py", "moments.py", "report_stats.py", "text_stats.py"},
         "operations": {"__init__.py", "backfill.py", "bot_detection.py", "digest.py"},
         "rollups": {
             "__init__.py",
@@ -162,11 +162,13 @@ def test_collector_root_separates_archived_and_live_pipelines() -> None:
     backend_root = Path(__file__).parents[2]
     collector_root = backend_root / "stream_sniper/collector"
 
-    # Root holds only the seams both pipelines share: the Twitch client and the
-    # canonical badge-text formatter (archived + live must emit identical badge text).
+    # Root holds only the seams both pipelines share: the Twitch client, the
+    # canonical badge-text formatter (archived + live must emit identical badge text),
+    # and the canonical @mention tagger (both must resolve the same tagged chatter).
     assert {path.name for path in collector_root.glob("*.py")} == {
         "__init__.py",
         "badge_format.py",
+        "mention.py",
         "twitch_api.py",
     }
     assert {path.name for path in (collector_root / "archived").glob("*.py")} == {

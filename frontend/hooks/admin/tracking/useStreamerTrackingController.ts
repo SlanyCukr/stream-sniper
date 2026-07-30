@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
+import { usePagedFilters } from '@/hooks/usePagedFilters'
 import { useStreamerTrackingActions } from './useStreamerTrackingActions'
 import { useTrackedStreamers, type TrackedStreamer } from './useTrackingQueries'
 
@@ -12,8 +13,9 @@ interface StreamerFilterState {
 export const useStreamerTrackingController = () => {
     const [showAddModal, setShowAddModal] = useState(false)
     const [removeTarget, setRemoveTarget] = useState<TrackedStreamer | null>(null)
-    const [pageIndex, setPageIndex] = useState(0)
-    const [filters, setFilters] = useState<StreamerFilterState>({
+    const {
+        pageIndex, setPageIndex, filters, setFilter, retreatPage,
+    } = usePagedFilters<StreamerFilterState>({
         isActive: null,
         processingEnabled: null,
     })
@@ -32,21 +34,16 @@ export const useStreamerTrackingController = () => {
     const pageCount = streamersData?.pageCount || 0
     const actions = useStreamerTrackingActions()
 
-    const handleFilterChange = useCallback((key: keyof StreamerFilterState, value: boolean | null) => {
-        setFilters(current => ({
-            ...current,
-            [key]: value,
-        }))
-        setPageIndex(0)
-    }, [])
+    const handleFilterChange = setFilter
 
     const handleRemoveStreamer = async (streamerId: number) => {
-        const succeeded = await actions.commands.removeStreamer(streamerId)
-        if (succeeded && streamers.length === 1) {
-            setPageIndex(current => Math.max(current - 1, 0))
+        const outcome = await actions.commands.removeStreamer(streamerId)
+        if (!outcome.ok) return outcome
+        if (streamers.length === 1) {
+            retreatPage()
         }
         setRemoveTarget(null)
-        return succeeded
+        return outcome
     }
 
     return {
@@ -78,11 +75,13 @@ export const useStreamerTrackingController = () => {
         },
         addModalProps: {
             show: showAddModal,
+            pending: actions.pending.create,
             onHide: () => setShowAddModal(false),
             onCreate: actions.commands.addStreamer,
         },
         removeModalProps: {
             target: removeTarget,
+            pending: actions.pending.delete,
             onHide: () => setRemoveTarget(null),
             onConfirm: handleRemoveStreamer,
         },

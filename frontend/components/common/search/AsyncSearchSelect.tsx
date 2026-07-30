@@ -7,18 +7,18 @@ import {
     useAsyncSearchLoader, type SearchOption,
 } from '@/hooks/useAsyncSearchLoader'
 
-type BaseSelectProps = Omit<
-    AsyncProps<SearchOption, boolean, GroupBase<SearchOption>>,
+type BaseSelectProps<TOption extends SearchOption> = Omit<
+    AsyncProps<TOption, false, GroupBase<TOption>>,
     'loadOptions' | 'defaultOptions'
 >
 
-interface AsyncSearchSelectProps extends BaseSelectProps {
-    loadOptions: (query: string) => Promise<SearchOption[]>
+type AsyncSearchSelectProps<TOption extends SearchOption> = BaseSelectProps<TOption> & {
+    loadOptions: (query: string) => Promise<TOption[]>
     debounceMs?: number
     creatable?: boolean
     onLoadError?: (error: unknown) => void
     loadErrorMessage?: string
-    defaultOptions?: boolean | SearchOption[]
+    defaultOptions?: boolean | TOption[]
 }
 
 const DEFAULT_DEBOUNCE_MS = 300
@@ -32,7 +32,7 @@ const DEFAULT_DEBOUNCE_MS = 300
  * surface (used by the add-streamer field, since Twitch search only returns
  * channels active in the last 6 months).
  */
-const AsyncSearchSelect = ({
+const AsyncSearchSelect = <TOption extends SearchOption>({
     loadOptions,
     debounceMs = DEFAULT_DEBOUNCE_MS,
     creatable = false,
@@ -40,7 +40,7 @@ const AsyncSearchSelect = ({
     loadErrorMessage = 'Search unavailable. Retry or change the query.',
     defaultOptions = false,
     ...selectProps
-}: AsyncSearchSelectProps) => {
+}: AsyncSearchSelectProps<TOption>) => {
     const loader = useAsyncSearchLoader({
         loadOptions,
         onLoadError,
@@ -51,7 +51,7 @@ const AsyncSearchSelect = ({
 
     return (
         <div>
-            <SelectComponent
+            <SelectComponent<TOption, false, GroupBase<TOption>>
                 key={loader.retryVersion}
                 classNamePrefix="rs"
                 loadOptions={loader.debouncedLoadOptions}

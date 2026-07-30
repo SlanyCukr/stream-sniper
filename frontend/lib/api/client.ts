@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios'
+import { readStoredToken } from '@/lib/auth/session'
 
 export const api: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -7,7 +8,7 @@ export const api: AxiosInstance = axios.create({
 
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token')
+    const token = readStoredToken()
     if (token) config.headers.Authorization = `Bearer ${token}`
   }
   return config
@@ -42,24 +43,64 @@ export function buildQuery(params: QueryParams) {
 }
 
 /**
- * GET a JSON endpoint and unwrap `response.data`, the shape nearly every
- * adapter in lib/api/*.ts wants. Pass `params` to append `?${buildQuery(...)}`
+ * GET a JSON endpoint and unwrap `response.data` as `unknown`. Transport success
+ * does not prove a response contract: the owning query/model boundary must
+ * validate the payload before exposing domain data. Pass `params` to append `?${buildQuery(...)}`
  * (matching the exact URL a call site would have built by hand, including a
  * bare trailing `?` when every param is empty) — omit it entirely for bare
  * paths with no query string at all. `config` is for the rare GET that needs
  * e.g. a custom timeout; sites needing the raw AxiosResponse (headers, Blob
  * responseType) should keep calling `api.get` directly instead.
  */
-export const getJson = async <T>(
+export const getJson = async (
   path: string,
   params?: QueryParams,
   config?: AxiosRequestConfig,
-): Promise<T> => {
+): Promise<unknown> => {
   const url = params ? `${path}?${buildQuery(params)}` : path
   // Only forward `config` when the caller actually passed one — an explicit
   // `undefined` second argument is a different (and test-visible) call shape
   // than omitting it outright.
-  const response = config ? await api.get<T>(url, config) : await api.get<T>(url)
+  const response = config ? await api.get<unknown>(url, config) : await api.get<unknown>(url)
   return response.data
 }
 
+/**
+ * JSON write helpers mirror getJson's transport boundary: callers receive an
+ * unknown payload and must validate it before publishing domain data.
+ */
+export const postJson = async (
+  path: string,
+  body?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<unknown> => {
+  const response = config
+    ? await api.post<unknown>(path, body, config)
+    : body === undefined
+      ? await api.post<unknown>(path)
+      : await api.post<unknown>(path, body)
+  return response.data
+}
+
+export const putJson = async (
+  path: string,
+  body?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<unknown> => {
+  const response = config
+    ? await api.put<unknown>(path, body, config)
+    : body === undefined
+      ? await api.put<unknown>(path)
+      : await api.put<unknown>(path, body)
+  return response.data
+}
+
+export const deleteJson = async (
+  path: string,
+  config?: AxiosRequestConfig,
+): Promise<unknown> => {
+  const response = config
+    ? await api.delete<unknown>(path, config)
+    : await api.delete<unknown>(path)
+  return response.data
+}

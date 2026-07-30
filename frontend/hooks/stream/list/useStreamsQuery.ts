@@ -1,4 +1,3 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import {
     retrieveStreams,
     retrieveStreamComprehensive,
@@ -7,15 +6,11 @@ import { PAGINATION } from '@/lib/pagination/constants'
 import {
     createPage, getRowOffset, normalizePagination,
 } from '@/lib/pagination/page'
+import { defineGatedQuery, defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArray, requireArrayField, requireFiniteNumberField, requireNullableStringField,
     requireRecord, requireStringField,
 } from '@/lib/api/contractGuards'
-
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
->
 
 export interface StreamsParams {
     creatorId?: number
@@ -29,7 +24,7 @@ export interface StreamsParams {
 }
 
 export interface StreamInfo {
-    title: string
+    title: string | null
     start: string
     end: string | null
     thumbnailUrl: string | null
@@ -88,7 +83,7 @@ export const mapStreamListRow = (value: unknown): StreamListRow => {
 export const mapStreamInfo = (value: unknown): StreamInfo => {
     const row = requireRecord(value, 'stream detail.info')
     return {
-        title: requireStringField(row, 'title', 'stream detail.info'),
+        title: requireNullableStringField(row, 'title', 'stream detail.info'),
         start: requireStringField(row, 'start', 'stream detail.info'),
         end: requireNullableStringField(row, 'end', 'stream detail.info'),
         thumbnailUrl: requireNullableStringField(row, 'thumbnail_url', 'stream detail.info'),
@@ -158,13 +153,73 @@ const streamsKeys = {
     ],
 }
 
+interface StreamsListArgs {
+    creatorId: number
+    sort: string
+    dir: 'asc' | 'desc'
+    title?: string
+    dateFrom?: string
+    dateTo?: string
+    minMessages?: number
+    pageIndex: number
+}
+
+const mapStreamsListPage = (value: unknown) => {
+    const data = requireRecord(value, 'stream list')
+    const responseOffset = requireFiniteNumberField(data, 'offset', 'stream list')
+    const responseLimit = requireFiniteNumberField(data, 'limit', 'stream list')
+    return createPage(
+        requireArrayField(data, 'streams', 'stream list').map(mapStreamListRow),
+        requireFiniteNumberField(data, 'total', 'stream list'),
+        Math.floor(responseOffset / responseLimit),
+        responseLimit,
+    )
+}
+
+type StreamsPage = ReturnType<typeof mapStreamsListPage>
+
+const streamsListQuery = defineQuery({
+    key: ({
+        creatorId, sort, dir, title, dateFrom, dateTo, minMessages, pageIndex,
+    }: StreamsListArgs) => {
+        const pagination = normalizePagination(pageIndex, PAGINATION.ITEMS_PER_PAGE)
+        return streamsKeys.list({
+            creatorId,
+            sort,
+            dir,
+            title,
+            dateFrom,
+            dateTo,
+            minMessages,
+            pageIndex: pagination.pageIndex,
+            pageSize: pagination.pageSize,
+        })
+    },
+    fetch: ({
+        creatorId, sort, dir, title, dateFrom, dateTo, minMessages, pageIndex,
+    }) => {
+        const pagination = normalizePagination(pageIndex, PAGINATION.ITEMS_PER_PAGE)
+        return retrieveStreams({
+            creatorId,
+            sort,
+            dir,
+            title,
+            dateFrom,
+            dateTo,
+            minMessages,
+            rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
+        })
+    },
+    map: mapStreamsListPage,
+})
+
 /**
  * @param params - Filter/sort/pagination params
  * @param options - Additional query options
  */
 export const useStreams = (
     params: StreamsParams = {},
-    options: QueryOptions<ReturnType<typeof createPage<StreamListRow>>> & { enabled?: boolean } = {},
+    options: QueryOptions<StreamsPage> = {},
 ) => {
     const {
         creatorId = -1,
@@ -176,45 +231,18 @@ export const useStreams = (
         minMessages,
         pageIndex = 0,
     } = params
-    const { enabled = true, ...queryOptions } = options
-    const pagination = normalizePagination(pageIndex, PAGINATION.ITEMS_PER_PAGE)
-    return useQuery({
-        ...queryOptions,
-        queryKey: streamsKeys.list({
-            creatorId,
-            sort,
-            dir,
-            title,
-            dateFrom,
-            dateTo,
-            minMessages,
-            pageIndex: pagination.pageIndex,
-            pageSize: pagination.pageSize,
-        }),
-        queryFn: async () => {
-            const response = await retrieveStreams({
-                creatorId,
-                sort,
-                dir,
-                title,
-                dateFrom,
-                dateTo,
-                minMessages,
-                rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
-            })
-            const data = requireRecord(response, 'stream list')
-            const responseOffset = requireFiniteNumberField(data, 'offset', 'stream list')
-            const responseLimit = requireFiniteNumberField(data, 'limit', 'stream list')
-            return createPage(
-                requireArrayField(data, 'streams', 'stream list').map(mapStreamListRow),
-                requireFiniteNumberField(data, 'total', 'stream list'),
-                Math.floor(responseOffset / responseLimit),
-                responseLimit,
-            )
-        },
-        enabled,
-    })
+    return streamsListQuery({
+        creatorId, sort, dir, title, dateFrom, dateTo, minMessages, pageIndex,
+    }, options)
 }
+
+const streamDetailsQuery = defineGatedQuery({
+    label: 'stream details',
+    key: (streamId: number) => streamsKeys.detail(streamId),
+    validate: streamId => (streamId ? streamId : null),
+    fetch: retrieveStreamComprehensive,
+    map: mapStreamDetails,
+})
 
 /**
  * @param streamId - The normalized stream ID
@@ -222,16 +250,5 @@ export const useStreams = (
  */
 export const useStreamDetails = (
     streamId: number,
-    options: QueryOptions<StreamDetails> & { enabled?: boolean } = {},
-) => {
-    const { enabled = true, ...queryOptions } = options
-    return useQuery({
-        ...queryOptions,
-        queryKey: streamsKeys.detail(streamId),
-        queryFn: async () => {
-            const response = await retrieveStreamComprehensive(streamId)
-            return mapStreamDetails(response)
-        },
-        enabled: Boolean(streamId) && enabled,
-    })
-}
+    options: QueryOptions<StreamDetails> = {},
+) => streamDetailsQuery(streamId, options)

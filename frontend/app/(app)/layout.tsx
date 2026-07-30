@@ -1,5 +1,3 @@
-'use client'
-
 import FullLayout from '@/components/layout/FullLayout'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

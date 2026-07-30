@@ -2,6 +2,20 @@
 
 Twitch stream analytics platform: downloads chat from Twitch VODs, stores it in PostgreSQL, and serves a Next.js dashboard + FastAPI REST API with JWT auth, admin controls, and automated streamer tracking.
 
+## Agent skills
+
+### Issue tracker
+
+Engineering issues and PRDs are tracked in GitHub Issues for `SlanyCukr/stream-sniper`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the canonical `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix` labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repository uses a single-context domain-document layout. See `docs/agents/domain.md`.
+
 Component-specific docs:
 - **Backend**: `backend/CLAUDE.md`
 - **Frontend**: `frontend/CLAUDE.md`

@@ -1,15 +1,20 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { useInvalidatingMutation } from '@/hooks/useInvalidatingMutation'
+import {
+    useInvalidatingMutation,
+    type MutationOptions,
+} from '@/hooks/useInvalidatingMutation'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     flushCache,
     retrieveCacheStats,
     retrieveDetailedHealth,
     retrieveMetrics,
     type FlushCacheDto,
-    type HealthComponentDto,
 } from '@/lib/api/system'
 import {
-    requireFiniteNumberField, requireRecord, requireStringField,
+    requireFiniteNumberField,
+    requireNullableFiniteNumberField,
+    requireRecord,
+    requireStringField,
 } from '@/lib/api/contractGuards'
 
 export interface DetailedHealthComponent {
@@ -54,33 +59,38 @@ export interface CacheStats {
     streamSniperKeys: number
 }
 
-// queryKey/queryFn stay accepted-but-untyped: the hooks below always overwrite
-// them with their own key/fetcher (matching runtime behavior), so a caller
-// passing either does not influence what actually runs.
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'> & {
-    queryKey?: unknown
-    queryFn?: unknown
-}
-
 export const mapDetailedHealth = (value: unknown): DetailedHealth => {
     const data = requireRecord(value, 'detailed health')
     const system = requireRecord(data.system, 'detailed health.system')
     const components = requireRecord(data.components, 'detailed health.components')
+    if (data.version !== undefined && typeof data.version !== 'string') {
+        throw new TypeError('detailed health.version must be a string when present')
+    }
+    const memoryUsagePercent = system.memory_usage_percent === undefined
+        ? null
+        : requireNullableFiniteNumberField(system, 'memory_usage_percent', 'detailed health.system')
     return {
-    status: requireStringField(data, 'status', 'detailed health'),
-    timestamp: requireStringField(data, 'timestamp', 'detailed health'),
-    uptimeSeconds: requireFiniteNumberField(data, 'uptime_seconds', 'detailed health'),
-    version: data.version as string | undefined, // optional field, not runtime-validated (matches DetailedHealthDto.version)
-    memoryUsagePercent: (system.memory_usage_percent as number | null | undefined) ?? null,
-    components: Object.entries(components).map(([name, component]) => {
-        const item = component as HealthComponentDto // per-entry shape trusted, not runtime-validated (matches original traversal)
-        return {
-            name,
-            status: item.status,
-            responseTimeMs: item.response_time_ms ?? null,
-            details: item.details ?? null,
-        }
-    }),
+        status: requireStringField(data, 'status', 'detailed health'),
+        timestamp: requireStringField(data, 'timestamp', 'detailed health'),
+        uptimeSeconds: requireFiniteNumberField(data, 'uptime_seconds', 'detailed health'),
+        version: data.version,
+        memoryUsagePercent,
+        components: Object.entries(components).map(([name, component]) => {
+            const label = `detailed health.components.${name}`
+            const item = requireRecord(component, label)
+            const responseTimeMs = item.response_time_ms === undefined
+                ? null
+                : requireNullableFiniteNumberField(item, 'response_time_ms', label)
+            const details = item.details === undefined || item.details === null
+                ? null
+                : requireRecord(item.details, `${label}.details`)
+            return {
+                name,
+                status: requireStringField(item, 'status', label),
+                responseTimeMs,
+                details,
+            }
+        }),
     }
 }
 
@@ -94,7 +104,11 @@ export const mapSystemMetrics = (value: unknown): SystemMetrics => {
             totalRequests: requireFiniteNumberField(requests, 'total_requests', 'system metrics.requests'),
             successfulRequests: requireFiniteNumberField(requests, 'successful_requests', 'system metrics.requests'),
             failedRequests: requireFiniteNumberField(requests, 'failed_requests', 'system metrics.requests'),
-            averageResponseTimeMs: (requests.average_response_time_ms as number | null | undefined) ?? null,
+            averageResponseTimeMs: requireNullableFiniteNumberField(
+                requests,
+                'average_response_time_ms',
+                'system metrics.requests',
+            ),
         },
         cache: {
             hitRate: requireFiniteNumberField(cache, 'hit_rate', 'system metrics.cache'),
@@ -128,6 +142,14 @@ export const mapCacheStats = (value: unknown): CacheStats => {
     }
 }
 
+export const mapFlushCache = (value: unknown): FlushCacheDto => {
+    const data = requireRecord(value, 'flush cache')
+    return {
+        message: requireStringField(data, 'message', 'flush cache'),
+        timestamp: requireStringField(data, 'timestamp', 'flush cache'),
+    }
+}
+
 export const systemKeys = {
     all: [
         'system',
@@ -146,36 +168,39 @@ export const systemKeys = {
     ],
 }
 
-export const useDetailedHealth = (options: QueryOptions<DetailedHealth> = {}) => useQuery({
-    ...options,
-    queryKey: systemKeys.detailedHealth(),
-    queryFn: async () => {
-        const data = await retrieveDetailedHealth()
-        return mapDetailedHealth(data)
-    },
+const detailedHealthQuery = defineQuery({
+    key: () => systemKeys.detailedHealth(),
+    fetch: retrieveDetailedHealth,
+    map: mapDetailedHealth,
 })
 
-export const useSystemMetrics = (options: QueryOptions<SystemMetrics> = {}) => useQuery({
-    ...options,
-    queryKey: systemKeys.metrics(),
-    queryFn: async () => {
-        const data = await retrieveMetrics()
-        return mapSystemMetrics(data)
-    },
+export const useDetailedHealth = (options: QueryOptions<DetailedHealth> = {}) => (
+    detailedHealthQuery(undefined, options)
+)
+
+const systemMetricsQuery = defineQuery({
+    key: () => systemKeys.metrics(),
+    fetch: retrieveMetrics,
+    map: mapSystemMetrics,
 })
 
-export const useCacheStats = (options: QueryOptions<CacheStats> = {}) => useQuery({
-    ...options,
-    queryKey: systemKeys.cacheStats(),
-    queryFn: async () => {
-        const data = await retrieveCacheStats()
-        return mapCacheStats(data)
-    },
+export const useSystemMetrics = (options: QueryOptions<SystemMetrics> = {}) => (
+    systemMetricsQuery(undefined, options)
+)
+
+const cacheStatsQuery = defineQuery({
+    key: () => systemKeys.cacheStats(),
+    fetch: retrieveCacheStats,
+    map: mapCacheStats,
 })
 
-const flushCacheMutation = async (): Promise<FlushCacheDto> => (await flushCache()).data
+export const useCacheStats = (options: QueryOptions<CacheStats> = {}) => (
+    cacheStatsQuery(undefined, options)
+)
 
-export const useFlushCache = (options = {}) => {
+const flushCacheMutation = async (): Promise<FlushCacheDto> => mapFlushCache(await flushCache())
+
+export const useFlushCache = (options: MutationOptions<FlushCacheDto> = {}) => {
     return useInvalidatingMutation(
         flushCacheMutation,
         systemKeys.all,

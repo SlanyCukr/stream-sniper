@@ -1,4 +1,7 @@
-import { api, getJson } from './client'
+import {
+  deleteJson, getJson, postJson, putJson,
+} from './client'
+import type { CreateTrackedStreamerCommand } from '@/lib/models/tracking'
 
 export interface TrackedStreamerListRequest {
   rowOffset?: number
@@ -14,14 +17,20 @@ export interface ProcessingJobListRequest {
   trackedStreamerId?: number
 }
 
-export interface CreateTrackedStreamerRequest {
+interface CreateTrackedStreamerRequest {
   twitch_username: string
   notes?: string | null
   is_active: boolean
   processing_enabled: boolean
 }
 
-export interface UpdateTrackedStreamerRequest {
+export interface UpdateTrackedStreamerCommand {
+  isActive?: boolean
+  processingEnabled?: boolean
+  notes?: string | null
+}
+
+interface UpdateTrackedStreamerRequest {
   is_active?: boolean
   processing_enabled?: boolean
   notes?: string | null
@@ -108,38 +117,47 @@ export type TwitchChannelSearchDto = Array<{
 }>
 
 export const retrieveTwitchChannelSearch = (query: string, limit = 8) =>
-  getJson<TwitchChannelSearchDto>(
+  getJson(
     '/admin/tracking/twitch-search',
     { q: query, limit },
   )
 
 export const retrieveTrackingStats = () =>
-  getJson<TrackingStatsDto>('/admin/tracking/stats')
+  getJson('/admin/tracking/stats')
 
 export const retrieveTrackedStreamers = (request: TrackedStreamerListRequest = {}) =>
-  getJson<TrackedStreamerListDto>('/admin/tracking/streamers', {
+  getJson('/admin/tracking/streamers', {
     offset: request.rowOffset,
     limit: request.pageSize,
     is_active: request.isActive,
     processing_enabled: request.processingEnabled,
   })
 
-export const createTrackedStreamer = (streamer: CreateTrackedStreamerRequest) =>
-  api.post<TrackedStreamerDto>('/admin/tracking/streamers', streamer)
+export const createTrackedStreamer = (streamer: CreateTrackedStreamerCommand) =>
+  postJson('/admin/tracking/streamers', {
+    twitch_username: streamer.twitchUsername,
+    notes: streamer.notes,
+    is_active: streamer.isActive,
+    processing_enabled: streamer.processingEnabled,
+  } satisfies CreateTrackedStreamerRequest)
 
 export const updateTrackedStreamer = (
   streamerId: number,
-  changes: UpdateTrackedStreamerRequest,
-) => api.put<TrackedStreamerDto>(`/admin/tracking/streamers/${streamerId}`, changes)
+  changes: UpdateTrackedStreamerCommand,
+) => putJson(`/admin/tracking/streamers/${streamerId}`, {
+  is_active: changes.isActive,
+  processing_enabled: changes.processingEnabled,
+  notes: changes.notes,
+} satisfies UpdateTrackedStreamerRequest)
 
 export const deleteTrackedStreamer = (streamerId: number) =>
-  api.delete<void>(`/admin/tracking/streamers/${streamerId}`)
+  deleteJson(`/admin/tracking/streamers/${streamerId}`)
 
 export const probeTwitchChannel = (streamerId: number) =>
-  api.post<TwitchProbeResultDto>(`/admin/tracking/streamers/${streamerId}/probe`)
+  postJson(`/admin/tracking/streamers/${streamerId}/probe`)
 
 export const retrieveProcessingJobs = (request: ProcessingJobListRequest = {}) =>
-  getJson<ProcessingJobListDto>('/admin/tracking/jobs', {
+  getJson('/admin/tracking/jobs', {
     offset: request.rowOffset,
     limit: request.pageSize,
     status: request.status,

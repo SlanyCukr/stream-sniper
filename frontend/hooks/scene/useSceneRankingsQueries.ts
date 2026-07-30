@@ -1,5 +1,10 @@
-import { keepPreviousData, useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { retrieveSceneRankings, type RankingsWindow } from '@/lib/api/scene'
+import {
+    useInfiniteQuery,
+    type InfiniteData,
+    type UseInfiniteQueryOptions,
+} from '@tanstack/react-query'
+import { retrieveSceneRankings } from '@/lib/api/scene'
+import type { RankingsWindow } from '@/lib/models/sceneFilters'
 import {
     requireArrayField,
     requireBooleanField,
@@ -7,9 +12,13 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
-import type { ArchetypeBadge } from '@/components/chatter/ArchetypeBadges'
 import { sceneKeys } from './sceneKeys'
-import { mapArchetypeBadges, mapHomeChannel, type ChatterHomeChannel } from '@/hooks/chatter/wireShapes'
+import {
+    mapArchetypeBadges,
+    mapHomeChannel,
+    type ArchetypeBadge,
+    type ChatterHomeChannel,
+} from '@/hooks/chatter/wireShapes'
 
 /** A chatter's dominant channel, or `null` when no single channel dominates. */
 type RankingsHomeChannel = ChatterHomeChannel
@@ -59,29 +68,34 @@ export const mapSceneRankings = (value: unknown): SceneRankings => {
 interface UseSceneRankingsParams {
     window?: RankingsWindow
     limit?: number
-    offset?: number
 }
 
 type RankingsQueryOptions = Omit<
-    UseQueryOptions<SceneRankings, Error, SceneRankings, readonly unknown[]>,
-    'queryKey' | 'queryFn'
+    UseInfiniteQueryOptions<
+        SceneRankings,
+        Error,
+        InfiniteData<SceneRankings, number>,
+        ReturnType<typeof sceneKeys.rankings>,
+        number
+    >,
+    'queryKey' | 'queryFn' | 'initialPageParam' | 'getNextPageParam'
 > & { enabled?: boolean }
 
-/**
- * Fetch one page of the scene power rankings. `placeholderData: keepPreviousData`
- * holds the current page while a new offset (or window) loads so "Load more"
- * appends without a flash; the view folds pages into an accumulated list.
- */
 export const useSceneRankings = (
-    { window = 'all', limit = 25, offset = 0 }: UseSceneRankingsParams = {},
+    { window = 'all', limit = 25 }: UseSceneRankingsParams = {},
     options: RankingsQueryOptions = {},
 ) => {
     const { enabled = true, ...queryOptions } = options
-    return useQuery({
-        placeholderData: keepPreviousData,
+    return useInfiniteQuery({
         ...queryOptions,
-        queryKey: sceneKeys.rankings({ window, limit, offset }),
-        queryFn: async () => mapSceneRankings(await retrieveSceneRankings({ window, limit, offset })),
+        queryKey: sceneKeys.rankings({ window, limit }),
+        queryFn: async ({ pageParam }) => mapSceneRankings(
+            await retrieveSceneRankings({ window, limit, offset: pageParam }),
+        ),
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _pages, lastPageParam) => (
+            lastPage.hasMore ? lastPageParam + limit : undefined
+        ),
         enabled,
     })
 }

@@ -1,4 +1,4 @@
-import { formatTimelineClock } from './TimelineMarkers'
+import { formatTimelineClock } from './timelinePresentation'
 import type { TimelineContextChange } from '@/hooks/stream/timeline/useStreamTimelineQuery'
 
 interface TimelineContextListProps {

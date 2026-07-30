@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Table } from 'react-bootstrap'
 import Link from 'next/link'
-import { useMessages } from '@/hooks/chatter/useMessagesQuery'
+import { useChatterMessages } from '@/hooks/chatter/useMessagesQuery'
 import Pagination from '@/components/common/pagination/Pagination'
 import ChatterPanelShell from './ChatterPanelShell'
 import { formatStreamTimestamp } from '@/utils/dateUtils'
@@ -16,10 +16,7 @@ interface ChatterMessagesPanelProps {
 
 const ChatterMessagesPanel = ({ chatter }: ChatterMessagesPanelProps) => {
     const [pageIndex, setPageIndex] = useState(PAGINATION.DEFAULT_OFFSET)
-    // useMessages declares chatterId as non-nullable number, but internally
-    // guards on Boolean(chatterId) — null (no chatter selected) is the real,
-    // intended runtime value here.
-    const query = useMessages((chatter?.value || null) as number, {
+    const query = useChatterMessages(chatter?.value ?? 0, {
         pageIndex,
         pageSize: PAGINATION.MESSAGES_PER_PAGE,
     })

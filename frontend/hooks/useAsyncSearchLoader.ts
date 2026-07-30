@@ -7,32 +7,32 @@ export interface SearchOption {
     value: string | number
 }
 
-interface UseAsyncSearchLoaderOptions {
-    loadOptions: (query: string) => Promise<SearchOption[]>
+interface UseAsyncSearchLoaderOptions<TOption extends SearchOption> {
+    loadOptions: (query: string) => Promise<TOption[]>
     debounceMs: number
     onLoadError?: (error: unknown) => void
 }
 
-interface PendingResolution {
-    resolve: (options: SearchOption[]) => void
+interface PendingResolution<TOption extends SearchOption> {
+    resolve: (options: TOption[]) => void
 }
 
 /**
  * Owns the debounce and retry state machine used by AsyncSearchSelect.
  */
-export const useAsyncSearchLoader = ({
+export const useAsyncSearchLoader = <TOption extends SearchOption>({
     loadOptions,
     debounceMs,
     onLoadError,
-}: UseAsyncSearchLoaderOptions) => {
+}: UseAsyncSearchLoaderOptions<TOption>) => {
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const pendingRef = useRef<PendingResolution | null>(null)
+    const pendingRef = useRef<PendingResolution<TOption> | null>(null)
     const lastQueryRef = useRef('')
     const mountedRef = useRef(true)
     const [loadError, setLoadError] = useState<unknown | null>(null)
     const [retrying, setRetrying] = useState(false)
     const [retryVersion, setRetryVersion] = useState(0)
-    const [retryOptions, setRetryOptions] = useState<SearchOption[] | null>(null)
+    const [retryOptions, setRetryOptions] = useState<TOption[] | null>(null)
 
     const runLoad = useCallback(async (inputValue: string) => {
         lastQueryRef.current = inputValue
@@ -53,7 +53,7 @@ export const useAsyncSearchLoader = ({
     ])
 
     const debouncedLoadOptions = useCallback(
-    (inputValue: string) => new Promise<SearchOption[]>((resolve, reject) => {
+    (inputValue: string) => new Promise<TOption[]>((resolve, reject) => {
         if (timerRef.current) {
             clearTimeout(timerRef.current)
             pendingRef.current?.resolve([])

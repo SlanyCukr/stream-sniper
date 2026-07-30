@@ -1,5 +1,8 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { useInvalidatingMutation } from '@/hooks/useInvalidatingMutation'
+import {
+    useInvalidatingMutation,
+    type MutationOptions,
+} from '@/hooks/useInvalidatingMutation'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     createAdminUser,
     deleteUser,
@@ -9,8 +12,8 @@ import {
     updateUser,
     updateUserRole,
     type AdminUserDto,
-    type CreateAdminUserRequest,
-    type UpdateAdminUserRequest,
+    type CreateAdminUserCommand,
+    type UpdateAdminUserCommand,
 } from '@/lib/api/users'
 import {
     createPage, getRowOffset, normalizePagination,
@@ -27,14 +30,6 @@ import { USER_ROLES } from '@/lib/auth/roles'
 interface UserParams {
     pageIndex?: number
     pageSize?: number
-}
-
-// queryKey/queryFn stay accepted-but-untyped: both hooks below always overwrite
-// them with their own key/fetcher (matching runtime behavior), so a caller
-// passing either does not influence what actually runs.
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'> & {
-    queryKey?: unknown
-    queryFn?: unknown
 }
 
 const normalizeUserParams = ({
@@ -112,67 +107,103 @@ const mapAdminUsersPage = (value: unknown, pagination: { pageIndex: number, page
     )
 }
 
-export const useAdminSystemStats = (options: QueryOptions<AdminSystemStats> = {}) => useQuery({
-    ...options,
-    queryKey: userAdminKeys.stats(),
-    queryFn: async () => {
-        const data = await retrieveAdminSystemStats()
-        return mapAdminSystemStats(data)
+const adminSystemStatsQuery = defineQuery({
+    key: () => userAdminKeys.stats(),
+    fetch: retrieveAdminSystemStats,
+    map: mapAdminSystemStats,
+})
+
+export const useAdminSystemStats = (options: QueryOptions<AdminSystemStats> = {}) => (
+    adminSystemStatsQuery(undefined, options)
+)
+
+interface AdminUsersFetchResult {
+    value: unknown
+    pagination: { pageIndex: number, pageSize: number }
+}
+
+const adminUsersQuery = defineQuery({
+    key: (params: UserParams) => userAdminKeys.list(params),
+    fetch: async (params: UserParams): Promise<AdminUsersFetchResult> => {
+        const pagination = normalizeUserParams(params)
+        const value = await retrieveUsers({
+            rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
+            pageSize: pagination.pageSize,
+        })
+        return { value, pagination }
+    },
+    map: (result: unknown) => {
+        const { value, pagination } = result as AdminUsersFetchResult
+        return mapAdminUsersPage(value, pagination)
     },
 })
 
 export const useAdminUsers = (
     params: UserParams = {},
     options: QueryOptions<ReturnType<typeof mapAdminUsersPage>> = {},
-) => {
-    const normalizedParams = normalizeUserParams(params)
-    return useQuery({
-        ...options,
-        queryKey: userAdminKeys.list(normalizedParams),
-        queryFn: async () => {
-            const value = await retrieveUsers({
-                rowOffset: getRowOffset(normalizedParams.pageIndex, normalizedParams.pageSize),
-                pageSize: normalizedParams.pageSize,
-            })
-            return mapAdminUsersPage(value, normalizedParams)
-        },
-    })
+) => adminUsersQuery(params, options)
+
+export const useCreateAdminUser = (
+    options: MutationOptions<AdminUser, CreateAdminUserCommand> = {},
+) => useInvalidatingMutation(
+    async (user: CreateAdminUserCommand): Promise<AdminUser> => (
+        mapAdminUser(await createAdminUser(user))
+    ),
+    userAdminKeys.all,
+    options,
+)
+
+type UpdateAdminUserVariables = {
+    userId: number
+    changes: UpdateAdminUserCommand
 }
 
-export const useCreateAdminUser = (options = {}) => useInvalidatingMutation(
-    async (user: CreateAdminUserRequest): Promise<AdminUser> => (
-        mapAdminUser((await createAdminUser(user)).data)
+export const useUpdateAdminUser = (
+    options: MutationOptions<AdminUser, UpdateAdminUserVariables> = {},
+) => useInvalidatingMutation(
+    async (command: { userId: number, changes: UpdateAdminUserCommand }): Promise<AdminUser> => (
+        mapAdminUser(await updateUser(command.userId, command.changes))
     ),
     userAdminKeys.all,
     options,
 )
 
-export const useUpdateAdminUser = (options = {}) => useInvalidatingMutation(
-    async (command: { userId: number, changes: UpdateAdminUserRequest }): Promise<AdminUser> => (
-        mapAdminUser((await updateUser(command.userId, command.changes)).data)
-    ),
-    userAdminKeys.all,
-    options,
-)
+type UpdateAdminUserRoleVariables = {
+    userId: number
+    role: AdminUserDto['role']
+}
 
-export const useUpdateAdminUserRole = (options = {}) => useInvalidatingMutation(
+export const useUpdateAdminUserRole = (
+    options: MutationOptions<AdminUser, UpdateAdminUserRoleVariables> = {},
+) => useInvalidatingMutation(
     async (command: { userId: number, role: AdminUserDto['role'] }): Promise<AdminUser> => (
-        mapAdminUser((await updateUserRole(command.userId, command.role)).data)
+        mapAdminUser(await updateUserRole(command.userId, command.role))
     ),
     userAdminKeys.all,
     options,
 )
 
-export const useSetAdminUserActive = (options = {}) => useInvalidatingMutation(
+type SetAdminUserActiveVariables = {
+    userId: number
+    isActive: boolean
+}
+
+export const useSetAdminUserActive = (
+    options: MutationOptions<AdminUser, SetAdminUserActiveVariables> = {},
+) => useInvalidatingMutation(
     async (command: { userId: number, isActive: boolean }): Promise<AdminUser> => (
-        mapAdminUser((await setUserActive(command.userId, command.isActive)).data)
+        mapAdminUser(await setUserActive(command.userId, command.isActive))
     ),
     userAdminKeys.all,
     options,
 )
 
-export const useDeleteAdminUser = (options = {}) => useInvalidatingMutation(
-    async (userId: number): Promise<void> => (await deleteUser(userId)).data,
+export const useDeleteAdminUser = (
+    options: MutationOptions<void, number> = {},
+) => useInvalidatingMutation(
+    async (userId: number): Promise<void> => {
+        await deleteUser(userId)
+    },
     userAdminKeys.all,
     options,
 )

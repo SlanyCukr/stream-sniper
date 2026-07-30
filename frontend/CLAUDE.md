@@ -107,6 +107,18 @@ Dockerfile (dev), Dockerfile.prod (multi-stage standalone, non-root)
   Promise — unwrap with `use(params)` in the page and pass values down as props.
 - Legacy `/#/path` hash links are handled by `components/layout/LegacyHashRedirect.tsx`.
 
+### Boundary ownership conventions
+
+- Keep wire DTOs and snake_case serialization private to `lib/api/**`. Hooks,
+  contexts, views, and components consume validated camelCase domain models and
+  commands.
+- Put shared types and pure presentation helpers in a non-React capability module;
+  sibling producers and views must not import contracts from a rendering leaf.
+- A `QueryState` render prop is the resolved-data boundary. Derive child props from
+  its callback value instead of fabricating pre-load fallback objects or arrays.
+- Validate nested `unknown` API data once in the owning mapper, then expose the
+  narrowest honest type to downstream formatters and renderers.
+
 ## Docker
 
 ```bash

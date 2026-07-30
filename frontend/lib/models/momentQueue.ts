@@ -1,4 +1,40 @@
-import type { MomentReviewStatus } from '@/lib/api/moments'
+export type MomentReviewStatus = 'bookmarked' | 'rejected' | 'clipped' | 'published'
+
+export interface MomentPhrase { phrase: string, count: number }
+export interface MomentSampleMessage { text: string, count: number }
+
+export interface MomentsQueueRequest {
+    status?: 'pending' | MomentReviewStatus
+    creatorId?: number
+    pageSize?: number
+    rowOffset?: number
+}
+
+export interface SetMomentReviewCommand {
+    action: 'set'
+    streamId: number
+    bucketMinute: string
+    status: MomentReviewStatus
+    /** null explicitly clears the clip URL */
+    clipUrl?: string | null
+    /** null explicitly clears the curator note */
+    note?: string | null
+}
+
+export interface ClearMomentReviewCommand {
+    action: 'clear'
+    streamId: number
+    bucketMinute: string
+}
+
+export type MomentReviewCommand = SetMomentReviewCommand | ClearMomentReviewCommand
+
+export interface MomentReviewResult {
+    status: MomentReviewStatus | null
+    clipUrl: string | null
+    note: string | null
+    updatedAt: string | null
+}
 
 interface MomentStatusTab {
     key: string

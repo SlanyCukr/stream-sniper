@@ -10,6 +10,7 @@ import {
     useRouter, useSearchParams,
 } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useOwnedTimeout } from '@/hooks/useOwnedTimeout'
 import Logo from '@/components/layout/Logo'
 import LoginForm from '@/components/auth/login/LoginForm'
 import RegisterForm from '@/components/auth/register/RegisterForm'
@@ -26,6 +27,7 @@ const Login = () => {
     const { isAuthenticated } = useAuth()
     const router = useRouter()
     const searchParams = useSearchParams()
+    const redirectTimeout = useOwnedTimeout()
 
     // Get the intended destination from the query string, default to home.
     // Only accept same-origin paths — anything else (absolute URLs,
@@ -64,7 +66,7 @@ const Login = () => {
         }
 
         // Redirect after a short delay to show success message
-        setTimeout(() => {
+        redirectTimeout.schedule(() => {
             router.replace(from)
         }, 1500)
     }

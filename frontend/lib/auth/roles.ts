@@ -15,3 +15,6 @@ export const USER_ROLE_OPTIONS: ReadonlyArray<Readonly<{
 
 export const isAdminRole = (role: unknown): role is typeof USER_ROLES.ADMIN =>
   role === USER_ROLES.ADMIN
+
+export const isUserRole = (role: unknown): role is UserRole =>
+  role === USER_ROLES.USER || role === USER_ROLES.ADMIN

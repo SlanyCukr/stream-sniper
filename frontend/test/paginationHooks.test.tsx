@@ -18,7 +18,7 @@ vi.mock('@/lib/api/streams', () => ({
   retrieveStreams: api.retrieveStreams,
 }))
 
-import { useMessages } from '@/hooks/chatter/useMessagesQuery'
+import { useChatterMessages } from '@/hooks/chatter/useMessagesQuery'
 import { useStreams } from '@/hooks/stream/list/useStreamsQuery'
 
 type Page<T> = {
@@ -107,7 +107,7 @@ describe('paginated hook boundaries', () => {
 
   it('maps configurable message pages at the endpoint boundary', async () => {
     const { result } = renderHook(
-      () => useMessages(7, { pageIndex: 2, pageSize: 50 }) as UseQueryResult<Page<ChatterMessage>>,
+      () => useChatterMessages(7, { pageIndex: 2, pageSize: 50 }) as UseQueryResult<Page<ChatterMessage>>,
       { wrapper: createWrapper() },
     )
 

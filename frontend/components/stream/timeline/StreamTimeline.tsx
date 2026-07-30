@@ -11,7 +11,7 @@ import type {
     StreamTimeline as StreamTimelineData,
     TimelineMoment,
 } from '@/hooks/stream/timeline/useStreamTimelineQuery'
-import type { MomentReviewStatus } from '@/lib/api/moments'
+import type { MomentReviewStatus } from '@/lib/models/momentQueue'
 import CopyChaptersButton from '@/components/stream/timeline/CopyChaptersButton'
 import TimelineLanes from '@/components/stream/timeline/TimelineLanes'
 import TimelineContextList from '@/components/stream/timeline/TimelineContextList'

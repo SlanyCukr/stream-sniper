@@ -89,6 +89,33 @@ def test_create_app_uses_supplied_config_and_runtime() -> None:
     assert app.servers == []
 
 
+@pytest.mark.asyncio
+async def test_lifespan_closes_runtime_when_serving_raises() -> None:
+    from stream_sniper.api.api import create_app
+
+    events: list[str] = []
+
+    class FakeRuntime:
+        database = object()
+
+        async def startup(self) -> None:
+            events.append("startup")
+
+        async def close(self) -> None:
+            events.append("close")
+
+    app = create_app(
+        _config(cache=CacheConfig(warm_on_startup=False)),
+        runtime_factory=lambda _: FakeRuntime(),  # type: ignore[arg-type, return-value]
+    )
+
+    with pytest.raises(RuntimeError, match="serving failed"):
+        async with app.router.lifespan_context(app):
+            raise RuntimeError("serving failed")
+
+    assert events == ["startup", "close"]
+
+
 def test_api_request_scope_resolves_its_runtime_database_pool() -> None:
     from stream_sniper.api.api import create_app
 

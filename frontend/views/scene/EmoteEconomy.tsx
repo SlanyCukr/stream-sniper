@@ -6,12 +6,12 @@ import Link from 'next/link'
 import FilterPills from '@/components/common/FilterPills'
 import QueryState from '@/components/common/QueryState'
 import StatusChip from '@/components/common/StatusChip'
-import { trendIndicator } from '@/components/scene/TrendingRow'
+import { trendIndicator } from '@/components/scene/trending/presentationModel'
 import {
     useSceneTrendingEmotes,
     type TrendingEmote,
 } from '@/hooks/scene/useSceneTrendingQueries'
-import type { TrendingWindow } from '@/lib/api/scene'
+import type { TrendingWindow } from '@/lib/models/sceneFilters'
 import { formatCompactNumber, magnitudeBarWidth } from '@/utils/numberUtils'
 import { formatDateOrDash } from '@/utils/dateUtils'
 

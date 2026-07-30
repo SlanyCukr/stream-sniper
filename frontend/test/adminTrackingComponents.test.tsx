@@ -42,7 +42,7 @@ describe('AddTrackedStreamerModal', () => {
   })
 
   it('owns search, draft, submit, and reset behavior', async () => {
-    const onCreate = vi.fn().mockResolvedValue(true)
+    const onCreate = vi.fn().mockResolvedValue({ ok: true })
     const onHide = vi.fn()
     trackingHooks.loadTrackedStreamerOptions.mockImplementation(async (query: string) => (
       query.trim().length < 2 ? [] : [{ value: 'operator', label: 'Operator (operator)' }]
@@ -62,16 +62,16 @@ describe('AddTrackedStreamerModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Streamer' }))
 
     await waitFor(() => expect(onCreate).toHaveBeenCalledWith({
-      twitch_username: 'operator',
+      twitchUsername: 'operator',
       notes: 'priority',
-      is_active: true,
-      processing_enabled: true,
+      isActive: true,
+      processingEnabled: true,
     }))
     expect(onHide).toHaveBeenCalledOnce()
   })
 
   it('propagates channel-search failures and leaves failed creates open', async () => {
-    const onCreate = vi.fn().mockResolvedValue(false)
+    const onCreate = vi.fn().mockResolvedValue({ ok: false })
     const onHide = vi.fn()
     trackingHooks.loadTrackedStreamerOptions.mockRejectedValue(new Error('search failed'))
     render(<AddTrackedStreamerModal show onHide={onHide} onCreate={onCreate} />)
@@ -83,5 +83,51 @@ describe('AddTrackedStreamerModal', () => {
     await waitFor(() => expect(onCreate).toHaveBeenCalledOnce())
     expect(onHide).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Add Streamer' })).toBeEnabled()
+  })
+
+  it('blocks every dismissal control while creation is pending', () => {
+    const onHide = vi.fn()
+    const { rerender } = render(
+      <AddTrackedStreamerModal
+        show
+        pending
+        onHide={onHide}
+        onCreate={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onHide).not.toHaveBeenCalled()
+
+    rerender(
+      <AddTrackedStreamerModal
+        show
+        pending={false}
+        onHide={onHide}
+        onCreate={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onHide).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the modal locked until its create promise settles', async () => {
+    let finishCreate: (outcome: { ok: boolean }) => void = () => undefined
+    const onCreate = vi.fn(() => new Promise<{ ok: boolean }>((resolve) => {
+      finishCreate = resolve
+    }))
+    const onHide = vi.fn()
+    render(<AddTrackedStreamerModal show onHide={onHide} onCreate={onCreate} />)
+    act(() => searchProps!.onChange({ value: 'operator' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Streamer' }))
+    expect(await screen.findByRole('button', { name: 'Adding...' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
+    expect(onHide).not.toHaveBeenCalled()
+
+    finishCreate({ ok: true })
+    await waitFor(() => expect(onHide).toHaveBeenCalledOnce())
   })
 })

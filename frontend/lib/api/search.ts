@@ -70,7 +70,7 @@ export interface SearchContextDto {
 }
 
 export const retrieveSearchMessages = (request: SearchMessagesRequest) =>
-  getJson<SearchMessagesDto>('/search/messages', {
+  getJson('/search/messages', {
     q: request.q,
     creator_id: request.creatorId,
     days: request.days,
@@ -79,20 +79,20 @@ export const retrieveSearchMessages = (request: SearchMessagesRequest) =>
   })
 
 export const retrieveSearchFirst = (request: SearchFirstRequest) =>
-  getJson<SearchFirstDto>('/search/first', {
+  getJson('/search/first', {
     q: request.q,
     creator_id: request.creatorId,
   })
 
 export const retrieveSearchFrequency = (request: SearchFrequencyRequest) =>
-  getJson<SearchFrequencyDto>('/search/frequency', {
+  getJson('/search/frequency', {
     q: request.q,
     days: request.days,
     creator_id: request.creatorId,
   })
 
 export const retrieveSearchContext = (request: SearchContextRequest) =>
-  getJson<SearchContextDto>('/search/context', {
+  getJson('/search/context', {
     stream_id: request.streamId,
     message_id: request.messageId,
     radius: request.radius,

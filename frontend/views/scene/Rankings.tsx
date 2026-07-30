@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
 import FilterPills from '@/components/common/FilterPills'
@@ -8,9 +8,8 @@ import RankingsTable from '@/components/scene/RankingsTable'
 import {
     useSceneRankings,
     type RankingsRow,
-    type SceneRankings,
 } from '@/hooks/scene/useSceneRankingsQueries'
-import type { RankingsWindow } from '@/lib/api/scene'
+import type { RankingsWindow } from '@/lib/models/sceneFilters'
 
 const PAGE_SIZE = 25
 
@@ -35,12 +34,7 @@ const ARCHETYPE_FILTERS: Array<{ key: string, label: string }> = [
 const Rankings = () => {
     const [activeWindow, setActiveWindow] = useState<RankingsWindow>('all')
 
-    // Offset-based accumulation for "Load more" (append pages, reset on window switch).
-    const [offset, setOffset] = useState(0)
-    const [accumulated, setAccumulated] = useState<RankingsRow[]>([])
-    const appendedOffsetRef = useRef(-1)
-
-    const query = useSceneRankings({ window: activeWindow, limit: PAGE_SIZE, offset })
+    const query = useSceneRankings({ window: activeWindow, limit: PAGE_SIZE })
 
     // Any-of archetype filter, applied client-side only — it never touches the
     // query key/offset, so toggling a chip re-filters already-loaded rows with
@@ -55,35 +49,11 @@ const Rankings = () => {
         })
     }
 
-    // Reset accumulation synchronously WITH the window change (one batched render):
-    // resetting in a useEffect instead fires a wasted query for the new window at
-    // the old offset before the reset lands.
-    const changeWindow = (key: RankingsWindow) => {
-        if (key === activeWindow) return // re-clicking the active pill must not collapse loaded pages
-        setActiveWindow(key)
-        setOffset(0)
-        setAccumulated([])
-        appendedOffsetRef.current = -1
-    }
-
-    // Fold each freshly-arrived page into the accumulated list (skip stale placeholders).
-    useEffect(() => {
-        const data = query.data
-        if (!data || query.isPlaceholderData) return
-        if (offset === 0) {
-            setAccumulated(data.items)
-            appendedOffsetRef.current = 0
-        } else if (appendedOffsetRef.current !== offset) {
-            setAccumulated(prev => [...prev, ...data.items])
-            appendedOffsetRef.current = offset
-        }
-    }, [query.data, query.isPlaceholderData, offset])
-
-    const hasMore = Boolean(query.data?.hasMore)
-    const isFetchingMore = offset > 0 && query.isFetching
-    const loadMore = () => setOffset(current => current + PAGE_SIZE)
-
-    const filteredAccumulated = useMemo(
+    const accumulated = useMemo(
+        () => query.data?.pages.flatMap(page => page.items) ?? [],
+        [query.data],
+    )
+    const displayedRows = useMemo(
         () => (
             activeArchetypes.size === 0
                 ? accumulated
@@ -91,7 +61,7 @@ const Rankings = () => {
         ),
         [accumulated, activeArchetypes],
     )
-    const filterEmptyMessage = accumulated.length > 0 && filteredAccumulated.length === 0
+    const filterEmptyMessage = accumulated.length > 0 && displayedRows.length === 0
         ? 'No loaded chatters match the selected badges. Clear a filter or load more rows.'
         : undefined
 
@@ -113,7 +83,7 @@ const Rankings = () => {
                     options={WINDOW_TABS}
                     activeKey={activeWindow}
                     ariaLabel="Window"
-                    onChange={changeWindow}
+                    onChange={setActiveWindow}
                 />
             </div>
 
@@ -131,55 +101,32 @@ const Rankings = () => {
                 ))}
             </div>
 
-            {accumulated.length > 0 ? (
-                <RankingsTable
-                    rows={filteredAccumulated}
-                    hasMore={hasMore}
-                    isFetchingMore={isFetchingMore}
-                    onLoadMore={loadMore}
-                    filterEmptyMessage={filterEmptyMessage}
-                />
-            ) : (
-                <QueryState
-                    query={{
-                        // Mask keepPreviousData during a window switch: the raw query
-                        // still holds the OLD window's page (rows + hasMore), which
-                        // would render stale rows with a live Load more that fires the
-                        // new window at the old offset. Show the spinner instead.
-                        data: query.isPlaceholderData ? undefined : query.data,
-                        error: query.error,
-                        isLoading: query.isLoading || query.isPlaceholderData,
-                        refetch: query.refetch,
-                    }}
-                    errorTitle="Failed to load power rankings"
-                    loadingText="Ranking the scene..."
-                    isEmpty={(value: SceneRankings) => value.items.length === 0}
-                    emptyState={(
-                        <EmptyState title="No power rankings yet">
-                            No chatter activity falls inside this window yet.
-                        </EmptyState>
-                    )}
-                >
-                    {(data: SceneRankings) => {
-                        const rows = activeArchetypes.size === 0
-                            ? data.items
-                            : data.items.filter(row => row.archetypes.some(badge => activeArchetypes.has(badge.key)))
-                        return (
-                            <RankingsTable
-                                rows={rows}
-                                hasMore={data.hasMore}
-                                isFetchingMore={isFetchingMore}
-                                onLoadMore={loadMore}
-                                filterEmptyMessage={
-                                    data.items.length > 0 && rows.length === 0
-                                        ? 'No loaded chatters match the selected badges. Clear a filter or load more rows.'
-                                        : undefined
-                                }
-                            />
-                        )
-                    }}
-                </QueryState>
-            )}
+            <QueryState
+                query={{
+                    data: query.data ? displayedRows : undefined,
+                    error: query.error,
+                    isLoading: query.isLoading,
+                    refetch: query.refetch,
+                }}
+                errorTitle="Failed to load power rankings"
+                loadingText="Ranking the scene..."
+                isEmpty={(rows: RankingsRow[]) => rows.length === 0 && accumulated.length === 0}
+                emptyState={(
+                    <EmptyState title="No power rankings yet">
+                        No chatter activity falls inside this window yet.
+                    </EmptyState>
+                )}
+            >
+                {(rows: RankingsRow[]) => (
+                    <RankingsTable
+                        rows={rows}
+                        hasMore={Boolean(query.hasNextPage)}
+                        isFetchingMore={query.isFetchingNextPage}
+                        onLoadMore={() => void query.fetchNextPage()}
+                        filterEmptyMessage={filterEmptyMessage}
+                    />
+                )}
+            </QueryState>
         </>
     )
 }

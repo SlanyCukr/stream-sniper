@@ -20,7 +20,7 @@ from statistics import median
 from fastapi import APIRouter, Request, Response
 
 from ....analytics.calculations.moments import MIN_ABSOLUTE, SPIKE_MULTIPLIER
-from ....database.core.wire_format import WIRE_TS_FORMAT
+from ....database.core.wire_format import format_wire_ts
 from ....database.gateways.content.scene_radar_gateway import (
     LiveStreamRow,
     MinuteCountRow,
@@ -61,13 +61,13 @@ def _build_channel(
     minute_models: list[RadarMinute] = []
     counts: list[int] = []
     for minute in display_minutes:
-        key = minute.strftime(WIRE_TS_FORMAT)
+        key = format_wire_ts(minute)
         row = per_minute.get(key)
         messages = row.messages if row is not None else 0
         counts.append(messages)
         minute_models.append(RadarMinute(minute=key, messages=messages))
 
-    last_row = per_minute.get(last_completed.strftime(WIRE_TS_FORMAT))
+    last_row = per_minute.get(format_wire_ts(last_completed))
     messages_last_minute = last_row.messages if last_row is not None else 0
     unique_last_minute = last_row.unique_chatters if last_row is not None else 0
 
@@ -135,7 +135,7 @@ def build_radar(
     ]
     channels.sort(key=lambda channel: (not channel.spiking, -channel.messages_last_minute, channel.stream_id))
 
-    return SceneRadar(generated_at=now.strftime(WIRE_TS_FORMAT), channels=channels)
+    return SceneRadar(generated_at=format_wire_ts(now), channels=channels)
 
 
 @router.get(

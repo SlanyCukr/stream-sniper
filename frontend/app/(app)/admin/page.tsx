@@ -1,6 +1,5 @@
-'use client'
-import AdminDashboard from '@/views/admin/AdminDashboard'
+import { redirect } from 'next/navigation'
 
 export default function AdminPage() {
-  return <AdminDashboard />
+  redirect('/admin/dashboard')
 }

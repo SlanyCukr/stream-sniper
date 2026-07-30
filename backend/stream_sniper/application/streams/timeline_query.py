@@ -1,8 +1,8 @@
 """Application query for per-stream timeline analytics."""
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-from stream_sniper.database.core.wire_format import WIRE_TS_FORMAT
+from stream_sniper.database.core.wire_format import format_wire_ts, parse_wire_ts
 from stream_sniper.database.gateways.analytics.records import StreamBucketRow
 from stream_sniper.database.gateways.analytics.stream_metrics_table_gateway import (
     select_stream_header_db,
@@ -59,12 +59,12 @@ def _zero_filled_buckets(rows: list[StreamBucketRow]) -> list[TimelineBucket]:
     if not rows:
         return []
     observed = {row.bucket_minute: TimelineBucket.from_row(row) for row in rows}
-    first = datetime.strptime(rows[0].bucket_minute, WIRE_TS_FORMAT)
-    last = datetime.strptime(rows[-1].bucket_minute, WIRE_TS_FORMAT)
+    first = parse_wire_ts(rows[0].bucket_minute)
+    last = parse_wire_ts(rows[-1].bucket_minute)
     result: list[TimelineBucket] = []
     cursor = first
     while cursor <= last:
-        key = cursor.strftime(WIRE_TS_FORMAT)
+        key = format_wire_ts(cursor)
         result.append(
             observed.get(
                 key,

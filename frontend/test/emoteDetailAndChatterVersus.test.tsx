@@ -1,7 +1,42 @@
-import { describe, expect, it } from 'vitest'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const chatterApi = vi.hoisted(() => ({
+    retrieveChatterHeadToHead: vi.fn(),
+    retrieveChatterSearch: vi.fn(),
+}))
+const sceneApi = vi.hoisted(() => ({ retrieveEmoteDetail: vi.fn() }))
+
+vi.mock('@/lib/api/chatter', () => chatterApi)
+vi.mock('@/lib/api/scene', () => sceneApi)
+vi.mock('@/components/common/search/AsyncSearchSelect', () => ({
+    default: (props: {
+        value: { value: number } | null
+        onChange: (value: unknown) => void
+        'aria-label'?: string
+    }) => (
+        <select
+            aria-label={props['aria-label']}
+            value={props.value?.value ?? ''}
+            onChange={event => {
+                const value = Number(event.target.value)
+                props.onChange(value ? { value, label: value === 100 ? 'alpha' : 'beta', isBot: false } : null)
+            }}
+        >
+            <option value="">Choose chatter</option>
+            <option value="100">alpha</option>
+            <option value="200">beta</option>
+        </select>
+    ),
+}))
+
 import { mapEmoteDetail } from '@/hooks/scene/useEmoteDetailQuery'
 import { mapChatterHeadToHead } from '@/hooks/chatter/useChatterVersusQuery'
 import { parseDigestBlocks, renderInline } from '@/components/scene/DigestMarkdown'
+import ChatterVersus from '@/views/community/ChatterVersus'
+import EmoteDetail from '@/views/scene/EmoteDetail'
+import { navigationState, router } from './mocks/navigation'
+import { renderWithQueryClient } from './render'
 
 const emoteDetailPayload = {
     meta: { emote_id: 7, name: 'agrPls', source: 'bttv', provider_id: 'abc', first_seen: '2024-01-01T00:00:00' },
@@ -74,6 +109,60 @@ const versusPayload = {
     shared_streams: 6,
     shared_creators: 2,
 }
+
+describe('interactive emote and chatter views', () => {
+    beforeEach(() => vi.clearAllMocks())
+
+    it('gates chatter comparison, rejects identical picks, syncs the URL, and renders a valid pair', async () => {
+        navigationState.pathname = '/versus/chatters'
+        chatterApi.retrieveChatterHeadToHead.mockResolvedValue(versusPayload)
+        renderWithQueryClient(<ChatterVersus />)
+
+        expect(screen.getByText('Pick two chatters')).toBeInTheDocument()
+        expect(chatterApi.retrieveChatterHeadToHead).not.toHaveBeenCalled()
+
+        fireEvent.change(screen.getByLabelText('First chatter'), { target: { value: '100' } })
+        expect(router.replace).toHaveBeenLastCalledWith('/versus/chatters?a=100', { scroll: false })
+        expect(chatterApi.retrieveChatterHeadToHead).not.toHaveBeenCalled()
+
+        fireEvent.change(screen.getByLabelText('Second chatter'), { target: { value: '100' } })
+        expect(screen.getByText('Same chatter on both sides')).toBeInTheDocument()
+        expect(chatterApi.retrieveChatterHeadToHead).not.toHaveBeenCalled()
+
+        fireEvent.change(screen.getByLabelText('Second chatter'), { target: { value: '200' } })
+        await waitFor(() => expect(chatterApi.retrieveChatterHeadToHead).toHaveBeenCalledWith(100, 200))
+        expect(await screen.findByRole('link', { name: 'alpha' })).toHaveAttribute('href', '/chatter/100')
+        expect(screen.getByRole('link', { name: 'beta' })).toHaveAttribute('href', '/chatter/200')
+        expect(screen.getByText('Shared streams').nextElementSibling).toHaveTextContent('6')
+        expect(router.replace).toHaveBeenLastCalledWith('/versus/chatters?a=100&b=200', { scroll: false })
+    })
+
+    it('renders populated emote sections from the real query boundary', async () => {
+        sceneApi.retrieveEmoteDetail.mockResolvedValue(emoteDetailPayload)
+        renderWithQueryClient(<EmoteDetail emoteId={7} />)
+
+        expect(await screen.findByRole('heading', { name: /agrPls/ })).toBeInTheDocument()
+        expect(sceneApi.retrieveEmoteDetail).toHaveBeenCalledWith(7)
+        expect(screen.getByRole('link', { name: 'Agraelus' })).toHaveAttribute('href', '/creator/1')
+        expect(screen.getByRole('link', { name: 'S3' })).toHaveAttribute('href', '/stream/12')
+        expect(screen.getByRole('list', { name: 'Usage per week' })).toBeInTheDocument()
+    })
+
+    it('renders every intentional empty emote section explicitly', async () => {
+        sceneApi.retrieveEmoteDetail.mockResolvedValue({
+            ...emoteDetailPayload,
+            totals: { usage: 0, chatter_reach: 0, stream_count: 0, creator_count: 0, last_used: null },
+            top_creators: [],
+            weekly_usage: [],
+            recent_streams: [],
+        })
+        renderWithQueryClient(<EmoteDetail emoteId={7} />)
+
+        expect(await screen.findByText('Not used in any tracked channel yet.')).toBeInTheDocument()
+        expect(screen.getByText('No usage in the trailing 12 weeks.')).toBeInTheDocument()
+        expect(screen.getByText('No streams recorded for this emote yet.')).toBeInTheDocument()
+    })
+})
 
 describe('mapChatterHeadToHead', () => {
     it('maps both sides including nested home channel and archetypes', () => {

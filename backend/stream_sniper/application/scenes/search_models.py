@@ -1,12 +1,8 @@
-"""Response contracts for scene-wide chat search endpoints."""
-
-from __future__ import annotations
+"""Application read models for scene-wide chat search."""
 
 from pydantic import BaseModel, Field
 
-from ....application.streams.message_models import MessageItem
-from ....database.gateways.chat.message_replay_gateway import StreamContextRow
-from ....database.gateways.chat.message_search_gateway import SearchHitRow
+from ..streams.message_models import MessageItem
 
 
 class HitChatter(BaseModel):
@@ -27,25 +23,12 @@ class HitCreator(BaseModel):
 
 
 class SearchHit(BaseModel):
-    """One matched message with its chatter / stream / creator context."""
-
     message_id: int
     time: str = Field(..., description="Message timestamp (ISO 8601)")
     text: str
     chatter: HitChatter
     stream: HitStream
     creator: HitCreator
-
-    @classmethod
-    def from_row(cls, row: SearchHitRow) -> SearchHit:
-        return cls(
-            message_id=row.message_id,
-            time=row.time,
-            text=row.text,
-            chatter=HitChatter(id=row.chatter_id, nick=row.chatter_nick, is_bot=row.chatter_is_bot),
-            stream=HitStream(id=row.stream_id, title=row.stream_title),
-            creator=HitCreator(id=row.creator_id, nick=row.creator_nick, display_name=row.creator_display_name),
-        )
 
 
 class SearchMessagesResponse(BaseModel):
@@ -82,14 +65,6 @@ class ContextStream(BaseModel):
     id: int
     title: str
     creator: ContextCreator
-
-    @classmethod
-    def from_row(cls, row: StreamContextRow) -> ContextStream:
-        return cls(
-            id=row.stream_id,
-            title=row.stream_title,
-            creator=ContextCreator(id=row.creator_id, nick=row.creator_nick, display_name=row.creator_display_name),
-        )
 
 
 class ContextResponse(BaseModel):

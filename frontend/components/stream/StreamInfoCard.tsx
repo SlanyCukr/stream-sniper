@@ -78,7 +78,7 @@ const StreamInfoCard = ({
                         <Col
                             md={8}
                             lg={9}>
-                            <h2 className="fs-5 mb-3">{title}</h2>
+                            <h2 className="fs-5 mb-3">{title ?? 'Untitled stream'}</h2>
                             <dl className="spec-list">
                                 <dt>Messages</dt>
                                 <dd className="mono">{messageCount?.toLocaleString()}</dd>

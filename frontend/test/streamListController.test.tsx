@@ -169,4 +169,11 @@ describe('mapStreamInfo', () => {
       creatorId: 7,
     })
   })
+
+  it('preserves a valid unknown stream title', () => {
+    expect(mapStreamInfo({
+      title: null, start: 'start', end: null, thumbnail_url: null, message_count: 0,
+      creator_nick: 'nick', creator_display_name: 'Display', profile_image_url: null, creator_id: 7,
+    }).title).toBeNull()
+  })
 })

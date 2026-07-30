@@ -5,6 +5,7 @@ from psycopg2.extensions import connection as Connection
 from psycopg2.extensions import cursor as Cursor
 
 from ...core.decorators import with_cursor
+from ...core.wire_format import to_char_wire
 from .records import (
     ChatterIdentityRow,
     ChatterMessageRow,
@@ -22,9 +23,9 @@ def select_chatter_messages_db(
     offset: int,
 ) -> list[ChatterMessageRow]:
     cursor.execute(
-        """
+        f"""
         SELECT m.stream_id, s.title, cr.display_name, mt.text,
-               TO_CHAR(m.time, 'YYYY-MM-DD HH24:MI:SS')
+               {to_char_wire("m.time")}
         FROM message m
         JOIN stream s ON s.id = m.stream_id
         JOIN creator cr ON cr.id = s.creator_id
@@ -50,7 +51,32 @@ def select_chatter_message_count_db(
     return int(row[0])
 
 
-def insert_message_db(items: Sequence[tuple[object, ...]], cursor: Cursor, connection: Connection) -> None:
+# Canonical insert-row shape for the ``message`` table, shared by the archived (VOD)
+# and live (IRC) ingestion paths so the two cannot drift from each other or from the
+# INSERT below. Field order: (chatter_id, tagged_chatter_id, stream_id,
+# message_text_id, time, is_subscriber, badges, emote_count, source_message_id).
+# Optional fields are the archived parser's "metadata absent from this VOD" cases;
+# the live path always fills them.
+MessageInsertRow = tuple[
+    int,
+    int | None,
+    int,
+    int,
+    datetime,
+    bool | None,
+    str | None,
+    int | None,
+    str | None,
+]
+
+
+def insert_message_db(items: Sequence[MessageInsertRow], cursor: Cursor, connection: Connection) -> None:
+    """Idempotently bulk-insert chat messages, keyed by Twitch message UUID.
+
+    The single owner of the ``message`` INSERT: both ingestion paths (archived
+    ``DatabaseBuffer`` flushes and the live sink's detached batches) write through
+    this statement, so the conflict policy and column list live in exactly one place.
+    """
     cursor.executemany(
         "INSERT INTO message "
         "(chatter_id, tagged_chatter_id, stream_id, message_text_id, time, "

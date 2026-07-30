@@ -1,16 +1,20 @@
 import { useState } from 'react'
 import { keepPreviousData } from '@tanstack/react-query'
+import { usePagedFilters } from '@/hooks/usePagedFilters'
 import {
     mapCreatorOption, useCreators, type CreatorOption,
 } from '@/hooks/creator/useCreatorsQuery'
 import {
     useMomentReview, useMomentsQueue,
-    type MomentQueueItem, type MomentReviewCommand,
+    type MomentQueueItem,
 } from './useMomentsQueries'
 import { useAuth } from '@/contexts/AuthContext'
 import { PAGINATION } from '@/lib/pagination/constants'
-import { MOMENT_STATUS_TABS } from '@/lib/models/momentQueue'
-import type { MomentReviewStatus } from '@/lib/api/moments'
+import {
+    MOMENT_STATUS_TABS,
+    type MomentReviewCommand,
+    type MomentReviewStatus,
+} from '@/lib/models/momentQueue'
 
 interface ReviewFailure {
     key: string
@@ -22,11 +26,17 @@ interface ReviewMetadata {
     note?: string | null
 }
 
+interface MomentFilterState {
+    statusKey: string
+    selectedCreator: CreatorOption | null
+}
+
 export const useMomentsController = () => {
     const { isAdmin } = useAuth()
-    const [statusKey, setStatusKey] = useState('all')
-    const [selectedCreator, setSelectedCreator] = useState<CreatorOption | null>(null)
-    const [pageIndex, setPageIndex] = useState(0)
+    const {
+        pageIndex, setPageIndex, filters, setFilter,
+    } = usePagedFilters<MomentFilterState>({ statusKey: 'all', selectedCreator: null })
+    const { statusKey, selectedCreator } = filters
     const [reviewFailure, setReviewFailure] = useState<ReviewFailure | null>(null)
     const status = MOMENT_STATUS_TABS.find(tab => tab.key === statusKey)?.value
     const creatorsQuery = useCreators()
@@ -39,15 +49,8 @@ export const useMomentsController = () => {
     }, { placeholderData: keepPreviousData })
     const review = useMomentReview()
 
-    const handleStatusChange = (nextStatus: string) => {
-        setStatusKey(nextStatus)
-        setPageIndex(0)
-    }
-
-    const handleCreatorChange = (creator: CreatorOption | null) => {
-        setSelectedCreator(creator)
-        setPageIndex(0)
-    }
+    const handleStatusChange = (nextStatus: string) => setFilter('statusKey', nextStatus)
+    const handleCreatorChange = (creator: CreatorOption | null) => setFilter('selectedCreator', creator)
 
     const handleReview = async (
         moment: MomentQueueItem,

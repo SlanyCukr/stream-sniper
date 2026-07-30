@@ -1,6 +1,6 @@
 'use client'
 
-import type { SearchFrequencyPoint } from './searchTypes'
+import type { SearchFrequencyPoint } from '@/hooks/scene/search/searchTypes'
 
 const WIDTH = 320
 const HEIGHT = 60

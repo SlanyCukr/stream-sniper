@@ -4,6 +4,13 @@ import {
     type UseMutationOptions,
 } from '@tanstack/react-query'
 
+export type MutationOptions<
+    TData,
+    TVariables = void,
+    TError = Error,
+    TContext = unknown,
+> = Omit<UseMutationOptions<TData, TError, TVariables, TContext>, 'mutationFn'>
+
 /**
  * Hook-level mutation functions resolve to domain data, never Axios response
  * wrappers. Transport metadata remains available on thrown adapter errors.
@@ -11,7 +18,7 @@ import {
 export const useInvalidatingMutation = <TData, TError = Error, TVariables = void, TContext = unknown>(
     mutationFn: MutationFunction<TData, TVariables>,
     queryKey: readonly unknown[],
-    options: Omit<UseMutationOptions<TData, TError, TVariables, TContext>, 'mutationFn'> = {},
+    options: MutationOptions<TData, TVariables, TError, TContext> = {},
 ) => {
     const queryClient = useQueryClient()
     const {

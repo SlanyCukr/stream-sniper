@@ -1,11 +1,10 @@
-import type { ScenePulseRequest, SceneCopypastaRequest } from '@/lib/api/scene'
+import type { SceneCopypastaRequest, ScenePulseRequest } from '@/lib/models/sceneFilters'
 
 export type SceneCopypastaFilters = SceneCopypastaRequest & { pageIndex?: number, pageSize?: number }
 
 interface RankingsFilters {
     window?: string
     limit?: number
-    offset?: number
 }
 
 interface HighlightsFilters {
@@ -13,38 +12,12 @@ interface HighlightsFilters {
     creatorId?: number | null
     sort?: string
     limit?: number
-    offset?: number
 }
 
 interface TrendingFilters {
     window?: number
     creatorId?: number | null
     limit?: number
-}
-
-interface SearchMessagesKeyFilters {
-    q: string
-    creatorId: number | null
-    days: number | null
-    limit: number
-    offset: number
-}
-
-interface SearchFirstKeyFilters {
-    q: string
-    creatorId: number | null
-}
-
-interface SearchFrequencyKeyFilters {
-    q: string
-    days: number | null
-    creatorId: number | null
-}
-
-interface SearchContextKeyFilters {
-    streamId: number | null
-    messageId: number | null
-    radius: number | null
 }
 
 export const sceneKeys = {
@@ -76,11 +49,7 @@ export const sceneKeys = {
     highlights: (filters: HighlightsFilters) => [...sceneKeys.all, 'highlights', filters] as const,
     trendingCopypastas: (filters: TrendingFilters) => [...sceneKeys.all, 'trending', 'copypastas', filters] as const,
     trendingEmotes: (filters: TrendingFilters) => [...sceneKeys.all, 'trending', 'emotes', filters] as const,
-    emoteDetail: (emoteId: number) => [...sceneKeys.all, 'emote', { emoteId }] as const,
+    emoteDetail: (emoteId: number | null) => [...sceneKeys.all, 'emote', { emoteId }] as const,
     wrapped: (days: number) => [...sceneKeys.all, 'wrapped', { days }] as const,
     radar: () => [...sceneKeys.all, 'radar'] as const,
-    searchMessages: (filters: SearchMessagesKeyFilters) => [...sceneKeys.all, 'search', 'messages', filters] as const,
-    searchFirst: (filters: SearchFirstKeyFilters) => [...sceneKeys.all, 'search', 'first', filters] as const,
-    searchFrequency: (filters: SearchFrequencyKeyFilters) => [...sceneKeys.all, 'search', 'frequency', filters] as const,
-    searchContext: (params: SearchContextKeyFilters) => [...sceneKeys.all, 'search', 'context', params] as const,
 }

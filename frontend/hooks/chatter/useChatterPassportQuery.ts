@@ -1,4 +1,3 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { shareBarWidth } from '@/utils/numberUtils'
 import { retrieveChatterPassport } from '@/lib/api/chatter'
 import {
@@ -9,6 +8,7 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 import { chattersKeys } from './useChattersQuery'
 import { mapArchetypeBadges, mapHomeChannel, type ChatterHomeChannel } from './wireShapes'
 
@@ -164,20 +164,15 @@ export const chatterPassportKeys = {
     ] as const,
 }
 
-type PassportQueryOptions = Omit<
-    UseQueryOptions<ChatterPassport, Error, ChatterPassport, ReturnType<typeof chatterPassportKeys.passport>>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
+const chatterPassportQuery = defineGatedQuery({
+    label: 'chatter passport',
+    key: (chatterId: number) => chatterPassportKeys.passport(chatterId),
+    validate: chatterId => (Number.isInteger(chatterId) && chatterId > 0 ? chatterId : null),
+    fetch: retrieveChatterPassport,
+    map: mapChatterPassport,
+})
 
 export const useChatterPassport = (
     chatterId: number,
-    { enabled = true, ...options }: PassportQueryOptions = {},
-) => useQuery({
-    ...options,
-    queryKey: chatterPassportKeys.passport(chatterId),
-    queryFn: async () => {
-        const response = await retrieveChatterPassport(chatterId)
-        return mapChatterPassport(response)
-    },
-    enabled: Number.isInteger(chatterId) && chatterId > 0 && enabled,
-})
+    options: QueryOptions<ChatterPassport> = {},
+) => chatterPassportQuery(chatterId, options)

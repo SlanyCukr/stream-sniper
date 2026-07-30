@@ -1,21 +1,10 @@
 """Build typed database rows from normalized Twitch chat batches."""
 
 from dataclasses import dataclass
-from datetime import datetime
 
+from ...database.gateways.chat.message_table_gateway import MessageInsertRow
+from ..mention import mention_token
 from .chat_parser import ParsedChatBatch
-
-MessageInsertRow = tuple[
-    int,
-    int | None,
-    int,
-    int,
-    datetime,
-    bool | None,
-    str | None,
-    int | None,
-    str | None,
-]
 
 
 @dataclass(frozen=True)
@@ -25,21 +14,15 @@ class MessagePersistenceBatch:
     emotes: tuple[tuple[str, str | None], ...]
 
 
-def _mention_token(message: str) -> str | None:
-    if "@" not in message:
-        return None
-    return message.lower().split("@", 1)[1].split(" ", 1)[0]
-
-
 def _tagged_user_id(message: str, chatter_ids: dict[str, int]) -> int | None:
-    token = _mention_token(message)
+    token = mention_token(message)
     return chatter_ids.get(token) if token is not None else None
 
 
 def collect_mention_nicks(batch: ParsedChatBatch) -> list[str]:
     """Lowercased @mention tokens across the batch, so the chatter-id lookup can
     stay batch-scoped and still resolve mentions of chatters seen in past streams."""
-    return sorted({token for line in batch.lines if (token := _mention_token(line.message))})
+    return sorted({token for line in batch.lines if (token := mention_token(line.message))})
 
 
 def build_message_rows(

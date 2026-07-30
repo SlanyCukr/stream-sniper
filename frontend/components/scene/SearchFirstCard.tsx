@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Card } from 'react-bootstrap'
 import { formatDate, formatTimeAgo } from '@/utils/dateUtils'
 import HighlightedText from './HighlightedText'
-import type { SearchFirstVM, SearchHitVM } from './searchTypes'
+import type { SearchFirstVM, SearchHitVM } from '@/hooks/scene/search/searchTypes'
 
 interface SearchFirstCardProps {
   data: SearchFirstVM

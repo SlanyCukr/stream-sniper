@@ -1,8 +1,9 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { retrieveAllCreators } from '@/lib/api/creators'
 import {
     requireArray, requireFiniteNumberField, requireRecord, requireStringField,
 } from '@/lib/api/contractGuards'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
+import { creatorKeys } from './creatorKeys'
 
 export interface Creator {
     creatorId: number
@@ -12,16 +13,6 @@ export interface Creator {
 export interface CreatorOption {
     value: number
     label: string
-}
-
-type CreatorQueryOptions = Omit<
-    UseQueryOptions<Creator[], Error, Creator[], readonly unknown[]>,
-    'queryKey' | 'queryFn'
->
-
-const creatorKeys = {
-    all: ['creators'],
-    list: () => [...creatorKeys.all, 'list'],
 }
 
 export const mapCreatorRow = (value: unknown): Creator => {
@@ -37,15 +28,12 @@ export const mapCreatorOption = (creator: Creator): CreatorOption => ({
     label: creator.nick,
 })
 
-export const useCreators = (
-    { enabled = true, ...options }: CreatorQueryOptions & { enabled?: boolean } = {},
-) => useQuery({
-    ...options,
-    queryKey: creatorKeys.list(),
-    queryFn: async () => {
-        const response = await retrieveAllCreators()
-        return requireArray(response, 'creators').map(mapCreatorRow)
-    },
-    enabled,
-    staleTime: 1000 * 60 * 10,
+const creatorsQuery = defineQuery({
+    key: () => creatorKeys.catalog(),
+    fetch: () => retrieveAllCreators(),
+    map: (value: unknown) => requireArray(value, 'creators').map(mapCreatorRow),
 })
+
+export const useCreators = (
+    options: QueryOptions<Creator[]> = {},
+) => creatorsQuery(undefined, { ...options, staleTime: 1000 * 60 * 10 })

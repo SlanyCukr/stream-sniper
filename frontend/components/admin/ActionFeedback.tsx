@@ -1,5 +1,5 @@
 import { Alert } from 'react-bootstrap'
-import ErrorAlert, { type DetailedError } from '@/components/common/error/ErrorAlert'
+import ErrorAlert from '@/components/common/error/ErrorAlert'
 import type { useActionFeedback } from '@/hooks/admin/shared/useActionFeedback'
 
 interface ActionFeedbackProps {
@@ -9,8 +9,7 @@ interface ActionFeedbackProps {
 const ActionFeedback = ({ feedback }: ActionFeedbackProps) => (
     <>
         <ErrorAlert
-            // toUiFailure keeps the raw thrown value as `unknown`; ErrorAlert only reads Error-shaped fields off it
-            error={feedback.failure?.error as DetailedError | null | undefined}
+            error={feedback.failure?.error}
             title={feedback.errorTitle}
             onDismiss={feedback.dismissError}
             className="mb-4" />

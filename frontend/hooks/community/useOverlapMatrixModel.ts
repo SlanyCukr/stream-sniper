@@ -43,7 +43,7 @@ export const useOverlapMatrixModel = ({
         (creator: OverlapMatrixCreator) => model.nameOf(creator.creatorId),
         [model],
     )
-    const sorted = useMemo(() => {
+    const sortedCreators = useMemo(() => {
         const audience = (creator: OverlapMatrixCreator) => (
             metric === 'chatters' ? creator.chatters : creator.regulars
         ) || 0
@@ -64,8 +64,8 @@ export const useOverlapMatrixModel = ({
     ), [maxJaccard])
 
     const handleEnter = useCallback((rowIndex: number, columnIndex: number) => {
-        const row = sorted[rowIndex]
-        const column = sorted[columnIndex]
+        const row = sortedCreators[rowIndex]
+        const column = sortedCreators[columnIndex]
         const cell = model.cellFor(row.creatorId, column.creatorId)
         setHover({
             rowIndex,
@@ -75,14 +75,14 @@ export const useOverlapMatrixModel = ({
             shared: cell?.shared ?? 0,
             jaccard: cell?.jaccard ?? null,
         })
-    }, [sorted, model])
+    }, [sortedCreators, model])
 
     // Stable identity so memoized cells don't re-render on every hover change.
     const handleLeave = useCallback(() => setHover(null), [])
 
     return {
         hover,
-        sorted,
+        sortedCreators,
         nameOf,
         cellFor: model.cellFor,
         fillOpacity,

@@ -1,7 +1,7 @@
 import type { MouseEvent } from 'react'
 import TimelineMessageChart from './TimelineMessageChart'
 import TimelineViewerLane from './TimelineViewerLane'
-import { formatTimelineClock } from './TimelineMarkers'
+import { formatTimelineClock } from './timelinePresentation'
 import type { useTimelineGeometry } from '@/hooks/stream/timeline/useTimelineGeometry'
 import type {
     TimelineBucket,

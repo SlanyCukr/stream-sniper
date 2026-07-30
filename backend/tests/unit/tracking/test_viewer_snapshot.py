@@ -117,8 +117,7 @@ def test_insert_live_snapshot_propagates_operational_failure(monkeypatch):
 @pytest.fixture
 def monitor(monkeypatch):
     """A StreamMonitor with network/db side effects neutralized, except the piece under test."""
-    monkeypatch.setattr(monitor_module, "TwitchAPI", lambda: object())
-    m = StreamMonitor()
+    m = StreamMonitor(twitch_api_factory=lambda: object())
     monkeypatch.setattr(monitor_module, "update_tracked_streamer_check_time_db", lambda *a, **kw: True)
     monkeypatch.setattr(monitor_module, "insert_live_snapshot_db", lambda **kw: True)
     return m

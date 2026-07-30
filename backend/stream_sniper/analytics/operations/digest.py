@@ -32,6 +32,7 @@ from ...database.gateways.creators.scene_chatter_rankings_gateway import (
     select_scene_chatter_rankings_db,
 )
 from ...utils.discord import deliver_discord
+from ..calculations.delta import DeltaTrend, classify_delta, percent_change
 
 SITE_BASE = "https://stream-sniper.slanycukr.com"
 
@@ -42,16 +43,21 @@ _HIGHLIGHTS_LIMIT = 3
 
 
 def _delta_label(current: int, prior: int) -> str:
-    """Discord-friendly velocity marker mirroring the API's trend policy.
+    """Discord-friendly velocity marker mirroring the API's shared trend policy.
 
-    prior == 0 is "new" (no baseline — a percent would be misleading), otherwise a
-    sign-aware whole percent vs the prior window; equal usage reads "steady".
+    A grown-from-nothing entity reads "new" (no baseline — a percent would be
+    misleading); an unchanged (or all-zero) window reads "steady"; otherwise a
+    sign-aware whole percent vs the prior window. Edge cases are decided by the
+    shared ``analytics.calculations.delta`` helper so this label and the API's
+    trend classification cannot drift.
     """
-    if prior == 0:
+    trend = classify_delta(current, prior)
+    if trend is DeltaTrend.NEW:
         return "new"
-    if current == prior:
+    if trend is DeltaTrend.NO_CHANGE:
         return "steady"
-    pct = round(100 * (current - prior) / prior)
+    pct = percent_change(current, prior, digits=None)
+    assert pct is not None  # RISING/FALLING implies a non-zero prior baseline
     return f"▲ +{pct}%" if pct > 0 else f"▼ {pct}%"
 
 

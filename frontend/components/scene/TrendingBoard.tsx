@@ -1,7 +1,8 @@
 'use client'
 
 import QueryState from '@/components/common/QueryState'
-import TrendingRow, { type TrendingRowModel } from './TrendingRow'
+import TrendingRow from './TrendingRow'
+import type { TrendingRowModel } from './trending/presentationModel'
 
 /**
  * A synthetic React-Query-shaped result whose `data` is already projected into

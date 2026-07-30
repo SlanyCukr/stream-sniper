@@ -9,7 +9,8 @@ import type {
     TimelineContextChange,
     TimelineMoment,
 } from '@/hooks/stream/timeline/useStreamTimelineQuery'
-import TimelineMarkers, { formatTimelineClock } from './TimelineMarkers'
+import TimelineMarkers from './TimelineMarkers'
+import { formatTimelineClock } from './timelinePresentation'
 
 type TimelineGeometry = ReturnType<typeof useTimelineGeometry>
 

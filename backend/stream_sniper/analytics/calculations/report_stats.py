@@ -7,6 +7,8 @@ contract applies throughout: ``None`` inputs mean "not yet computed", never 0.
 import statistics
 from typing import TypedDict
 
+from .delta import percent_change
+
 
 class ReportMetricValues(TypedDict):
     value: float | None
@@ -31,10 +33,13 @@ def percentile_rank(baseline: list[float], value: float) -> float:
 
 
 def delta_pct(value: float, baseline_median: float) -> float | None:
-    """Percent change of ``value`` vs the baseline median (1 decimal); None when median is 0."""
-    if baseline_median == 0:
-        return None
-    return round((value - baseline_median) / baseline_median * 100, 1)
+    """Percent change of ``value`` vs the baseline median (1 decimal); None when median is 0.
+
+    Delegates the zero-baseline decision and the math to the shared
+    ``analytics.calculations.delta`` helper so the report card, the digest, and the
+    API trend endpoints share one policy.
+    """
+    return percent_change(value, baseline_median, digits=1)
 
 
 def build_metric(value: float | None, baseline: list[float | None]) -> ReportMetricValues:

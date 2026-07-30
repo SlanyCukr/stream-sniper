@@ -9,6 +9,7 @@ import {
   getDownloadFailure,
   useStreamDownloads,
 } from '@/hooks/stream/useStreamDownloads'
+import StreamDownloadMenu from '@/components/stream/StreamDownloadMenu'
 
 function DownloadItemsProbe() {
   const { items } = useStreamDownloads(42)
@@ -51,5 +52,11 @@ describe('stream download authorization', () => {
       normalized: { message: 'export unavailable', status: 503 },
     })
     expect(error.response.data).toBe(body)
+  })
+
+  it('keeps export controls accessible when the stream title is unknown', () => {
+    useAuth.mockReturnValue({ token: null, isAuthenticated: false })
+    render(<StreamDownloadMenu streamId={42} title={null} />)
+    expect(screen.getByRole('button', { name: 'Export stream data' })).toBeInTheDocument()
   })
 })

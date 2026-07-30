@@ -1,6 +1,5 @@
-import { ImageResponse } from 'next/og'
-import { fetchCreatorOgData, GENERIC_OG_CARD } from '@/lib/og/fetchOgData'
-import { OgCard } from '@/lib/og/ogCard'
+import { buildOgImage } from '@/lib/og/buildOgImage'
+import { fetchCreatorOgData } from '@/lib/og/fetchOgData'
 
 // The prod frontend is an output:'standalone' Node server — render on Node, not edge.
 export const runtime = 'nodejs'
@@ -10,6 +9,5 @@ export const contentType = 'image/png'
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const data = (await fetchCreatorOgData(id)) ?? GENERIC_OG_CARD
-  return new ImageResponse(<OgCard data={data} />, { ...size })
+  return buildOgImage(fetchCreatorOgData, id, size)
 }

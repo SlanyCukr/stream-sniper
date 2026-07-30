@@ -1,5 +1,4 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { retrieveSceneDigest, retrieveScenePulse, type ScenePulseRequest } from '@/lib/api/scene'
+import { retrieveSceneDigest, retrieveScenePulse } from '@/lib/api/scene'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -8,12 +7,9 @@ import {
     requireRecord,
     requireStringField,
 } from '@/lib/api/contractGuards'
+import type { ScenePulseRequest } from '@/lib/models/sceneFilters'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import { sceneKeys } from './sceneKeys'
-
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
->
 
 export interface ScenePulseEvent {
     id: number
@@ -70,20 +66,24 @@ export const mapSceneDigest = (value: unknown): string => {
     return requireStringField(data, 'markdown', 'scene digest')
 }
 
+const scenePulseQuery = defineQuery({
+    key: (filters: ScenePulseRequest) => sceneKeys.pulse(filters),
+    fetch: retrieveScenePulse,
+    map: mapScenePulse,
+})
+
 export const useScenePulse = (
     filters: ScenePulseRequest = {},
     options: QueryOptions<ScenePulse> = {},
-) => useQuery({
-    ...options,
-    queryKey: sceneKeys.pulse(filters),
-    queryFn: async () => mapScenePulse(await retrieveScenePulse(filters)),
+) => scenePulseQuery(filters, options)
+
+const sceneDigestQuery = defineQuery({
+    key: (days: number) => sceneKeys.digest(days),
+    fetch: retrieveSceneDigest,
+    map: mapSceneDigest,
 })
 
 export const useSceneDigest = (
     { days = 7 }: { days?: number } = {},
     options: QueryOptions<string> = {},
-) => useQuery({
-    ...options,
-    queryKey: sceneKeys.digest(days),
-    queryFn: async () => mapSceneDigest(await retrieveSceneDigest(days)),
-})
+) => sceneDigestQuery(days, options)

@@ -67,9 +67,7 @@ const AudienceMovement = ({ initialCreatorId = null }: AudienceMovementProps) =>
         [creatorsQuery.data],
     )
     const selected = options.find(option => option.value === creatorId) || null
-    // useAudienceMovement's own `enabled: Boolean(creatorId)` gate is what makes
-    // a null creatorId safe at runtime even though its param type is `number`.
-    const query = useAudienceMovement(creatorId as number, { days })
+    const query = useAudienceMovement(creatorId, { days })
 
     return (
         <>

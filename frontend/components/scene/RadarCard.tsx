@@ -3,15 +3,13 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Card } from 'react-bootstrap'
-import StatusChip from '@/components/common/StatusChip'
+import StatusChip, { type StatusChipVariant } from '@/components/common/StatusChip'
 import RadarSparkline from '@/components/scene/RadarSparkline'
 import type { RadarChannel } from '@/hooks/scene/useSceneRadarQuery'
 import { formatCompactNumber, uptimeLabel } from '@/utils/numberUtils'
 
-type SpikeBadgeVariant = 'ok' | 'warn' | 'err' | 'neutral'
-
 export interface SpikeBadge {
-    variant: SpikeBadgeVariant
+    variant: StatusChipVariant
     label: string
 }
 

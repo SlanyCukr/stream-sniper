@@ -28,16 +28,16 @@ export type ChatterStreamActivityDto = Array<{
 export const retrieveChatterMessages = (
   chatterId: number,
   { rowOffset = 0, pageSize = 50 }: { rowOffset?: number, pageSize?: number } = {},
-) => getJson<ChatterMessagePageDto>(
+) => getJson(
   `/chatters/${chatterId}/messages`,
   { offset: rowOffset, limit: pageSize },
 )
 
 export const retrieveChatterSearch = (query: string, limit = 10) =>
-  getJson<ChatterSearchDto>('/chatters/search', { q: query, limit })
+  getJson('/chatters/search', { q: query, limit })
 
 export const retrieveChatterStreamActivity = (chatterId: number) =>
-  getJson<ChatterStreamActivityDto>(`/chatters/${chatterId}/stream-activity`)
+  getJson(`/chatters/${chatterId}/stream-activity`)
 
 export interface ChatterPassportDto {
   chatter: {
@@ -82,7 +82,7 @@ export interface ChatterPassportDto {
 }
 
 export const retrieveChatterPassport = (chatterId: number) =>
-  getJson<ChatterPassportDto>(`/chatters/${chatterId}/passport`)
+  getJson(`/chatters/${chatterId}/passport`)
 
 // ---------------------------------------------------------------------------
 // Chatter head-to-head — GET /chatters/head-to-head
@@ -109,4 +109,4 @@ export interface ChatterHeadToHeadDto {
 }
 
 export const retrieveChatterHeadToHead = (chatterA: number, chatterB: number) =>
-  getJson<ChatterHeadToHeadDto>('/chatters/head-to-head', { chatter_a: chatterA, chatter_b: chatterB })
+  getJson('/chatters/head-to-head', { chatter_a: chatterA, chatter_b: chatterB })

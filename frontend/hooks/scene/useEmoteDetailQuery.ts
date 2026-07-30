@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
 import { retrieveEmoteDetail } from '@/lib/api/scene'
+import { defineGatedQuery } from '@/hooks/defineQuery'
 import {
     requireArrayField,
     requireFiniteNumberField,
@@ -116,8 +116,10 @@ export const mapEmoteDetail = (value: unknown): EmoteDetail => {
     }
 }
 
-export const useEmoteDetail = (emoteId: number | null) => useQuery({
-    queryKey: sceneKeys.emoteDetail(emoteId ?? 0),
-    queryFn: async () => mapEmoteDetail(await retrieveEmoteDetail(emoteId as number)),
-    enabled: emoteId !== null && emoteId > 0,
+export const useEmoteDetail = defineGatedQuery({
+    label: 'emote detail',
+    key: (emoteId: number | null) => sceneKeys.emoteDetail(emoteId),
+    validate: emoteId => (emoteId !== null && emoteId > 0 ? emoteId : null),
+    fetch: retrieveEmoteDetail,
+    map: mapEmoteDetail,
 })

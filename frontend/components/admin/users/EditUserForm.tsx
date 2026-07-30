@@ -8,8 +8,9 @@ import type { AdminUser } from '@/hooks/admin/users/useUserAdminQueries'
 
 interface EditUserFormProps {
     user: AdminUser
-    onSave: (user: AdminUser) => void
+    onSave: (user: AdminUser) => Promise<unknown>
     onCancel: () => void
+    isPending: boolean
 }
 
 interface EditUserFormData {
@@ -19,7 +20,7 @@ interface EditUserFormData {
 }
 
 const EditUserForm = ({
-    user, onSave, onCancel,
+    user, onSave, onCancel, isPending,
 }: EditUserFormProps) => {
     const [
         formData,
@@ -30,9 +31,9 @@ const EditUserForm = ({
         isActive: user.isActive,
     })
 
-    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault()
-        onSave({
+        await onSave({
             ...user,
             ...formData,
         })
@@ -50,6 +51,7 @@ const EditUserForm = ({
                         email: e.target.value,
                     })}
                     required
+                    disabled={isPending}
                 />
             </Form.Group>
             <Form.Group className="mb-3" controlId="edit-user-role">
@@ -62,6 +64,7 @@ const EditUserForm = ({
                         // string value is always a UserRole; the DOM API can't express that.
                         role: e.target.value as UserRole,
                     })}
+                    disabled={isPending}
                 >
                     {USER_ROLE_OPTIONS.map(option => (
                         <option key={option.value} value={option.value}>{option.label}</option>
@@ -77,18 +80,21 @@ const EditUserForm = ({
                         ...formData,
                         isActive: e.target.checked,
                     })}
+                    disabled={isPending}
                 />
             </Form.Group>
             <div className="d-flex justify-content-end">
                 <Button
                     variant="outline-primary"
                     onClick={onCancel}
-                    className="me-2">
+                    className="me-2"
+                    disabled={isPending}>
                     Cancel
                 </Button>
                 <Button
                     variant="primary"
-                    type="submit">
+                    type="submit"
+                    disabled={isPending}>
                     Save Changes
                 </Button>
             </div>

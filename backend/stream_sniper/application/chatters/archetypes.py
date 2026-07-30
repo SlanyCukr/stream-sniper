@@ -22,7 +22,7 @@ Only applicable badges are emitted, in the stable order above, capped at 4.
 
 from datetime import datetime, timedelta
 
-from stream_sniper.database.core.wire_format import WIRE_TS_FORMAT
+from stream_sniper.database.core.wire_format import parse_wire_ts
 
 from .passport_models import PassportArchetype
 
@@ -50,7 +50,7 @@ def _parse_first_seen(first_seen: str | None, now: datetime) -> timedelta | None
     if first_seen is None:
         return None
     try:
-        parsed = datetime.strptime(first_seen, WIRE_TS_FORMAT).replace(tzinfo=now.tzinfo)
+        parsed = parse_wire_ts(first_seen).replace(tzinfo=now.tzinfo)
     except ValueError:
         return None
     return now - parsed

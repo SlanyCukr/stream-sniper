@@ -16,7 +16,7 @@ export interface StreamMessage {
     nick: string
     text: string
     isSubscriber: boolean
-    badges: unknown[]
+    badges: string[]
 }
 
 export interface StreamMessagesCursor {
@@ -89,7 +89,12 @@ export const mapStreamMessagesPage = (value: unknown): StreamMessagesPage => {
                 nick: requireStringField(message, 'nick', label),
                 text: requireStringField(message, 'text', label),
                 isSubscriber: requireBooleanField(message, 'is_subscriber', label),
-                badges: requireArrayField(message, 'badges', label),
+                badges: requireArrayField(message, 'badges', label).map((badge, badgeIndex) => {
+                    if (typeof badge !== 'string') {
+                        throw new TypeError(`${label}.badges[${badgeIndex}] must be a string`)
+                    }
+                    return badge
+                }),
             }
         }),
         nextCursor,

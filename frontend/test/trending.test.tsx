@@ -21,7 +21,7 @@ import {
   formatDeltaPct,
   trendIndicator,
   type TrendingRowModel,
-} from '@/components/scene/TrendingRow'
+} from '@/components/scene/trending/presentationModel'
 
 const createWrapper = (queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -163,9 +163,18 @@ describe('scene trending velocity contracts', () => {
   })
 
   it('lets callers disable the trending queries', async () => {
-    renderHook(() => useSceneTrendingCopypastas({}, { enabled: false }), { wrapper: createWrapper() })
-    renderHook(() => useSceneTrendingEmotes({}, { enabled: false }), { wrapper: createWrapper() })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const copypastas = renderHook(
+      () => useSceneTrendingCopypastas({}, { enabled: false }),
+      { wrapper: createWrapper() },
+    )
+    const emotes = renderHook(
+      () => useSceneTrendingEmotes({}, { enabled: false }),
+      { wrapper: createWrapper() },
+    )
+    await waitFor(() => {
+      expect(copypastas.result.current.fetchStatus).toBe('idle')
+      expect(emotes.result.current.fetchStatus).toBe('idle')
+    })
     expect(api.retrieveTrendingCopypastas).not.toHaveBeenCalled()
     expect(api.retrieveTrendingEmotes).not.toHaveBeenCalled()
   })

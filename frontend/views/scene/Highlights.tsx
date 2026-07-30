@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import QueryState from '@/components/common/QueryState'
 import EmptyState from '@/components/common/EmptyState'
 import FilterPills from '@/components/common/FilterPills'
@@ -9,7 +9,7 @@ import {
     useSceneHighlights,
     type SceneHighlight,
 } from '@/hooks/scene/useSceneHighlightsQueries'
-import type { HighlightsSort, HighlightsWindow } from '@/lib/api/scene'
+import type { HighlightsSort, HighlightsWindow } from '@/lib/models/sceneFilters'
 
 const PAGE_SIZE = 24
 
@@ -27,53 +27,17 @@ const SORT_TABS: Array<{ key: HighlightsSort, label: string }> = [
 const Highlights = () => {
     const [windowKey, setWindowKey] = useState<HighlightsWindow>('all')
     const [sort, setSort] = useState<HighlightsSort>('hype')
-    const [offset, setOffset] = useState(0)
-
-    // Offset-based accumulation for "Load more": append each page, reset on filter change.
-    const [accumulated, setAccumulated] = useState<SceneHighlight[]>([])
-    const appendedOffsetRef = useRef(-1)
-
     const query = useSceneHighlights({
-        window: windowKey, sort, limit: PAGE_SIZE, offset,
+        window: windowKey, sort, limit: PAGE_SIZE,
     })
-
-    // Reset accumulation synchronously WITH the filter change (one batched render):
-    // resetting in a useEffect instead fires a wasted query for the new filter at
-    // the old offset before the reset lands.
-    const resetPagination = () => {
-        setOffset(0)
-        setAccumulated([])
-        appendedOffsetRef.current = -1
-    }
-    const changeWindow = (key: HighlightsWindow) => {
-        if (key === windowKey) return // re-clicking the active pill must not collapse loaded pages
-        setWindowKey(key)
-        resetPagination()
-    }
-    const changeSort = (key: HighlightsSort) => {
-        if (key === sort) return
-        setSort(key)
-        resetPagination()
-    }
-
-    // Fold each freshly-arrived page into the running list (skip placeholder frames).
-    useEffect(() => {
-        const data = query.data
-        if (!data || query.isPlaceholderData) return
-        if (offset === 0) {
-            setAccumulated(data.items)
-            appendedOffsetRef.current = 0
-        } else if (appendedOffsetRef.current !== offset) {
-            setAccumulated(prev => [...prev, ...data.items])
-            appendedOffsetRef.current = offset
-        }
-    }, [query.data, query.isPlaceholderData, offset])
-
-    const hasMore = Boolean(query.data?.hasMore)
-    const isFetchingMore = offset > 0 && query.isFetching
-    // First-load spinner (also filter switches): no rows yet AND still resolving.
-    const isFirstPageLoading = accumulated.length === 0 && (query.isLoading || query.isFetching) && !query.isError
-    const isRefetching = offset === 0 && query.isPlaceholderData && accumulated.length > 0
+    const accumulated = useMemo(
+        () => query.data?.pages.flatMap(page => page.items) ?? [],
+        [query.data],
+    )
+    const hasMore = Boolean(query.hasNextPage)
+    const isFetchingMore = query.isFetchingNextPage
+    const isFirstPageLoading = accumulated.length === 0 && query.isFetching && !query.isError
+    const isRefetching = query.isFetching && !isFetchingMore && accumulated.length > 0
 
     return (
         <>
@@ -92,13 +56,13 @@ const Highlights = () => {
                     options={WINDOW_TABS}
                     activeKey={windowKey}
                     ariaLabel="Time window"
-                    onChange={changeWindow}
+                    onChange={setWindowKey}
                 />
                 <FilterPills
                     options={SORT_TABS}
                     activeKey={sort}
                     ariaLabel="Sort order"
-                    onChange={changeSort}
+                    onChange={setSort}
                 />
             </div>
 
@@ -106,9 +70,6 @@ const Highlights = () => {
                 query={{
                     data: isFirstPageLoading ? undefined : accumulated,
                     error: query.error,
-                    // isFirstPageLoading, not query.isLoading: with keepPreviousData a
-                    // filter switch keeps status success (isLoading false), which would
-                    // flash the empty state instead of the spinner while data is hidden.
                     isLoading: isFirstPageLoading,
                     refetch: query.refetch,
                 }}
@@ -137,7 +98,7 @@ const Highlights = () => {
                                 <button
                                     type="button"
                                     className="btn btn-outline-primary btn-sm"
-                                    onClick={() => setOffset(current => current + PAGE_SIZE)}
+                                    onClick={() => void query.fetchNextPage()}
                                     disabled={isFetchingMore}>
                                     {isFetchingMore ? 'Loading…' : 'Load more'}
                                 </button>

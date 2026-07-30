@@ -205,7 +205,7 @@ describe('admin entry points', () => {
       email: 'operator@example.test',
       password: 'password1',
       role: USER_ROLES.USER,
-      is_active: true,
+      isActive: true,
     }))
     expect(await screen.findByText('User "operator" created successfully!')).toBeInTheDocument()
   })

@@ -1,9 +1,10 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, screen, waitFor } from '@testing-library/react'
+import { fireEvent, renderHook, screen, waitFor } from '@testing-library/react'
 import type { PropsWithChildren } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const api = vi.hoisted(() => ({
+  retrieveAllCreators: vi.fn(),
   retrieveAudienceMovement: vi.fn(),
   retrieveCreatorRegulars: vi.fn(),
   retrieveCreatorSummary: vi.fn(),
@@ -12,23 +13,34 @@ const api = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/api/creators', () => api)
+vi.mock('react-select', () => ({
+  default: ({
+    options = [], value, onChange, placeholder,
+  }: {
+    options?: Array<{ value: number, label: string }>
+    value?: { value: number } | null
+    onChange: (option: { value: number, label: string } | null) => void
+    placeholder?: string
+  }) => (
+    <select
+      aria-label={placeholder}
+      value={value?.value ?? ''}
+      onChange={event => onChange(options.find(option => option.value === Number(event.target.value)) ?? null)}
+    >
+      <option value="">{placeholder}</option>
+      {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+    </select>
+  ),
+}))
 
 import TrendsPanel from '@/components/creator/TrendsPanel'
-import {
-  audienceMovementKeys, useAudienceMovement,
-} from '@/hooks/creator/useAudienceMovementQuery'
-import {
-  creatorRegularsKeys, useCreatorRegulars,
-} from '@/hooks/creator/useCreatorRegularsQuery'
-import {
-  creatorSummaryKeys, useCreatorSummary,
-} from '@/hooks/creator/useCreatorSummaryQuery'
-import {
-  creatorTrendsKeys, useCreatorTrends,
-} from '@/hooks/creator/useCreatorTrendsQuery'
-import {
-  creatorWrappedKeys, useCreatorWrapped,
-} from '@/hooks/creator/useCreatorWrappedQuery'
+import AudienceMovement from '@/views/creator/AudienceMovement'
+import { useAudienceMovement } from '@/hooks/creator/useAudienceMovementQuery'
+import { useCreatorRegulars } from '@/hooks/creator/useCreatorRegularsQuery'
+import { useCreatorSummary } from '@/hooks/creator/useCreatorSummaryQuery'
+import { useCreatorTrends } from '@/hooks/creator/useCreatorTrendsQuery'
+import { useCreatorWrapped } from '@/hooks/creator/useCreatorWrappedQuery'
+import { creatorKeys } from '@/hooks/creator/creatorKeys'
 import { createTestQueryClient, renderWithQueryClient } from './render'
 
 const createWrapper = () => {
@@ -42,13 +54,13 @@ describe('creator query contracts', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('keeps IDs and filters in keys and suppresses every invalid resource request', async () => {
-    expect(audienceMovementKeys.detail(7, 14)).toEqual(['audience-movement', { creatorId: 7, days: 14 }])
-    expect(creatorSummaryKeys.detail(7)).toEqual(['creator-summary', { creatorId: 7 }])
-    expect(creatorRegularsKeys.list(7, { minStreams: 3 })).toEqual([
-      'creator-regulars', 'list', { creatorId: 7, minStreams: 3 },
+    expect(creatorKeys.audienceMovement(7, 14)).toEqual(['creator', 'audience-movement', { creatorId: 7, days: 14 }])
+    expect(creatorKeys.summary(7)).toEqual(['creator', 'summary', { creatorId: 7 }])
+    expect(creatorKeys.regulars(7, { minStreams: 3 })).toEqual([
+      'creator', 'regulars', { creatorId: 7, minStreams: 3 },
     ])
-    expect(creatorTrendsKeys.detail(7)).toEqual(['creator-trends', 'detail', 7])
-    expect(creatorWrappedKeys.detail(7, 30)).toEqual(['creator-wrapped', { creatorId: 7, days: 30 }])
+    expect(creatorKeys.trends(7)).toEqual(['creator', 'trends', { creatorId: 7 }])
+    expect(creatorKeys.wrapped(7, 30)).toEqual(['creator', 'wrapped', { creatorId: 7, days: 30 }])
 
     const hooks = renderHook(() => ({
       movement: useAudienceMovement(0),
@@ -97,6 +109,38 @@ describe('creator query contracts', () => {
       priorChannelsForGained: [{ creatorId: 8, displayName: 'Beta', chatterCount: 12 }],
       currentChannelsForLapsed: [{ creatorId: 9, displayName: 'Gamma', chatterCount: 4 }],
     })
+  })
+
+  it('gates the audience view on creator selection and refreshes when its window changes', async () => {
+    api.retrieveAllCreators.mockResolvedValue([{ creator_id: 7, display_name: 'Agraelus' }])
+    api.retrieveAudienceMovement.mockImplementation(async (creatorId: number, days: number) => ({
+      creator_id: creatorId,
+      window_days: days,
+      current_audience: 100,
+      previous_audience: 80,
+      retained: 60,
+      gained: 40,
+      lapsed: 20,
+      retention_rate: 0.6,
+      gain_rate: 0.5,
+      prior_channels_for_gained: [{
+        creator_id: 8, nick: 'beta', display_name: 'Beta', chatter_count: 12,
+      }],
+      current_channels_for_lapsed: [],
+    }))
+    renderWithQueryClient(<AudienceMovement />)
+
+    expect(screen.getByText('Choose a creator')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Agraelus' })).toBeInTheDocument())
+    expect(api.retrieveAudienceMovement).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Choose creator...'), { target: { value: '7' } })
+    expect(await screen.findByRole('link', { name: 'Beta' })).toHaveAttribute('href', '/creator/8')
+    expect(api.retrieveAudienceMovement).toHaveBeenLastCalledWith(7, 30)
+    expect(screen.getByText('60%')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '7 days' }))
+    await waitFor(() => expect(api.retrieveAudienceMovement).toHaveBeenLastCalledWith(7, 7))
   })
 
   it('maps complete creator summary and regular filters without losing nulls', async () => {
@@ -157,6 +201,17 @@ describe('creator query contracts', () => {
       }],
       totalStreams: 4,
     })
+  })
+
+  it('rejects malformed nested regular rows', async () => {
+    api.retrieveCreatorRegulars.mockResolvedValue({
+      regulars: [{ chatter_id: 5, nick: 42 }],
+      total_streams: 4,
+    })
+    const hook = renderHook(() => useCreatorRegulars(7), { wrapper: createWrapper() })
+
+    await waitFor(() => expect(hook.result.current.isError).toBe(true))
+    expect(hook.result.current.error).toBeInstanceOf(TypeError)
   })
 
   it('renders a creator trend surface through the real query mapper', async () => {

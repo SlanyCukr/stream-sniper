@@ -14,7 +14,7 @@ vi.mock('@/hooks/admin/users/useUserAdminQueries', () => hooks)
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 1 } }) }))
 vi.mock('@/components/admin/users/UserManagementModals', () => ({
   default: ({ dialog, onUpdate, onDelete }: {
-    dialog: unknown
+    dialog: { user: { id: number } } | null
     onUpdate: CallableFunction
     onDelete: CallableFunction
   }) => (
@@ -23,7 +23,7 @@ vi.mock('@/components/admin/users/UserManagementModals', () => ({
         update user
       </button>
       {dialog ? <span>dialog open</span> : null}
-      {dialog ? <button type="button" onClick={() => onDelete()}>confirm delete</button> : null}
+      {dialog ? <button type="button" onClick={() => onDelete(dialog.user.id)}>confirm delete</button> : null}
     </>
   ),
 }))
@@ -50,10 +50,10 @@ vi.mock('@/components/admin/users/UserManagementTable', () => ({
 import UserManagement from '@/views/admin/UserManagement'
 
 describe('UserManagement action lifecycle', () => {
-  const updateUser = { mutateAsync: vi.fn() }
+  const updateUser = { mutateAsync: vi.fn(), isPending: false }
   const updateRole = { mutateAsync: vi.fn() }
   const setUserActive = { mutateAsync: vi.fn() }
-  const deleteUser = { mutateAsync: vi.fn() }
+  const deleteUser = { mutateAsync: vi.fn(), isPending: false }
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -81,7 +81,7 @@ describe('UserManagement action lifecycle', () => {
     await waitFor(() => expect(screen.getByText('User updated successfully')).toBeInTheDocument())
     expect(updateUser.mutateAsync).toHaveBeenCalledWith({
       userId: 7,
-      changes: { email: 'a@b.test', role: 'admin', is_active: true },
+      changes: { email: 'a@b.test', role: 'admin', isActive: true },
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'change role' }))

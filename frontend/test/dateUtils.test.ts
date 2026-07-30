@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   formatDurationBetween,
+  formatDate,
+  formatDateOrDash,
   formatDateTime,
   formatDurationSeconds,
   parseNaiveUtcEpoch,
@@ -24,14 +26,28 @@ describe('formatDateTime', () => {
     expect(formatDateTime(date)).toBe(date.toLocaleString())
   })
 
-  it('falls back to N/A for a falsy input by default', () => {
+  it('falls back to N/A only for missing input by default', () => {
     expect(formatDateTime(null)).toBe('N/A')
     expect(formatDateTime(undefined)).toBe('N/A')
-    expect(formatDateTime('')).toBe('N/A')
   })
 
   it('accepts a custom fallback', () => {
     expect(formatDateTime(null, 'Never')).toBe('Never')
+  })
+
+  it('formats epoch zero instead of treating it as missing', () => {
+    expect(formatDateTime(0)).toBe(new Date(0).toLocaleString())
+  })
+})
+
+describe('formatDateOrDash', () => {
+  it('uses an em dash for null and undefined', () => {
+    expect(formatDateOrDash(null)).toBe('—')
+    expect(formatDateOrDash(undefined)).toBe('—')
+  })
+
+  it('formats epoch zero as a real date', () => {
+    expect(formatDateOrDash(0)).toBe(formatDate(new Date(0), 'MMM d, yyyy'))
   })
 })
 
@@ -47,6 +63,13 @@ describe('formatDurationSeconds', () => {
 
   it('accepts a custom fallback', () => {
     expect(formatDurationSeconds(null, null, 'Pending')).toBe('Pending')
+    expect(formatDurationSeconds('not-a-date', '2026-07-14T10:00:45Z', 'Pending')).toBe('Pending')
+    expect(formatDurationSeconds('2026-07-14T10:00:45Z', 'not-a-date', 'Pending')).toBe('Pending')
+  })
+
+  it('accepts epoch zero as a valid boundary', () => {
+    expect(formatDurationSeconds(0, 1000)).toBe('1s')
+    expect(formatDurationSeconds(0, 0)).toBe('0s')
   })
 
   it('documents current negative-duration behavior for out-of-order timestamps', () => {

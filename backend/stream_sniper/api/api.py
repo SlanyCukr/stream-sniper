@@ -132,9 +132,11 @@ def create_app(
         logger.info("Starting Stream Sniper API...")
         await runtime.startup()
         logger.info(f"API started successfully on {resolved.host}:{resolved.port}")
-        yield
-        logger.info("Shutting down Stream Sniper API...")
-        await runtime.close()
+        try:
+            yield
+        finally:
+            logger.info("Shutting down Stream Sniper API...")
+            await runtime.close()
 
     app = FastAPI(
         lifespan=lifespan,

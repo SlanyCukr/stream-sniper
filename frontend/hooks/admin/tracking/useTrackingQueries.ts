@@ -1,5 +1,9 @@
-import { useMutation, useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { useInvalidatingMutation } from '@/hooks/useInvalidatingMutation'
+import { useMutation } from '@tanstack/react-query'
+import {
+    useInvalidatingMutation,
+    type MutationOptions,
+} from '@/hooks/useInvalidatingMutation'
+import { defineQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     createTrackedStreamer,
     deleteTrackedStreamer,
@@ -9,10 +13,9 @@ import {
     retrieveTrackingStats,
     retrieveTwitchChannelSearch,
     updateTrackedStreamer,
-    type CreateTrackedStreamerRequest,
-    type TrackedStreamerDto,
-    type UpdateTrackedStreamerRequest,
+    type UpdateTrackedStreamerCommand,
 } from '@/lib/api/tracking'
+import type { CreateTrackedStreamerCommand } from '@/lib/models/tracking'
 import {
     createPage, getRowOffset, normalizePagination,
 } from '@/lib/pagination/page'
@@ -27,14 +30,6 @@ import {
     requireStringField,
     requireStringOrFiniteNumberField,
 } from '@/lib/api/contractGuards'
-
-// queryKey/queryFn stay accepted-but-untyped: every hook below always overwrites
-// them with its own key/fetcher (matching runtime behavior), so a caller
-// passing either does not influence what actually runs.
-type QueryOptions<T> = Omit<UseQueryOptions<T, Error, T, readonly unknown[]>, 'queryKey' | 'queryFn'> & {
-    queryKey?: unknown
-    queryFn?: unknown
-}
 
 interface StreamerParams {
     pageIndex?: number
@@ -275,87 +270,113 @@ export const trackingKeys = {
     ],
 }
 
-export const useTrackingStats = (options: QueryOptions<TrackingStats> = {}) => useQuery({
-    ...options,
-    queryKey: trackingKeys.stats(),
-    queryFn: async () => {
-        const data = await retrieveTrackingStats()
-        return mapTrackingStats(data)
+const trackingStatsQuery = defineQuery({
+    key: () => trackingKeys.stats(),
+    fetch: retrieveTrackingStats,
+    map: mapTrackingStats,
+})
+
+export const useTrackingStats = (options: QueryOptions<TrackingStats> = {}) => (
+    trackingStatsQuery(undefined, options)
+)
+
+interface TrackedStreamersFetchResult {
+    value: unknown
+    pagination: { pageIndex: number, pageSize: number }
+}
+
+const trackedStreamersQuery = defineQuery({
+    key: (params: StreamerParams) => trackingKeys.streamersList(params),
+    fetch: async (params: StreamerParams): Promise<TrackedStreamersFetchResult> => {
+        const pagination = normalizeStreamerParams(params)
+        const value = await retrieveTrackedStreamers({
+            rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
+            pageSize: pagination.pageSize,
+            isActive: pagination.isActive,
+            processingEnabled: pagination.processingEnabled,
+        })
+        return { value, pagination }
+    },
+    map: (result: unknown) => {
+        const { value, pagination } = result as TrackedStreamersFetchResult
+        return mapTrackedStreamersPage(value, pagination)
     },
 })
 
 export const useTrackedStreamers = (
     params: StreamerParams = {},
     options: QueryOptions<ReturnType<typeof mapTrackedStreamersPage>> = {},
-) => {
-    const normalizedParams = normalizeStreamerParams(params)
-    return useQuery({
-        ...options,
-        queryKey: trackingKeys.streamersList(normalizedParams),
-        queryFn: async () => {
-            const value = await retrieveTrackedStreamers({
-                rowOffset: getRowOffset(normalizedParams.pageIndex, normalizedParams.pageSize),
-                pageSize: normalizedParams.pageSize,
-                isActive: normalizedParams.isActive,
-                processingEnabled: normalizedParams.processingEnabled,
-            })
-            return mapTrackedStreamersPage(value, normalizedParams)
-        },
-    })
-}
+) => trackedStreamersQuery(params, options)
+
+const trackedStreamerOptionsQuery = defineQuery({
+    key: () => trackingKeys.streamerOptions(),
+    fetch: () => retrieveTrackedStreamers({ pageSize: 1000 }),
+    map: mapTrackedStreamerOptions,
+})
 
 export const useTrackedStreamerOptions = (
     options: QueryOptions<ReturnType<typeof mapTrackedStreamerOptions>> = {},
-) => useQuery({
-    ...options,
-    queryKey: trackingKeys.streamerOptions(),
-    queryFn: async () => {
-        const value = await retrieveTrackedStreamers({ pageSize: 1000 })
-        return mapTrackedStreamerOptions(value)
+) => trackedStreamerOptionsQuery(undefined, { ...options, staleTime: 1000 * 60 * 10 })
+
+interface ProcessingJobsFetchResult {
+    value: unknown
+    pagination: { pageIndex: number, pageSize: number }
+}
+
+const processingJobsQuery = defineQuery({
+    key: (params: JobParams) => trackingKeys.jobsList(params),
+    fetch: async (params: JobParams): Promise<ProcessingJobsFetchResult> => {
+        const pagination = normalizeJobParams(params)
+        const value = await retrieveProcessingJobs({
+            rowOffset: getRowOffset(pagination.pageIndex, pagination.pageSize),
+            pageSize: pagination.pageSize,
+            status: pagination.status,
+            trackedStreamerId: pagination.trackedStreamerId,
+        })
+        return { value, pagination }
     },
-    staleTime: 1000 * 60 * 10,
+    map: (result: unknown) => {
+        const { value, pagination } = result as ProcessingJobsFetchResult
+        return mapProcessingJobsPage(value, pagination)
+    },
 })
 
 export const useProcessingJobs = (
     params: JobParams = {},
     options: QueryOptions<ReturnType<typeof mapProcessingJobsPage>> = {},
-) => {
-    const normalizedParams = normalizeJobParams(params)
-    return useQuery({
-        ...options,
-        queryKey: trackingKeys.jobsList(normalizedParams),
-        queryFn: async () => {
-            const value = await retrieveProcessingJobs({
-                rowOffset: getRowOffset(normalizedParams.pageIndex, normalizedParams.pageSize),
-                pageSize: normalizedParams.pageSize,
-                status: normalizedParams.status,
-                trackedStreamerId: normalizedParams.trackedStreamerId,
-            })
-            return mapProcessingJobsPage(value, normalizedParams)
-        },
-    })
+) => processingJobsQuery(params, options)
+
+export const useCreateTrackedStreamer = (
+    options: MutationOptions<TrackedStreamer, CreateTrackedStreamerCommand> = {},
+) => useInvalidatingMutation(
+    async (streamer: CreateTrackedStreamerCommand): Promise<TrackedStreamer> => (
+        mapTrackedStreamer(await createTrackedStreamer(streamer))
+    ),
+    trackingKeys.all,
+    options,
+)
+
+type UpdateTrackedStreamerVariables = {
+    streamerId: number
+    changes: UpdateTrackedStreamerCommand
 }
 
-// NOTE: unlike useUserAdminQueries' create/update mutations, these resolve to
-// the raw wire DTO rather than a mapped camelCase model — preserved as-is.
-export const useCreateTrackedStreamer = (options = {}) => useInvalidatingMutation(
-    async (streamer: CreateTrackedStreamerRequest): Promise<TrackedStreamerDto> => (
-        await createTrackedStreamer(streamer)
-    ).data,
+export const useUpdateTrackedStreamer = (
+    options: MutationOptions<TrackedStreamer, UpdateTrackedStreamerVariables> = {},
+) => useInvalidatingMutation(
+    async (command: { streamerId: number, changes: UpdateTrackedStreamerCommand }): Promise<TrackedStreamer> => (
+        mapTrackedStreamer(await updateTrackedStreamer(command.streamerId, command.changes))
+    ),
     trackingKeys.all,
     options,
 )
 
-export const useUpdateTrackedStreamer = (options = {}) => useInvalidatingMutation(
-    async (command: { streamerId: number, changes: UpdateTrackedStreamerRequest }): Promise<TrackedStreamerDto> => (
-        await updateTrackedStreamer(command.streamerId, command.changes)
-    ).data,
-    trackingKeys.all,
-    options,
-)
-
-export const useDeleteTrackedStreamer = (options = {}) => useInvalidatingMutation(
-    async (streamerId: number): Promise<void> => (await deleteTrackedStreamer(streamerId)).data,
+export const useDeleteTrackedStreamer = (
+    options: MutationOptions<void, number> = {},
+) => useInvalidatingMutation(
+    async (streamerId: number): Promise<void> => {
+        await deleteTrackedStreamer(streamerId)
+    },
     trackingKeys.all,
     options,
 )
@@ -364,9 +385,11 @@ export const useDeleteTrackedStreamer = (options = {}) => useInvalidatingMutatio
  * On-demand Twitch snapshot for one tracked streamer. Nothing is stored, so
  * this is a plain mutation — the caller keeps the result in component state.
  */
-export const useProbeTwitchChannel = (options = {}) => useMutation({
+export const useProbeTwitchChannel = (
+    options: MutationOptions<TwitchProbeResult, number> = {},
+) => useMutation({
     mutationFn: async (streamerId: number) => (
-        mapTwitchProbeResult((await probeTwitchChannel(streamerId)).data)
+        mapTwitchProbeResult(await probeTwitchChannel(streamerId))
     ),
     ...options,
 })

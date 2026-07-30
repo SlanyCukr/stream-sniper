@@ -1,8 +1,33 @@
 /**
  * Twitch VOD deep-link + chapter-list helpers, typed to the timeline wire
- * contract (nullable stream start, unknown-typed phrase payloads) so callers
+ * contract (nullable stream start, validated phrase payloads) so callers
  * never need casts.
  */
+
+const offsetSeconds = (streamStart: string, momentTs: string): number => {
+    const startMs = new Date(streamStart).getTime()
+    const momentMs = new Date(momentTs).getTime()
+    const offset = Math.floor((momentMs - startMs) / 1000)
+    return Number.isFinite(offset) ? Math.max(0, offset) : 0
+}
+
+const twitchOffset = (offset: number): string => {
+    const h = Math.floor(offset / 3600)
+    const m = Math.floor((offset % 3600) / 60)
+    const s = offset % 60
+    return `${h}h${m}m${s}s`
+}
+
+const chapterOffset = (offset: number): string => {
+    const h = Math.floor(offset / 3600)
+    const m = Math.floor((offset % 3600) / 60)
+    const s = offset % 60
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+const vodUrl = (twitchVodId: string | number, offset: number): string => (
+    `https://www.twitch.tv/videos/${twitchVodId}?t=${twitchOffset(offset)}`
+)
 
 /**
  * Build a twitch.tv VOD deep link that seeks to a moment's offset.
@@ -22,28 +47,20 @@ export const vodDeepLink = (
     if (!twitchVodId || !streamStart) {
         return null
     }
-    const startMs = new Date(streamStart).getTime()
-    const momentMs = new Date(momentTs).getTime()
-    let offset = Math.max(0, Math.floor((momentMs - startMs) / 1000))
-    if (!Number.isFinite(offset)) {
-        offset = 0
-    }
-    const h = Math.floor(offset / 3600)
-    const m = Math.floor((offset % 3600) / 60)
-    const s = offset % 60
-    return `https://www.twitch.tv/videos/${twitchVodId}?t=${h}h${m}m${s}s`
+    return vodUrl(twitchVodId, offsetSeconds(streamStart, momentTs))
 }
+
+import type { MomentPhrase } from '@/lib/models/momentQueue'
 
 interface VodChaptersTimeline {
     twitchVodId: string | number | null
     streamStart: string | null
-    moments: Array<{ t: string, count: number, topPhrases?: unknown[] | null }>
+    moments: Array<{ t: string, count: number, topPhrases?: MomentPhrase[] | null }>
 }
 
-/** First phrase of a moment when it is a non-empty string; the wire types phrases as unknown[]. */
-const momentLabel = (topPhrases: unknown[] | null | undefined): string => {
+const momentLabel = (topPhrases: MomentPhrase[] | null | undefined): string => {
     const first = topPhrases?.[0]
-    return typeof first === 'string' && first ? first : 'chat spike'
+    return first?.phrase || 'chat spike'
 }
 
 /**
@@ -57,18 +74,12 @@ export const buildVodChapters = (timeline: VodChaptersTimeline | null | undefine
     if (!timeline?.twitchVodId || !timeline.streamStart || !timeline.moments?.length) {
         return null
     }
-    const startMs = new Date(timeline.streamStart).getTime()
+    const { streamStart, twitchVodId } = timeline
     const lines = timeline.moments.map(moment => {
-        let offset = Math.max(0, Math.floor((new Date(moment.t).getTime() - startMs) / 1000))
-        if (!Number.isFinite(offset)) {
-            offset = 0
-        }
-        const h = Math.floor(offset / 3600)
-        const m = Math.floor((offset % 3600) / 60)
-        const s = offset % 60
-        const stamp = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        const offset = offsetSeconds(streamStart, moment.t)
+        const stamp = chapterOffset(offset)
         const label = momentLabel(moment.topPhrases)
-        const link = vodDeepLink(timeline.twitchVodId, timeline.streamStart, moment.t)
+        const link = vodUrl(twitchVodId, offset)
         return `${stamp} — ${label} (${moment.count} msgs) ${link}`
     })
     return lines.join('\n')

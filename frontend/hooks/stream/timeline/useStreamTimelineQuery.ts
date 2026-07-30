@@ -1,5 +1,14 @@
-import { keepPreviousData, useQuery, type UseQueryOptions } from '@tanstack/react-query'
+import { keepPreviousData } from '@tanstack/react-query'
 import { retrieveStreamTimeline } from '@/lib/api/streams'
+import {
+    mapNullableMomentPhrases,
+    mapNullableMomentSamples,
+    requireNullableMomentReviewStatus,
+} from '@/lib/api/moments'
+import type {
+    MomentPhrase, MomentReviewStatus, MomentSampleMessage,
+} from '@/lib/models/momentQueue'
+import { defineGatedQuery, type QueryOptions } from '@/hooks/defineQuery'
 import {
     requireArray,
     requireArrayField,
@@ -12,11 +21,6 @@ import {
     requireStringField,
 } from '@/lib/api/contractGuards'
 import { streamTimelineKeys } from '../../queryKeys'
-
-type QueryOptions<T> = Omit<
-    UseQueryOptions<T, Error, T, readonly unknown[]>,
-    'queryKey' | 'queryFn'
-> & { enabled?: boolean }
 
 export { streamTimelineKeys } from '../../queryKeys'
 
@@ -35,11 +39,11 @@ export interface TimelineMoment {
     score: number | null
     kind: 'spike'
     isPersisted: boolean
-    status: string | null
+    status: MomentReviewStatus | null
     subShare: number | null
     emoteShare: number | null
-    topPhrases: unknown[] | null
-    sampleMessages: unknown[] | null
+    topPhrases: MomentPhrase[] | null
+    sampleMessages: MomentSampleMessage[] | null
 }
 
 export interface TimelineMetrics {
@@ -83,15 +87,6 @@ export interface StreamTimeline {
     viewerSamples: ViewerSample[]
     contextChanges: TimelineContextChange[]
     peakViewers: number | null
-}
-
-const nullableArrayField = (
-    record: Record<string, unknown>,
-    field: string,
-    label: string,
-): unknown[] | null => {
-    const value = record[field]
-    return value === null ? null : requireArray(value, `${label}.${field}`)
 }
 
 const mapStreamTimeline = (value: unknown): StreamTimeline => {
@@ -144,11 +139,11 @@ const mapStreamTimeline = (value: unknown): StreamTimeline => {
                 score: requireNullableFiniteNumberField(moment, 'ratio', label),
                 kind: 'spike' as const,
                 isPersisted: requireBooleanField(moment, 'persisted', label),
-                status: requireNullableStringField(moment, 'status', label),
+                status: requireNullableMomentReviewStatus(moment.status, `${label}.status`),
                 subShare: requireNullableFiniteNumberField(moment, 'sub_share', label),
                 emoteShare: requireNullableFiniteNumberField(moment, 'emote_share', label),
-                topPhrases: nullableArrayField(moment, 'top_phrases', label),
-                sampleMessages: nullableArrayField(moment, 'sample_messages', label),
+                topPhrases: mapNullableMomentPhrases(moment.top_phrases, `${label}.top_phrases`),
+                sampleMessages: mapNullableMomentSamples(moment.sample_messages, `${label}.sample_messages`),
             }
         }),
         metrics,
@@ -189,19 +184,20 @@ const mapStreamTimeline = (value: unknown): StreamTimeline => {
  * are preserved as null/undefined — null means "not yet computed under the 0008 rollup",
  * NOT a real 0, so consumers can hide the corresponding tile/series instead of showing 0.
  * peakViewers is folded into the metrics object so StreamMetrics (which receives only
- * `metrics`) can surface it without a new prop from views/Stream.jsx.
+ * `metrics`) can surface it without a new prop from views/stream/Stream.tsx.
  */
+const streamTimelineQuery = defineGatedQuery({
+    label: 'stream timeline',
+    key: (streamId: number) => streamTimelineKeys.detail(streamId),
+    validate: streamId => (streamId ? streamId : null),
+    fetch: retrieveStreamTimeline,
+    map: mapStreamTimeline,
+})
+
 export const useStreamTimeline = (
     streamId: number,
-    { enabled = true, ...options }: QueryOptions<StreamTimeline> = {},
-) => useQuery({
-    ...options,
-    queryKey: streamTimelineKeys.detail(streamId),
-    queryFn: async () => {
-        const response = await retrieveStreamTimeline(streamId)
-        return mapStreamTimeline(response)
-    },
-    enabled: Boolean(streamId) && enabled,
-    // Hold the previous render during refetch (moment-review invalidation) — no skeleton flash.
-    placeholderData: keepPreviousData,
-})
+    options: QueryOptions<StreamTimeline> = {},
+    // Hard merge, matching the pre-seam behavior: holding the previous render
+    // across moment-review invalidation (no skeleton flash) is part of this
+    // hook's contract, not a caller-tunable option.
+) => streamTimelineQuery(streamId, { ...options, placeholderData: keepPreviousData })

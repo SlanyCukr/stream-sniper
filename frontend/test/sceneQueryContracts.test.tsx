@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, screen, waitFor } from '@testing-library/react'
 import type { PropsWithChildren } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -29,6 +29,8 @@ import {
   useSceneDigest,
   useScenePulse,
 } from '@/hooks/scene/useScenePulseQueries'
+import CopypastaPropagation from '@/views/scene/CopypastaPropagation'
+import { renderWithQueryClient } from './render'
 
 const createWrapper = (queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -69,6 +71,85 @@ describe('scene query view-model contracts', () => {
       originContext: [{ id: 9, chatterId: 2 }],
     })
     expect(() => mapCopypastaPropagation({ occurrences: [], origin_context: [] })).toThrow(TypeError)
+  })
+
+  it('renders populated and empty propagation results through the query boundary', async () => {
+    const propagation = {
+      message_text_id: 7,
+      text: 'copy',
+      usage_count: 4,
+      chatter_appearances: 3,
+      stream_count: 2,
+      creator_count: 1,
+      first_seen: '2026-07-01T10:00:00Z',
+      occurrences: [{
+        stream_id: 11,
+        creator_id: 5,
+        nick: 'operator',
+        display_name: 'Operator',
+        profile_image_url: null,
+        stream_title: 'Live',
+        stream_start: '2026-07-01T09:00:00Z',
+        first_seen: '2026-07-01T10:00:00Z',
+        usage_count: 4,
+        chatter_count: 3,
+      }, {
+        stream_id: 12,
+        creator_id: 6,
+        nick: 'backup',
+        display_name: '',
+        profile_image_url: null,
+        stream_title: 'Later',
+        stream_start: '2026-07-02T10:00:00Z',
+        first_seen: '2026-07-02T11:30:00Z',
+        usage_count: 2,
+        chatter_count: 2,
+      }],
+      origin_context: [
+        {
+          id: 9,
+          time: '2026-07-01T10:00:00Z',
+          chatter_id: 2,
+          nick: 'viewer',
+          text: 'copy',
+        },
+        {
+          id: 10,
+          time: '2026-07-01T10:00:12Z',
+          chatter_id: 3,
+          nick: 'other',
+          text: 'not the pasta',
+        },
+      ],
+    }
+    api.retrieveCopypastaPropagation.mockResolvedValueOnce(propagation)
+
+    const populated = renderWithQueryClient(<CopypastaPropagation messageTextId={7} />)
+    expect(await screen.findByText('4 uses')).toBeInTheDocument()
+    expect(api.retrieveCopypastaPropagation).toHaveBeenCalledWith(7, 90)
+    expect(screen.getByText('1 channels')).toBeInTheDocument()
+    expect(screen.getByText('2 streams')).toBeInTheDocument()
+    expect(screen.getByText('3 chatter appearances')).toBeInTheDocument()
+    expect(screen.getByText(/first seen 2026-07-01 10:00/)).toBeInTheDocument()
+    expect(screen.getByText(/2026-07-01 10:00 · origin/)).toBeInTheDocument()
+    expect(screen.getByText('2026-07-02 11:30')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Operator' })).toHaveAttribute('href', '/creator/5')
+    expect(screen.getByRole('link', { name: 'Live' })).toHaveAttribute('href', '/stream/11')
+    expect(screen.getByRole('link', { name: 'backup' })).toHaveAttribute('href', '/creator/6')
+    expect(screen.getByRole('link', { name: 'Later' })).toHaveAttribute('href', '/stream/12')
+    expect(screen.getByRole('log')).toHaveTextContent('viewer')
+    expect(populated.container.querySelector('.origin-message.is-pasta')).toHaveTextContent('copy')
+    expect(populated.container.querySelector('.origin-message:not(.is-pasta)')).toHaveTextContent('not the pasta')
+    populated.unmount()
+
+    api.retrieveCopypastaPropagation.mockResolvedValueOnce({
+      ...propagation,
+      occurrences: [],
+      origin_context: [],
+    })
+    renderWithQueryClient(<CopypastaPropagation messageTextId={7} />)
+    expect(await screen.findByText('No surrounding chat available.')).toBeInTheDocument()
+    expect(screen.getByRole('log')).toHaveTextContent('No surrounding chat available.')
   })
 
   it('validates complete pulse and digest envelopes before projecting view models', () => {
@@ -212,14 +293,21 @@ describe('scene query view-model contracts', () => {
   })
 
   it('lets callers disable valid scene resource queries', async () => {
-    renderHook(() => useSceneLive({ enabled: false, refetchInterval: false }), {
+    const live = renderHook(() => useSceneLive({ enabled: false, refetchInterval: false }), {
       wrapper: createWrapper(),
     })
-    renderHook(() => useSceneLeaderboard({ windowDays: 7 }, { enabled: false }), { wrapper: createWrapper() })
-    renderHook(() => useCopypastaPropagation(7, 90, { enabled: false }), {
+    const leaderboard = renderHook(
+      () => useSceneLeaderboard({ windowDays: 7 }, { enabled: false }),
+      { wrapper: createWrapper() },
+    )
+    const propagation = renderHook(() => useCopypastaPropagation(7, 90, { enabled: false }), {
       wrapper: createWrapper(),
     })
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await waitFor(() => {
+      expect(live.result.current.fetchStatus).toBe('idle')
+      expect(leaderboard.result.current.fetchStatus).toBe('idle')
+      expect(propagation.result.current.fetchStatus).toBe('idle')
+    })
     expect(api.retrieveSceneLive).not.toHaveBeenCalled()
     expect(api.retrieveSceneLeaderboard).not.toHaveBeenCalled()
     expect(api.retrieveCopypastaPropagation).not.toHaveBeenCalled()

@@ -1,27 +1,13 @@
 'use client'
 import type { ChangeEvent } from 'react'
 import type { CreatorOption } from '@/hooks/creator/useCreatorsQuery'
+import type {
+    OrderingOption, StreamFilterChange, StreamFilters,
+} from '@/hooks/stream/list/useStreamsExplorerController'
 import CreatorFilter from './CreatorFilter'
 import DateRangeFilter from './DateRangeFilter'
 import MinimumMessagesFilter from './MinimumMessagesFilter'
 import StreamSortControls from './StreamSortControls'
-
-interface OrderingOption {
-    label: string
-    value: string
-}
-
-interface StreamFilters {
-    creator: CreatorOption | null
-    order: OrderingOption | null
-    dir: 'asc' | 'desc'
-    title: string
-    dateFrom: string
-    dateTo: string
-    minMessages: string
-}
-
-type StreamFilterKey = keyof StreamFilters
 
 interface FilterOptions {
     creators: CreatorOption[]
@@ -43,7 +29,7 @@ interface FiltersCardProps {
     options: FilterOptions
     validation: FilterValidation
     pagination: FilterPagination
-    onFilterChange: (key: StreamFilterKey, value: StreamFilters[StreamFilterKey]) => void
+    onFilterChange: StreamFilterChange
     onReset: () => void
 }
 

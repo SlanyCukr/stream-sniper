@@ -6,19 +6,19 @@ import {
 } from 'react-bootstrap'
 import { isAdminRole, USER_ROLES } from '@/lib/auth/roles'
 import StatusChip from '@/components/common/StatusChip'
-import type { AdminUserDto } from '@/lib/api/users'
+import type { AuthUser } from '@/lib/auth/service'
 import AuthFormField from '../shared/AuthFormField'
 
 interface ProfileInfoProps {
-    user: AdminUserDto | null
+    user: AuthUser | null
     formData: { email: string }
-    handleChange: (event: ChangeEvent<HTMLInputElement>) => void
+    onEmailChange: (event: ChangeEvent<HTMLInputElement>) => void
     isEditing: boolean
     isSubmitting: boolean
 }
 
 const ProfileInfo = ({
-    user, formData, handleChange, isEditing, isSubmitting,
+    user, formData, onEmailChange, isEditing, isSubmitting,
 }: ProfileInfoProps) => (
     <>
         <Row>
@@ -50,7 +50,7 @@ const ProfileInfo = ({
             type="email"
             name="email"
             value={formData.email}
-            onChange={handleChange}
+            onChange={onEmailChange}
             placeholder="Enter your email address"
             disabled={!isEditing || isSubmitting}
         />
@@ -60,8 +60,8 @@ const ProfileInfo = ({
                 <Form.Group className="mb-3">
                     <Form.Label>Account Status</Form.Label>
                     <div>
-                        <StatusChip variant={user?.is_active ? 'ok' : 'err'}>
-                            {user?.is_active ? 'Active' : 'Inactive'}
+                        <StatusChip variant={user?.isActive ? 'ok' : 'err'}>
+                            {user?.isActive ? 'Active' : 'Inactive'}
                         </StatusChip>
                     </div>
                 </Form.Group>
@@ -70,7 +70,7 @@ const ProfileInfo = ({
                 <Form.Group className="mb-3">
                     <Form.Label>Member Since</Form.Label>
                     <div className="mono text-muted small pt-1">
-                        {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                        {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                     </div>
                 </Form.Group>
             </Col>

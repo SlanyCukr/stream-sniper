@@ -58,12 +58,11 @@ def _live_status(session_id=999, **overrides):
 @pytest.fixture
 def make_monitor(monkeypatch):
     """Factory for a StreamMonitor with network/DB side effects neutralized."""
-    monkeypatch.setattr(monitor_module, "TwitchAPI", lambda: object())
     monkeypatch.setattr(monitor_module, "update_tracked_streamer_check_time_db", lambda *a, **kw: True)
     monkeypatch.setattr(monitor_module, "insert_live_snapshot_db", lambda **kw: True)
 
     def _make(webhook=WEBHOOK):
-        return StreamMonitor(discord_webhook_url=webhook)
+        return StreamMonitor(discord_webhook_url=webhook, twitch_api_factory=lambda: object())
 
     return _make
 

@@ -3,67 +3,11 @@
 import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import StatusChip from '@/components/common/StatusChip'
-import type { StatusChipVariant } from '@/components/common/StatusChip'
+import {
+    trendIndicator,
+    type TrendingRowModel,
+} from '@/components/scene/trending/presentationModel'
 import { formatCompactNumber, magnitudeBarWidth } from '@/utils/numberUtils'
-
-/** A single magnitude/context pair rendered as a muted chip (e.g. "4 streams"). */
-export interface TrendingContext {
-    label: string
-    value: number
-}
-
-/**
- * Presentation-normalized shape both trending boards project into so the row
- * and its data-bar/trend chip stay agnostic to copypasta-vs-emote specifics.
- */
-export interface TrendingRowModel {
-    key: string
-    label: string
-    /** Detail link (copypasta trace); null for entities with no dedicated page (emotes). */
-    href: string | null
-    /** Provider badge shown after the label (emote source); null to omit. */
-    source: string | null
-    currentUsage: number
-    priorUsage: number
-    deltaPct: number | null
-    trend: string
-    context: TrendingContext[]
-}
-
-export interface TrendIndicator {
-    variant: StatusChipVariant
-    label: string
-}
-
-/**
- * Sign-aware percent label. delta_pct is already rounded server-side, so it is
- * rendered verbatim (never coerced): null — meaning no prior baseline — becomes
- * an em-dash rather than a misleading "0%".
- */
-export const formatDeltaPct = (value: number | null): string => {
-    if (value === null || !Number.isFinite(value)) return '—'
-    return `${value > 0 ? '+' : ''}${value}%`
-}
-
-/**
- * Map a trend classification to a status chip. rising ▲ / falling ▼ carry the
- * signed delta; new and steady (and any unrecognized value) stay neutral so an
- * evolving backend contract degrades gracefully instead of throwing.
- */
-export const trendIndicator = (trend: string, deltaPct: number | null): TrendIndicator => {
-    switch (trend) {
-        case 'rising':
-            return { variant: 'ok', label: `▲ ${formatDeltaPct(deltaPct)}` }
-        case 'falling':
-            return { variant: 'err', label: `▼ ${formatDeltaPct(deltaPct)}` }
-        case 'new':
-            return { variant: 'neutral', label: 'new' }
-        case 'steady':
-            return { variant: 'neutral', label: 'steady' }
-        default:
-            return { variant: 'neutral', label: trend || 'steady' }
-    }
-}
 
 interface TrendingRowProps {
     rank: number

@@ -4,6 +4,13 @@ import { describe, expect, it, vi } from 'vitest'
 import ErrorAlert from '@/components/common/error/ErrorAlert'
 
 describe('ErrorAlert', () => {
+  it('accepts unknown thrown values and sanitizes them at the display boundary', () => {
+    render(<ErrorAlert error="raw internal failure" showDetails />)
+
+    expect(screen.getByText('An unexpected error occurred.')).toBeInTheDocument()
+    expect(screen.queryByText('raw internal failure')).not.toBeInTheDocument()
+  })
+
   it('owns status, retry, and technical-details behavior', () => {
     const onRetry = vi.fn()
     const error = Object.assign(new Error('request failed'), {

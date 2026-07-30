@@ -8,7 +8,6 @@ interface RunActionOptions<TResult> {
     successMessage?: string | ((result: TResult) => string)
     errorTitle: string
     onSuccess?: (result: TResult) => void | Promise<void>
-    onSettled?: () => void
 }
 
 type RunActionOutcome<TResult> =
@@ -33,7 +32,6 @@ export const useActionFeedback = () => {
             successMessage,
             errorTitle: nextErrorTitle,
             onSuccess,
-            onSettled,
         }: RunActionOptions<TResult>): Promise<RunActionOutcome<TResult>> => {
             setFailure(null)
             setSuccess(null)
@@ -50,8 +48,6 @@ export const useActionFeedback = () => {
                 setErrorTitle(nextErrorTitle)
                 setFailure(nextFailure)
                 return { ok: false, failure: nextFailure }
-            } finally {
-                onSettled?.()
             }
         },
         [],
