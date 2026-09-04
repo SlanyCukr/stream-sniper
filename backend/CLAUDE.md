@@ -28,7 +28,7 @@ Tooling is **ruff** (replaces black/isort/flake8) + **mypy** (soft):
 uv run ruff check .           # lint
 uv run ruff check . --fix     # autofix
 uv run ruff format .          # format (not enforced in CI yet)
-uv run mypy stream_sniper/    # type check (advisory)
+uv run mypy stream_sniper/    # type check (enforced ratchet in CI)
 ```
 
 ## Entry Points (`[project.scripts]`)

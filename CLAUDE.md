@@ -58,12 +58,19 @@ cd backend && uv run alembic upgrade head    # creates schema + tables + indexes
 
 Schema is versioned via Alembic and is **not** auto-run on deploy (a revision may build an index `CONCURRENTLY` on a large table). After deploying, run migrations explicitly: `docker exec stream-sniper-api stream-sniper-migrate upgrade head`.
 
-## Testing
+## Verifying your work
+
+Run the gates that cover what you changed before reporting a task done, and paste the last lines of their output. CI (`ci.yml`) runs the same commands.
 
 ```bash
-docker-compose run --rm api pytest        # in-container
-cd backend && uv run pytest tests/unit     # local unit tests
+cd backend && uv run ruff check . && uv run mypy stream_sniper   # lint + enforced mypy ratchet
+cd backend && uv run pytest tests/unit                            # unit tests (integration: uv run pytest tests/integration)
+docker-compose run --rm api pytest                                # full suite in-container
+cd frontend && npm run typecheck && npm run lint && npm run test:run
+cd frontend && npm run build                                      # when touching config, routing, or server components
 ```
+
+Healthy: ruff and mypy print no errors, pytest and vitest end in `N passed` with 0 failed. If a gate fails, fix the code, not the test. Never skip, delete, or mark a failing test `xfail`/`skip` to get green. Report what you ran and what it printed, not "it should work".
 
 ## Production
 
